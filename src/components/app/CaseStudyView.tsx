@@ -6,6 +6,7 @@ import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
+import { lessonToContextText } from "@/lib/law/lessonText";
 import { AIThinking, EmptyState } from "./common";
 
 interface Feedback { strengths: string[]; gaps: string[]; verdict: string; suggestedOutline: string[] }
@@ -44,6 +45,8 @@ export function CaseStudyView({ id }: { id?: string }) {
           courseTitle: ctx?.course.title,
           chapterTitle: undefined,
           lessonTitle: ctx?.lesson.title,
+          extra: ctx ? lessonToContextText(ctx.lesson.sections).text : undefined,
+          lawRegistry: ctx ? lessonToContextText(ctx.lesson.sections).lawRegistry : undefined,
         },
       });
       setFb(res);

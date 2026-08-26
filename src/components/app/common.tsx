@@ -26,6 +26,20 @@ export function LawBadge({ law }: { law: LawRef }) {
   );
 }
 
+/** جداکنندهٔ گروه محتوا — وقتی چند بلوک متفاوت (مثلاً کارت اصطلاح و سپس باکس ماده)
+ *  در یک سکشن پشت هم می‌آیند، مرز بصری واضح بینشان می‌گذارد تا «توی هم» نیفتند */
+export function BlockDivider({ label, Icon = Scale }: { label: string; Icon?: React.ComponentType<{ className?: string }> }) {
+  return (
+    <div role="separator" className="my-6 flex items-center gap-3">
+      <span aria-hidden className="grid h-7 w-7 shrink-0 rotate-45 place-items-center rounded-[8px] border border-bronze/40 bg-card shadow-card">
+        <Icon className="h-3.5 w-3.5 -rotate-45 text-bronze" />
+      </span>
+      <span className="shrink-0 font-display text-[12.5px] font-bold tracking-wide text-bronze">{label}</span>
+      <span aria-hidden className="h-px flex-1 bg-gradient-to-l from-transparent via-bronze/40 to-transparent" />
+    </div>
+  );
+}
+
 /** باکس مادهٔ قانونی — حس «برگهٔ پرونده» با واترمارک و قاب طلایی */
 export function LawBox({ laws }: { laws: LawRef[] }) {
   return (
