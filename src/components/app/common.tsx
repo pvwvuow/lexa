@@ -109,8 +109,8 @@ export function AIThinking({ label = "در حال تحلیل ماده قانون
  * (نام قبلی Donut حفظ شده تا جاهای دیگر نشکند)
  */
 export function Donut({
-  value, size = 92, stroke = 9, label,
-}: { value: number; size?: number; stroke?: number; label?: string }) {
+  value, size = 92, stroke = 9, label, flat,
+}: { value: number; size?: number; stroke?: number; label?: string; flat?: boolean }) {
   const id = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const r = (size - stroke - 8) / 2;
   const c = 2 * Math.PI * r;
@@ -122,12 +122,14 @@ export function Donut({
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`پیشرفت ${value} درصد`}>
-      <defs>
-        <linearGradient id={`g-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="var(--primary)" />
-          <stop offset="100%" stopColor="var(--bronze)" />
-        </linearGradient>
-      </defs>
+      {!flat && (
+        <defs>
+          <linearGradient id={`g-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="var(--primary)" />
+            <stop offset="100%" stopColor="var(--bronze)" />
+          </linearGradient>
+        </defs>
+      )}
 
       {/* تیک‌های محیطی */}
       <g opacity="0.22">
@@ -145,7 +147,7 @@ export function Donut({
       {/* مقدار */}
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={`url(#g-${id})`} strokeWidth={stroke} strokeLinecap="round"
+        stroke={flat ? "var(--bronze)" : `url(#g-${id})`} strokeWidth={stroke} strokeLinecap="round"
         strokeDasharray={`${filled} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`}
         style={{ transition: "stroke-dasharray .7s cubic-bezier(.4,0,.2,1)" }}
       />

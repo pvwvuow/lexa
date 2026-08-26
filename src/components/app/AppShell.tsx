@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale } from "lucide-react";
+import { Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
 import { ThemeToggle } from "./theme-provider";
@@ -53,7 +53,24 @@ export function AppShell() {
   const last = useApp((s) => s.lastLocation);
   const [mounted, setMounted] = React.useState(false);
 
-  React.useEffect(() => setMounted(true), []);
+  // منوی بالا — قابل پنهان‌سازی؛ انتخاب کاربر ذخیره می‌شود
+  const [navOpen, setNavOpen] = React.useState(true);
+  React.useEffect(() => {
+    setMounted(true);
+    try {
+      if (window.localStorage.getItem("hh-nav") === "hidden") setNavOpen(false);
+    } catch {}
+  }, []);
+
+  function toggleNav() {
+    setNavOpen((v) => {
+      const nv = !v;
+      try {
+        window.localStorage.setItem("hh-nav", nv ? "open" : "hidden");
+      } catch {}
+      return nv;
+    });
+  }
 
   if (!mounted) {
     return (
@@ -87,8 +104,8 @@ export function AppShell() {
             </span>
           </button>
 
-          {!isSubPage && (
-            <nav aria-label="ناوبری اصلی" className="ms-auto hidden items-center gap-0.5 lg:flex">
+          {!isSubPage && navOpen && (
+            <nav aria-label="ناوبری اصلی" className="ms-3 hidden items-center gap-0.5 lg:flex">
               <NavBtn icon={Home} label="خانه" active={current === "home"} onClick={() => go({ view: "home" })} />
               <NavBtn icon={BookOpen} label="مطالعه" active={current === "course"} onClick={() => go({ view: "course", id: "madani-1" })} />
               <NavBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
@@ -97,7 +114,18 @@ export function AppShell() {
             </nav>
           )}
 
-          <div className={`flex items-center gap-1.5 ${isSubPage ? "ms-auto" : "ms-auto lg:ms-2"}`}>
+          <div className="flex items-center gap-1.5 ms-auto">
+            {!isSubPage && (
+              <button
+                onClick={toggleNav}
+                aria-label={navOpen ? "پنهان کردن منوی بالا" : "نمایش منوی بالا"}
+                title={navOpen ? "پنهان کردن منو" : "نمایش منو"}
+                aria-expanded={navOpen}
+                className="hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:text-bronze lg:inline-flex"
+              >
+                {navOpen ? <PanelRightClose className="h-[18px] w-[18px]" /> : <PanelRightOpen className="h-[18px] w-[18px]" />}
+              </button>
+            )}
             <ThemeToggle />
             <button
               onClick={() => go({ view: "settings" })}

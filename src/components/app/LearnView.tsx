@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
-  ListOrdered, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles,
+  ListOrdered, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -57,6 +57,11 @@ export function LearnView({ id }: { id: string }) {
   const { lesson, chapter, course } = ctx;
   const sections: LessonSection[] = lesson.sections ?? [];
   const laws = sections.flatMap((s) => s.law ?? []);
+
+  // فصل بعدیِ همین درس (برای دکمهٔ پایان جلسه)
+  const chaptersOrdered = [...course.chapters].sort((a, b) => a.order - b.order);
+  const chiIdx = chaptersOrdered.findIndex((ch) => ch.id === chapter.id);
+  const nextChapter = chiIdx >= 0 ? chaptersOrdered[chiIdx + 1] ?? null : null;
 
   /** تولید جلسه برای جلسات وارداتی (ai-pending) */
   async function generateAiLesson() {
@@ -349,6 +354,22 @@ export function LearnView({ id }: { id: string }) {
                   <ClipboardList className="h-4 w-4" /> برو به تست
                 </button>
                 <ActionBtn onClick={() => navigate({ view: "case", id })}>تمرین کیس واقعی</ActionBtn>
+                {nextChapter && nextChapter.lessons[0] && (
+                  <button
+                    onClick={() => {
+                      complete(id);
+                      const first = nextChapter.lessons[0];
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      setTimeout(() => navigate({ view: "learn", id: first.id }), 120);
+                    }}
+                    title={`رفتن به ${nextChapter.title}`}
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]"
+                  >
+                    <ArrowLeft className="h-4 w-4 shrink-0" />
+                    <span className="truncate">فصل بعدی</span>
+                  </button>
+                )}
+                {atEnd && !nextChapter && <span className="self-center text-xs text-muted-foreground">این آخرین فصل این درس است</span>}
               </>
             )}
             <button onClick={() => navigate({ view: "course", id: course.id })} className="ms-auto text-xs text-muted-foreground underline-offset-4 hover:underline">
