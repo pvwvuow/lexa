@@ -36,7 +36,7 @@ export function LawBox({ laws }: { laws: LawRef[] }) {
             <LawBadge law={l} />
             <span className="text-[10px] font-medium tracking-wide text-muted-foreground/70">نصّ صریح قانون</span>
           </figcaption>
-          <blockquote className="law-text relative z-10 text-[17px] leading-[2.1] text-foreground/90">{l.text}</blockquote>
+          <blockquote className="law-text relative z-10 text-[19px] leading-[2.1] text-foreground/90">{l.text}</blockquote>
         </figure>
       ))}
     </div>
@@ -195,11 +195,17 @@ export function EmptyState({ title, desc, action }: { title: string; desc: strin
 
 /* ═══ موتور محتوای غنی: تبدیل متن درس به بلوک‌های ساخت‌یافته ═══════════════ */
 
-type TermItem = { term?: string; text: string };
+type SubItem = { term?: string; text: string };
+type TermItem = { term?: string; text: string; subs?: SubItem[] };
 type BodyBlock =
   | { kind: "p"; text: string }
   | { kind: "terms"; items: TermItem[] }
   | { kind: "steps"; items: string[] };
+
+const DASH_RE = /^[-–•*]\s+/;
+const NUM_RE = /^[0-9۰-۹]{1,2}\s*[-–.)))]\s*/;
+
+type RunKind = "p" | "dash" | "num";
 
 /** جداسازی عنوان و توضیح از خطوطی مثل «اهلیت تمتع: توان دارا شدن حق» */
 function parseTermLine(line: string): TermItem {
@@ -209,70 +215,122 @@ function parseTermLine(line: string): TermItem {
   return { text: raw };
 }
 
-/** بدنهٔ درس را به پاراگراف / کارت اصطلاح / پله‌نما تبدیل می‌کند */
+/** بدنهٔ درس را به پاراگراف / کارت اصطلاح / پله‌نما تبدیل می‌کند.
+ *  خط‌به‌خط گروه‌بندی می‌شود؛ هیچ جملهٔ مقدمه‌ای حذف نمی‌شود و
+ *  خطوط فرورفته به‌عنوان زیرمجموعهٔ آیتم قبلی رندر می‌شوند. */
 export function parseBody(body: string): BodyBlock[] {
   const blocks: BodyBlock[] = [];
+  let paraBuf: string[] = [];
+  const flushPara = () => {
+    if (paraBuf.length) {
+      blocks.push({ kind: "p", text: paraBuf.join("\n") });
+      paraBuf = [];
+    }
+  };
+
   for (const chunk of body.split(/\n{2,}/)) {
-    const lines = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
-    if (!lines.length) continue;
-    const dash = lines.filter((l) => /^[-–•*]\s+/.test(l));
-    const numbered = lines.filter((l) => /^[0-9۰-۹]{1,2}\s*[-–.))]\s*/.test(l));
-    if (dash.length && dash.length >= Math.ceil(lines.length / 2)) {
-      blocks.push({ kind: "terms", items: dash.map(parseTermLine) });
-    } else if (numbered.length && numbered.length >= Math.ceil(lines.length / 2)) {
-      blocks.push({ kind: "steps", items: numbered.map((l) => l.replace(/^[0-9۰-۹]{1,2}\s*[-–.))]\s*/, "")) });
-    } else {
-      blocks.push({ kind: "p", text: lines.join("\n") });
+    const rawLines = chunk.split("\n").filter((l) => l.trim());
+    if (!rawLines.length) continue;
+
+    // گروه‌بندی خط‌های پیوستهٔ هم‌نوع
+    const runs: { kind: RunKind; lines: string[] }[] = [];
+    for (const raw of rawLines) {
+      const t = raw.trim();
+      const kind: RunKind = DASH_RE.test(t) ? "dash" : NUM_RE.test(t) ? "num" : "p";
+      const lastRun = runs[runs.length - 1];
+      if (kind === "p") {
+        if (!lastRun || lastRun.kind !== "p") runs.push({ kind: "p", lines: [raw] });
+        else lastRun.lines.push(raw);
+      } else if (lastRun && lastRun.kind === kind) lastRun.lines.push(raw);
+      else runs.push({ kind, lines: [raw] });
+    }
+
+    for (const run of runs) {
+      if (run.kind === "p") {
+        paraBuf.push(run.lines.map((l) => l.trim()).join("\n"));
+        continue;
+      }
+      flushPara();
+      if (run.kind === "num") {
+        blocks.push({ kind: "steps", items: run.lines.map((l) => l.replace(NUM_RE, "").trim()) });
+      } else {
+        const items: TermItem[] = [];
+        for (const raw of run.lines) {
+          const indented = /^[ \t]/.test(raw);
+          const parsed = parseTermLine(raw.trim());
+          if (indented && items.length) {
+            const parent = items[items.length - 1];
+            (parent.subs ??= []).push({ term: parsed.term, text: parsed.text });
+          } else items.push(parsed);
+        }
+        blocks.push({ kind: "terms", items });
+      }
     }
   }
+  flushPara();
   return blocks;
 }
 
-/** کارت اصطلاح‌نامه — قاب دوخط، نشان لوزی، عنوان طلایی و واترمارک ترازو */
+/** کارت اصطلاح‌نامه — قاب دوخط، نشان لوزی، عنوان طلایی و واترمارک کتاب */
 export function TermCard({ item, index }: { item: TermItem; index?: number }) {
   return (
     <div className="group relative overflow-hidden rounded-xl border border-bronze/30 bg-accent/40 p-4 transition-colors duration-200 hover:border-bronze/55 sm:p-5">
       <span aria-hidden className="pointer-events-none absolute inset-1.5 rounded-lg border border-bronze/15" />
       <BookOpen aria-hidden className="pointer-events-none absolute -bottom-4 -start-4 h-16 w-16 rotate-12 text-bronze/[0.07]" />
       <div className="relative z-10">
-        <div className="mb-2 flex items-center gap-2.5">
+        <div className="mb-2.5 flex items-center gap-3">
           {index !== undefined && (
-            <span aria-hidden className="grid h-6 w-6 shrink-0 rotate-45 place-items-center rounded-[7px] border border-bronze/40 bg-card shadow-card">
-              <span className="-rotate-45 text-[11px] font-bold text-bronze">{fa(index)}</span>
+            <span aria-hidden className="grid h-7 w-7 shrink-0 rotate-45 place-items-center rounded-[9px] border border-bronze/40 bg-card shadow-card">
+              <span className="-rotate-45 text-[11.5px] font-bold leading-none text-bronze">{fa(index)}</span>
             </span>
           )}
-          <h4 className="font-display text-[15.5px] font-bold text-bronze">{item.term}</h4>
+          <h4 className="min-w-0 break-words font-display text-[17px] font-bold text-bronze">{item.term}</h4>
         </div>
-        <div aria-hidden className="ornament-rule mb-2.5 opacity-80" />
-        <p className="font-body text-[16.5px] leading-[1.95] text-foreground/95">{item.text}</p>
+        <div aria-hidden className="ornament-rule mb-3 opacity-80" />
+        <p className="font-body text-[18px] leading-[2] text-foreground/95">{item.text}</p>
+        {item.subs && item.subs.length > 0 && (
+          <ul className="mt-3 space-y-2.5 border-t border-dashed border-bronze/25 pt-3">
+            {item.subs.map((sub, k) => (
+              <li key={k} className="flex gap-2.5">
+                <span aria-hidden className="mt-[13px] h-1.5 w-1.5 shrink-0 rotate-45 rounded-[1.5px] bg-bronze/70" />
+                <span className="font-body min-w-0 flex-1 text-[17px] leading-[1.95] text-foreground/90">
+                  {sub.term && <strong className="font-display text-[15.5px] text-primary">{sub.term}: </strong>}
+                  {sub.text}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
 }
 
-/** پله‌نما — مدال‌های شماره روی خط‌چین عمودی */
+/** پله‌نما — مدال‌های مات روی یک ریل پیوسته (بدون نفوذ به ردیف بعد) */
 export function StepList({ items }: { items: string[] }) {
   return (
-    <ol className="relative space-y-2.5 ps-1">
-      {items.map((t, i) => (
-        <li key={i} className="relative flex gap-3">
-          {/* خط اتصال */}
-          {i < items.length - 1 && (
-            <span aria-hidden className="absolute start-[15px] top-9 h-[calc(100%-20px)] w-px border-s border-dashed border-bronze/40" />
-          )}
-          <span className="relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-bronze/45 bg-bronze/10 text-[13px] font-bold text-bronze shadow-card">
-            {fa(i + 1)}
-          </span>
-          <span className="font-body flex-1 rounded-xl border border-border bg-muted/45 px-3.5 py-2.5 text-[16.5px] leading-[1.9] transition-colors duration-150 hover:bg-accent/50">
-            {parseTermLine(t).term ? (
-              <>
-                <strong className="font-display text-[15px] text-primary">{parseTermLine(t).term}: </strong>
-                {parseTermLine(t).text}
-              </>
-            ) : t}
-          </span>
-        </li>
-      ))}
+    <ol className="relative space-y-3">
+      {items.length > 1 && (
+        <span aria-hidden className="pointer-events-none absolute bottom-[18px] start-[17px] top-[18px] w-px border-s border-dashed border-bronze/40" />
+      )}
+      {items.map((t, i) => {
+        const parsed = parseTermLine(t);
+        return (
+          <li key={i} className="relative flex gap-3">
+            <span className="relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-bronze/45 bg-card text-[13.5px] font-bold text-bronze shadow-card">
+              {fa(i + 1)}
+            </span>
+            <span className="font-body min-w-0 flex-1 rounded-xl border border-border bg-muted/45 px-4 py-3 text-[18px] leading-[1.95] transition-colors duration-150 hover:bg-accent/50">
+              {parsed.term ? (
+                <>
+                  <strong className="font-display text-[16px] text-primary">{parsed.term}: </strong>
+                  {parsed.text}
+                </>
+              ) : t}
+            </span>
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -282,8 +340,8 @@ function PlainList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-2.5">
       {items.map((b, j) => (
-        <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-1.5 text-[16px] leading-[1.9] transition-colors hover:border-bronze/50 hover:bg-muted/40">
-          <span aria-hidden className="mt-[13px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] bg-bronze/80" />
+        <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-2 text-[18px] leading-[1.95] transition-colors hover:border-bronze/50 hover:bg-muted/40">
+          <span aria-hidden className="mt-[15px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] bg-bronze/80" />
           <span className="font-body">{b}</span>
         </li>
       ))}
@@ -299,17 +357,17 @@ export function BodyRich({ text }: { text: string }) {
       {blocks.map((b, i) => {
         if (b.kind === "p") {
           return (
-            <p key={i} className="whitespace-pre-line text-[18px] leading-[2.1] text-foreground/95">
+            <p key={i} className="whitespace-pre-line text-[20px] leading-[2.15] text-foreground/95">
               {b.text}
             </p>
           );
         }
         if (b.kind === "steps") return <StepList key={i} items={b.items} />;
-        const withTerm = b.items.filter((x) => x.term).length >= Math.ceil(b.items.length / 2);
+        const withTerm = b.items.filter((x) => x.term || x.subs).length >= Math.ceil(b.items.length / 2);
         if (!withTerm) return <PlainList key={i} items={b.items.map((x) => x.text)} />;
         return (
-          <div key={i} className="grid gap-3 sm:grid-cols-2">
-            {b.items.map((x, j) => <TermCard key={j} item={x} index={x.term ? j + 1 : undefined} />)}
+          <div key={i} className="grid items-start gap-3 md:grid-cols-2">
+            {b.items.map((x, j) => <TermCard key={j} item={x} index={b.items.length > 1 && (x.term || x.subs) ? j + 1 : undefined} />)}
           </div>
         );
       })}
@@ -317,16 +375,20 @@ export function BodyRich({ text }: { text: string }) {
   );
 }
 
-/** رندر آرایهٔ bullets (بخش نکات/جمع‌بندی) با تشخیص خودکار اصطلاح */
+/** رندر آرایهٔ bullets (بخش نکات/جمع‌بندی) با تشخیص خودکار اصطلاح یا شماره */
 export function BulletRich({ items }: { items: string[] }) {
   const parsed = items.map(parseTermLine);
-  const termCount = parsed.filter((x) => x.term).length;
+  const termCount = parsed.filter((x) => x.term || x.subs).length;
+  const numCount = items.filter((x) => NUM_RE.test(x.trim())).length;
   if (termCount >= Math.ceil(parsed.length / 2)) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2">
-        {parsed.map((x, j) => <TermCard key={j} item={x} index={x.term ? j + 1 : undefined} />)}
+      <div className="grid items-start gap-3 md:grid-cols-2">
+        {parsed.map((x, j) => <TermCard key={j} item={x} index={parsed.length > 1 && (x.term || x.subs) ? j + 1 : undefined} />)}
       </div>
     );
+  }
+  if (numCount >= Math.ceil(items.length / 2)) {
+    return <StepList items={items.map((x) => x.replace(NUM_RE, "").trim())} />;
   }
   return <PlainList items={items} />;
 }

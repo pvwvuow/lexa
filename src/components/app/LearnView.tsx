@@ -161,11 +161,35 @@ export function LearnView({ id }: { id: string }) {
           </ol>
         </nav>
 
+        {/* پرسش آزاد از استاد — دسکتاپ: کارت در سایدبار به‌جای نوار شناور */}
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+          <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Send className="h-4 w-4 -scale-x-100 text-bronze" /> از استاد بپرس</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!questionInput.trim()) return;
+              handleAction("free", questionInput.trim());
+              setQuestionInput("");
+            }}
+            className="flex items-center gap-2"
+          >
+            <input
+              value={questionInput}
+              onChange={(e) => setQuestionInput(e.target.value)}
+              placeholder="سوالی از استاد داری؟ بپرس…"
+              className="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground/70 focus:border-bronze"
+              aria-label="سؤال آزاد از استاد"
+            />
+            <button type="submit" disabled={!!loadingFor} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
+              <Send className="h-4 w-4 -scale-x-100" />
+            </button>
+          </form>
+        </div>
         {laws.length > 0 && (
           <div className="max-h-[46vh] space-y-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-card">
             <p className="flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
             {laws.map((l, i) => (
-              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[13.5px] leading-relaxed">
+              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[15px] leading-relaxed">
                 <span className="font-display font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
               </p>
             ))}
@@ -294,10 +318,10 @@ export function LearnView({ id }: { id: string }) {
                 {s.questionText && (
                   <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
                     <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
-                    <p className="font-body relative z-10 font-semibold leading-loose">{s.questionText}</p>
+                    <p className="font-body relative z-10 text-[18px] font-semibold leading-loose">{s.questionText}</p>
                     <details className="relative z-10 mt-3 text-sm">
                       <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی استاد</summary>
-                      <p className="mt-2 rounded-lg bg-background/60 p-3 leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
+                      <p className="mt-2 rounded-lg bg-background/60 p-3 text-[15.5px] leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
                     </details>
                   </div>
                 )}
@@ -307,7 +331,7 @@ export function LearnView({ id }: { id: string }) {
                   <div key={k} className="relative mt-4 rounded-xl border border-dashed border-bronze/50 bg-bronze/5 p-4">
                     <Sparkles aria-hidden className="absolute -top-2.5 end-4 grid h-5 w-5 place-items-center rounded-full bg-card text-bronze" />
                     <p className="mb-1 flex items-center gap-1 text-xs font-bold text-bronze"><HelpCircle className="h-3.5 w-3.5" /> تکمیل استاد</p>
-                    <div className="teach-body prose-p:leading-[1.9] text-[16px] [&_p]:my-1 [&_strong]:text-foreground">
+                    <div className="teach-body prose-p:leading-[1.9] text-[17px] [&_p]:my-1 [&_strong]:text-foreground">
                       <ReactMarkdown>{a.text}</ReactMarkdown>
                     </div>
                   </div>
@@ -375,8 +399,8 @@ export function LearnView({ id }: { id: string }) {
 
       {Sidebar}
 
-      {/* ورودی پرسش آزاد — چسبیده پایین (موبایل و دسکتاپ) */}
-      <div className="fixed inset-x-0 bottom-14 z-30 mx-auto max-w-7xl px-3 sm:px-6 lg:sticky lg:bottom-3 lg:z-10 lg:col-start-1">
+      {/* ورودی پرسش آزاد — فقط موبایل/تبلت؛ دسکتاپ: کارت سایدبار */}
+      <div className="fixed inset-x-0 bottom-14 z-30 mx-auto max-w-7xl px-3 sm:px-6 lg:hidden">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -384,7 +408,7 @@ export function LearnView({ id }: { id: string }) {
             handleAction("free", questionInput.trim());
             setQuestionInput("");
           }}
-          className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur lg:hidden xl:flex"
+          className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur"
         >
           <input
             value={questionInput}
