@@ -37,6 +37,22 @@
   font-display: swap;
 }
 
+/* ─── مرکزی تِکست — فونت اصلی متن درس؛ سبک نسیم، استاندارد کتاب‌های فارسی ── */
+@font-face {
+  font-family: "MarkaziText";
+  src: url("/fonts/MarkaziText-arabic-var.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFC, U+200C-200E, U+2010-2011;
+}
+@font-face {
+  font-family: "MarkaziText";
+  src: url("/fonts/MarkaziText-latin-var.woff2") format("woff2-variations");
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -85,7 +101,7 @@
   --radius: 0.75rem;
   /* نمایش (تیتر/UI) + خوانش (متن کتابی) */
   --font-display: "Estedad", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "NotoNaskh", "Estedad", serif;
+  --font-body: "MarkaziText", "NotoNaskh", "Estedad", serif;
 
   /* پالت روشن «قفسهٔ کتاب حقوق»: آلاباستر گرم + یشمی عمیق + طلایی عتیق */
   --background: #f5f3ed;
@@ -304,7 +320,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── متن تدریس ─────────────────────────────────────────────────────────── */
 .teach-body p {
-  line-height: 2;
+  line-height: 2.1;
   margin-bottom: 0.4rem;
 }
 
