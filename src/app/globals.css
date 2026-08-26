@@ -1,0 +1,251 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── وزیرمتن ────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-vazir);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-bronze: var(--bronze);
+  --color-bronze-foreground: var(--bronze-foreground);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.75rem;
+  --font-vazir: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+
+  /* پالت روشن: کاغذ کرم روشن + سرمه‌ای دانشگاهی + برنزی کتاب حقوقی */
+  --background: #fafaf8;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-foreground: #1f2937;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --primary: #1b2a4a;
+  --primary-foreground: #f6f8fb;
+  --secondary: #f1efe9;
+  --secondary-foreground: #22304d;
+  --muted: #f3f1eb;
+  --muted-foreground: #667085;
+  --accent: #f0ede6;
+  --accent-foreground: #1b2a4a;
+  --destructive: #b3423a;
+  --border: #e8e5dc;
+  --input: #e8e5dc;
+  --ring: #b08d57;
+
+  --bronze: #b08d57;
+  --bronze-foreground: #fff8ec;
+  --success: #4c7c59;
+  --warn: #b98a2e;
+  --danger: #b3423a;
+
+  --chart-1: #1b2a4a;
+  --chart-2: #b08d57;
+  --chart-3: #4c7c59;
+  --chart-4: #b98a2e;
+  --chart-5: #b3423a;
+
+  --sidebar: #f4f2ec;
+  --sidebar-foreground: #1f2937;
+  --sidebar-primary: #1b2a4a;
+  --sidebar-primary-foreground: #f6f8fb;
+  --sidebar-accent: #eceae2;
+  --sidebar-accent-foreground: #1b2a4a;
+  --sidebar-border: #e8e5dc;
+  --sidebar-ring: #b08d57;
+}
+
+.dark {
+  /* پالت تاریک: زغالی آرام برای مطالعه شبانه */
+  --background: #12151c;
+  --foreground: #e7eaf0;
+  --card: #191d27;
+  --card-foreground: #e7eaf0;
+  --popover: #191d27;
+  --popover-foreground: #e7eaf0;
+  --primary: #2a3d63;
+  --primary-foreground: #f2f6fc;
+  --secondary: #232a38;
+  --secondary-foreground: #dbe3ef;
+  --muted: #1f2530;
+  --muted-foreground: #98a2b3;
+  --accent: #212836;
+  --accent-foreground: #e7eaf0;
+  --destructive: #d06a62;
+  --border: #2a303d;
+  --input: #2a303d;
+  --ring: #c9a87a;
+
+  --bronze: #c9a87a;
+  --bronze-foreground: #1b150c;
+  --success: #7cb394;
+  --warn: #d4af5c;
+  --danger: #d06a62;
+
+  --chart-1: #8faad0;
+  --chart-2: #c9a87a;
+  --chart-3: #7cb394;
+  --chart-4: #d4af5c;
+  --chart-5: #d06a62;
+
+  --sidebar: #161a22;
+  --sidebar-foreground: #e7eaf0;
+  --sidebar-primary: #2a3d63;
+  --sidebar-primary-foreground: #f2f6fc;
+  --sidebar-accent: #212836;
+  --sidebar-accent-foreground: #e7eaf0;
+  --sidebar-border: #2a303d;
+  --sidebar-ring: #c9a87a;
+}
+
+html {
+  font-family: var(--font-vazir);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 16px;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* اعداد و ارقام لاتین را فارسی‌گونه هموار کن */
+.font-num {
+  font-feature-settings: "ss01";
+}
+
+/* ─── باکس ماده قانونی ───────────────────────────────────────────────────── */
+.law-box {
+  background: linear-gradient(to left, rgba(176, 141, 87, 0.07), rgba(176, 141, 87, 0.02));
+  border-inline-start: 3px solid var(--bronze);
+}
+.dark .law-box {
+  background: linear-gradient(to left, rgba(201, 168, 122, 0.09), rgba(201, 168, 122, 0.02));
+}
+
+/* ─── متن تدریس ─────────────────────────────────────────────────────────── */
+.teach-body p {
+  line-height: 1.95;
+  margin-bottom: 0.35rem;
+}
+
+/* ─── انیمیشن نقطه‌چین AI ─────────────────────────────────────────────── */
+.ai-dots::after {
+  content: "...";
+  display: inline-block;
+  width: 1.4em;
+  text-align: right;
+  animation: dots 1.4s steps(4, end) infinite;
+}
+@keyframes dots {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+  100% { content: ""; }
+}
+
+/* ─── فلش کارت ─────────────────────────────────────────────────────────── */
+.flip-scene {
+  perspective: 1400px;
+}
+.flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 450ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--radius-xl);
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner {
+    transition-duration: 1ms;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
