@@ -13,7 +13,7 @@ import { useApp } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn } from "./common";
+import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich } from "./common";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -165,7 +165,7 @@ export function LearnView({ id }: { id: string }) {
           <div className="max-h-[46vh] space-y-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-card">
             <p className="flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
             {laws.map((l, i) => (
-              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[12.5px] leading-relaxed">
+              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[13.5px] leading-relaxed">
                 <span className="font-display font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
               </p>
             ))}
@@ -269,20 +269,14 @@ export function LearnView({ id }: { id: string }) {
                 <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
 
                 {s.body && (
-                  <div className="teach-body whitespace-pre-line text-[16.5px] leading-[2.05] text-foreground/95">
-                    {s.body}
+                  <div className="teach-body text-foreground/95">
+                    <BodyRich text={s.body} />
                   </div>
                 )}
 
                 {s.law && s.law.length > 0 && <div className={s.type === "law" ? "" : "mt-4"}><LawBox laws={s.law} /></div>}
 
-                {s.bullets && (
-                  <ul className="mt-3 space-y-2.5">
-                    {s.bullets.map((b, j) => (
-                      <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-1.5 text-[15.5px] leading-[1.9] transition-colors hover:border-bronze/50 hover:bg-muted/40"><span aria-hidden className="mt-[13px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] bg-bronze/80" /><span className="font-body">{b}</span></li>
-                    ))}
-                  </ul>
-                )}
+                {s.bullets && <div className="mt-4"><BulletRich items={s.bullets} /></div>}
 
                 {s.table && (
                   <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
@@ -313,7 +307,7 @@ export function LearnView({ id }: { id: string }) {
                   <div key={k} className="relative mt-4 rounded-xl border border-dashed border-bronze/50 bg-bronze/5 p-4">
                     <Sparkles aria-hidden className="absolute -top-2.5 end-4 grid h-5 w-5 place-items-center rounded-full bg-card text-bronze" />
                     <p className="mb-1 flex items-center gap-1 text-xs font-bold text-bronze"><HelpCircle className="h-3.5 w-3.5" /> تکمیل استاد</p>
-                    <div className="teach-body prose-p:leading-[1.9] text-[15px] [&_p]:my-1 [&_strong]:text-foreground">
+                    <div className="teach-body prose-p:leading-[1.9] text-[16px] [&_p]:my-1 [&_strong]:text-foreground">
                       <ReactMarkdown>{a.text}</ReactMarkdown>
                     </div>
                   </div>

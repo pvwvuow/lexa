@@ -81,7 +81,7 @@ export function FlashcardsView() {
           <div className="flip-face flip-back flex flex-col items-center justify-center border border-bronze/40 bg-gradient-to-b from-bronze/[0.08] to-card p-6 shadow-card">
             <span aria-hidden className="pointer-events-none absolute inset-3 rounded-xl border border-dashed border-bronze/30" />
             <span className="mb-3 rounded-full border border-bronze/40 bg-bronze/15 px-4 py-1 font-display text-xs font-bold text-bronze">پاسخ استاد</span>
-            <p className="font-body relative z-10 max-h-48 overflow-y-auto whitespace-pre-line text-center text-[14.5px] leading-loose">{card.back}</p>
+            <p className="font-body relative z-10 max-h-48 overflow-y-auto whitespace-pre-line text-center text-[16px] leading-loose">{card.back}</p>
           </div>
         </div>
       </div>

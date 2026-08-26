@@ -52,9 +52,10 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-28 pt-6 sm:px-6">
-      {/* پنل وضعیت: تک‌رنگ ساده + گیج تخت */}
-      <section className="rounded-2xl bg-primary p-6 text-primary-foreground shadow-card sm:p-8">
-        <div className="flex flex-col items-start gap-7 sm:flex-row sm:items-center">
+      {/* پنل وضعیت: تک‌رنگ با بافت توری + گیج تخت */}
+      <section className="relative overflow-hidden rounded-2xl bg-primary p-6 text-primary-foreground shadow-card sm:p-8">
+        <div aria-hidden className="pattern-quilt absolute inset-0" />
+        <div className="relative flex flex-col items-start gap-7 sm:flex-row sm:items-center">
           <div className="flex-1 space-y-2.5 min-w-0">
             <p className="text-sm font-medium text-primary-foreground/70">{greeting}</p>
             <h1 className="text-2xl font-bold leading-relaxed sm:text-[28px]">استادت منتظرته؛ بیا ادامه بدهیم</h1>
