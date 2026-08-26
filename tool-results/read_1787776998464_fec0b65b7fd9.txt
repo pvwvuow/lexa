@@ -1,0 +1,518 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion, AnimatePresence } from "framer-motion";
+     5→import {
+     6→  CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale,
+     7→  Timer, Flag, GraduationCap, ClipboardList, ArrowLeft, ArrowRight, Shuffle,
+     8→} from "lucide-react";
+     9→import type { QuizQuestion } from "@/lib/law/types";
+    10→import { builtinCourses } from "@/lib/law/courses";
+    11→import type { Course, Lesson } from "@/lib/law/types";
+    12→import { useApp, weakTopics } from "@/lib/store";
+    13→import { fa } from "@/lib/fa";
+    14→import { navigate } from "@/lib/router";
+    15→import { askAi } from "@/lib/aiClient";
+    16→import { lessonToContextText } from "@/lib/law/lessonText";
+    17→import { AIThinking, Donut, ProgressBar, EmptyState } from "./common";
+    18→
+    19→const KEYS = ["a", "b", "c", "d"] as const;
+    20→type Key = (typeof KEYS)[number];
+    21→const FA_LETTER: Record<string, string> = { a: "الف", b: "ب", c: "ج", d: "د" };
+    22→
+    23→type Phase = "setup" | "run" | "result";
+    24→type Mode = "train" | "exam";
+    25→
+    26→export function QuizView({ id }: { id?: string }) {
+    27→  const custom = useApp((s) => s.customCourses);
+    28→  const recordQuiz = useApp((s) => s.recordQuiz);
+    29→  const complete = useApp((s) => s.completeLesson);
+    30→
+    31→  // منبع سؤالات
+    32→  const all = [...builtinCourses, ...custom];
+    33→  const ctx = React.useMemo(() => {
+    34→    if (id) {
+    35→      for (const c of all) for (const ch of c.chapters) {
+    36→        const l = ch.lessons.find((x) => x.id === id);
+    37→        if (l && l.quiz.length > 0) return { course: c, lesson: l as Lesson };
+    38→      }
+    39→    }
+    40→    return null;
+    41→  }, [id, custom]);
+    42→
+    43→  const basePool: QuizQuestion[] = React.useMemo(
+    44→    () => (ctx ? ctx.lesson.quiz : all.flatMap((c) => c.chapters.flatMap((ch) => ch.lessons.flatMap((l) => l.quiz)))),
+    45→    [id, custom],
+    46→  );
+    47→  /** استخراج تولیدشدهٔ استاد — تا وقتی جایگزین نشده، مبنای آزمون است */
+    48→  const [aiPool, setAiPool] = React.useState<QuizQuestion[] | null>(null);
+    49→  const pool = aiPool ?? basePool;
+    50→
+    51→  // ── وضعیت آزمون ──
+    52→  const [phase, setPhase] = React.useState<Phase>("setup");
+    53→  const [mode, setMode] = React.useState<Mode>("train");
+    54→  const [count, setCount] = React.useState(5);
+    55→  const [shuffleOn, setShuffleOn] = React.useState(true);
+    56→
+    57→  const [questions, setQuestions] = React.useState<QuizQuestion[]>([]);
+    58→  const [answers, setAnswers] = React.useState<Record<number, Key>>({});
+    59→  const [flags, setFlags] = React.useState<number[]>([]);
+    60→  const [idx, setIdx] = React.useState(0);
+    61→  const [furthest, setFurthest] = React.useState(0);
+    62→  const [explainOpen, setExplainOpen] = React.useState(true);
+    63→  const [wrongTopics, setWrongTopics] = React.useState<string[]>([]);
+    64→  const [startedAt, setStartedAt] = React.useState(0);
+    65→  const [tick, setTick] = React.useState(0);
+    66→  const [finalScore, setFinalScore] = React.useState(0);
+    67→  const finalAt = React.useRef(0);
+    68→
+    69→  const [genBusy, setGenBusy] = React.useState(false);
+    70→  const [genErr, setGenErr] = React.useState("");
+    71→
+    72→  React.useEffect(() => {
+    73→    setPhase("setup");
+    74→    setAiPool(null);
+    75→    setGenErr("");
+    76→    setCount(Math.min(5, basePool.length) || 5);
+    77→  }, [id, basePool.length]);
+    78→
+    79→  // زمان‌سنج
+    80→  React.useEffect(() => {
+    81→    if (phase !== "run") return;
+    82→    const t = window.setInterval(() => setTick((v) => v + 1), 1000);
+    83→    return () => window.clearInterval(t);
+    84→  }, [phase]);
+    85→
+    86→  const elapsed = startedAt ? Math.max(0, Math.floor(((phase === "result" ? (finalAt.current || Date.now()) : Date.now()) - startedAt) / 1000)) : 0;
+    87→  const answeredCount = Object.keys(answers).length;
+    88→
+    89→  function fmtTime(sec: number) {
+    90→    const m = Math.floor(sec / 60);
+    91→    const s = sec % 60;
+    92→    return `${fa(m)}:${fa(String(s).padStart(2, "0"))}`;
+    93→  }
+    94→
+    95→  function startQuiz(poolOverride?: QuizQuestion[]) {
+    96→    const src = poolOverride ?? pool;
+    97→    const picked = shuffleOn ? shuffle(src) : [...src];
+    98→    const qs = poolOverride ? picked : picked.slice(0, Math.min(count, src.length));
+    99→    setQuestions(qs);
+   100→    setAnswers({}); setFlags([]); setIdx(0); setFurthest(0);
+   101→    setWrongTopics([]); setExplainOpen(true); setGenErr("");
+   102→    setStartedAt(Date.now()); setTick(0);
+   103→    setPhase("run");
+   104→  }
+   105→
+   106→  async function generateMore() {
+   107→    if (!ctx) return;
+   108→    setGenBusy(true); setGenErr("");
+   109→    try {
+   110→      // منبع غنی: متن کامل تدریس + مواد قانونی (نه فقط بولت‌ها)
+   111→      const ground = lessonToContextText(ctx.lesson.sections, 5000);
+   112→      const res = await askAi<{ quiz: QuizQuestion[] }>({
+   113→        task: "gen_quiz",
+   114→        n: 5,
+   115→        content: ground.text,
+   116→        context: {
+   117→          courseTitle: ctx.course.title,
+   118→          lessonTitle: ctx.lesson.title,
+   119→          lawRegistry: ground.lawRegistry,
+   120→        },
+   121→      });
+   122→      const clean = (res.quiz ?? []).filter(
+   123→        (q) => q?.q && q.options?.length >= 3 && q.options.some((o) => o.key === q.answer) && q.explanation,
+   124→      );
+   125→      if (!clean.length) throw new Error("سؤال سالمی تولید نشد؛ دوباره تلاش کن.");
+   126→      setAiPool(clean);
+   127→      setQuestions(clean);
+   128→      setAnswers({}); setFlags([]); setIdx(0); setFurthest(0);
+   129→      setStartedAt(0); setWrongTopics([]);
+   130→      setCount(Math.min(5, clean.length));
+   131→      setPhase("setup");
+   132→    } catch (e) {
+   133→      setGenErr(e instanceof Error ? e.message : "تولید تست ناموفق بود.");
+   134→    } finally {
+   135→      setGenBusy(false);
+   136→    }
+   137→  }
+   138→
+   139→  if (!pool.length && phase === "setup" && !genBusy)
+   140→    return (
+   141→      <div className="mx-auto max-w-2xl px-4 py-16">
+   142→        <EmptyState
+   143→          title="اینجا تستی نیست"
+   144→          desc="هنوز برای این مبحث سؤالی آماده نشده است."
+   145→          action={<button onClick={() => navigate({ view: "home" })} className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">برگشت به خانه</button>}
+   146→        />
+   147→      </div>
+   148→    );
+   149→
+   150→  const q = questions[idx];
+   151→
+   152→  function pick(k: Key) {
+   153→    if (!q) return;
+   154→    if (mode === "train" && answers[idx]) return; // حالت آموزشی: یک انتخاب
+   155→    setAnswers((a) => ({ ...a, [idx]: k }));
+   156→    if (mode === "train" && k !== q.answer) {
+   157→      const t = q.topic ?? ctx?.lesson.title ?? "مبحث نامشخص";
+   158→      setWrongTopics((w) => (w.includes(t) ? w : [...w, t]));
+   159→    }
+   160→  }
+   161→
+   162→  function toggleFlag(i: number) {
+   163→    setFlags((f) => (f.includes(i) ? f.filter((x) => x !== i) : [...f, i]));
+   164→  }
+   165→
+   166→  function goto(i: number) {
+   167→    if (i < 0 || i > furthest) return;
+   168→    setIdx(i); setExplainOpen(true);
+   169→  }
+   170→
+   171→  function next() {
+   172→    if (idx + 1 < questions.length) {
+   173→      const ni = idx + 1;
+   174→      setIdx(ni); setFurthest((f) => Math.max(f, ni)); setExplainOpen(true);
+   175→      return;
+   176→    }
+   177→    finish();
+   178→  }
+   179→
+   180→  function finish() {
+   181→    let correct = 0;
+   182→    const wrongT = new Set<string>();
+   183→    questions.forEach((qq, i) => {
+   184→      if (answers[i] === qq.answer) correct++;
+   185→      else {
+   186→        if (answers[i]) wrongT.add(qq.topic ?? ctx?.lesson.title ?? "مبحث نامشخص");
+   187→        else wrongT.add(qq.topic ?? ctx?.lesson.title ?? "مبحث نامشخص");
+   188→      }
+   189→    });
+   190→    const score = Math.round((correct / Math.max(1, questions.length)) * 100);
+   191→    setFinalScore(score);
+   192→    finalAt.current = Date.now();
+   193→    setWrongTopics([...wrongT]);
+   194→    recordQuiz(ctx?.lesson.id ?? "mixed-quiz", score, ctx?.lesson.title, [...wrongT]);
+   195→    if (ctx) complete(ctx.lesson.id);
+   196→    setPhase("result");
+   197→  }
+   198→
+   199→  /* ═══ صفحهٔ تنظیمات آزمون ═══ */
+   200→  if (phase === "setup") {
+   201→    const countOptions = [5, 10, pool.length].filter((v, i, arr) => v <= pool.length && arr.indexOf(v) === i);
+   202→    return (
+   203→      <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+   204→        <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+   205→          <p className="text-xs font-medium text-bronze">{ctx ? ctx.course.title : "آزمون جامع"}{ctx ? ` · ${ctx.lesson.title}` : ""}</p>
+   206→          <h1 className="mt-1.5 font-display text-xl font-bold">تنظیمات آزمون{aiPool && <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-bronze/15 px-2.5 py-0.5 align-middle text-[11px] font-bold text-bronze"><Sparkles className="h-3 w-3" /> تازه از استاد رسید</span>}</h1>
+   207→          <p className="mt-1 text-xs text-muted-foreground">{fa(pool.length)} سؤال از این مبحث آماده است؛ آزمون را همان‌طور که دوست داری برگزار کن.</p>
+   208→        </motion.header>
+   209→
+   210→        {/* حالت برگزاری */}
+   211→        <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+   212→          <p className="mb-3 text-sm font-bold">حالت برگزاری</p>
+   213→          <div className="grid gap-3 sm:grid-cols-2">
+   214→            {([
+   215→              { k: "train", Icon: GraduationCap, t: "آموزشی", d: "پاسخ و تشریح فوری بعد از هر انتخاب؛ برای یادگیری" },
+   216→              { k: "exam", Icon: ClipboardList, t: "آزمونی", d: "بدون بازخورد تا پایان؛ نتیجه و پاسخ‌نامه در آخر" },
+   217→            ] as const).map(({ k, Icon, t, d }) => (
+   218→              <button
+   219→                key={k}
+   220→                onClick={() => setMode(k)}
+   221→                className={`rounded-xl border p-4 text-start transition-all duration-200 ${mode === k ? "border-bronze bg-bronze/[0.07] shadow-card" : "border-border bg-background hover:border-bronze/50"}`}
+   222→              >
+   223→                <span className="mb-1.5 flex items-center gap-2">
+   224→                  <Icon className={`h-4.5 w-4.5 ${mode === k ? "text-bronze" : "text-muted-foreground"}`} />
+   225→                  <span className="font-display text-sm font-bold">{t}</span>
+   226→                  {mode === k && <span className="ms-auto h-2.5 w-2.5 rounded-full bg-bronze" />}
+   227→                </span>
+   228→                <span className="block text-xs leading-relaxed text-muted-foreground">{d}</span>
+   229→              </button>
+   230→            ))}
+   231→          </div>
+   232→        </section>
+   233→
+   234→        {/* تعداد سؤال + بُر زدن */}
+   235→        <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+   236→          <p className="mb-3 text-sm font-bold">تعداد سؤال</p>
+   237→          <div className="flex flex-wrap gap-2">
+   238→            {countOptions.map((v) => (
+   239→              <button
+   240→                key={v}
+   241→                onClick={() => setCount(v)}
+   242→                className={`rounded-full border px-5 py-2 font-display text-sm font-bold transition-colors ${count === v ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"}`}
+   243→              >
+   244→                {v === pool.length && pool.length !== 5 && pool.length !== 10 ? `همه (${fa(v)})` : fa(v)}
+   245→              </button>
+   246→            ))}
+   247→          </div>
+   248→          <button onClick={() => setShuffleOn((v) => !v)} className="mt-4 flex w-full items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-bronze/50">
+   249→            <span className="flex items-center gap-2 text-sm font-medium"><Shuffle className="h-4 w-4 text-bronze" /> بُر زدن ترتیب سؤال‌ها</span>
+   250→            <span className={`relative h-6 w-11 rounded-full transition-colors ${shuffleOn ? "bg-primary" : "bg-border"}`}>
+   251→              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${shuffleOn ? "start-[22px]" : "start-0.5"}`} />
+   252→            </span>
+   253→          </button>
+   254→        </section>
+   255→
+   256→        {/* شروع */}
+   257→        <button
+   258→          onClick={() => startQuiz()}
+   259→          className="w-full rounded-2xl bg-primary px-6 py-4 font-display text-base font-bold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.99]"
+   260→        >
+   261→          شروع آزمون — {fa(Math.min(count, pool.length))} سؤال
+   262→        </button>
+   263→
+   264→        {/* تولید سؤال تازه با هوش مصنوعی */}
+   265→        <div className="text-center">
+   266→          {genBusy ? <AIThinking label="استاد مشغول طراحی سؤال جدید است" /> : (
+   267→            <button onClick={generateMore} disabled={!ctx} className="inline-flex items-center gap-2 text-xs text-bronze underline-offset-4 hover:underline disabled:opacity-40">
+   268→              <Sparkles className="h-3.5 w-3.5" /> استاد چند سؤال جدید از این جلسه بسازد
+   269→            </button>
+   270→          )}
+   271→          {genErr && <p className="mt-2 text-xs text-destructive">{genErr}</p>}
+   272→        </div>
+   273→      </div>
+   274→    );
+   275→  }
+   276→
+   277→  /* ═══ صفحهٔ نتیجه ═══ */
+   278→  if (phase === "result") {
+   279→    const wrongIdx = questions.map((qq, i) => ({ qq, i })).filter(({ qq, i }) => answers[i] !== qq.answer);
+   280→    const correctCount = questions.length - wrongIdx.length;
+   281→    return (
+   282→      <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+   283→        <motion.section initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 text-center shadow-card">
+   284→          <div aria-hidden className="pattern-quilt absolute inset-x-0 top-0 h-24 opacity-40 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+   285→          <div className="relative mx-auto w-fit"><Donut value={finalScore} size={128} stroke={11} label="امتیاز آزمون" /></div>
+   286→          <h1 className="mt-4 text-xl font-bold">
+   287→            {wrongIdx.length === 0 ? "عالی! همه پاسخ‌ها درست بود" : `${fa(wrongIdx.length)} سؤال نیاز به مرور دارد`}
+   288→          </h1>
+   289→
+   290→          {/* آمار آزمون */}
+   291→          <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-2.5">
+   292→            {[
+   293→              { t: "صحیح", v: fa(correctCount), cls: "text-success border-success/30 bg-success/[0.06]" },
+   294→              { t: "نادرست", v: fa(wrongIdx.filter((w) => answers[w.i]).length), cls: "text-danger border-danger/30 bg-danger/[0.06]" },
+   295→              { t: "زمان", v: fmtTime(elapsed), cls: "text-primary border-primary/25 bg-primary/[0.06]" },
+   296→            ].map((s) => (
+   297→              <div key={s.t} className={`rounded-xl border px-2 py-3 ${s.cls}`}>
+   298→                <p className="font-display text-lg font-bold">{s.v}</p>
+   299→                <p className="mt-0.5 text-[11px] text-muted-foreground">{s.t}</p>
+   300→              </div>
+   301→            ))}
+   302→          </div>
+   303→
+   304→          {wrongTopics.length > 0 && (
+   305→            <ul className="mx-auto mt-5 max-w-sm space-y-2 text-start">
+   306→              {wrongTopics.map((t) => (
+   307→                <li key={t} className="flex items-center justify-between rounded-xl border border-warn/40 bg-warn/[0.07] px-4 py-2.5 text-sm">
+   308→                  <span className="font-body">{t}</span>
+   309→                  <button onClick={() => navigate({ view: "cards" })} className="font-display font-semibold text-bronze hover:underline">مرور کن</button>
+   310→                </li>
+   311→              ))}
+   312→            </ul>
+   313→          )}
+   314→
+   315→          <div className="mt-6 flex flex-wrap justify-center gap-3">
+   316→            {wrongIdx.length > 0 && (
+   317→              <button
+   318→                onClick={() => startQuiz(wrongIdx.map((w) => w.qq))}
+   319→                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-transform active:scale-[.98]"
+   320→              >
+   321→                <RefreshCcw className="h-4 w-4" /> تمرین سؤال‌های غلط
+   322→              </button>
+   323→            )}
+   324→            <button onClick={() => setPhase("setup")} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+   325→              آزمون مجدد
+   326→            </button>
+   327→            <button onClick={() => navigate(ctx ? { view: "learn", id: ctx.lesson.id } : { view: "home" })} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+   328→              {ctx ? "بازگشت به تدریس" : "خانه"}
+   329→            </button>
+   330→          </div>
+   331→        </motion.section>
+   332→
+   333→        {/* پاسخ‌نامهٔ تشریحی */}
+   334→        <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+   335→          <p className="mb-4 flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> پاسخ‌نامهٔ تشریحی</p>
+   336→          <div className="space-y-3">
+   337→            {questions.map((qq, i) => {
+   338→              const mine = answers[i];
+   339→              const ok = mine === qq.answer;
+   340→              return (
+   341→                <details key={i} className={`group rounded-xl border px-4 py-3 ${ok ? "border-border" : "border-warn/40 bg-warn/[0.04]"}`} open={!ok}>
+   342→                  <summary className="flex cursor-pointer list-none items-start gap-2.5 text-sm leading-relaxed">
+   343→                    <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md font-display text-[11px] font-bold ${ok ? "bg-success/15 text-success" : mine ? "bg-danger/15 text-danger" : "bg-muted text-muted-foreground"}`}>
+   344→                      {ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : mine ? <XCircle className="h-3.5 w-3.5" /> : fa(i + 1)}
+   345→                    </span>
+   346→                    <span className="font-body flex-1">{qq.q}</span>
+   347→                    <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:-rotate-180" />
+   348→                  </summary>
+   349→                  <div className="mt-3 space-y-2 border-t border-dashed border-border pt-3 text-[13.5px] leading-relaxed">
+   350→                    <p><span className="font-display font-bold text-success">پاسخ صحیح:</span> <span className="font-body">{FA_LETTER[qq.answer]}) {qq.options.find((o) => o.key === qq.answer)?.text}</span></p>
+   351→                    {mine && !ok && <p><span className="font-display font-bold text-danger">پاسخ شما:</span> <span className="font-body">{FA_LETTER[mine]}) {qq.options.find((o) => o.key === mine)?.text}</span></p>}
+   352→                    {!mine && <p className="text-warn">بدون پاسخ</p>}
+   353→                    <p className="rounded-lg bg-muted/50 px-3 py-2.5 font-body text-muted-foreground">{qq.explanation}</p>
+   354→                  </div>
+   355→                </details>
+   356→              );
+   357→            })}
+   358→          </div>
+   359→        </section>
+   360→      </div>
+   361→    );
+   362→  }
+   363→
+   364→  /* ═══ صفحهٔ اجرای آزمون ═══ */
+   365→  const picked = answers[idx];
+   366→  return (
+   367→    <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+   368→      <header className="rounded-2xl border border-border bg-card p-5 shadow-card">
+   369→        <div className="flex flex-wrap items-center justify-between gap-2">
+   370→          <p className="text-xs font-medium text-bronze">{ctx ? ctx.course.title : "آزمون جامع"}{ctx ? ` · ${ctx.lesson.title}` : ""}</p>
+   371→          <div className="flex items-center gap-2">
+   372→            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground" dir="ltr"><Timer className="h-3 w-3" /> {fmtTime(elapsed)}</span>
+   373→            <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-bold text-primary">سؤال {fa(idx + 1)} از {fa(questions.length)}</span>
+   374→          </div>
+   375→        </div>
+   376→        <ProgressBar value={(answeredCount / questions.length) * 100} className="mt-3" />
+   377→
+   378→        {/* ناوبر سؤال‌ها */}
+   379→        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+   380→          {questions.map((_, i) => {
+   381→            const answered = !!answers[i];
+   382→            const isCurrent = i === idx;
+   383→            const flagged = flags.includes(i);
+   384→            return (
+   385→              <button
+   386→                key={i}
+   387→                onClick={() => goto(i)}
+   388→                disabled={i > furthest}
+   389→                aria-label={`رفتن به سؤال ${fa(i + 1)}`}
+   390→                className={`relative grid h-8 w-8 place-items-center rounded-lg border font-display text-[11.5px] font-bold transition-all ${
+   391→                  isCurrent ? "border-bronze bg-bronze/15 text-bronze shadow-card"
+   392→                  : answered ? "border-primary/30 bg-primary/10 text-primary"
+   393→                  : i <= furthest ? "border-border bg-background text-muted-foreground hover:border-bronze/50"
+   394→                  : "border-border/60 bg-muted/40 text-muted-foreground/40"
+   395→                }`}
+   396→              >
+   397→                {fa(i + 1)}
+   398→                {flagged && <span className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-bronze" />}
+   399→              </button>
+   400→            );
+   401→          })}
+   402→        </div>
+   403→        {mode === "exam" && <p className="mt-2.5 text-[11px] text-muted-foreground">حالت آزمونی — پاسخ‌ها تا پایان نمایش داده نمی‌شوند؛ با ناوبر بالا می‌توانی برگردی و جواب را عوض کنی.</p>}
+   404→      </header>
+   405→
+   406→      <AnimatePresence mode="wait">
+   407→        {q && (
+   408→          <motion.section key={idx} initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ duration: 0.22 }} className="scroll-mt-24 rounded-2xl border border-border bg-card p-6 shadow-card">
+   409→            <div className="flex items-start justify-between gap-3">
+   410→              <h1 className="font-body flex-1 text-[17px] font-semibold leading-[2]">{q.q}</h1>
+   411→              <button
+   412→                onClick={() => toggleFlag(idx)}
+   413→                title={flags.includes(idx) ? "برداشتن پرچم" : "علامت‌گذاری برای مرور"}
+   414→                className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors ${flags.includes(idx) ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50 hover:text-bronze"}`}
+   415→              >
+   416→                <Flag className={`h-4 w-4 ${flags.includes(idx) ? "fill-bronze/30" : ""}`} />
+   417→              </button>
+   418→            </div>
+   419→            <div className="mt-5 grid gap-3">
+   420→              {KEYS.map((k) => {
+   421→                const opt = q.options.find((o) => o.key === k);
+   422→                if (!opt) return null;
+   423→                const isRight = k === q.answer;
+   424→                const isPicked = k === picked;
+   425→                const reveal = mode === "train" && picked;
+   426→                let cls = "border-border bg-background hover:-translate-y-px hover:border-bronze/60 hover:bg-bronze/5 hover:shadow-card";
+   427→                if (reveal) {
+   428→                  if (isRight) cls = "border-success bg-success/[0.08]";
+   429→                  else if (isPicked) cls = "border-danger bg-danger/[0.08]";
+   430→                  else cls = "border-border opacity-45";
+   431→                } else if (mode === "exam" && isPicked) {
+   432→                  cls = "border-primary bg-primary/[0.08] shadow-card";
+   433→                }
+   434→                return (
+   435→                  <button key={k} onClick={() => pick(k)} disabled={!!(mode === "train" && picked)} aria-label={`گزینه ${FA_LETTER[k]}`} className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-all duration-200 ${cls}`}>
+   436→                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-display text-xs font-bold ${
+   437→                      reveal && isRight ? "bg-success text-white" : reveal && isPicked ? "bg-danger text-white" : isPicked ? "border border-primary/50 bg-primary/15 text-primary" : "border border-bronze/30 bg-bronze/10 text-bronze"
+   438→                    }`}>
+   439→                      {reveal && isRight ? <CheckCircle2 className="h-[18px] w-[18px]" /> : reveal && isPicked ? <XCircle className="h-[18px] w-[18px]" /> : FA_LETTER[k]}
+   440→                    </span>
+   441→                    <span className={`flex-1 pt-1 font-body leading-relaxed ${reveal && (isRight || isPicked) ? (isRight ? "text-success" : isPicked ? "text-danger" : "") : ""}`}>{opt.text}</span>
+   442→                  </button>
+   443→                );
+   444→              })}
+   445→            </div>
+   446→
+   447→            {/* بازخورد فوری — فقط حالت آموزشی */}
+   448→            <AnimatePresence>
+   449→              {mode === "train" && picked && (
+   450→                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+   451→                  <button onClick={() => setExplainOpen(!explainOpen)} className="mt-5 flex w-full items-center justify-between rounded-t-xl border-s-4 border-bronze bg-accent px-4 py-3 text-sm font-display font-semibold">
+   452→                    <span className="flex items-center gap-2"><Scale className="h-4 w-4 text-bronze" /> تشریح پاسخ</span>
+   453→                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${explainOpen ? "" : "-rotate-180"}`} />
+   454→                  </button>
+   455→                  {explainOpen && (
+   456→                    <p className="font-body rounded-b-xl rounded-se-none border-x border-b border-accent bg-background px-4 py-3.5 text-sm leading-loose text-muted-foreground">
+   457→                      {q.explanation}
+   458→                    </p>
+   459→                  )}
+   460→                  <div className="mt-4 flex items-center justify-between gap-3">
+   461→                    <span className="text-sm font-bold">{picked === q.answer ? "درست بود؛ آفرین!" : "جواب درست: گزینهٔ " + FA_LETTER[q.answer]}</span>
+   462→                    <NextBtn label={idx + 1 < questions.length ? "سؤال بعدی" : "دیدن نتیجه"} onClick={next} />
+   463→                  </div>
+   464→                </motion.div>
+   465→              )}
+   466→            </AnimatePresence>
+   467→
+   468→            {/* ناوبری حالت آزمونی */}
+   469→            {mode === "exam" && (
+   470→              <div className="mt-5 flex items-center justify-between gap-3 border-t border-dashed border-border pt-4">
+   471→                <button
+   472→                  onClick={() => goto(idx - 1)}
+   473→                  disabled={idx === 0}
+   474→                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:border-bronze/60 disabled:opacity-40"
+   475→                >
+   476→                  <ArrowRight className="h-4 w-4" /> قبلی
+   477→                </button>
+   478→                {answeredCount < questions.length && idx === questions.length - 1 ? (
+   479→                  <span className="text-xs text-muted-foreground">{fa(questions.length - answeredCount)} سؤال بدون پاسخ مانده</span>
+   480→                ) : null}
+   481→                {idx + 1 < questions.length ? (
+   482→                  <NextBtn label="سؤال بعدی" onClick={next} />
+   483→                ) : (
+   484→                  <button
+   485→                    onClick={finish}
+   486→                    className="inline-flex items-center gap-2 rounded-xl bg-success px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-transform active:scale-[.98]"
+   487→                  >
+   488→                    <CheckCircle2 className="h-4 w-4" /> پایان و دیدن نتیجه
+   489→                  </button>
+   490→                )}
+   491→              </div>
+   492→            )}
+   493→          </motion.section>
+   494→        )}
+   495→      </AnimatePresence>
+   496→    </div>
+   497→  );
+   498→}
+   499→
+   500→function NextBtn({ label, onClick }: { label: string; onClick: () => void }) {
+   501→  return (
+   502→    <button onClick={onClick} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all hover:-translate-y-px active:scale-[.98]">
+   503→      {label} <ArrowLeft className="h-4 w-4" />
+   504→    </button>
+   505→  );
+   506→}
+   507→
+   508→function shuffle<T>(arr: T[]): T[] {
+   509→  const a = [...arr];
+   510→  for (let i = a.length - 1; i > 0; i--) {
+   511→    const j = Math.floor(Math.random() * (i + 1));
+   512→    [a[i], a[j]] = [a[j], a[i]];
+   513→  }
+   514→  return a;
+   515→}
+   516→
+   517→export function _weakTopicReader() { return weakTopics(); }
+   518→

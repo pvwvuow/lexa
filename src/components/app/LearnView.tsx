@@ -13,7 +13,7 @@ import { useApp } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich, BlockDivider } from "./common";
+import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
 
 interface AiNote { sectionId: string; text: string }
@@ -313,8 +313,18 @@ export function LearnView({ id }: { id: string }) {
 
                 {s.bullets && (
                   <div className="pt-2">
-                    {s.body && <BlockDivider label="نکته‌های کلیدی" Icon={ListChecks} />}
-                    <BulletRich items={s.bullets} />
+                    {s.type === "summary" ? (
+                      /* جمع‌بندی: برگهٔ مرور اختصاصی — نه شبکهٔ کارت مستطیلی */
+                      <>
+                        {s.body && <BlockDivider label="چکیدهٔ نهایی" Icon={ListChecks} />}
+                        <SummarySheet items={s.bullets} />
+                      </>
+                    ) : (
+                      <>
+                        {s.body && <BlockDivider label="نکته‌های کلیدی" Icon={ListChecks} />}
+                        <BulletRich items={s.bullets} />
+                      </>
+                    )}
                   </div>
                 )}
 

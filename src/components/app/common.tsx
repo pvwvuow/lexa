@@ -363,6 +363,100 @@ function PlainList({ items }: { items: string[] }) {
   );
 }
 
+/* ── برگهٔ مرور — رندر اختصاصی جمع‌بندی ═══════════════════════════════════════
+ * به‌جای کارت‌های مستطیلیِ تکراری، حس «برگهٔ چکیدهٔ پرونده»: اعداد آویزان، متن
+ * روان و جداکنندهٔ مویی. حالت خودآزمایی هم دارد: ابتدا جمله پنهان است و با کلیک
+ * روی هر ردیف، پاسخ همان نکته باز می‌شود (یادآوری فعال). */
+export function SummarySheet({ items }: { items: string[] }) {
+  const parsed = React.useMemo(
+    () => items.map((x) => parseTermLine(x.replace(NUM_RE, "").trim())),
+    [items],
+  );
+  const [veil, setVeil] = React.useState(false);
+  const [shown, setShown] = React.useState<Set<number>>(new Set());
+  const revealed = shown;
+
+  React.useEffect(() => {
+    setShown(new Set());
+    setVeil(false);
+  }, [items]);
+
+  if (!parsed.length) return null;
+
+  const reveal = (i: number) => setShown((s) => { const n = new Set(s); n.add(i); return n; });
+
+  return (
+    <div>
+      {/* نوار ابزار برگه */}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11.5px] font-medium text-muted-foreground">
+          چکیدهٔ جلسه در {fa(parsed.length)} نکته{veil && <> — {fa(revealed.size)} از {fa(parsed.length)} باز شده</>}
+        </span>
+        <button
+          onClick={() => { setVeil((v) => !v); setShown(new Set()); }}
+          aria-pressed={veil}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-bold transition-colors ${
+            veil ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50 hover:text-bronze"
+          }`}
+        >
+          {veil ? <EyeOn className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          {veil ? "پایان خودآزمایی" : "خودآزمایی؛ اول فکر کن"}
+        </button>
+      </div>
+
+      <ol className="relative">
+        {parsed.map((it, i) => {
+          const hidden = veil && !revealed.has(i);
+          return (
+            <li key={i} className="group relative py-4 first:pt-2 last:pb-2">
+              {/* جداکنندهٔ مویی بین ردیف‌ها */}
+              {i > 0 && <span aria-hidden className="absolute inset-x-1 top-0 h-px bg-gradient-to-l from-transparent via-border to-transparent" />}
+              <div className="flex gap-4">
+                {/* عدد آویزان — بدون قاب، فقط رقم سایه‌دار */}
+                <span aria-hidden className="pointer-events-none w-8 shrink-0 select-none pt-1 text-center font-display text-[26px] font-bold leading-none text-bronze/35 transition-colors duration-200 group-hover:text-bronze/60" style={{ fontVariantNumeric: "normal" }}>
+                  {fa(i + 1)}
+                </span>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  {it.term && <p className="mb-1 font-display text-[16.5px] font-bold tracking-wide text-primary">{it.term}</p>}
+                  {hidden ? (
+                    <button
+                      onClick={() => reveal(i)}
+                      className="flex w-full items-center gap-2 rounded-lg border border-dashed border-bronze/40 bg-bronze/[0.04] px-3.5 py-2.5 text-start transition-colors hover:bg-bronze/10"
+                      aria-label={`نمایش نکتهٔ ${fa(i + 1)}`}
+                    >
+                      <EyeOff className="h-4 w-4 shrink-0 text-bronze" />
+                      <span className="text-[13px] font-medium text-bronze">جمله را از حفظ بگو، بعد برای مقایسه بازش کن</span>
+                    </button>
+                  ) : (
+                    <p className={`font-body whitespace-pre-line text-[18.5px] leading-[2.05] text-foreground/95 transition-opacity duration-300`}>{it.text}</p>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <div aria-hidden className="mx-auto mt-2 h-px w-24 bg-gradient-to-l from-transparent via-bronze/50 to-transparent" />
+    </div>
+  );
+}
+
+function EyeOff({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function EyeOn({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <path d="m1 1 22 22" />
+    </svg>
+  );
+}
+
 /** رندر بدنهٔ درس: پاراگراف + کارت اصطلاح + پله‌نما */
 export function BodyRich({ text }: { text: string }) {
   const blocks = React.useMemo(() => parseBody(text), [text]);
