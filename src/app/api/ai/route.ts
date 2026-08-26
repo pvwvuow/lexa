@@ -24,7 +24,7 @@ interface Body {
 }
 
 // ─── پیاده‌سازی پروایدرها ────────────────────────────────────────────────────
-async function callBuiltin(system: string, user: string): Promise<string> {
+async function callBuiltin(system: string, user: string, temperature = 0.4): Promise<string> {
   const ZAI = (await import('z-ai-web-dev-sdk')).default;
   const zai = await ZAI.create();
   const completion = await zai.chat.completions.create({
@@ -32,12 +32,12 @@ async function callBuiltin(system: string, user: string): Promise<string> {
       { role: 'system', content: system },
       { role: 'user', content: user },
     ],
-    temperature: 0.4,
+    temperature,
   });
   return completion.choices[0]?.message?.content ?? '';
 }
 
-async function callGemini(conf: AiConf, system: string, user: string): Promise<string> {
+async function callGemini(conf: AiConf, system: string, user: string, tempOverride?: number): Promise<string> {
   const key = conf.apiKey!;
   const model = conf.model || 'gemini-2.0-flash';
   const base = conf.baseUrl?.replace(/\/$/, '') || 'https://generativelanguage.googleapis.com/v1beta';
@@ -47,7 +47,7 @@ async function callGemini(conf: AiConf, system: string, user: string): Promise<s
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts: [{ text: user }] }],
-      generationConfig: { temperature: conf.temperature ?? 0.4 },
+      generationConfig: { temperature: tempOverride ?? conf.temperature ?? 0.4 },
     }),
     signal: AbortSignal.timeout(90_000),
   });
@@ -59,7 +59,7 @@ async function callGemini(conf: AiConf, system: string, user: string): Promise<s
   return text;
 }
 
-async function callOpenAiCompatible(conf: AiConf, system: string, user: string): Promise<string> {
+async function callOpenAiCompatible(conf: AiConf, system: string, user: string, tempOverride?: number): Promise<string> {
   const base = (conf.baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
   const model = conf.model || 'gpt-4o-mini';
   const res = await fetch(`${base}/chat/completions`, {
@@ -70,7 +70,7 @@ async function callOpenAiCompatible(conf: AiConf, system: string, user: string):
     },
     body: JSON.stringify({
       model,
-      temperature: conf.temperature ?? 0.4,
+      temperature: tempOverride ?? conf.temperature ?? 0.4,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -85,12 +85,29 @@ async function callOpenAiCompatible(conf: AiConf, system: string, user: string):
   return text;
 }
 
-async function dispatch(conf: AiConf, system: string, user: string): Promise<string> {
+async function dispatch(conf: AiConf, system: string, user: string, tempOverride?: number): Promise<string> {
   switch (conf.provider) {
-    case 'gemini': return callGemini(conf, system, user);
-    case 'openai': return callOpenAiCompatible(conf, system, user);
-    default:       return callBuiltin(system, user);
+    case 'gemini': return callGemini(conf, system, user, tempOverride);
+    case 'openai': return callOpenAiCompatible(conf, system, user, tempOverride);
+    default:       return callBuiltin(system, user, tempOverride);
   }
+}
+
+/** صافی کیفیت تست: فقط سؤالات سالم با پاسخ معتبر و گزینه‌های غیرتکراری */
+function sanitizeQuiz(quiz: unknown[]): unknown[] {
+  return (quiz ?? []).filter((raw) => {
+    const q = raw as { q?: unknown; options?: unknown; answer?: unknown; explanation?: unknown };
+    if (typeof q.q !== 'string' || !q.q.trim()) return false;
+    if (!Array.isArray(q.options) || q.options.length < 3) return false;
+    if (typeof q.answer !== 'string' || !['a', 'b', 'c', 'd'].includes(q.answer)) return false;
+    const opts = q.options as { key?: unknown; text?: unknown }[];
+    if (!opts.some((o) => String(o?.key ?? '') === q.answer)) return false;
+    if (opts.some((o) => typeof o?.text !== 'string' || !o.text.trim())) return false;
+    if (typeof q.explanation !== 'string' || !q.explanation.trim()) return false;
+    const texts = new Set(opts.map((o) => (o.text as string).trim()));
+    if (texts.size !== opts.length) return false;
+    return true;
+  });
 }
 
 // ─── کمک‌های JSON ────────────────────────────────────────────────────────────
@@ -142,16 +159,26 @@ export async function POST(req: Request) {
       }
 
       case 'gen_quiz': {
-        const source = String(body.content ?? '').slice(0, 6000);
+        const source = String(body.content ?? '').slice(0, 8000);
         const n = Math.min(Math.max(body.n ?? 5, 3), 10);
         const user = `از منبع زیر ${n} سؤال تستی چهارگزینه‌ای دانشگاهی (تراز آزمون وکالت) بساز و فقط JSON برگردان:
 {"quiz":[{"q":string,"options":[{"key":"a|b|c|d","text":string}],"answer":"a|b|c|d","explanation":string,"topic":string}]}
-تشریح هر گزینه باید به ماده/اصل قانونی ارجاع دهد.\n\n--- منبع ---\n${source}
+
+⚠️ قواعد کیفیت (اجباری):
+- هر سؤال فقط از متن منبع طراحی شود؛ موضوع خارج از منبع ممنوع.
+- فقط یک گزینه صحیحِ قطعی باشد؛ سه گزینهٔ دیگر کاملاً نادرست و قابل‌تفکیک، نه دوپهلو یا شبیه صحیح.
+- سؤال مفهومی/تحلیلی بساز؛ عین‌جملهٔ حفظی بدون تغییر ممنوع.
+- تشریح هر سؤال با استناد به متن منبع باشد؛ شمارهٔ ماده فقط اگر عیناً در منبع آمده، وگرنه بدون شماره.
+- موضوعات بین سؤال‌ها متنوع باشد.
+
+--- منبع ---
+${source}
 ${lessonContextBlock(ctx as never)}`;
         for (let attempt = 0; attempt < 2; attempt++) {
-          const raw = await dispatch(ai, buildSystem('QUIZ'), user);
+          const raw = await dispatch(ai, buildSystem('QUIZ'), user, 0.3);
           const parsed = extractJson<{ quiz: unknown[] }>(raw);
-          if (parsed?.quiz?.length) return NextResponse.json({ quiz: parsed.quiz });
+          const clean = parsed?.quiz ? sanitizeQuiz(parsed.quiz) : [];
+          if (clean.length) return NextResponse.json({ quiz: clean });
         }
         return NextResponse.json({ error: 'تولید تست ناموفق بود.' }, { status: 502 });
       }
