@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale,
   Timer, Flag, GraduationCap, ClipboardList, ArrowLeft, ArrowRight, Shuffle,
+  Library, Target, Filter, House,
 } from "lucide-react";
 import type { QuizQuestion } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
-import type { Course, Lesson } from "@/lib/law/types";
+import type { Course, Lesson, Chapter } from "@/lib/law/types";
+import { flattenAll } from "@/lib/law/types";
 import { useApp, weakTopics } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
@@ -23,28 +25,94 @@ const FA_LETTER: Record<string, string> = { a: "الف", b: "ب", c: "ج", d: "�
 type Phase = "setup" | "run" | "result";
 type Mode = "train" | "exam";
 
+const WEAK_KEY = "hoh_weak_topics";
+
+/** ادغام مبحث‌های ضعیف در مخزن localStorage — بدون ساخت رکورد پیشرفت جعلی */
+function mergeWeakTopics(adds: string[]) {
+  const set = new Set(weakTopics());
+  adds.forEach((t) => t && set.add(t));
+  set.delete("");
+  try { localStorage.setItem(WEAK_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+}
+
 export function QuizView({ id }: { id?: string }) {
   const custom = useApp((s) => s.customCourses);
   const recordQuiz = useApp((s) => s.recordQuiz);
   const complete = useApp((s) => s.completeLesson);
+  const touchStreak = useApp((s) => s.touchStreak);
 
-  // منبع سؤالات
-  const all = [...builtinCourses, ...custom];
+  // منبع سؤالات — کل کتابخانه (داخلی + وارداتی)
+  const all: Course[] = React.useMemo(() => [...builtinCourses, ...custom], [custom]);
+
   const ctx = React.useMemo(() => {
-    if (id) {
-      for (const c of all) for (const ch of c.chapters) {
-        const l = ch.lessons.find((x) => x.id === id);
-        if (l && l.quiz.length > 0) return { course: c, lesson: l as Lesson };
-      }
+    if (!id) return null;
+    for (const c of all) for (const ch of c.chapters) {
+      const l = ch.lessons.find((x) => x.id === id);
+      if (l && l.quiz.length > 0) return { course: c, chapter: ch, lesson: l as Lesson };
     }
     return null;
-  }, [id, custom]);
+  }, [id, all]);
 
-  const basePool: QuizQuestion[] = React.useMemo(
-    () => (ctx ? ctx.lesson.quiz : all.flatMap((c) => c.chapters.flatMap((ch) => ch.lessons.flatMap((l) => l.quiz)))),
-    [id, custom],
+  /** حالت «مرکز آزمون»: انتخاب دامنه از کل کتابخانه */
+  const [hubActive, setHubActive] = React.useState<boolean>(() => !id);
+
+  // ── انتخاب دامنه در مرکز آزمون ──
+  const flatAll = React.useMemo(() => flattenAll(all), [all]);
+  const readyFlat = React.useMemo(() => flatAll.filter((f) => f.lesson.status !== "ai-pending" && f.lesson.quiz.length > 0), [flatAll]);
+
+  const [scopeCourse, setScopeCourse] = React.useState<string>("ALL");
+  const [picked, setPicked] = React.useState<Set<string>>(() => new Set());
+  const [weakOnly, setWeakOnly] = React.useState(false);
+  const [weakVer, setWeakVer] = React.useState(0); // با هر ثبت مبحث ضعیف، آمار تازه شود
+  const initialized = React.useRef(false);
+
+  // مقدار اولیهٔ دامنه: جلسهٔ فعلی اگر از تدریس آمده، وگرنه همهٔ کتاب‌ها
+  React.useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    if (ctx) setPicked(new Set([ctx.lesson.id]));
+    else setPicked(new Set(readyFlat.map((f) => f.lesson.id)));
+  }, [ctx, readyFlat]);
+
+  /** درس‌های قابل‌مشاهده در درخت انتخاب — بر اساس درسِ انتخابیِ جاری */
+  const visibleLessons = React.useMemo(
+    () => readyFlat.filter((f) => scopeCourse === "ALL" || f.course.id === scopeCourse),
+    [readyFlat, scopeCourse],
   );
-  /** استخراج تولیدشدهٔ استاد — تا وقتی جایگزین نشده، مبنای آزمون است */
+
+  // استخر سؤال
+  const lessonBase: QuizQuestion[] = React.useMemo(() => (ctx ? [...ctx.lesson.quiz] : []), [ctx]);
+
+  const hubStats = React.useMemo(() => {
+    let questions = 0;
+    let weakQuestions = 0;
+    const courses = new Set<string>();
+    const chapters = new Set<string>();
+    const weakList = weakTopics();
+    for (const f of readyFlat) {
+      if (!picked.has(f.lesson.id)) continue;
+      questions += f.lesson.quiz.length;
+      for (const q of f.lesson.quiz) if (q.topic && weakList.includes(q.topic)) weakQuestions += 1;
+      courses.add(f.course.id);
+      chapters.add(f.chapter.id);
+    }
+    return { questions, weakQuestions, lessons: picked.size, courses: courses.size, chapters: chapters.size };
+    // weakTopics() خواندن مستقیم localStorage است؛ با weakVer دستی تازه می‌شود
+  }, [readyFlat, picked, weakVer]);
+
+  const basePool: QuizQuestion[] = React.useMemo(() => {
+    if (hubActive) {
+      const qs: QuizQuestion[] = [];
+      for (const f of readyFlat) {
+        if (!picked.has(f.lesson.id)) continue;
+        for (const q of f.lesson.quiz) qs.push(q);
+      }
+      return weakOnly ? qs.filter((q) => q.topic && weakTopics().includes(q.topic)) : qs;
+    }
+    return lessonBase;
+  }, [hubActive, readyFlat, picked, weakOnly, lessonBase, weakVer]);
+
+  /** استخر تولیدشدهٔ استاد — تا وقتی جایگزین نشده، مبنای آزمون است */
   const [aiPool, setAiPool] = React.useState<QuizQuestion[] | null>(null);
   const pool = aiPool ?? basePool;
 
@@ -73,8 +141,9 @@ export function QuizView({ id }: { id?: string }) {
     setPhase("setup");
     setAiPool(null);
     setGenErr("");
-    setCount(Math.min(5, basePool.length) || 5);
-  }, [id, basePool.length]);
+    setCount(pool.length ? Math.min(5, pool.length) : 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, hubActive, basePool.length]);
 
   // زمان‌سنج
   React.useEffect(() => {
@@ -92,10 +161,42 @@ export function QuizView({ id }: { id?: string }) {
     return `${fa(m)}:${fa(String(s).padStart(2, "0"))}`;
   }
 
+  // ── عملیات دامنه انتخاب ──
+  const toggleLesson = (lessonId: string) =>
+    setPicked((p) => {
+      const n = new Set(p);
+      if (n.has(lessonId)) n.delete(lessonId); else n.add(lessonId);
+      return n;
+    });
+
+  const toggleChapter = (lessons: Lesson[]) =>
+    setPicked((p) => {
+      const ids = lessons.filter((l) => l.status !== "ai-pending" && l.quiz.length > 0).map((l) => l.id);
+      const allIn = ids.every((i) => p.has(i));
+      const n = new Set(p);
+      ids.forEach((i) => (allIn ? n.delete(i) : n.add(i)));
+      return n;
+    });
+
+  const applyCoursePreset = (cid: string) => {
+    setScopeCourse(cid);
+    setPicked(new Set(readyFlat.filter((f) => cid === "ALL" || f.course.id === cid).map((f) => f.lesson.id)));
+  };
+
+  const pickWeakScope = () => {
+    // کل کتابخانه‌ای که سؤال ضعیف دارد؛ بدون توجه به فیلتر درس
+    setScopeCourse("ALL");
+    setWeakOnly(true);
+    const list = weakTopics();
+    const target = readyFlat.filter((f) => f.lesson.quiz.some((q) => q.topic && list.includes(q.topic))).map((f) => f.lesson.id);
+    setPicked(new Set(target.length ? target : readyFlat.map((f) => f.lesson.id)));
+  };
+
   function startQuiz(poolOverride?: QuizQuestion[]) {
+    touchStreak();
     const src = poolOverride ?? pool;
-    const picked = shuffleOn ? shuffle(src) : [...src];
-    const qs = poolOverride ? picked : picked.slice(0, Math.min(count, src.length));
+    const shuf = shuffleOn ? shuffle(src) : [...src];
+    const qs = poolOverride ? shuf : shuf.slice(0, Math.min(count, src.length));
     setQuestions(qs);
     setAnswers({}); setFlags([]); setIdx(0); setFurthest(0);
     setWrongTopics([]); setExplainOpen(true); setGenErr("");
@@ -104,29 +205,42 @@ export function QuizView({ id }: { id?: string }) {
   }
 
   async function generateMore() {
-    if (!ctx) return;
     setGenBusy(true); setGenErr("");
     try {
-      // منبع غنی: متن کامل تدریس + مواد قانونی (نه فقط بولت‌ها)
-      const ground = lessonToContextText(ctx.lesson.sections, 5000);
+      let content = "";
+      let label = "";
+      const registry: string[] = [];
+
+      if (!hubActive && ctx) {
+        const ground = lessonToContextText(ctx.lesson.sections, 5000);
+        content = ground.text;
+        registry.push(...ground.lawRegistry);
+        label = `${ctx.course.title} · ${ctx.lesson.title}`;
+      } else {
+        // چند جلسهٔ منتخب به ترتیب کتاب تا سقف ~۷۲۰۰ کاراکتر
+        const chosen = readyFlat.filter((f) => picked.has(f.lesson.id));
+        if (!chosen.length) throw new Error("جلسهٔ آماده‌ای در دامنه نیست؛ اول جلسه را تدریس کن.");
+        for (const f of chosen) {
+          if (content.length >= 7200) break;
+          const g = lessonToContextText(f.lesson.sections, 2400);
+          content += `\n\n### جلسه: ${f.lesson.title} (${f.course.title} / ${f.chapter.title})\n${g.text}`;
+          for (const r of g.lawRegistry) if (!registry.includes(r)) registry.push(r);
+        }
+        if (registry.length > 40) registry.length = 40;
+        label = `${hubStats.lessons} جلسه از ${fa(hubStats.courses)} کتاب`;
+      }
+
       const res = await askAi<{ quiz: QuizQuestion[] }>({
         task: "gen_quiz",
         n: 5,
-        content: ground.text,
-        context: {
-          courseTitle: ctx.course.title,
-          lessonTitle: ctx.lesson.title,
-          lawRegistry: ground.lawRegistry,
-        },
+        content: content.trim(),
+        context: { courseTitle: label, lawRegistry: registry },
       });
       const clean = (res.quiz ?? []).filter(
         (q) => q?.q && q.options?.length >= 3 && q.options.some((o) => o.key === q.answer) && q.explanation,
       );
       if (!clean.length) throw new Error("سؤال سالمی تولید نشد؛ دوباره تلاش کن.");
       setAiPool(clean);
-      setQuestions(clean);
-      setAnswers({}); setFlags([]); setIdx(0); setFurthest(0);
-      setStartedAt(0); setWrongTopics([]);
       setCount(Math.min(5, clean.length));
       setPhase("setup");
     } catch (e) {
@@ -136,13 +250,33 @@ export function QuizView({ id }: { id?: string }) {
     }
   }
 
+  function scopeLine(): string {
+    if (!hubActive && ctx) return `${ctx.course.title} · ${ctx.lesson.title}`;
+    if (weakOnly) return `مباحث ضعیف تو — ${fa(hubStats.lessons)} جلسه`;
+    return `${fa(hubStats.lessons)} جلسه · ${fa(hubStats.chapters)} فصل · ${fa(hubStats.courses)} کتاب`;
+  }
+
   if (!pool.length && phase === "setup" && !genBusy)
     return (
       <div className="mx-auto max-w-2xl px-4 py-16">
         <EmptyState
-          title="اینجا تستی نیست"
-          desc="هنوز برای این مبحث سؤالی آماده نشده است."
-          action={<button onClick={() => navigate({ view: "home" })} className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">برگشت به خانه</button>}
+          title={hubActive ? "با این دامنه، سؤالی آماده نیست" : "اینجا تستی نیست"}
+          desc={hubActive
+            ? "دامنهٔ دیگری انتخاب کن یا جلسات بیشتری را تیک بزن؛ بعد از هر جلسه، سؤال‌هایش به همین مرکز اضافه می‌شود."
+            : "هنوز برای این مبحث سؤالی آماده نشده است."}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {hubActive && (
+                <button
+                  onClick={() => { setScopeCourse("ALL"); setWeakOnly(false); setPicked(new Set(readyFlat.map((f) => f.lesson.id))); }}
+                  className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+                >
+                  انتخاب کل کتابخانه
+                </button>
+              )}
+              <button onClick={() => navigate({ view: "home" })} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">برگشت به خانه</button>
+            </div>
+          }
         />
       </div>
     );
@@ -154,7 +288,7 @@ export function QuizView({ id }: { id?: string }) {
     if (mode === "train" && answers[idx]) return; // حالت آموزشی: یک انتخاب
     setAnswers((a) => ({ ...a, [idx]: k }));
     if (mode === "train" && k !== q.answer) {
-      const t = q.topic ?? ctx?.lesson.title ?? "مبحث نامشخص";
+      const t = q.topic ?? (!hubActive && ctx ? ctx.lesson.title : "مبحث نامشخص");
       setWrongTopics((w) => (w.includes(t) ? w : [...w, t]));
     }
   }
@@ -182,30 +316,161 @@ export function QuizView({ id }: { id?: string }) {
     const wrongT = new Set<string>();
     questions.forEach((qq, i) => {
       if (answers[i] === qq.answer) correct++;
-      else {
-        if (answers[i]) wrongT.add(qq.topic ?? ctx?.lesson.title ?? "مبحث نامشخص");
-        else wrongT.add(qq.topic ?? ctx?.lesson.title ?? "مبحث نامشخص");
-      }
+      else wrongT.add(qq.topic ?? (!hubActive && ctx ? ctx.lesson.title : "مبحث نامشخص"));
     });
+    wrongT.delete("");
     const score = Math.round((correct / Math.max(1, questions.length)) * 100);
     setFinalScore(score);
     finalAt.current = Date.now();
     setWrongTopics([...wrongT]);
-    recordQuiz(ctx?.lesson.id ?? "mixed-quiz", score, ctx?.lesson.title, [...wrongT]);
-    if (ctx) complete(ctx.lesson.id);
+    if (!hubActive && ctx) {
+      recordQuiz(ctx.lesson.id, score, ctx.lesson.title, [...wrongT]);
+      complete(ctx.lesson.id);
+    } else {
+      mergeWeakTopics([...wrongT]); // مرکز آزمون: مباحث ضعیف ثبت می‌شود، نه رکورد پیشرفت جعلی
+    }
+    setWeakVer((v) => v + 1); // آمار «مباحث ضعیف» بلافاصله در تنظیمات دیده شود
     setPhase("result");
   }
 
   /* ═══ صفحهٔ تنظیمات آزمون ═══ */
   if (phase === "setup") {
-    const countOptions = [5, 10, pool.length].filter((v, i, arr) => v <= pool.length && arr.indexOf(v) === i);
+    const countOptions = [5, 10, 20, pool.length].filter((v, i, arr) => v > 0 && v <= pool.length && arr.indexOf(v) === i);
     return (
       <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
         <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
-          <p className="text-xs font-medium text-bronze">{ctx ? ctx.course.title : "آزمون جامع"}{ctx ? ` · ${ctx.lesson.title}` : ""}</p>
-          <h1 className="mt-1.5 font-display text-xl font-bold">تنظیمات آزمون{aiPool && <span className="ms-2 inline-flex items-center gap-1 rounded-full bg-bronze/15 px-2.5 py-0.5 align-middle text-[11px] font-bold text-bronze"><Sparkles className="h-3 w-3" /> تازه از استاد رسید</span>}</h1>
-          <p className="mt-1 text-xs text-muted-foreground">{fa(pool.length)} سؤال از این مبحث آماده است؛ آزمون را همان‌طور که دوست داری برگزار کن.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-bronze">{hubActive ? "مرکز آزمون — کل کتابخانه" : "آزمون این جلسه"}{aiPool ? " · با سؤال‌های تازهٔ استاد" : ""}</p>
+              <h1 className="mt-1.5 font-display text-xl font-bold">تنظیمات آزمون</h1>
+            </div>
+            {/* جابه‌جایی بین آزمون جلسه و مرکز آزمون */}
+            {(ctx || hubActive) && (
+              <button
+                onClick={() => { setHubActive((v) => !v); setWeakOnly(false); }}
+                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[11.5px] font-bold transition-colors ${
+                  hubActive ? "border-border bg-background text-muted-foreground hover:border-bronze/50 hover:text-bronze" : "border-bronze bg-bronze/10 text-bronze hover:bg-bronze/15"
+                }`}
+              >
+                {hubActive ? "فقط این جلسه" : "مرکز آزمون"}
+              </button>
+            )}
+          </div>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{fa(pool.length)} سؤال در دامنهٔ «{scopeLine()}» آماده است.</p>
         </motion.header>
+
+        {/* ── دامنهٔ سؤال ── */}
+        {hubActive && (
+          <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-card">
+            <p className="text-sm font-bold">۱) از کجا سؤال بدهم؟</p>
+
+            {/* پیش‌تنظیم‌ها: کل کتابخانه یا یک کتاب */}
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              <button
+                onClick={() => applyCoursePreset("ALL")}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition-colors ${
+                  scopeCourse === "ALL" ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"
+                }`}
+              >
+                <Library className="h-3.5 w-3.5" /> همهٔ کتاب‌ها
+              </button>
+              {all.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => applyCoursePreset(c.id)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition-colors ${
+                    scopeCourse === c.id ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"
+                  }`}
+                >
+                  {c.title}
+                </button>
+              ))}
+            </div>
+
+            {/* درخت فصل/جلسه */}
+            <div className="max-h-[46vh] space-y-2 overflow-y-auto pe-1">
+              {groupChapters(visibleLessons).map(({ course, groups }) => (
+                <div key={course.id} className="rounded-xl border border-border bg-background">
+                  {scopeCourse === "ALL" && (
+                    <p className="border-b border-dashed border-border px-4 pt-3 pb-2 text-[12px] font-bold text-primary">{course.title}</p>
+                  )}
+                  <ul className="p-2">
+                    {groups.map(({ chapter, lessons }) => {
+                      const ids = lessons.map((l) => l.id);
+                      const selN = ids.filter((i) => picked.has(i)).length;
+                      const full = selN === ids.length && ids.length > 0;
+                      const partial = selN > 0 && !full;
+                      return (
+                        <li key={chapter.id}>
+                          <button
+                            onClick={() => toggleChapter(lessons)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors hover:bg-muted/50"
+                          >
+                            <Tick state={full ? "on" : partial ? "some" : "off"} />
+                            <span className="flex-1 truncate text-[13px] font-semibold">فصل {chapter.order}: {chapter.title}</span>
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{fa(selN)}/{fa(ids.length)}</span>
+                          </button>
+                          <ul className="mb-1 ms-7 space-y-0.5 border-s border-dashed border-border ps-3">
+                            {lessons.map((l) => {
+                              const on = picked.has(l.id);
+                              return (
+                                <li key={l.id}>
+                                  <button
+                                    onClick={() => toggleLesson(l.id)}
+                                    aria-pressed={on}
+                                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start transition-colors ${on ? "bg-bronze/[0.07]" : "hover:bg-muted/40"}`}
+                                  >
+                                    <Tick state={on ? "on" : "off"} small />
+                                    <span className={`flex-1 truncate text-[12.5px] ${on ? "font-medium text-foreground" : "text-muted-foreground"}`}>{l.title}</span>
+                                    <span className="shrink-0 text-[10px] font-bold text-bronze/80">{fa(l.quiz.length)} سؤال</span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">خلاصهٔ دامنه: {fa(hubStats.lessons)} جلسه از {fa(hubStats.courses)} کتاب — {fa(basePool.length)} سؤال پایه</p>
+          </section>
+        )}
+
+        {/* ── تمرین هوشمند ── */}
+        <section className="grid gap-3 sm:grid-cols-2">
+          <button
+            onClick={pickWeakScope}
+            disabled={hubStats.weakQuestions === 0}
+            className={`flex items-start gap-3 rounded-xl border p-4 text-start transition-all duration-200 ${
+              weakOnly ? "border-bronze bg-bronze/[0.07] shadow-card" : "border-border bg-card hover:border-bronze/50 disabled:opacity-45"
+            }`}
+          >
+            <Target className={`mt-0.5 h-4.5 w-4.5 shrink-0 ${weakOnly ? "text-bronze" : "text-muted-foreground"}`} />
+            <span>
+              <span className="block text-sm font-bold">تمرین مباحث ضعیف من{weakOnly && " · فعال"}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                {hubStats.weakQuestions > 0 ? `${fa(hubStats.weakQuestions)} سؤال از مبحث‌هایی که جایشان را اشتباه زده‌ای` : "هنوز مبحث ضعیفی ثبت نشده؛ اول چند آزمون بده"}
+              </span>
+            </span>
+          </button>
+          <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
+            <Filter className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" />
+            <label className="flex w-full cursor-pointer items-start" onClick={() => hubStats.weakQuestions > 0 && setWeakOnly((v) => !v)}>
+              <span>
+                <span className="block text-sm font-bold">فقط سؤال‌های مبحث ضعیف</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  {weakOnly ? "روشن — از دامنهٔ انتخابی فقط ضعیف‌ها می‌آیند" : hubStats.weakQuestions > 0 ? `${fa(hubStats.weakQuestions)} سؤال ضعیف داخل همین دامنه پیدا شد` : "در این دامنه سؤال ضعیفی نیست"}
+                </span>
+              </span>
+              <span className={`relative mt-1 ms-auto h-6 w-11 shrink-0 rounded-full transition-colors ${weakOnly && hubStats.weakQuestions > 0 ? "bg-primary" : "bg-border"}`}>
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${weakOnly && hubStats.weakQuestions > 0 ? "start-[22px]" : "start-0.5"}`} />
+              </span>
+            </label>
+          </div>
+        </section>
 
         {/* حالت برگزاری */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -241,7 +506,7 @@ export function QuizView({ id }: { id?: string }) {
                 onClick={() => setCount(v)}
                 className={`rounded-full border px-5 py-2 font-display text-sm font-bold transition-colors ${count === v ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"}`}
               >
-                {v === pool.length && pool.length !== 5 && pool.length !== 10 ? `همه (${fa(v)})` : fa(v)}
+                {v === pool.length && pool.length !== 5 && pool.length !== 10 && pool.length !== 20 ? `همه (${fa(v)})` : fa(v)}
               </button>
             ))}
           </div>
@@ -256,7 +521,8 @@ export function QuizView({ id }: { id?: string }) {
         {/* شروع */}
         <button
           onClick={() => startQuiz()}
-          className="w-full rounded-2xl bg-primary px-6 py-4 font-display text-base font-bold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.99]"
+          disabled={pool.length === 0}
+          className="w-full rounded-2xl bg-primary px-6 py-4 font-display text-base font-bold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.99] disabled:opacity-50"
         >
           شروع آزمون — {fa(Math.min(count, pool.length))} سؤال
         </button>
@@ -264,8 +530,8 @@ export function QuizView({ id }: { id?: string }) {
         {/* تولید سؤال تازه با هوش مصنوعی */}
         <div className="text-center">
           {genBusy ? <AIThinking label="استاد مشغول طراحی سؤال جدید است" /> : (
-            <button onClick={generateMore} disabled={!ctx} className="inline-flex items-center gap-2 text-xs text-bronze underline-offset-4 hover:underline disabled:opacity-40">
-              <Sparkles className="h-3.5 w-3.5" /> استاد چند سؤال جدید از این جلسه بسازد
+            <button onClick={generateMore} disabled={!ctx && hubStats.lessons === 0} className="inline-flex items-center gap-2 text-xs text-bronze underline-offset-4 hover:underline disabled:opacity-40">
+              <Sparkles className="h-3.5 w-3.5" /> استاد چند سؤال جدید از دامنهٔ انتخابی بسازد
             </button>
           )}
           {genErr && <p className="mt-2 text-xs text-destructive">{genErr}</p>}
@@ -324,9 +590,15 @@ export function QuizView({ id }: { id?: string }) {
             <button onClick={() => setPhase("setup")} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
               آزمون مجدد
             </button>
-            <button onClick={() => navigate(ctx ? { view: "learn", id: ctx.lesson.id } : { view: "home" })} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
-              {ctx ? "بازگشت به تدریس" : "خانه"}
-            </button>
+            {!hubActive && ctx ? (
+              <button onClick={() => navigate({ view: "learn", id: ctx.lesson.id })} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+                بازگشت به تدریس
+              </button>
+            ) : (
+              <button onClick={() => navigate({ view: "home" })} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+                <House className="h-4 w-4" /> خانه
+              </button>
+            )}
           </div>
         </motion.section>
 
@@ -350,6 +622,7 @@ export function QuizView({ id }: { id?: string }) {
                     <p><span className="font-display font-bold text-success">پاسخ صحیح:</span> <span className="font-body">{FA_LETTER[qq.answer]}) {qq.options.find((o) => o.key === qq.answer)?.text}</span></p>
                     {mine && !ok && <p><span className="font-display font-bold text-danger">پاسخ شما:</span> <span className="font-body">{FA_LETTER[mine]}) {qq.options.find((o) => o.key === mine)?.text}</span></p>}
                     {!mine && <p className="text-warn">بدون پاسخ</p>}
+                    {qq.topic && <p className="text-[11px] text-muted-foreground">مبحث: {qq.topic}</p>}
                     <p className="rounded-lg bg-muted/50 px-3 py-2.5 font-body text-muted-foreground">{qq.explanation}</p>
                   </div>
                 </details>
@@ -362,12 +635,12 @@ export function QuizView({ id }: { id?: string }) {
   }
 
   /* ═══ صفحهٔ اجرای آزمون ═══ */
-  const picked = answers[idx];
+  const pickedKey = answers[idx];
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
       <header className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-medium text-bronze">{ctx ? ctx.course.title : "آزمون جامع"}{ctx ? ` · ${ctx.lesson.title}` : ""}</p>
+          <p className="min-w-0 truncate text-xs font-medium text-bronze">{scopeLine()}{aiPool ? " · ساختهٔ استاد" : ""}</p>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground" dir="ltr"><Timer className="h-3 w-3" /> {fmtTime(elapsed)}</span>
             <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-bold text-primary">سؤال {fa(idx + 1)} از {fa(questions.length)}</span>
@@ -421,8 +694,8 @@ export function QuizView({ id }: { id?: string }) {
                 const opt = q.options.find((o) => o.key === k);
                 if (!opt) return null;
                 const isRight = k === q.answer;
-                const isPicked = k === picked;
-                const reveal = mode === "train" && picked;
+                const isPicked = k === pickedKey;
+                const reveal = mode === "train" && pickedKey;
                 let cls = "border-border bg-background hover:-translate-y-px hover:border-bronze/60 hover:bg-bronze/5 hover:shadow-card";
                 if (reveal) {
                   if (isRight) cls = "border-success bg-success/[0.08]";
@@ -432,7 +705,7 @@ export function QuizView({ id }: { id?: string }) {
                   cls = "border-primary bg-primary/[0.08] shadow-card";
                 }
                 return (
-                  <button key={k} onClick={() => pick(k)} disabled={!!(mode === "train" && picked)} aria-label={`گزینه ${FA_LETTER[k]}`} className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-all duration-200 ${cls}`}>
+                  <button key={k} onClick={() => pick(k)} disabled={!!(mode === "train" && pickedKey)} aria-label={`گزینه ${FA_LETTER[k]}`} className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-all duration-200 ${cls}`}>
                     <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-display text-xs font-bold ${
                       reveal && isRight ? "bg-success text-white" : reveal && isPicked ? "bg-danger text-white" : isPicked ? "border border-primary/50 bg-primary/15 text-primary" : "border border-bronze/30 bg-bronze/10 text-bronze"
                     }`}>
@@ -446,7 +719,7 @@ export function QuizView({ id }: { id?: string }) {
 
             {/* بازخورد فوری — فقط حالت آموزشی */}
             <AnimatePresence>
-              {mode === "train" && picked && (
+              {mode === "train" && pickedKey && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
                   <button onClick={() => setExplainOpen(!explainOpen)} className="mt-5 flex w-full items-center justify-between rounded-t-xl border-s-4 border-bronze bg-accent px-4 py-3 text-sm font-display font-semibold">
                     <span className="flex items-center gap-2"><Scale className="h-4 w-4 text-bronze" /> تشریح پاسخ</span>
@@ -458,7 +731,7 @@ export function QuizView({ id }: { id?: string }) {
                     </p>
                   )}
                   <div className="mt-4 flex items-center justify-between gap-3">
-                    <span className="text-sm font-bold">{picked === q.answer ? "درست بود؛ آفرین!" : "جواب درست: گزینهٔ " + FA_LETTER[q.answer]}</span>
+                    <span className="text-sm font-bold">{pickedKey === q.answer ? "درست بود؛ آفرین!" : "جواب درست: گزینهٔ " + FA_LETTER[q.answer]}</span>
                     <NextBtn label={idx + 1 < questions.length ? "سؤال بعدی" : "دیدن نتیجه"} onClick={next} />
                   </div>
                 </motion.div>
@@ -497,6 +770,41 @@ export function QuizView({ id }: { id?: string }) {
   );
 }
 
+/* ── ابزارهای کمکی مرکز آزمون ───────────────────────────────────────────── */
+
+/** گروه‌بندی درس‌های یک دامنه به شکل { دوره ← [فصل ← جلسات] } */
+function groupChapters(items: { course: Course; chapter: Chapter; lesson: Lesson }[]) {
+  const byCourse = new Map<Course, Map<Chapter, Lesson[]>>();
+  for (const f of items) {
+    if (!byCourse.has(f.course)) byCourse.set(f.course, new Map());
+    const ch = byCourse.get(f.course)!;
+    if (!ch.has(f.chapter)) ch.set(f.chapter, []);
+    ch.get(f.chapter)!.push(f.lesson);
+  }
+  return [...byCourse.entries()].map(([course, chMap]) => ({
+    course,
+    groups: [...chMap.entries()].map(([chapter, lessons]) => ({ chapter, lessons })),
+  }));
+}
+
+/** چک‌باکس سه‌حالته با لوزی طلایی */
+function Tick({ state, small }: { state: "on" | "off" | "some"; small?: boolean }) {
+  const size = small ? "h-4.5 w-4.5" : "h-5 w-5";
+  if (state === "on")
+    return (
+      <span aria-hidden className={`${size} grid shrink-0 place-items-center rounded-md border border-bronze bg-bronze text-white`}>
+        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="m4 12.5 5 5L20 6.5" /></svg>
+      </span>
+    );
+  if (state === "some")
+    return (
+      <span aria-hidden className={`${size} grid shrink-0 place-items-center rounded-md border border-bronze bg-bronze/15 text-bronze`}>
+        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M6 12h12" /></svg>
+      </span>
+    );
+  return <span aria-hidden className={`${size} shrink-0 rounded-md border border-border bg-background`} />;
+}
+
 function NextBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all hover:-translate-y-px active:scale-[.98]">
@@ -514,4 +822,5 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+/** فاصلهٔ امن برای eslint — هیچ استفادهٔ مستقیمی ندارد */
 export function _weakTopicReader() { return weakTopics(); }

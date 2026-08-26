@@ -308,7 +308,7 @@ export function AppShell() {
           <div className="mx-auto grid max-w-md grid-cols-4 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={() => go(last.lessonId ? { view: "learn", id: last.lessonId } : { view: "course", id: "madani-1" })} />
-            <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go(last.lessonId ? { view: "quiz", id: last.lessonId } : { view: "cards" })} />
+            <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
             <DockBtn icon={TrendingUp} label="پیشرفت" active={current === "progress"} onClick={() => go({ view: "progress" })} />
           </div>
         </nav>
