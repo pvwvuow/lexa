@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
-  ListOrdered, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft,
+  ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -13,7 +13,8 @@ import { useApp } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich } from "./common";
+import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich, BlockDivider } from "./common";
+import { lessonToContextText } from "@/lib/law/lessonText";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -107,6 +108,8 @@ export function LearnView({ id }: { id: string }) {
     const lastVisible = sections[Math.max(0, visibleCount - 1)];
     setLoadingFor(kind + (textOverride ?? ""));
     setAiErr("");
+    // متن واقعی همان بخش‌هایی که دانشجو دیده + فهرست مواد معتبر — منبع پاسخ استاد
+    const ground = lessonToContextText(sections.slice(0, visibleCount));
     try {
       const res = await askAi<{ text: string }>({
         task: "free",
@@ -123,6 +126,8 @@ export function LearnView({ id }: { id: string }) {
           chapterTitle: chapter.title,
           lessonTitle: lesson.title,
           seenSections: sections.slice(0, visibleCount).map((s) => s.title ?? ""),
+          extra: ground.text,
+          lawRegistry: ground.lawRegistry,
         },
       });
       setAiNotes((n) => [{ sectionId: lastVisible.id, text: res.text }, ...n]);
@@ -298,9 +303,20 @@ export function LearnView({ id }: { id: string }) {
                   </div>
                 )}
 
-                {s.law && s.law.length > 0 && <div className={s.type === "law" ? "" : "mt-4"}><LawBox laws={s.law} /></div>}
+                {/* مرز بصری واضح بین بلوک‌ها — باکس ماده نباید به کارت‌های بدنه بچسبد */}
+                {s.law && s.law.length > 0 && (
+                  <div className="pt-2">
+                    {(s.body || s.bullets) && <BlockDivider label="مستند قانونی این بخش" Icon={Scale} />}
+                    <LawBox laws={s.law} />
+                  </div>
+                )}
 
-                {s.bullets && <div className="mt-4"><BulletRich items={s.bullets} /></div>}
+                {s.bullets && (
+                  <div className="pt-2">
+                    {s.body && <BlockDivider label="نکته‌های کلیدی" Icon={ListChecks} />}
+                    <BulletRich items={s.bullets} />
+                  </div>
+                )}
 
                 {s.table && (
                   <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
@@ -326,14 +342,12 @@ export function LearnView({ id }: { id: string }) {
                   </div>
                 )}
 
-                {/* پاسخ‌های AI پیوست‌شده */}
+                {/* پاسخ‌های AI پیوست‌شده — مستندهای 📜 در باکس جدا رندر می‌شوند */}
                 {aiNotes.filter((a) => a.sectionId === s.id).map((a, k) => (
                   <div key={k} className="relative mt-4 rounded-xl border border-dashed border-bronze/50 bg-bronze/5 p-4">
                     <Sparkles aria-hidden className="absolute -top-2.5 end-4 grid h-5 w-5 place-items-center rounded-full bg-card text-bronze" />
                     <p className="mb-1 flex items-center gap-1 text-xs font-bold text-bronze"><HelpCircle className="h-3.5 w-3.5" /> تکمیل استاد</p>
-                    <div className="teach-body prose-p:leading-[1.9] text-[17px] [&_p]:my-1 [&_strong]:text-foreground">
-                      <ReactMarkdown>{a.text}</ReactMarkdown>
-                    </div>
+                    <AiAnswerRich text={a.text} />
                   </div>
                 ))}
               </motion.section>
@@ -423,6 +437,40 @@ export function LearnView({ id }: { id: string }) {
         </form>
       </div>
     </div>
+  );
+}
+
+/** پاسخ استاد: متن Markdown + خطوط 📜 (مستند قانونی) در باکس‌های جدا */
+function AiAnswerRich({ text }: { text: string }) {
+  const { prose, laws } = React.useMemo(() => {
+    const lawLines: string[] = [];
+    const proseLines: string[] = [];
+    for (const ln of text.split("\n")) {
+      const t = ln.trim();
+      if (t.startsWith("📜")) lawLines.push(t.replace(/^📜\s*/, ""));
+      else proseLines.push(ln);
+    }
+    return { prose: proseLines.join("\n").replace(/\n{3,}/g, "\n\n").trim(), laws: lawLines };
+  }, [text]);
+  return (
+    <>
+      {prose && (
+        <div className="teach-body prose-p:leading-[1.9] text-[17px] [&_p]:my-1 [&_strong]:text-foreground">
+          <ReactMarkdown>{prose}</ReactMarkdown>
+        </div>
+      )}
+      {laws.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] font-bold text-muted-foreground">مستند قانونی پاسخ:</p>
+          {laws.map((l, i) => (
+            <p key={i} className="law-text flex gap-2 rounded-lg border-s-2 border-bronze/60 bg-background/70 px-3 py-2.5 text-[15.5px] leading-[1.9]">
+              <Scale className="mt-1.5 h-3.5 w-3.5 shrink-0 text-bronze" />
+              <span>{l}</span>
+            </p>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
