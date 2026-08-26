@@ -61,14 +61,17 @@ export function CaseStudyView({ id }: { id?: string }) {
         <p className="mt-1 text-xs text-muted-foreground">{ctx ? `${ctx.course.title} — ${ctx.lesson.title}` : "تمرین تحلیلی آزاد"} — یادآوری: این ابزار آموزشی است، جایگزین مشاوره حقوقی نیست.</p>
       </header>
 
-      {/* متن پرونده با ظاهر «پرونده رسمی» */}
-      <section className="rounded-2xl border-2 border-dashed border-bronze/50 bg-bronze/[0.04] p-6">
-        <p className="mb-2 flex items-center gap-2 text-sm font-bold text-bronze"><FolderOpen className="h-4 w-4" /> متن پرونده فرضی</p>
-        <p className="whitespace-pre-line text-[15px] leading-loose">{caseText}</p>
+      {/* متن پرونده با ظاهر «پروندهٔ رسمی» */}
+      <section className="law-box rounded-2xl p-6">
+        <div className="relative z-10 mb-2 flex items-center justify-between">
+          <p className="flex items-center gap-2 font-display text-sm font-bold text-bronze"><FolderOpen className="h-4 w-4" /> متن پروندهٔ فرضی</p>
+          <span className="rotate-[-4deg] rounded-md border-2 border-bronze/50 px-2.5 py-0.5 font-display text-[10px] font-bold tracking-wide text-bronze/80">پروندهٔ فرضی</span>
+        </div>
+        <p className="font-body relative z-10 whitespace-pre-line text-[15.5px] leading-loose">{caseText}</p>
       </section>
 
       {/* ناحیه پاسخ */}
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <label htmlFor="cs-answer" className="mb-2 block text-sm font-semibold">تحلیل حقوقی خودت را بنویس…</label>
         <textarea
           id="cs-answer"
@@ -95,9 +98,9 @@ export function CaseStudyView({ id }: { id?: string }) {
       {fb && (
         <section className="space-y-4">
           {fb.verdict && (
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <p className="mb-1 flex items-center gap-2 font-bold"><AlertCircle className="h-4 w-4 text-primary" /> جمع‌بندی استاد</p>
-              <p className="whitespace-pre-line text-[15px] leading-loose text-foreground/90">{fb.verdict}</p>
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+              <p className="mb-1 flex items-center gap-2 font-display font-bold"><AlertCircle className="h-4 w-4 text-primary" /> جمع‌بندی استاد</p>
+              <p className="font-body whitespace-pre-line text-[15px] leading-loose text-foreground/90">{fb.verdict}</p>
             </div>
           )}
           <div className="grid gap-4 md:grid-cols-2">
@@ -105,8 +108,8 @@ export function CaseStudyView({ id }: { id?: string }) {
             <FeedbackCard title="نکات جامانده" items={fb.gaps ?? []} tone="warn" icon={<AlertCircle className="h-4 w-4 text-warn" />} />
           </div>
           {!!fb.suggestedOutline?.length && (
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <p className="mb-2 font-bold">نقشهٔ پاسخ استاندارد</p>
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+              <p className="mb-2 font-display font-bold">نقشهٔ پاسخ استاندارد</p>
               <ol className="list-inside list-decimal space-y-1.5 text-sm leading-relaxed text-muted-foreground">
                 {fb.suggestedOutline.map((o, i) => <li key={i}>{o}</li>)}
               </ol>

@@ -109,7 +109,8 @@ export function ImportView() {
       </header>
 
       {/* گام ۱: ورودی */}
-      <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-card">
+        <p className="flex items-center gap-2 text-sm font-bold"><span className="grid h-6 w-6 place-items-center rounded-md bg-primary/10 font-display text-xs font-bold text-primary">۱</span> منبع کتاب را بده</p>
         <div className="flex gap-2">
           <TabBtn active={mode === "url"} onClick={() => setMode("url")}>لینک PDF</TabBtn>
           <TabBtn active={mode === "text"} onClick={() => setMode("text")}>چسباندن متن</TabBtn>
@@ -132,7 +133,7 @@ export function ImportView() {
 
       {/* گام ۲: نقشه دوره */}
       {slices && !outline && (
-        <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-card">
           <h2 className="font-bold"><Sparkles className="me-1 inline h-4 w-4 text-bronze" /> گام ۲: ساخت نقشهٔ فصل‌ها با استاد</h2>
           <button onClick={outlineIt} disabled={busyStep !== null} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
             {busyStep === "outline" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} تحلیل و بندی فصل‌ها
@@ -142,7 +143,7 @@ export function ImportView() {
 
       {/* پیش‌نمایش نقشه */}
       {outline && (
-        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-card">
           <h2 className="flex items-center justify-between font-bold">
             گام ۳: مرور و ذخیره
             <CheckCircle2 className="h-5 w-5 text-success" />

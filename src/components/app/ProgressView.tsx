@@ -1,16 +1,113 @@
 "use client";
 
 import * as React from "react";
-import { Flame, TrendingUp, BookOpenCheck, ArrowLeft } from "lucide-react";
+import { Flame, TrendingUp, BookOpenCheck, ArrowLeft, Activity, Target } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp, weakTopics, clearWeakTopic } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { Donut, EmptyState } from "./common";
 
+/* ─── نمودار رادار تسلط بر فصل‌ها ─────────────────────────────────────────── */
+function MasteryRadar({ data }: { data: { label: string; v: number }[] }) {
+  const S = 260, cx = S / 2, cy = S / 2, R = 86;
+  const n = Math.max(3, data.length);
+  const pt = (i: number, frac: number) => {
+    const ang = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return [cx + R * frac * Math.cos(ang), cy + R * frac * Math.sin(ang)] as const;
+  };
+  const poly = data.map((d, i) => pt(i, d.v / 100).join(",")).join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${S} ${S}`} className="mx-auto w-full max-w-[280px]" role="img" aria-label="نمودار راداری تسلط بر فصل‌ها">
+      <defs>
+        <linearGradient id="radar-fill" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--bronze)" stopOpacity="0.22" />
+        </linearGradient>
+      </defs>
+
+      {/* شبکه‌های هم‌مرکز */}
+      {[0.25, 0.5, 0.75, 1].map((f) => (
+        <polygon
+          key={f}
+          points={Array.from({ length: n }, (_, i) => pt(i, f).join(",")).join(" ")}
+          fill="none"
+          stroke="currentColor"
+          className="text-border"
+          strokeWidth={f === 1 ? 1 : 0.6}
+        />
+      ))}
+
+      {/* پره‌ها */}
+      {data.map((_, i) => {
+        const [x, y] = pt(i, 1);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="currentColor" className="text-border" strokeWidth="0.6" />;
+      })}
+
+      {/* وجه داده */}
+      <polygon points={poly} fill="url(#radar-fill)" stroke="var(--bronze)" strokeWidth="2" strokeLinejoin="round" />
+      {data.map((d, i) => {
+        const [x, y] = pt(i, d.v / 100);
+        return <circle key={i} cx={x} cy={y} r="3.2" fill="var(--bronze)" />;
+      })}
+
+      {/* برچسب فصل‌ها */}
+      {data.map((d, i) => {
+        const [x, y] = pt(i, 1.22);
+        return (
+          <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground" fontSize="9.5">
+            {d.label.length > 14 ? d.label.slice(0, 13) + "…" : d.label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ─── هیتمپ فعالیت ۴ هفته ─────────────────────────────────────────────────── */
+function Heatmap({ activeDays }: { activeDays: string[] }) {
+  const cells = React.useMemo(() => {
+    const out: { iso: string; on: boolean }[] = [];
+    for (let d = 27; d >= 0; d--) {
+      const dt = new Date(Date.now() - d * 86_400_000);
+      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+      const iso = dt.toISOString().slice(0, 10);
+      out.push({ iso, on: activeDays.includes(iso) });
+    }
+    return out;
+  }, [activeDays]);
+
+  const onCount = cells.filter((c) => c.on).length;
+
+  return (
+    <div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {cells.map((c, i) => (
+          <span
+            key={c.iso}
+            title={c.iso}
+            aria-label={c.on ? "روز فعال" : "بدون مطالعه"}
+            className={`heat-cell h-6 ${c.on ? (i === cells.length - 1 ? "heat-4" : "heat-3") : "heat-0"} ring-1 ring-inset ring-black/[0.04]`}
+          />
+        ))}
+      </div>
+      <p className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <span>{fa(onCount)} روز فعال از ۲۸ روز اخیر</span>
+        <span className="flex items-center gap-1">کم<span aria-hidden className="mx-1 inline-flex gap-0.5">
+          <i className="heat-0 h-2.5 w-2.5 rounded-[3px] ring-1 ring-border/60" />
+          <i className="heat-2 h-2.5 w-2.5 rounded-[3px]" />
+          <i className="heat-4 h-2.5 w-2.5 rounded-[3px]" />
+        </span>زیاد</span>
+      </p>
+    </div>
+  );
+}
+
 export function ProgressView() {
   const progress = useApp((s) => s.progress);
   const streak = useApp((s) => s.streak);
+  const activity = useApp((s) => s.activity);
   const custom = useApp((s) => s.customCourses);
   const courses = [...builtinCourses, ...custom];
   const [courseId, setCourseId] = React.useState(courses[0].id);
@@ -31,62 +128,73 @@ export function ProgressView() {
   });
   const overall = Math.round(chapters.reduce((a, c) => a + c.pctv, 0) / Math.max(1, chapters.length));
 
-  // هفت روز اخیر برای دات‌های استریک
-  const days = React.useMemo(() => {
-    const out: { label: string; active: boolean }[] = [];
-    for (let d = 6; d >= 0; d--) {
-      const dt = new Date(Date.now() - d * 86_400_000);
-      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
-      out.push({ label: ["ی", "د", "س", "چ", "پ", "ج", "ش"][dt.getDay()], active: false });
-    }
-    return out;
-  }, []);
+  // بهترین نمرات
+  const bestScores = Object.entries(progress)
+    .filter(([, p]) => p.quizBest != null && p.quizBest > 0)
+    .slice(-6).reverse()
+    .map(([lid, p]) => {
+      let label = lid;
+      outer: for (const c of courses) for (const ch of c.chapters) for (const l of ch.lessons)
+        if (l.id === lid) { label = `${c.title} — ${l.title}`; break outer; }
+      return { lid, label, score: p.quizBest ?? 0 };
+    });
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-24 pt-6 sm:px-6">
+    <div className="mx-auto w-full max-w-4xl space-y-8 px-4 pb-28 pt-6 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">پیشرفت من</h1>
         <select
           value={courseId}
           onChange={(e) => setCourseId(e.target.value)}
-          className="rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-bronze"
+          className="rounded-xl border border-border bg-card px-3 py-2 text-sm shadow-card outline-none focus:border-bronze"
           aria-label="انتخاب درس"
         >
           {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
       </header>
 
-      {/* کارت استریک */}
-      <section className="flex items-center justify-between rounded-2xl border border-bronze/40 bg-gradient-to-l from-bronze/10 to-transparent p-5">
-        <div className="space-y-1">
-          <p className="flex items-center gap-2 font-bold"><Flame className="h-5 w-5 text-bronze" /> استریک روزانه</p>
-          <p className="text-sm text-muted-foreground">{fa(streak.count)} روز مطالعه پیوسته — سر بلند شد!</p>
+      {/* استریک + گیج کلی */}
+      <section className="grid gap-4 sm:grid-cols-[auto_1fr]">
+        <div className="relative overflow-hidden rounded-2xl bg-primary p-5 text-primary-foreground shadow-card">
+          <div aria-hidden className="pattern-quilt absolute inset-0 opacity-50" />
+          <div className="relative">
+            <p className="flex items-center gap-2 font-bold"><Flame className="h-5 w-5 text-bronze" /> استریک روزانه</p>
+            <p className="mt-2 font-display text-4xl font-bold">{fa(streak.count)}</p>
+            <p className="text-xs text-primary-foreground/70">روز مطالعهٔ پیوسته</p>
+          </div>
         </div>
-        <div className="flex gap-1.5">
-          {days.map((d, i) => (
-            <span key={i} className={`grid h-7 w-7 place-items-center rounded-lg text-xs ${i === days.length - 1 ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`} title={d.label}>
-              {d.label}
-            </span>
-          ))}
+
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <p className="flex items-center gap-2 font-bold"><Activity className="h-4 w-4 text-bronze" /> فعالیت چهار هفتهٔ اخیر</p>
+          <div className="mt-4">
+            <Heatmap activeDays={activity} />
+          </div>
         </div>
       </section>
 
-      {/* نمودار کلی و فصل‌ها */}
-      <section className="grid items-start gap-6 rounded-2xl border border-border bg-card p-6 shadow-sm sm:grid-cols-[auto_1fr]">
-        <div className="mx-auto"><Donut value={overall} size={130} stroke={11} label="تکمیل درس" /></div>
-        <div className="space-y-4">
-          <p className="flex items-center gap-2 font-bold"><TrendingUp className="h-4 w-4 text-bronze" /> تسلط بر هر فصل</p>
-          {chapters.map((c, i) => (
-            <div key={i} className="space-y-1.5">
-              <div className="flex items-center justify-between text-sm"><span>{c.title}</span><span className="font-semibold text-muted-foreground">{fa(c.pctv)}٪</span></div>
-              <div className="h-2 overflow-hidden rounded-full bg-border">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${c.pctv === 100 ? "bg-success" : c.pctv >= 50 ? "bg-primary" : "bg-warn"}`}
-                  style={{ width: `${c.pctv}%` }}
-                />
+      {/* رادار + گیج */}
+      <section className="rounded-2xl border border-border bg-card p-6 shadow-card">
+        <p className="mb-1 flex items-center gap-2 font-bold"><Target className="h-4 w-4 text-bronze" /> نقشهٔ تسلط — {course.title}</p>
+        <p className="mb-2 text-xs text-muted-foreground">هر ضلع نشان می‌دهد بر آن فصل چقدر مسلط شده‌ای.</p>
+        <div className="grid items-center gap-2 sm:grid-cols-[auto_1fr]">
+          <MasteryRadar data={chapters.map((c) => ({ label: c.title, v: c.pctv }))} />
+          <div className="space-y-4 px-2">
+            <div className="mx-auto w-fit rounded-xl bg-accent px-3 py-2 text-center"><Donut value={overall} size={96} stroke={9} label="تکمیل درس" /></div>
+            {chapters.map((c, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm"><span className="font-medium">{c.title}</span><span className="font-display text-xs font-bold text-muted-foreground">{fa(c.pctv)}٪</span></div>
+                <div className="h-2 overflow-hidden rounded-full bg-border/80">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${c.pctv}%`,
+                      background: c.pctv === 100 ? "var(--success)" : `linear-gradient(to left, var(--bronze), color-mix(in srgb, var(--primary) 85%, var(--bronze)))`,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
@@ -98,11 +206,11 @@ export function ProgressView() {
         ) : (
           <ul className="space-y-2">
             {weak.map((t) => (
-              <li key={t} className="flex items-center justify-between rounded-xl border border-warn/40 bg-warn/10 px-4 py-3">
-                <span className="text-sm font-medium">{t}</span>
+              <li key={t} className="flex items-center justify-between rounded-xl border border-warn/40 bg-warn/[0.07] px-4 py-3 shadow-card">
+                <span className="font-body text-sm">{t}</span>
                 <span className="flex items-center gap-2">
-                  <button onClick={() => navigate({ view: "cards" })} className="rounded-lg bg-warn px-3 py-1.5 text-xs font-bold text-white inline-flex items-center gap-1">مرور کن<ArrowLeft className="h-3 w-3" /></button>
-                  <button onClick={() => clearWeakTopic(t)} aria-label="حذف از لیست" className="grid h-7 w-7 place-items-center rounded-lg hover:bg-white/40"><BookOpenCheck className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                  <button onClick={() => navigate({ view: "cards" })} className="inline-flex items-center gap-1 rounded-lg bg-warn px-3 py-1.5 font-display text-xs font-bold text-white transition-transform active:scale-95">مرور کن<ArrowLeft className="h-3 w-3" /></button>
+                  <button onClick={() => clearWeakTopic(t)} aria-label="حذف از لیست" className="grid h-8 w-8 place-items-center rounded-lg transition-colors hover:bg-muted"><BookOpenCheck className="h-4 w-4 text-muted-foreground" /></button>
                 </span>
               </li>
             ))}
@@ -111,26 +219,18 @@ export function ProgressView() {
       </section>
 
       {/* بهترین نمره جلسات اخیر */}
-      {Object.keys(progress).length > 0 && (
+      {bestScores.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">بهترین تستهای تو</h2>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {Object.entries(progress)
-              .filter(([, p]) => p.quizBest != null && p.quizBest > 0)
-              .slice(-6).reverse()
-              .map(([lid, p]) => {
-                let label = lid;
-                outer: for (const c of courses) for (const ch of c.chapters) for (const l of ch.lessons)
-                  if (l.id === lid) { label = `${c.title} — ${l.title}`; break outer; }
-                return (
-                  <li key={lid} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <span className="truncate">{label}</span>
-                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${p.quizBest! >= 80 ? "bg-success/15 text-success" : p.quizBest! >= 50 ? "bg-warn/15 text-warn" : "bg-danger/15 text-danger"}`}>
-                      {fa(p.quizBest ?? 0)}٪
-                    </span>
-                  </li>
-                );
-              })}
+          <h2 className="flex items-center gap-2 text-lg font-bold"><TrendingUp className="h-5 w-5 text-bronze" /> بهترین تستهای تو</h2>
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+            {bestScores.map(({ lid, label, score }) => (
+              <li key={lid} className="flex items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-muted/40">
+                <span className="truncate font-body">{label}</span>
+                <span className={`shrink-0 rounded-md px-2.5 py-0.5 font-display text-xs font-bold ${score >= 80 ? "bg-success/15 text-success" : score >= 50 ? "bg-warn/15 text-warn" : "bg-danger/15 text-danger"}`}>
+                  {fa(score)}٪
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
       )}
