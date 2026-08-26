@@ -3,36 +3,44 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── وزیرمتن ────────────────────────────────────────────────────────────── */
+/* ─── استداد — فونت تیترها و رابط کاربری (رسمی و قدرتمند) ─────────────────── */
 @font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/Vazirmatn-Regular.woff2") format("woff2");
+  font-family: "Estedad";
+  src: url("/fonts/Estedad-Regular.woff2") format("woff2");
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/Vazirmatn-Medium.woff2") format("woff2");
+  font-family: "Estedad";
+  src: url("/fonts/Estedad-Medium.woff2") format("woff2");
   font-weight: 500;
   font-display: swap;
 }
 @font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/Vazirmatn-SemiBold.woff2") format("woff2");
+  font-family: "Estedad";
+  src: url("/fonts/Estedad-SemiBold.woff2") format("woff2");
   font-weight: 600;
   font-display: swap;
 }
 @font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/Vazirmatn-Bold.woff2") format("woff2");
-  font-weight: 700;
+  font-family: "Estedad";
+  src: url("/fonts/Estedad-Bold.woff2") format("woff2");
+  font-weight: 700 800;
+  font-display: swap;
+}
+
+/* ─── نسخ — متن مطالعه با حس کتاب چاپی حقوقی ──────────────────────────────── */
+@font-face {
+  font-family: "NotoNaskh";
+  src: url("/fonts/NotoNaskhArabic-var.woff2") format("woff2-variations");
+  font-weight: 400 700;
   font-display: swap;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-vazir);
+  --font-sans: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -75,123 +83,229 @@
 
 :root {
   --radius: 0.75rem;
-  --font-vazir: "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+  /* نمایش (تیتر/UI) + خوانش (متن کتابی) */
+  --font-display: "Estedad", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "NotoNaskh", "Estedad", serif;
 
-  /* پالت روشن: کاغذ کرم روشن + سرمه‌ای دانشگاهی + برنزی کتاب حقوقی */
-  --background: #fafaf8;
-  --foreground: #1f2937;
+  /* پالت روشن «قفسهٔ کتاب حقوق»: آلاباستر گرم + یشمی عمیق + طلایی عتیق */
+  --background: #f5f3ed;
+  --foreground: #212831;
   --card: #ffffff;
-  --card-foreground: #1f2937;
+  --card-foreground: #212831;
   --popover: #ffffff;
-  --popover-foreground: #1f2937;
-  --primary: #1b2a4a;
-  --primary-foreground: #f6f8fb;
-  --secondary: #f1efe9;
-  --secondary-foreground: #22304d;
-  --muted: #f3f1eb;
-  --muted-foreground: #667085;
-  --accent: #f0ede6;
-  --accent-foreground: #1b2a4a;
-  --destructive: #b3423a;
-  --border: #e8e5dc;
-  --input: #e8e5dc;
-  --ring: #b08d57;
+  --popover-foreground: #212831;
+  --primary: #1d4b40;
+  --primary-foreground: #f1f7f3;
+  --secondary: #e9e6dc;
+  --secondary-foreground: #25443c;
+  --muted: #eeece3;
+  --muted-foreground: #6d766f;
+  --accent: #ebe7da;
+  --accent-foreground: #1d4b40;
+  --destructive: #b04a50;
+  --border: #e2dfd2;
+  --input: #dbd7c8;
+  --ring: #a87f3f;
 
-  --bronze: #b08d57;
-  --bronze-foreground: #fff8ec;
-  --success: #4c7c59;
-  --warn: #b98a2e;
-  --danger: #b3423a;
+  --bronze: #a87f3f;
+  --bronze-foreground: #fff9ee;
+  --success: #35755b;
+  --warn: #a96f1f;
+  --danger: #b04a50;
 
-  --chart-1: #1b2a4a;
-  --chart-2: #b08d57;
-  --chart-3: #4c7c59;
-  --chart-4: #b98a2e;
-  --chart-5: #b3423a;
+  --chart-1: #1f5d4c;
+  --chart-2: #a87f3f;
+  --chart-3: #56718a;
+  --chart-4: #8a5a44;
+  --chart-5: #7d5468;
 
-  --sidebar: #f4f2ec;
-  --sidebar-foreground: #1f2937;
-  --sidebar-primary: #1b2a4a;
-  --sidebar-primary-foreground: #f6f8fb;
-  --sidebar-accent: #eceae2;
-  --sidebar-accent-foreground: #1b2a4a;
-  --sidebar-border: #e8e5dc;
-  --sidebar-ring: #b08d57;
+  --sidebar: #f1efe7;
+  --sidebar-foreground: #212831;
+  --sidebar-primary: #1d4b40;
+  --sidebar-primary-foreground: #f1f7f3;
+  --sidebar-accent: #e9e6dc;
+  --sidebar-accent-foreground: #1d4b40;
+  --sidebar-border: #e2dfd2;
+  --sidebar-ring: #a87f3f;
 }
 
 .dark {
-  /* پالت تاریک: زغالی آرام برای مطالعه شبانه */
-  --background: #12151c;
-  --foreground: #e7eaf0;
-  --card: #191d27;
-  --card-foreground: #e7eaf0;
-  --popover: #191d27;
-  --popover-foreground: #e7eaf0;
-  --primary: #2a3d63;
-  --primary-foreground: #f2f6fc;
-  --secondary: #232a38;
-  --secondary-foreground: #dbe3ef;
-  --muted: #1f2530;
-  --muted-foreground: #98a2b3;
-  --accent: #212836;
-  --accent-foreground: #e7eaf0;
-  --destructive: #d06a62;
-  --border: #2a303d;
-  --input: #2a303d;
-  --ring: #c9a87a;
+  /* پالت تاریک «کتابخانه شب»: زغالی با ته‌مایهٔ سبز + برنج براق */
+  --background: #101512;
+  --foreground: #e6e9e3;
+  --card: #171d1a;
+  --card-foreground: #e6e9e3;
+  --popover: #171d1a;
+  --popover-foreground: #e6e9e3;
+  --primary: #2a604f;
+  --primary-foreground: #eff7f2;
+  --secondary: #232b26;
+  --secondary-foreground: #d7e2da;
+  --muted: #1d2420;
+  --muted-foreground: #96a199;
+  --accent: #1f2823;
+  --accent-foreground: #dfe8e1;
+  --destructive: #ce7076;
+  --border: #29312b;
+  --input: #303831;
+  --ring: #cda65e;
 
-  --bronze: #c9a87a;
-  --bronze-foreground: #1b150c;
-  --success: #7cb394;
-  --warn: #d4af5c;
-  --danger: #d06a62;
+  --bronze: #cda65e;
+  --bronze-foreground: #241a08;
+  --success: #77b394;
+  --warn: #d5ac57;
+  --danger: #ce7076;
 
-  --chart-1: #8faad0;
-  --chart-2: #c9a87a;
-  --chart-3: #7cb394;
-  --chart-4: #d4af5c;
-  --chart-5: #d06a62;
+  --chart-1: #63ac93;
+  --chart-2: #cda65e;
+  --chart-3: #87a3c2;
+  --chart-4: #c98d71;
+  --chart-5: #ae8699;
 
-  --sidebar: #161a22;
-  --sidebar-foreground: #e7eaf0;
-  --sidebar-primary: #2a3d63;
-  --sidebar-primary-foreground: #f2f6fc;
-  --sidebar-accent: #212836;
-  --sidebar-accent-foreground: #e7eaf0;
-  --sidebar-border: #2a303d;
-  --sidebar-ring: #c9a87a;
+  --sidebar: #141a17;
+  --sidebar-foreground: #e6e9e3;
+  --sidebar-primary: #2a604f;
+  --sidebar-primary-foreground: #eff7f2;
+  --sidebar-accent: #1f2823;
+  --sidebar-accent-foreground: #dfe8e1;
+  --sidebar-border: #29312b;
+  --sidebar-ring: #cda65e;
 }
 
 html {
-  font-family: var(--font-vazir);
+  font-family: var(--font-display);
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1200px 380px at 85% -140px, color-mix(in srgb, var(--bronze) 7%, transparent), transparent 70%),
+    var(--background);
   color: var(--foreground);
   font-size: 16px;
   line-height: 1.8;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* اعداد و ارقام لاتین را فارسی‌گونه هموار کن */
-.font-num {
-  font-feature-settings: "ss01";
+/* تیترها همیشه با فونت نمایش */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
-/* ─── باکس ماده قانونی ───────────────────────────────────────────────────── */
+/* بلوک‌های «متن مطالعه» با فونت نسخِ کتابی */
+.font-body,
+.teach-body,
+.law-text {
+  font-family: var(--font-body);
+}
+
+/* انتخاب متن با ته‌رنگ طلایی */
+::selection {
+  background: color-mix(in srgb, var(--bronze) 28%, transparent);
+}
+
+/* ─── باکس ماده قانونی — حس برگهٔ پرونده رسمی ────────────────────────────── */
 .law-box {
-  background: linear-gradient(to left, rgba(176, 141, 87, 0.07), rgba(176, 141, 87, 0.02));
-  border-inline-start: 3px solid var(--bronze);
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(to left, color-mix(in srgb, var(--bronze) 8%, transparent), color-mix(in srgb, var(--bronze) 2%, transparent)),
+    var(--card);
+  border: 1px solid color-mix(in srgb, var(--bronze) 30%, transparent);
+  border-inline-start: 4px solid var(--bronze);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
 }
 .dark .law-box {
-  background: linear-gradient(to left, rgba(201, 168, 122, 0.09), rgba(201, 168, 122, 0.02));
+  box-shadow: none;
 }
+.law-box::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 92px;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--bronze) 0 1px,
+    transparent 1px 7px
+  );
+}
+.dark .law-box::after { opacity: 0.07; }
+
+/* شانهٔ تزئینی زیر عنوان بخش‌ها */
+.ornament-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ornament-rule::before,
+.ornament-rule::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to left, transparent, color-mix(in srgb, var(--bronze) 45%, transparent), transparent);
+}
+.dark .ornament-rule::before,
+.dark .ornament-rule::after {
+  background: linear-gradient(to left, transparent, color-mix(in srgb, var(--bronze) 38%, transparent), transparent);
+}
+
+/* پترن لوزی بسیار کم‌رنگ برای پنل‌های قهرمان */
+.pattern-quilt {
+  background-image:
+    linear-gradient(135deg, rgb(255 255 255 / 0.05) 25%, transparent 25%),
+    linear-gradient(225deg, rgb(255 255 255 / 0.05) 25%, transparent 25%),
+    linear-gradient(315deg, rgb(255 255 255 / 0.05) 25%, transparent 25%),
+    linear-gradient(45deg, rgb(255 255 255 / 0.05) 25%, transparent 25%);
+  background-size: 22px 22px;
+  background-position: 0 0;
+}
+
+/* سایه‌های لایه‌دار ملایم */
+.shadow-card {
+  box-shadow:
+    0 1px 2px rgb(23 32 28 / 0.04),
+    0 6px 18px -8px rgb(23 32 28 / 0.1);
+}
+.dark .shadow-card {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.35),
+    0 8px 22px -10px rgb(0 0 0 / 0.5);
+}
+
+/* درخشش نوار پیشرفت */
+.progress-sheen {
+  background-image: linear-gradient(120deg, rgb(255 255 255 / 0.28) 0 14%, transparent 14% 100%);
+  background-size: 220% 100%;
+  animation: sheen-move 3.2s ease-in-out infinite;
+}
+@keyframes sheen-move {
+  0% { background-position: 220% 0; }
+  100% { background-position: -60% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-sheen { animation: none; }
+}
+
+/* ─── هیتمپ فعالیت ─────────────────────────────────────────────────────────── */
+.heat-cell {
+  border-radius: 5px;
+  transition: transform 120ms ease;
+}
+.heat-cell:hover { transform: scale(1.15); }
+.heat-0 { background: color-mix(in srgb, var(--bronze) 10%, var(--muted)); }
+.heat-1 { background: color-mix(in srgb, var(--bronze) 34%, transparent); }
+.heat-2 { background: color-mix(in srgb, var(--bronze) 58%, transparent); }
+.heat-3 { background: color-mix(in srgb, var(--primary) 72%, transparent); }
+.heat-4 { background: var(--primary); }
 
 /* ─── متن تدریس ─────────────────────────────────────────────────────────── */
 .teach-body p {
-  line-height: 1.95;
-  margin-bottom: 0.35rem;
+  line-height: 2;
+  margin-bottom: 0.4rem;
 }
 
 /* ─── انیمیشن نقطه‌چین AI ─────────────────────────────────────────────── */
@@ -238,13 +352,21 @@ body {
   }
 }
 
+/* فوکوس قابل‌مشاهده و یکدست */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 80%, transparent);
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+  background: color-mix(in srgb, var(--muted-foreground) 32%, transparent);
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;

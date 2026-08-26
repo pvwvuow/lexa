@@ -34,6 +34,7 @@ export interface LessonProgress {
 interface AppState {
   progress: Record<string, LessonProgress>;
   streak: { count: number; lastDate: string };
+  activity: string[];              // روزهای دارای مطالعه (ISO) برای هیتمپ
   customCourses: Course[];
   notes: Record<string, { id: string; text: string; quote?: string; createdAt: number }[]>;
   ai: AiSettings;
@@ -60,6 +61,7 @@ export const useApp = create<AppState>()(
     (set, get) => ({
       progress: {},
       streak: { count: 0, lastDate: '' },
+      activity: [],
       customCourses: [],
       notes: {},
       ai: DEFAULT_AI,
@@ -68,6 +70,11 @@ export const useApp = create<AppState>()(
       touchStreak() {
         const s = get().streak;
         const today = todayISO();
+        // ثبت روز فعال برای هیتمپ (حداکثر ۱۲۰ روز اخیر)
+        const act = get().activity;
+        if (!act.includes(today)) {
+          set({ activity: [...act.filter((d) => d <= today), today].slice(-120) });
+        }
         if (s.lastDate === today) return;
         const delta = s.lastDate ? daysBetween(s.lastDate, today) : 999;
         set({ streak: { count: delta === 1 ? s.count + 1 : 1, lastDate: today } });
@@ -156,7 +163,7 @@ export const useApp = create<AppState>()(
 
       reset() {
         set({
-          progress: {}, streak: { count: 0, lastDate: '' }, customCourses: [], notes: {}, lastLocation: {},
+          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], notes: {}, lastLocation: {},
         });
       },
     }),
@@ -166,6 +173,7 @@ export const useApp = create<AppState>()(
       partialize: (s) => ({
         progress: s.progress,
         streak: s.streak,
+        activity: s.activity,
         customCourses: s.customCourses,
         notes: s.notes,
         ai: s.ai,

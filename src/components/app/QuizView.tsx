@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale } from "lucide-react";
 import type { QuizQuestion } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -111,33 +111,37 @@ export function QuizView({ id }: { id?: string }) {
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 pb-24 pt-6 sm:px-6">
       {!finished && (
         <>
-          <header className="space-y-2">
-            <p className="text-xs text-muted-foreground">{ctx ? ctx.course.title : "آزمون جامع"}{ctx ? ` — ${ctx.lesson.title}` : ""}</p>
-            <ProgressBar value={((idx + (picked ? 1 : 0)) / questions.length) * 100} />
-            <p className="text-xs text-muted-foreground">سؤال {fa(idx + 1)} از {fa(questions.length)}</p>
+          <header className="rounded-2xl border border-border bg-card p-5 shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-medium text-bronze">{ctx ? ctx.course.title : "آزمون جامع"}{ctx ? ` · ${ctx.lesson.title}` : ""}</p>
+              <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-bold text-primary">سؤال {fa(idx + 1)} از {fa(questions.length)}</span>
+            </div>
+            <ProgressBar value={((idx + (picked ? 1 : 0)) / questions.length) * 100} className="mt-3" />
           </header>
 
           <AnimatePresence mode="wait">
-            <motion.section key={idx + "-" + picked} initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ duration: 0.22 }} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <h1 className="text-[17px] font-bold leading-loose">{q.q}</h1>
+            <motion.section key={idx + "-" + picked} initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ duration: 0.22 }} className="scroll-mt-24 rounded-2xl border border-border bg-card p-6 shadow-card">
+              <h1 className="font-body text-[17px] font-semibold leading-[2]">{q.q}</h1>
               <div className="mt-5 grid gap-3">
                 {KEYS.map((k) => {
                   const opt = q.options.find((o) => o.key === k);
                   if (!opt) return null;
                   const isRight = k === q.answer;
                   const isPicked = k === picked;
-                  let cls = "border-border bg-background hover:border-bronze/60 hover:bg-bronze/5";
+                  let cls = "border-border bg-background hover:-translate-y-px hover:border-bronze/60 hover:bg-bronze/5 hover:shadow-card";
                   if (picked) {
-                    if (isRight) cls = "border-success bg-success/10 text-success";
-                    else if (isPicked) cls = "border-danger bg-danger/10 text-danger";
-                    else cls = "border-border opacity-50";
+                    if (isRight) cls = "border-success bg-success/[0.08]";
+                    else if (isPicked) cls = "border-danger bg-danger/[0.08]";
+                    else cls = "border-border opacity-45";
                   }
                   return (
-                    <button key={k} onClick={() => pick(k)} disabled={!!picked} aria-label={`گزینه ${FA_LETTER[k]}`} className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-start text-[15px] transition-all duration-200 ${cls}`}>
-                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-bold ${isRight && picked ? "bg-success text-white" : isPicked ? "bg-danger text-white" : "bg-secondary"}`}>
-                        {picked && isRight ? <CheckCircle2 className="h-4 w-4" /> : picked && isPicked ? <XCircle className="h-4 w-4" /> : FA_LETTER[k]}
+                    <button key={k} onClick={() => pick(k)} disabled={!!picked} aria-label={`گزینه ${FA_LETTER[k]}`} className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-all duration-200 ${cls}`}>
+                      <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-display text-xs font-bold ${
+                        isRight && picked ? "bg-success text-white" : isPicked && picked ? "bg-danger text-white" : "border border-bronze/30 bg-bronze/10 text-bronze"
+                      }`}>
+                        {picked && isRight ? <CheckCircle2 className="h-[18px] w-[18px]" /> : picked && isPicked ? <XCircle className="h-[18px] w-[18px]" /> : FA_LETTER[k]}
                       </span>
-                      <span className="flex-1">{opt.text}</span>
+                      <span className={`flex-1 pt-1 font-body leading-relaxed ${picked && (isRight || isPicked) ? (isRight ? "text-success" : isPicked ? "text-danger" : "") : ""}`}>{opt.text}</span>
                     </button>
                   );
                 })}
@@ -147,18 +151,18 @@ export function QuizView({ id }: { id?: string }) {
               <AnimatePresence>
                 {picked && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-                    <button onClick={() => setExplainOpen(!explainOpen)} className="mt-5 flex w-full items-center justify-between rounded-xl bg-accent px-4 py-3 text-sm font-semibold">
-                      تشریح پاسخ
+                    <button onClick={() => setExplainOpen(!explainOpen)} className="mt-5 flex w-full items-center justify-between rounded-t-xl border-s-4 border-bronze bg-accent px-4 py-3 text-sm font-display font-semibold">
+                      <span className="flex items-center gap-2"><Scale className="h-4 w-4 text-bronze" /> تشریح پاسخ</span>
                       <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${explainOpen ? "" : "-rotate-180"}`} />
                     </button>
                     {explainOpen && (
-                      <p className="rounded-b-xl rounded-t-none border-x border-b border-accent bg-background px-4 py-3 text-sm leading-loose text-muted-foreground">
+                      <p className="font-body rounded-b-xl rounded-se-none border-x border-b border-accent bg-background px-4 py-3.5 text-sm leading-loose text-muted-foreground">
                         {q.explanation}
                       </p>
                     )}
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <span className="text-sm font-bold">{picked === q.answer ? "درست بود؛ آفرین!" : "جواب درست: گزینهٔ " + FA_LETTER[q.answer]}</span>
-                      <button onClick={next} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground active:scale-[.98]">
+                      <button onClick={next} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all hover:-translate-y-px active:scale-[.98]">
                         {idx + 1 < questions.length ? "سؤال بعدی" : "دیدن نتیجه"}
                       </button>
                     </div>
@@ -181,17 +185,18 @@ export function QuizView({ id }: { id?: string }) {
       )}
 
       {finished && (
-        <motion.section initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-          <Donut value={Math.max(20, 100 - wrongTopics.length * 25)} size={120} label="امتیاز آزمون" />
+        <motion.section initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 text-center shadow-card">
+          <div aria-hidden className="pattern-quilt absolute inset-x-0 top-0 h-24 opacity-40 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+          <div className="relative mx-auto w-fit"><Donut value={Math.max(20, 100 - wrongTopics.length * 25)} size={128} stroke={11} label="امتیاز آزمون" /></div>
           <h1 className="mt-4 text-xl font-bold">
             {wrongTopics.length === 0 ? "عالی! همه پاسخ‌ها درست بود" : `${fa(wrongTopics.length)} سؤال نیاز به مرور دارد`}
           </h1>
           {wrongTopics.length > 0 && (
             <ul className="mx-auto mt-4 max-w-sm space-y-2 text-start">
               {wrongTopics.map((t) => (
-                <li key={t} className="flex items-center justify-between rounded-xl border border-warn/40 bg-warn/10 px-4 py-2 text-sm">
-                  <span>{t}</span>
-                  <button onClick={() => navigate({ view: "cards" })} className="font-semibold text-bronze hover:underline">مرور کن</button>
+            <li key={t} className="flex items-center justify-between rounded-xl border border-warn/40 bg-warn/[0.07] px-4 py-2.5 text-sm">
+                  <span className="font-body">{t}</span>
+                  <button onClick={() => navigate({ view: "cards" })} className="font-display font-semibold text-bronze hover:underline">مرور کن</button>
                 </li>
               ))}
             </ul>

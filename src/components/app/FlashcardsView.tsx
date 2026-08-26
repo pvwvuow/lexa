@@ -65,21 +65,23 @@ export function FlashcardsView() {
     <div className="mx-auto w-full max-w-xl space-y-6 px-4 pb-24 pt-8 sm:px-6">
       <header className="space-y-1 text-center">
         <h1 className="text-xl font-bold">مرور سریع با فلش‌کارت</h1>
-        <p className="text-sm text-muted-foreground">کارت {fa((i % deck.length) + 1)} از {fa(deck.length)} — بلدها: {fa(stats.known)} | نیازمند مرور: {fa(stats.review)}</p>
+        <p className="font-display text-sm text-muted-foreground">کارت {fa((i % deck.length) + 1)} از {fa(deck.length)} — بلدها: {fa(stats.known)} | نیازمند مرور: {fa(stats.review)}</p>
       </header>
 
-      <div className="flip-scene h-72 cursor-pointer select-none" onClick={() => setFlipped(!flipped)}>
+      <div className="flip-scene h-80 cursor-pointer select-none" onClick={() => setFlipped(!flipped)}>
         <div className={`flip-inner h-full w-full ${flipped ? "flipped" : ""}`}>
           {/* روی کارت */}
-          <div className="flip-face flex flex-col items-center justify-center gap-4 border border-border bg-card p-8 shadow-md">
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">سؤال</span>
-            <p className="text-center text-lg font-semibold leading-loose">{card.front}</p>
-            <span className="absolute bottom-5 text-xs text-muted-foreground">برای دیدن پاسخ کلیک کن</span>
+          <div className="flip-face flex flex-col items-center justify-center gap-4 border border-border bg-card p-8 shadow-card">
+            <span aria-hidden className="pointer-events-none absolute inset-3 rounded-xl border border-dashed border-bronze/25" />
+            <span className="rounded-full border border-primary/25 bg-primary/10 px-4 py-1 font-display text-xs font-bold text-primary">سؤال</span>
+            <p className="font-body relative z-10 max-h-44 overflow-y-auto px-2 text-center text-lg font-semibold leading-loose">{card.front}</p>
+            <span className="absolute bottom-6 text-[11px] text-muted-foreground/70">برای دیدن پاسخ کلیک کن</span>
           </div>
           {/* پشت کارت */}
-          <div className="flip-face flip-back flex flex-col items-center justify-center border border-bronze/50 bg-card p-6 shadow-md">
-            <span className="mb-3 rounded-full bg-bronze/15 px-3 py-1 text-xs font-bold text-bronze">پاسخ استاد</span>
-            <p className="max-h-40 overflow-y-auto whitespace-pre-line text-center text-[14.5px] leading-loose">{card.back}</p>
+          <div className="flip-face flip-back flex flex-col items-center justify-center border border-bronze/40 bg-gradient-to-b from-bronze/[0.08] to-card p-6 shadow-card">
+            <span aria-hidden className="pointer-events-none absolute inset-3 rounded-xl border border-dashed border-bronze/30" />
+            <span className="mb-3 rounded-full border border-bronze/40 bg-bronze/15 px-4 py-1 font-display text-xs font-bold text-bronze">پاسخ استاد</span>
+            <p className="font-body relative z-10 max-h-48 overflow-y-auto whitespace-pre-line text-center text-[14.5px] leading-loose">{card.back}</p>
           </div>
         </div>
       </div>

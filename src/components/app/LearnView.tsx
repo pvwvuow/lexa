@@ -13,7 +13,7 @@ import { useApp } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox } from "./common";
+import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn } from "./common";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -137,18 +137,19 @@ export function LearnView({ id }: { id: string }) {
 
   const Sidebar = (
     <aside className="hidden lg:block">
-      <div className="sticky top-20 space-y-4">
-        <nav className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <p className="mb-2 flex items-center gap-2 text-sm font-bold"><ListOrdered className="h-4 w-4 text-bronze" /> فهرست مطالب جلسه</p>
-          <ol className="space-y-1 text-sm">
+      <div className="sticky top-24 space-y-4">
+        <nav className="rounded-2xl border border-border bg-card p-4 shadow-card">
+          <p className="mb-3 flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><ListOrdered className="h-4 w-4 text-bronze" /> فهرست مطالب جلسه</p>
+          <ol className="space-y-0.5 text-[13px]">
             {sections.map((s, i) => (
               <li key={s.id}>
                 {i < visibleCount ? (
-                  <button onClick={() => document.getElementById(`sec-${i}`)?.scrollIntoView({ behavior: "smooth" })} className="w-full rounded-md px-2 py-1 text-start text-muted-foreground transition-colors hover:bg-muted hover:text-primary">
-                    {fa(i + 1)}. {SECTION_META[s.type].title}
+                  <button onClick={() => document.getElementById(`sec-${i}`)?.scrollIntoView({ behavior: "smooth" })} className={`w-full rounded-lg px-2.5 py-1.5 text-start transition-colors ${i === visibleCount - 1 ? "bg-bronze/10 font-semibold text-bronze" : "text-muted-foreground hover:bg-muted hover:text-primary"}`}>
+                    <span className="me-1.5 inline-block w-5 text-left text-[11px] opacity-60" dir="ltr">{fa(i + 1)}</span>
+                    {SECTION_META[s.type].title}
                   </button>
                 ) : (
-                  <span className="block px-2 py-1 text-muted-foreground/40">{fa(i + 1)}. ▒▒▒</span>
+                  <span className="block px-2.5 py-1.5 text-muted-foreground/35">{fa(i + 1)}. ▒▒▒</span>
                 )}
               </li>
             ))}
@@ -156,17 +157,17 @@ export function LearnView({ id }: { id: string }) {
         </nav>
 
         {laws.length > 0 && (
-          <div className="max-h-[46vh] space-y-3 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <p className="flex items-center gap-2 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
+          <div className="max-h-[46vh] space-y-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-card">
+            <p className="flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
             {laws.map((l, i) => (
-              <p key={i} className="rounded-lg border border-bronze/30 bg-bronze/5 px-3 py-2 text-xs leading-relaxed">
-                <span className="font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
+              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[12.5px] leading-relaxed">
+                <span className="font-display font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
               </p>
             ))}
           </div>
         )}
 
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
           <p className="mb-2 flex items-center gap-2 text-sm font-bold"><StickyNote className="h-4 w-4 text-bronze" /> یادداشت من</p>
           <NoteBox onSave={(t) => addNote(id, t)} />
           <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-xs">
@@ -224,13 +225,17 @@ export function LearnView({ id }: { id: string }) {
       {/* ستون اصلی */}
       <main className="min-w-0">
         {/* نوار پیشرفت جلسه */}
-        <header className="mb-6">
-          <p className="text-xs text-muted-foreground">{course.title} — فصل {fa(chapter.order)}</p>
-          <h1 className="mt-1 text-2xl font-bold">{lesson.title}</h1>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-border">
-            <motion.div className="h-full rounded-full bg-bronze" animate={{ width: `${(visibleCount / Math.max(1, sections.length)) * 100}%` }} />
+        <header className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+          <p className="text-xs font-medium text-bronze">{course.title} · فصل {fa(chapter.order)}</p>
+          <h1 className="mt-1.5 text-xl font-bold leading-relaxed sm:text-2xl">{lesson.title}</h1>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-border/80">
+            <motion.div
+              className="progress-sheen h-full rounded-full"
+              style={{ background: "linear-gradient(to left, var(--bronze), color-mix(in srgb, var(--primary) 82%, var(--bronze)))" }}
+              animate={{ width: `${(visibleCount / Math.max(1, sections.length)) * 100}%` }}
+            />
           </div>
-          <p className="mt-1.5 text-xs text-muted-foreground">بخش {fa(visibleCount)} از {fa(sections.length)}</p>
+          <p className="mt-2 text-xs text-muted-foreground">بخش {fa(visibleCount)} از {fa(sections.length)} — هر بار یکی را با دقت بخوان، استاد ادامه می‌دهد.</p>
 
           {/* تب‌های موبایل */}
           <div className="mt-3 flex gap-2 lg:hidden">
@@ -247,7 +252,6 @@ export function LearnView({ id }: { id: string }) {
         <article className="space-y-6" style={{ display: tab === "teach" ? undefined : "none" }}>
           {sections.slice(0, visibleCount).map((s, i) => {
             const meta = SECTION_META[s.type];
-            const MIcon = meta.Icon;
             return (
               <motion.section
                 key={s.id}
@@ -255,15 +259,12 @@ export function LearnView({ id }: { id: string }) {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
-                className="scroll-mt-24 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7"
+                className="scroll-mt-28 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7"
               >
-                <h2 className="mb-3 flex items-center gap-2 font-bold">
-                  <MIcon className={`h-5 w-5 ${meta.tint}`} />
-                  {s.title ?? meta.title}
-                </h2>
+                <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
 
                 {s.body && (
-                  <div className="teach-body whitespace-pre-line text-[16.5px] text-foreground/90">
+                  <div className="teach-body whitespace-pre-line text-[16.5px] leading-[2.05] text-foreground/95">
                     {s.body}
                   </div>
                 )}
@@ -271,20 +272,20 @@ export function LearnView({ id }: { id: string }) {
                 {s.law && s.law.length > 0 && <div className={s.type === "law" ? "" : "mt-4"}><LawBox laws={s.law} /></div>}
 
                 {s.bullets && (
-                  <ul className="mt-2 space-y-2">
+                  <ul className="mt-3 space-y-2.5">
                     {s.bullets.map((b, j) => (
-                      <li key={j} className="flex gap-2 text-[15.5px] leading-[1.9]"><span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-bronze" />{b}</li>
+                      <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-1.5 text-[15.5px] leading-[1.9] transition-colors hover:border-bronze/50 hover:bg-muted/40"><span aria-hidden className="mt-[13px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] bg-bronze/80" /><span className="font-body">{b}</span></li>
                     ))}
                   </ul>
                 )}
 
                 {s.table && (
-                  <div className="mt-3 overflow-x-auto rounded-xl border border-border">
+                  <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
                     <table className="w-full min-w-[520px] text-sm">
-                      <thead><tr className="bg-secondary/70">{s.table.headers.map((h, k) => <th key={k} className="px-3 py-2.5 text-start font-bold">{h}</th>)}</tr></thead>
+                      <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
                       <tbody>
                         {s.table.rows.map((r, k) => (
-                          <tr key={k} className="border-t border-border odd:bg-muted/40">{r.map((c, m) => <td key={m} className="px-3 py-2.5 align-top">{c}</td>)}</tr>
+                          <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
                         ))}
                       </tbody>
                     </table>
@@ -292,20 +293,22 @@ export function LearnView({ id }: { id: string }) {
                 )}
 
                 {s.questionText && (
-                  <div className="rounded-xl bg-accent p-4">
-                    <p className="font-semibold">{s.questionText}</p>
-                    <details className="mt-3 text-sm">
-                      <summary className="cursor-pointer select-none font-medium text-bronze">نمایش پاسخ پیشنهادی استاد</summary>
-                      <p className="mt-2 leading-relaxed text-muted-foreground">{s.suggestedAnswer}</p>
+                  <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
+                    <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
+                    <p className="font-body relative z-10 font-semibold leading-loose">{s.questionText}</p>
+                    <details className="relative z-10 mt-3 text-sm">
+                      <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی استاد</summary>
+                      <p className="mt-2 rounded-lg bg-background/60 p-3 leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
                     </details>
                   </div>
                 )}
 
                 {/* پاسخ‌های AI پیوست‌شده */}
                 {aiNotes.filter((a) => a.sectionId === s.id).map((a, k) => (
-                  <div key={k} className="mt-4 rounded-xl border border-dashed border-bronze/50 bg-bronze/5 p-4">
+                  <div key={k} className="relative mt-4 rounded-xl border border-dashed border-bronze/50 bg-bronze/5 p-4">
+                    <Sparkles aria-hidden className="absolute -top-2.5 end-4 grid h-5 w-5 place-items-center rounded-full bg-card text-bronze" />
                     <p className="mb-1 flex items-center gap-1 text-xs font-bold text-bronze"><HelpCircle className="h-3.5 w-3.5" /> تکمیل استاد</p>
-                    <div className="prose-p:leading-[1.9] text-[15px] [&_p]:my-1 [&_strong]:text-foreground">
+                    <div className="teach-body prose-p:leading-[1.9] text-[15px] [&_p]:my-1 [&_strong]:text-foreground">
                       <ReactMarkdown>{a.text}</ReactMarkdown>
                     </div>
                   </div>
@@ -327,27 +330,25 @@ export function LearnView({ id }: { id: string }) {
           {/* دکمه‌های تعاملی */}
           <div className="flex flex-wrap items-center gap-2">
             {!atEnd && (
-              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 font-semibold text-primary-foreground transition-all hover:opacity-95 active:scale-[.98]">
+              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]">
                 <ArrowDownCircle className="h-5 w-5" /> ادامه بده
               </button>
             )}
-            <button onClick={() => handleAction("simple")} disabled={!!loadingFor} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:border-bronze hover:text-bronze disabled:opacity-50">
+            <ActionBtn onClick={() => handleAction("simple")} disabled={!!loadingFor}>
               <HelpCircle className="h-4 w-4" /> متوجه نشدم، ساده‌تر توضیح بده
-            </button>
-            <button onClick={() => handleAction("examples")} disabled={!!loadingFor} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:border-bronze hover:text-bronze disabled:opacity-50">
+            </ActionBtn>
+            <ActionBtn onClick={() => handleAction("examples")} disabled={!!loadingFor}>
               <Lightbulb className="h-4 w-4" /> مثال بیشتر بده
-            </button>
+            </ActionBtn>
             {atEnd && (
               <>
                 <button
                   onClick={() => { complete(id); navigate({ view: "quiz", id }); }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-success px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-[.98]"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-success px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-transform active:scale-[.98]"
                 >
                   <ClipboardList className="h-4 w-4" /> برو به تست
                 </button>
-                <button onClick={() => navigate({ view: "case", id })} className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium hover:border-bronze hover:text-bronze">
-                  تمرین کیس واقعی
-                </button>
+                <ActionBtn onClick={() => navigate({ view: "case", id })}>تمرین کیس واقعی</ActionBtn>
               </>
             )}
             <button onClick={() => navigate({ view: "course", id: course.id })} className="ms-auto text-xs text-muted-foreground underline-offset-4 hover:underline">

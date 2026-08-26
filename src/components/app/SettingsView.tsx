@@ -44,7 +44,7 @@ export function SettingsView() {
             key={p.key}
             onClick={() => update({ provider: p.key })}
             aria-pressed={ai.provider === p.key}
-            className={`w-full rounded-2xl border p-4 text-start transition-all ${ai.provider === p.key ? "border-bronze bg-bronze/[0.07] shadow-sm" : "border-border bg-card hover:border-muted-foreground/40"}`}
+            className={`w-full rounded-2xl border p-4 text-start transition-all duration-200 ${ai.provider === p.key ? "border-bronze bg-gradient-to-l from-bronze/[0.09] to-transparent shadow-card ring-1 ring-inset ring-bronze/30" : "border-border bg-card hover:-translate-y-px hover:border-muted-foreground/40 hover:shadow-card"}`}
           >
             <div className="flex items-center gap-3">
               {p.key === "builtin" ? <Bot className="h-5 w-5 text-primary" /> : p.key === "gemini" ? <Wand2 className="h-5 w-5 text-primary" /> : <KeyRound className="h-5 w-5 text-primary" />}
