@@ -28,7 +28,7 @@ export function CourseView({ id }: { id: string }) {
         <div aria-hidden className="absolute -end-10 -top-10 h-36 w-36 rounded-full border border-bronze/15" />
         <div aria-hidden className="absolute -end-4 -top-4 h-16 w-16 rounded-full border border-bronze/10" />
         <div className="relative flex items-start gap-4">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/15 to-bronze/10 text-primary ring-1 ring-inset ring-primary/20">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
             <CourseIcon icon={course.icon} className="h-7 w-7" />
           </span>
           <div className="flex-1 space-y-1">
@@ -57,7 +57,7 @@ export function CourseView({ id }: { id: string }) {
                 aria-expanded={isOpen}
                 className={`flex w-full items-center gap-3 p-4 transition-colors sm:p-5 ${isOpen ? "bg-accent/50" : ""}`}
               >
-                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl font-display text-sm font-bold ${chDone === ch.lessons.length ? "bg-success/15 text-success ring-1 ring-inset ring-success/30" : "bg-gradient-to-br from-primary/15 to-bronze/10 text-primary ring-1 ring-inset ring-primary/20"}`}>
+                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl font-display text-sm font-bold ${chDone === ch.lessons.length ? "bg-success/15 text-success ring-1 ring-inset ring-success/30" : "bg-primary/10 text-primary"}`}>
                   {fa(ch.order)}
                 </span>
                 <span className="flex-1 text-start">

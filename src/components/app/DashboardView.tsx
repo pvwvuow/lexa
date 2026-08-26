@@ -52,13 +52,10 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 px-4 pb-28 pt-6 sm:px-6">
-      {/* پنل قهرمان: گرادیان یشمی با پترن لوزی + گیج */}
-      <section className="relative overflow-hidden rounded-2xl bg-primary p-6 text-primary-foreground shadow-card sm:p-8">
-        <div aria-hidden className="pattern-quilt absolute inset-0 opacity-60" />
-        <div aria-hidden className="absolute -top-16 -start-16 h-52 w-52 rounded-full border border-white/10" />
-        <div aria-hidden className="absolute -bottom-20 -end-10 h-44 w-44 rounded-full border border-bronze/30" />
-        <div className="relative flex flex-col items-start gap-7 sm:flex-row sm:items-center">
-          <div className="flex-1 space-y-2.5">
+      {/* پنل وضعیت: تک‌رنگ ساده + گیج تخت */}
+      <section className="rounded-2xl bg-primary p-6 text-primary-foreground shadow-card sm:p-8">
+        <div className="flex flex-col items-start gap-7 sm:flex-row sm:items-center">
+          <div className="flex-1 space-y-2.5 min-w-0">
             <p className="text-sm font-medium text-primary-foreground/70">{greeting}</p>
             <h1 className="text-2xl font-bold leading-relaxed sm:text-[28px]">استادت منتظرته؛ بیا ادامه بدهیم</h1>
             <div className="flex flex-wrap gap-2 pt-1.5">
@@ -67,8 +64,8 @@ export function DashboardView() {
               <span className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur sm:inline-flex"><Layers3 className="h-3.5 w-3.5 text-bronze" />{fa(builtinCourses[0].chapters.length)} فصل مدنی ۱</span>
             </div>
           </div>
-          <div className="rounded-2xl bg-white/8 p-2 backdrop-blur">
-            <Donut value={lessonProgressOf(courses[0], progress)} size={116} stroke={10} label="حقوق مدنی ۱" />
+          <div className="rounded-2xl bg-white/10 p-2">
+            <Donut value={lessonProgressOf(courses[0], progress)} size={116} stroke={10} label="حقوق مدنی ۱" flat />
           </div>
         </div>
       </section>
@@ -77,9 +74,8 @@ export function DashboardView() {
       {resumeTarget && (
         <button
           onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}
-          className="group relative w-full overflow-hidden rounded-2xl border border-bronze/35 bg-gradient-to-l from-bronze/[0.12] via-card to-card p-5 text-start shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-bronze/60 sm:p-6"
+          className="group w-full rounded-2xl border border-border bg-card p-5 text-start shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-bronze/60 sm:p-6"
         >
-          <span aria-hidden className="absolute inset-y-0 end-0 w-1.5 bg-gradient-to-b from-bronze to-primary" />
           <span className="flex items-center justify-between gap-4">
             <span className="space-y-1">
               <span className="block text-xs font-medium text-bronze">{resumeTarget.courseTitle} — جلسهٔ بعدی</span>
@@ -106,7 +102,7 @@ export function DashboardView() {
                 className="group rounded-2xl border border-border bg-card p-5 text-start shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-bronze/50"
               >
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="relative grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-primary/15 to-bronze/10 text-primary ring-1 ring-inset ring-primary/15 transition-transform duration-200 group-hover:scale-105">
+                  <span className="relative grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105">
                     <CourseIcon icon={c.icon} />
                   </span>
                   <div className="min-w-0 flex-1">
