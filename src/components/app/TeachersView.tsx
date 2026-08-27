@@ -33,7 +33,11 @@ export function TeachersView() {
     setErr("");
     try {
       setBusyId(courseId);
-      await toggleLibrary(courseId);
+      const added = await toggleLibrary(courseId);
+      if (added) {
+        // فرصت کوتاه برای هیدرات فروشگاه؛ سپس پرش مستقیم به دورهٔ تازه در بخش مطالعه
+        setTimeout(() => navigate({ view: "course", id: courseId }), 250);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
     } finally {

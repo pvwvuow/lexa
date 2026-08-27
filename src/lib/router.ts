@@ -24,6 +24,7 @@ export function routeToHash(r: Route): string {
     case "learn": return `#/learn/${r.id}`;
     case "quiz": return r.id ? `#/quiz/${r.id}` : "#/quiz";
     case "case": return r.id ? `#/case/${r.id}` : "#/case";
+    case "post": return `#/post/${r.id}`;
     default: return `#/${r.view}`;
   }
 }

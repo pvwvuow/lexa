@@ -2,7 +2,7 @@
 
 // ─── کلاینت شبکهٔ اساتید ──────────────────────────────────────────────────────
 import * as React from "react";
-import { useAuth } from "@/lib/auth-client";
+import { useAuth, refreshLibrary } from "@/lib/auth-client";
 
 export interface SuggestionItem {
   id: string;
@@ -136,6 +136,8 @@ export function useTCourses(mine = false) {
         body: JSON.stringify({ courseId }),
       });
       setCourses((cs) => cs.map((c) => (c.id === courseId ? { ...c, inLibrary: d.inLibrary } : c)));
+      // هیدرات فوری کتاب‌های استاد در فروشگاه مطالعه — تا سایدبار/خانه بدون رفرش به‌روز شوند
+      void refreshLibrary();
       return d.inLibrary;
     },
     [],
