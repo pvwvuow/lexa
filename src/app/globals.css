@@ -467,3 +467,84 @@ h1, h2, h3, h4, h5, h6 {
 .hslider > * {
   scroll-snap-align: start;
 }
+
+/* ─── صحنهٔ تئاتری خانه — نورافکن، ورود آیتم و تایمر ─────────────────────── */
+.stage-spotlight {
+  isolation: isolate;
+}
+/* ورود نرم آیتم تازه روی صحنه: از عمق و کمی پایین به مرکز نور می‌آید */
+.stage-in {
+  animation: stage-in 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+/* نوار تایمر هفت‌ثانیه‌ای — پسرفت زمان تا آیتم بعدی */
+.stage-timer {
+  animation: stage-timer linear both;
+  animation-duration: 7s;
+}
+@keyframes stage-timer {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-in { animation-duration: 1ms; }
+  .stage-timer { animation-duration: 1ms; }
+}
+
+/* ─── کتابخانهٔ قوانین — پیکر «نسخهٔ خطی» متفاوت از دوره‌ها ───────────────── */
+.law-paper {
+  background:
+    radial-gradient(140% 90% at 100% 0%, color-mix(in srgb, var(--bronze) 7%, transparent), transparent 55%),
+    var(--card);
+  background-image:
+    radial-gradient(140% 90% at 100% 0%, color-mix(in srgb, var(--bronze) 7%, transparent), transparent 55%);
+}
+.dark .law-paper {
+  background:
+    radial-gradient(140% 90% at 100% 0%, color-mix(in srgb, var(--bronze) 9%, transparent), transparent 55%),
+    color-mix(in srgb, var(--card) 92%, #000 8%);
+}
+
+/* ─── فوکوس جعبه‌های تایپ: بدون هالهٔ طلایی درشت ────────────────────────────
+ * هالهٔ طلایی ۲px سراسری برای فیلدهای نوشتن متن نامتناسب است؛ فرم‌ها خودشان
+ * با تغییر رنگ لبه نشانگر فوکوس دارند. */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+input:focus,
+textarea:focus {
+  outline: none;
+}
+
+/* ─── چاپ متن قانون — فقط پیکر ماده‌ها روی کاغذ ────────────────────────────── */
+@media print {
+  header, footer, nav, .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .law-paper {
+    border: 1px solid #bbb !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    break-inside: avoid;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

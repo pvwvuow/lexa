@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "برای گذاشتن کامنت، ابتدا وارد شوید." }, { status: 401 });
+  if (!rateLimit(req, `comment:${me.id}`, 12, 60_000))
+    return NextResponse.json({ error: "کامنت‌ها را با فاصلهٔ زمانی بفرستید." }, { status: 429 });
 
   let body: { text?: string; replyToId?: string };
   try {

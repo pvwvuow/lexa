@@ -8,11 +8,15 @@ import {
   toPublic,
 } from "@/lib/auth";
 import { validatePassword, validateUsername } from "@/lib/auth-shared";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   await ensureAdmin();
+  // سد brute-force: حداکثر ۸ ثبت‌نام در ۱۰ دقیقه از هر IP
+  if (!rateLimit(req, "register", 8, 10 * 60_000))
+    return NextResponse.json({ error: "تعداد تلاش‌های ثبت‌نام زیاد است؛ کمی بعد دوباره تلاش کنید." }, { status: 429 });
   let body: { username?: string; password?: string };
   try {
     body = await req.json();

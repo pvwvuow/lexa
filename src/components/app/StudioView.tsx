@@ -243,8 +243,35 @@ function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () =
 }
 
 /* ═══ ویرایشگر مطلب ══════════════════════════════════════════════════════════ */
-interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; blocks: LessonSection[] }
-const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", blocks: [] };
+interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; categories: string[]; blocks: LessonSection[] }
+const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", categories: [], blocks: [] };
+
+/** چیپ‌های انتخاب چندشاخه — استاد می‌تواند هر چند گزینه که خواست انتخاب کند */
+function CategoryChips({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {CATEGORIES.map((c) => {
+        const on = value.includes(c.slug);
+        return (
+          <button
+            key={c.slug}
+            type="button"
+            onClick={() => onChange(on ? value.filter((v) => v !== c.slug) : [...value, c.slug])}
+            aria-pressed={on}
+            title={c.desc}
+            className={`rounded-full border px-3.5 py-1.5 text-[11.5px] font-bold transition-all ${
+              on
+                ? "border-bronze bg-bronze/15 text-bronze shadow-card"
+                : "border-border bg-background text-muted-foreground hover:border-bronze/40 hover:text-foreground"
+            }`}
+          >
+            {on ? "✓ " : ""}{c.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | null; onClose: () => void; onSaved: () => void }) {
   const [d, setD] = React.useState<PostDraft>(draft ?? EMPTY_POST);
@@ -295,16 +322,14 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
             <input value={d.tags} onChange={(e) => setD({ ...d, tags: e.target.value })} placeholder="قراردادها، بیع، نکته امتحانی" className={inputCls} />
           </div>
         </div>
-        {/* شاخهٔ کتابخانهٔ عمومی — دانشجو می‌تواند این مطلب را در دسته‌بندی مربوط ببیند */}
+        {/* شاخه‌های کتابخانهٔ عمومی — چندگانه؛ مطلب در همهٔ دسته‌های انتخابی دیده می‌شود */}
         <div>
-          <label className={labelCls}>شاخهٔ کتابخانهٔ عمومی</label>
-          <select value={d.category} onChange={(e) => setD({ ...d, category: e.target.value })} className={inputCls}>
-            <option value="">— بدون شاخه (فقط فید)</option>
-            {CATEGORIES.map((c) => (
-              <option key={c.slug} value={c.slug}>{c.label}</option>
-            ))}
-          </select>
-          <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">اگر شاخه انتخاب کنی، این مطلب در همان دستهٔ کتابخانهٔ عمومی هم نمایش داده می‌شود.</p>
+          <label className={labelCls}>شاخه‌های کتابخانهٔ عمومی (چند گزینه مجاز است)</label>
+          <CategoryChips
+            value={d.categories}
+            onChange={(cats) => setD({ ...d, categories: cats, category: cats[0] ?? "" })}
+          />
+          <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">اگر شاخه انتخاب کنی، این مطلب در هر یک از آن دسته‌ها هم نمایش داده می‌شود؛ بدون انتخاب فقط در فید دیده می‌شود.</p>
         </div>
         <div>
           <label className={labelCls}>محتوا</label>
@@ -327,10 +352,10 @@ interface TLesson { key: string; title: string; minutes?: number; sections: Less
 interface TChapter { key: string; title: string; lessons: TLesson[] }
 interface CourseDraft {
   id?: string; title: string; tagline: string; description: string;
-  icon: string; accent: string; category: string; status: string; chapters: TChapter[];
+  icon: string; accent: string; category: string; categories: string[]; status: string; chapters: TChapter[];
 }
 
-const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", status: "published", chapters: [] };
+const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", chapters: [] };
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 /** سه حالت انتشار دوره */
@@ -409,15 +434,14 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
 
         {/* شاخه و وضعیت انتشار */}
         <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <label className={labelCls}>شاخهٔ کتابخانهٔ عمومی</label>
-            <select value={d.category} onChange={(e) => mutate((x) => ({ ...x, category: e.target.value }))} className={inputCls}>
-              {CATEGORIES.map((c) => (
-                <option key={c.slug} value={c.slug}>{c.label}</option>
-              ))}
-            </select>
+          <div className="sm:col-span-3">
+            <label className={labelCls}>شاخه‌های کتابخانهٔ عمومی (چند گزینه مجاز است)</label>
+            <CategoryChips
+              value={d.categories}
+              onChange={(cats) => mutate((x) => ({ ...x, categories: cats, category: cats[0] ?? "other" }))}
+            />
             <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-              {CATEGORIES.find((c) => c.slug === d.category)?.desc}
+              دوره در هر یک از دسته‌های انتخابی دیده می‌شود؛ مثلاً هم «تجارت» و هم «آزمون وکالت».
             </p>
           </div>
           <div className="sm:col-span-2">
@@ -608,6 +632,7 @@ export function StudioView() {
       setPostDraft({
         id: j.post.id, title: j.post.title, summary: j.post.summary, tags: j.post.tags,
         category: j.post.category ?? "",
+        categories: Array.isArray(j.post.categories) ? j.post.categories : (j.post.category ? [j.post.category] : []),
         blocks: (j.post.blocks as LessonSection[]) ?? [],
       });
     } catch {}
@@ -628,7 +653,7 @@ export function StudioView() {
           lessons: chc.lessons.map((l) => ({ key: uid(), title: l.title, minutes: l.minutes, sections: (l.sections ?? []) as LessonSection[] })),
         };
       });
-      setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", category: (c as unknown as { _category?: string })._category ?? "other", status: (c as unknown as { _status?: string })._status ?? "published", chapters });
+      setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", category: (c as unknown as { _category?: string })._category ?? "other", categories: ((c as unknown as { _categories?: string[] })._categories) ?? [(c as unknown as { _category?: string })._category ?? "other"], status: (c as unknown as { _status?: string })._status ?? "published", chapters });
     } catch {}
   }
 

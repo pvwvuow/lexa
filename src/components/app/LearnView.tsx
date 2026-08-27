@@ -52,6 +52,15 @@ export function LearnView({ id }: { id: string }) {
   const [questionInput, setQuestionInput] = React.useState("");
   const [showTocMobile, setShowTocMobile] = React.useState(false);
   const [askOpen, setAskOpen] = React.useState(false); // فرم شناور پرسش در موبایل
+  // چرخهٔ دکمهٔ «از استاد بپرس»: برچسب یک‌بار کامل دیده می‌شود، بعد زیر دکمه جمع و
+  // خود دکمه کم‌رنگ می‌شود تا حواس کاربر هنگام خواندن پرت نشود (هاور = برمی‌گردد)
+  const [fabDim, setFabDim] = React.useState(false);
+  React.useEffect(() => {
+    if (askOpen) return;
+    setFabDim(false);
+    const t = setTimeout(() => setFabDim(true), 3400);
+    return () => clearTimeout(t);
+  }, [askOpen, id]);
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
@@ -473,12 +482,22 @@ export function LearnView({ id }: { id: string }) {
             <button
               onClick={() => setAskOpen(true)}
               title="سؤال آزاد از استاد هوشمند همین جلسه"
-              className="inline-flex items-center gap-2 rounded-full border border-bronze/45 bg-card/95 p-1.5 pe-4 shadow-lg backdrop-blur transition-colors hover:border-bronze active:scale-[.98]"
+              aria-label="از استاد بپرس"
+              className={`inline-flex items-center gap-2 rounded-full border border-bronze/45 bg-card/95 p-1.5 pe-4 shadow-lg backdrop-blur transition-all duration-500 hover:border-bronze ${
+                fabDim ? "pe-1.5 opacity-45 hover:pe-4 hover:opacity-100 focus-visible:opacity-100" : ""
+              }`}
             >
               <span aria-hidden className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
                 <Send className="h-4 w-4 -scale-x-100" />
               </span>
-              <span className="text-[12.5px] font-bold">از استاد بپرس</span>
+              <span
+                aria-hidden={fabDim}
+                className={`overflow-hidden whitespace-nowrap text-[12.5px] font-bold transition-all duration-500 ${
+                  fabDim ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+                }`}
+              >
+                از استاد بپرس
+              </span>
             </button>
           </div>
         )}

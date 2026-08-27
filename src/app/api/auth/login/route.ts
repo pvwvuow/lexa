@@ -7,11 +7,15 @@ import {
   toPublic,
   verifyPassword,
 } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   await ensureAdmin();
+  // سد brute-force: حداکثر ۱۰ ورود در ۵ دقیقه از هر IP
+  if (!rateLimit(req, "login", 10, 5 * 60_000))
+    return NextResponse.json({ error: "تلاش‌های ورود زیاد بوده؛ لطفاً چند دقیقه صبر کنید." }, { status: 429 });
   let body: { username?: string; password?: string };
   try {
     body = await req.json();

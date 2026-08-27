@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { ratingsAggOne } from "@/lib/ratings-server";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "برای امتیاز دادن ابتدا وارد شوید." }, { status: 401 });
+  if (!rateLimit(req, `rating:${me.id}`, 40, 60_000))
+    return NextResponse.json({ error: "امتیازها را با فاصلهٔ زمانی ثبت کنید." }, { status: 429 });
 
   let body: { targetType?: unknown; targetId?: unknown; stars?: unknown };
   try {

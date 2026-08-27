@@ -4,9 +4,24 @@ import * as React from "react";
 import {
   Scale, BookOpen, HelpCircle, Lightbulb, ListChecks, GitCompareArrows,
   GraduationCap, Quote, FileText, Sparkles, BookOpenCheck, Handshake,
-  AlertTriangle, Zap, Info, Compass, Gavel, Globe } from "lucide-react";
+  AlertTriangle, Zap, Info, Compass, Gavel, Globe, ArrowRight } from "lucide-react";
 import type { SectionType, LawRef, LessonSection } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
+import { goBack } from "@/lib/router";
+
+/** دکمهٔ بازگشت به صفحهٔ قبل — در سرصفحهٔ همهٔ زیرصفحه‌ها یکدست استفاده می‌شود */
+export function BackButton({ label = "بازگشت" }: { label?: string }) {
+  return (
+    <button
+      onClick={goBack}
+      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-card transition-colors hover:border-bronze/50 hover:text-bronze"
+      aria-label="بازگشت به صفحهٔ قبل"
+    >
+      <ArrowRight className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
 
 export function CourseIcon({ icon, className }: { icon?: string; className?: string }) {
   const Ico =

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { FEEDBACK_ANALYZE_SPEC, lessonContextBlock } from "@/lib/ai/prompts";
 import { dispatch, extractJson, PERSIAN_FAIL, type AiConf } from "@/lib/ai/providers";
 
@@ -41,6 +42,8 @@ export async function POST(req: Request) {
   const me = await getSessionUser();
   if (!me)
     return NextResponse.json({ error: "برای ثبت بازخورد ابتدا وارد حساب خود شوید." }, { status: 401 });
+  if (!rateLimit(req, `feedback:${me.id}`, 10, 60_000))
+    return NextResponse.json({ error: "بازخوردها را با فاصلهٔ زمانی بفرستید." }, { status: 429 });
 
   let body: Body;
   try {

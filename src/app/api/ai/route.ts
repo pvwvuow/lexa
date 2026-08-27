@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { buildSystem, LESSON_JSON_SPEC, lessonContextBlock } from '@/lib/ai/prompts';
 import { dispatch, extractJson, PERSIAN_FAIL, type AiConf } from '@/lib/ai/providers';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -34,6 +35,9 @@ function sanitizeQuiz(quiz: unknown[]): unknown[] {
 }
 
 export async function POST(req: Request) {
+  // موتور AI پرهزینه است — حداکثر ۳۰ فراخوانی در دقیقه از هر IP
+  if (!rateLimit(req, "ai", 30, 60_000))
+    return NextResponse.json({ error: 'تعداد درخواست‌ها زیاد است؛ چند لحظه صبر کنید.' }, { status: 429 });
   let body: Body;
   try { body = (await req.json()) as Body; }
   catch { return NextResponse.json({ error: 'درخواست نامعتبر است.' }, { status: 400 }); }

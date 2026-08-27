@@ -158,7 +158,8 @@ model Post {
   title     String
   summary   String    @default("") // خلاصهٔ کوتاه برای فید
   tags      String    @default("")
-  category  String    @default("") // شاخهٔ کتابخانهٔ عمومی — خالی یعنی دسته‌بندی‌نشده
+  category  String    @default("") // شاخهٔ اصلی (سازگاری با نسخه‌های قبل)
+  categories String   @default("[]") // شاخه‌های چندگانهٔ کتابخانهٔ عمومی — JSON آرایه‌ای از slug
   blocks    Json // آرایهٔ LessonSection — همان المان‌های صفحهٔ تدریس
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -205,7 +206,8 @@ model TeacherCourse {
   description  String   @default("")
   icon         String   @default("")
   accent       String   @default("bronze")
-  category     String   @default("other") // شاخهٔ کتابخانهٔ عمومی
+  category     String   @default("other") // شاخهٔ اصلی (سازگاری با نسخه‌های قبل)
+  categories   String   @default("[]") // شاخه‌های چندگانه — استاد می‌تواند چند شاخه انتخاب کند
   status       String   @default("published") // draft فقط استاد | prep در حال آماده‌سازی | published منتشر شده
   chaptersJson String   @default("[]")
   publishedAt  DateTime?

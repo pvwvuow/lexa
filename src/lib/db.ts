@@ -7,7 +7,7 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    log: ['error'], // فقط خطاها — لاگ کوئری هم حجم لاگ را منفجر می‌کند هم سرعت را می‌گیرد
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
