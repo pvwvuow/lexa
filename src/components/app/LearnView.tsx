@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
+  MoreHorizontal, CheckCircle2,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -13,8 +14,9 @@ import { useApp } from "@/lib/store";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
+import { AIThinking, SECTION_META, LawBox, SectionHead, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
 
 interface AiNote { sectionId: string; text: string }
@@ -376,31 +378,20 @@ export function LearnView({ id }: { id: string }) {
 
           {aiErr && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{aiErr}</p>}
 
-          {/* دکمه‌های تعاملی */}
-          <div className="flex flex-wrap items-center gap-2">
-            {!atEnd && (
-              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]">
+          {/* نوار کنش جلسه — مینیمال: یک کنش اصلی + منوی بیشتر برای بقیه */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!atEnd ? (
+              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3 font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]">
                 <ArrowDownCircle className="h-5 w-5" /> ادامه بده
               </button>
-            )}
-            <ActionBtn onClick={() => handleAction("simple")} disabled={!!loadingFor}>
-              <HelpCircle className="h-4 w-4" /> متوجه نشدم، ساده‌تر توضیح بده
-            </ActionBtn>
-            <ActionBtn onClick={() => handleAction("examples")} disabled={!!loadingFor}>
-              <Lightbulb className="h-4 w-4" /> مثال بیشتر بده
-            </ActionBtn>
-            <ActionBtn onClick={() => setFeedbackOpen(true)} disabled={!!loadingFor} title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر">
-              <MessageSquareWarning className="h-4 w-4" /> نقد تدریس
-            </ActionBtn>
-            {atEnd && (
+            ) : (
               <>
                 <button
                   onClick={() => { complete(id); navigate({ view: "quiz", id }); }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-success px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-transform active:scale-[.98]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-success px-6 py-3 font-semibold text-white shadow-card transition-transform active:scale-[.98]"
                 >
-                  <ClipboardList className="h-4 w-4" /> برو به تست
+                  <ClipboardList className="h-5 w-5" /> برو به تست
                 </button>
-                <ActionBtn onClick={() => navigate({ view: "case", id })}>تمرین کیس واقعی</ActionBtn>
                 {nextChapter && nextChapter.lessons[0] && (
                   <button
                     onClick={() => {
@@ -410,18 +401,68 @@ export function LearnView({ id }: { id: string }) {
                       setTimeout(() => navigate({ view: "learn", id: first.id }), 120);
                     }}
                     title={`رفتن به ${nextChapter.title}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-bronze/50 bg-bronze/10 px-5 py-3 text-sm font-bold text-bronze transition-colors hover:bg-bronze/20 active:scale-[.99]"
                   >
                     <ArrowLeft className="h-4 w-4 shrink-0" />
-                    <span className="truncate">فصل بعدی</span>
+                    فصل بعدی
+                    <span className="hidden max-w-[140px] truncate opacity-75 md:inline">· {nextChapter.title}</span>
                   </button>
                 )}
-                {atEnd && !nextChapter && <span className="self-center text-xs text-muted-foreground">این آخرین فصل این درس است</span>}
+                {!nextChapter && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-success" /> این آخرین فصل این درس است
+                  </span>
+                )}
               </>
             )}
-            <button onClick={() => navigate({ view: "course", id: course.id })} className="ms-auto text-xs text-muted-foreground underline-offset-4 hover:underline">
-              <RotateCcw className="inline h-3.5 w-3.5" /> برگشت به فصل
-            </button>
+
+            {/* همهٔ کنش‌های فرعی فقط داخل منوی بیشتر — بدون شلوغی پایین صفحه */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  disabled={!!loadingFor}
+                  aria-label="کنش‌های بیشتر"
+                  title="موارد کمکی و تکمیلی"
+                  className="inline-flex h-[46px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-45"
+                >
+                  <MoreHorizontal className="h-5 w-5" /> بیشتر
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={10} className="w-72 rounded-xl p-1.5">
+                <DropdownMenuItem
+                  onClick={() => handleAction("simple")}
+                  disabled={!!loadingFor}
+                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+                >
+                  <HelpCircle className="h-4 w-4 shrink-0 text-bronze" /> متوجه نشدم؛ ساده‌تر توضیح بده
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleAction("examples")}
+                  disabled={!!loadingFor}
+                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+                >
+                  <Lightbulb className="h-4 w-4 shrink-0 text-bronze" /> مثال بیشتر بده
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setFeedbackOpen(true)}
+                  disabled={!!loadingFor}
+                  title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر"
+                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+                >
+                  <MessageSquareWarning className="h-4 w-4 shrink-0 text-bronze" /> نقد تدریس این جلسه…
+                </DropdownMenuItem>
+                {atEnd && (
+                  <DropdownMenuItem onClick={() => navigate({ view: "case", id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
+                    <Scale className="h-4 w-4 shrink-0 text-bronze" /> تمرین کیس واقعی
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ view: "course", id: course.id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
+                  <RotateCcw className="h-4 w-4 shrink-0 text-bronze" /> بازگشت به فهرست درس
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </article>
       </main>
