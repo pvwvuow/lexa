@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Flame, ArrowLeft,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
-  ChevronLeft, ChevronRight, LibraryBig, ListChecks,
+  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -205,7 +205,6 @@ export function DashboardView() {
         streak={streak.count}
         books={shelfCourses.length}
         resumeTarget={resumeTarget}
-        nextLessons={nextLessons}
       />
 
       {/* پیام وضعیت کتابخانه (حذف/افزودن) */}
@@ -260,16 +259,12 @@ type StageItem =
 const STAGE_DELAY = 7000; // هفت ثانیه روی هر آیتم، بعد آیتم تازه
 
 function HeroPanel({
-  greeting, streak, books, resumeTarget, nextLessons,
+  greeting, streak, books, resumeTarget,
 }: {
   greeting: string;
   streak: number;
   books: number;
   resumeTarget: { courseTitle: string; lesson: Lesson } | null;
-  nextLessons: {
-    lessonId: string; courseTitle: string; lessonTitle: string;
-    pct: number; icon?: string; owner?: string; isPrep: boolean;
-  }[];
 }) {
   return (
     <section
@@ -320,256 +315,193 @@ function HeroPanel({
           </div>
         </div>
 
-        {/* صحنهٔ تئاتری — یک مطلب مهم، نورافکن‌وار، تایم‌دار */}
-        <StageRotator nextLessons={nextLessons} />
+        {/* جدیدترین مطالب — کارت‌های فید مثل طرح مرجع */}
+        <LatestPosts />
       </div>
     </section>
   );
 }
 
-/* ─── صحنهٔ تئاتری: یک آیتم تازه در مرکز نور؛ تایمر می‌چرخد و آیتم بعدی می‌آید ── */
+/* ─── جدیدترین مطالب — کاروسل کارت فید با جلد دسته‌بندی، نویسنده و زمان مطالعه ── */
 
-function StageRotator({
-  nextLessons,
-}: {
-  nextLessons: {
-    lessonId: string; courseTitle: string; lessonTitle: string;
-    pct: number; icon?: string; owner?: string; isPrep: boolean;
-  }[];
-}) {
+const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  tejarat: { bg: "from-[#96742f] to-[#413113]", Icon: Briefcase },
+  "ayin-dadresi": { bg: "from-[#1f5a4c] to-[#0f2f28]", Icon: Gavel },
+  "azmoon-vekalat": { bg: "from-[#2c5083] to-[#152a47]", Icon: GraduationCap },
+  takhassosi: { bg: "from-[#5a3b6e] to-[#2c1d38]", Icon: BookMarked },
+  other: { bg: "from-[#3c5148] to-[#1c2b24]", Icon: BookOpen },
+};
+
+function LatestPosts() {
   const { feed, loading } = useSocial();
-  const [authorFilter, setAuthorFilter] = React.useState("");
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = React.useState({ prev: false, next: false });
 
-  // نویسندگان فید برای چیپ‌های فیلتر
-  const authors = React.useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const p of feed) if (!seen.has(p.author.id)) seen.set(p.author.id, p.author.displayName);
-    return [...seen.entries()];
-  }, [feed]);
-
-  // آیتم‌های صحنه: مطالب استادها؛ اگر فیدی نبود سرفصل‌های بعدی همان‌جا زیر نور می‌روند
-  const items = React.useMemo<StageItem[]>(() => {
-    const posts = (authorFilter ? feed.filter((p) => p.author.id === authorFilter) : feed)
-      .slice(0, 8)
-      .map<StageItem>((p) => ({
-        kind: "post", id: p.id, title: p.title, summary: p.summary,
-        authorId: p.author.id, authorName: p.author.displayName, avatarUrl: p.author.avatarUrl,
-        commentsCount: p.commentsCount, ratingAvg: p.rating?.count ? p.rating.avg : undefined,
-        date: p.createdAt,
-      }));
-    if (posts.length > 0) return posts;
-    return nextLessons.slice(0, 6).map<StageItem>((n) => ({
-      kind: "lesson", lessonId: n.lessonId, courseTitle: n.courseTitle,
-      lessonTitle: n.lessonTitle, owner: n.owner, isPrep: n.isPrep, icon: n.icon,
-    }));
-  }, [feed, authorFilter, nextLessons]);
-
-  const [idx, setIdx] = React.useState(0);
-  const [paused, setPaused] = React.useState(false);
-  const [cycle, setCycle] = React.useState(0); // ریست انیمیشن نوار تایمر
-
-  React.useEffect(() => { setIdx(0); setCycle((c) => c + 1); }, [authorFilter, feed.length]);
+  const measure = React.useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    if (max <= 4) return setEdge({ prev: false, next: false });
+    const d = Math.abs(el.scrollLeft);
+    setEdge({ prev: d > 4, next: max - d > 4 });
+  }, []);
 
   React.useEffect(() => {
-    if (paused || items.length <= 1) return;
-    const t = setTimeout(() => {
-      setIdx((i) => (i + 1) % items.length);
-      setCycle((c) => c + 1);
-    }, STAGE_DELAY);
-    return () => clearTimeout(t);
-  }, [idx, paused, items.length, cycle]);
+    measure();
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    const t = setTimeout(measure, 500); // پس از نشست فونت‌ها
+    return () => {
+      el.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      clearTimeout(t);
+    };
+  }, [measure, feed.length]);
 
-  const item = items[Math.min(idx, items.length - 1)];
-
-  if (loading && feed.length === 0) {
-    return (
-      <div className="space-y-3" aria-label="در حال بارگذاری تازه‌ها">
-        <span className="block h-3.5 w-28 animate-pulse rounded bg-white/15" />
-        <div className="grid min-h-[168px] place-items-center rounded-[22px] border border-white/10 bg-white/[0.04]">
-          <div className="space-y-2.5 text-center">
-            <span className="mx-auto block h-10 w-10 animate-pulse rounded-full bg-white/15" />
-            <span className="mx-auto block h-3.5 w-44 animate-pulse rounded bg-white/15" />
-            <span className="mx-auto block h-2.5 w-64 animate-pulse rounded bg-white/10" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!item) {
-    return (
-      <p className="rounded-[22px] border border-dashed border-white/25 bg-white/[0.05] px-4 py-6 text-center text-xs leading-relaxed text-primary-foreground/80">
-        هنوز مطلب تازه‌ای برای نمایش نیست؛ از «اساتید همیار» یکی را دنبال کن تا نوشته‌هایش اینجا روی صحنه بیاید.
-      </p>
-    );
+  function slide(dir: 1 | -1) {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.82), behavior: "smooth" });
   }
 
   return (
-    <div className="space-y-3.5" aria-label="تازه‌ها از استادها">
-      {/* سرصفحه + فیلتر نویسنده (فقط وقتی فید پست دارد) */}
+    <div className="space-y-3" aria-label="جدیدترین مطالب استادها">
+      {/* سرصفحه: عنوان + «مشاهده همه» */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-primary-foreground/80">
-          <Rss className="h-3.5 w-3.5 text-bronze" /> تازه از استادها
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-extrabold text-white">
+          <Rss className="h-4 w-4 text-bronze" /> جدیدترین مطالب
         </span>
-        {items[0]?.kind === "post" && authors.length > 1 && (
-          <>
-            <span aria-hidden className="mx-1 hidden h-4 w-px bg-white/20 sm:block" />
-            <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <button
-                onClick={() => setAuthorFilter("")}
-                aria-pressed={!authorFilter}
-                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
-                  !authorFilter ? "bg-white text-primary shadow-card" : "text-primary-foreground/70 hover:text-white"
-                }`}
-              >
-                همه
-              </button>
-              {authors.map(([id, name]) => (
-                <button
-                  key={id}
-                  onClick={() => setAuthorFilter(authorFilter === id ? "" : id)}
-                  aria-pressed={authorFilter === id}
-                  className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
-                    authorFilter === id ? "bg-white text-primary shadow-card" : "text-primary-foreground/70 hover:text-white"
-                  }`}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <button
+          onClick={() => navigate({ view: "teachers" })}
+          className="rounded-full border border-bronze/60 bg-bronze/15 px-3 py-1 text-[10.5px] font-bold text-bronze transition-colors hover:bg-bronze/25"
+        >
+          مشاهده همه
+        </button>
+        <span className="ms-auto hidden text-[10px] font-medium text-primary-foreground/50 sm:inline">
+          تازه‌ترین نوشته‌های اساتید
+        </span>
       </div>
 
-      {/* ═══ صحنه — زیر نورافکن ═══ */}
-      <div
-        className="stage-spotlight relative min-h-[190px] overflow-hidden rounded-[22px] border border-white/12 bg-white/[0.055] px-5 py-6 backdrop-blur-sm sm:px-8 sm:py-7"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onFocus={() => setPaused(true)}
-        onBlur={() => setPaused(false)}
-        onTouchStart={() => setPaused(true)}
-        onTouchEnd={() => setTimeout(() => setPaused(false), 3500)}
-      >
-        {/* پرتو نور از بالا — حس صحنهٔ تئاتر */}
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 h-56 bg-[radial-gradient(ellipse_at_top,rgba(205,166,94,0.22),transparent_65%)]" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-20 start-1/2 h-40 w-[70%] -translate-x-1/2 rounded-full bg-[#0e2f22]/60 blur-2xl rtl:translate-x-1/2" />
-
-        {item.kind === "post" ? (
-          <div key={item.id} className="stage-in relative flex h-full flex-col items-center gap-3 text-center">
+      {/* ردیف کارت‌ها + فلش‌های شناور */}
+      <div className="relative">
+        <div ref={ref} className="hslider -mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
+          {loading && feed.length === 0 ? (
+            [0, 1, 2, 3].map((i) => <FeedCardSkeleton key={i} />)
+          ) : feed.length > 0 ? (
+            feed.slice(0, 10).map((p) => <FeedCard key={p.id} p={p} />)
+          ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); navigate({ view: "teacher", id: item.authorId }); }}
-              className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] py-1 pe-3.5 ps-1 transition-colors hover:border-bronze/50"
-              title={`پروفایل ${item.authorName}`}
+              onClick={() => navigate({ view: "teachers" })}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-white/25 bg-white/[0.05] px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
             >
-              <UserAvatar src={item.avatarUrl} name={item.authorName} size="sm" />
-              <span className="text-[11.5px] font-bold text-white">{item.authorName}</span>
+              <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
+              هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
             </button>
-            <button
-              onClick={() => navigate({ view: "post", id: item.id })}
-              className="group mx-auto max-w-2xl space-y-2.5"
-            >
-              <h3 className="font-display text-[19px] font-extrabold leading-snug text-white transition-colors group-hover:text-bronze sm:text-[22px]">
-                {item.title}
-              </h3>
-              {item.summary && (
-                <p className="mx-auto max-w-xl line-clamp-2 text-[12.5px] leading-relaxed text-primary-foreground/75">{item.summary}</p>
-              )}
-              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10.5px] text-primary-foreground/60">
-                <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(item.commentsCount)} گفتگو</span>
-                {!!item.ratingAvg && (
-                  <span className="inline-flex items-center gap-0.5 rounded-full bg-bronze/25 px-1.5 py-0.5 font-bold text-white">
-                    <Star className="h-2.5 w-2.5 fill-current text-bronze" /> {fa(Math.round(item.ratingAvg * 10) / 10)}
-                  </span>
-                )}
-                <span>· {faDate(item.date)}</span>
-              </p>
-            </button>
-            <button
-              onClick={() => navigate({ view: "post", id: item.id })}
-              className="group mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-bronze px-4 py-2 text-[12px] font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.97]"
-            >
-              خواندن مطلب
-              <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
-            </button>
-          </div>
-        ) : (
-          <div key={item.lessonId} className="stage-in relative flex h-full flex-col items-center gap-3 text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1 text-[11px] font-bold text-primary-foreground/85">
-              <ListChecks className="h-3.5 w-3.5 text-bronze" /> سرفصل بعدی تو
-            </span>
-            <button
-              onClick={() => navigate({ view: "learn", id: item.lessonId })}
-              className="group mx-auto max-w-2xl space-y-2.5"
-            >
-              <h3 className="font-display text-[19px] font-extrabold leading-snug text-white transition-colors group-hover:text-bronze sm:text-[22px]">
-                {item.lessonTitle}
-              </h3>
-              <p className="text-[12.5px] text-primary-foreground/75">
-                <span className="font-bold text-bronze">{item.courseTitle}</span>
-                {item.owner && <> · استاد {item.owner}</>}
-                {item.isPrep && <span className="ms-1.5 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
-              </p>
-            </button>
-            <button
-              onClick={() => navigate({ view: "learn", id: item.lessonId })}
-              className="group mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-bronze px-4 py-2 text-[12px] font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.97]"
-            >
-              شروع تدریس
-              <PlayCircle className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* نوار تایمر پایین صحنه — گذشت زمان تا آیتم تازه */}
-        {items.length > 1 && (
-          <div aria-hidden className="absolute inset-x-5 bottom-0 h-[3px] overflow-hidden rounded-t bg-white/10 sm:inset-x-8">
-            <span
-              key={cycle}
-              className="stage-timer block h-full rounded-t bg-gradient-to-l from-bronze to-[color-mix(in_srgb,var(--bronze)_55%,white)]"
-              style={{ animationPlayState: paused ? "paused" : "running" }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* پیمایش صحنه: نقطه‌ها + فلش‌ها */}
-      {items.length > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5" role="tablist" aria-label="انتخاب آیتم صحنه">
-            {items.map((_, i) => (
-              <button
-                key={i}
-                role="tab"
-                aria-selected={i === idx}
-                aria-label={`آیتم ${fa(i + 1)}`}
-                onClick={() => { setIdx(i); setCycle((c) => c + 1); }}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === idx ? "w-6 bg-bronze" : "w-1.5 bg-white/25 hover:bg-white/45"
-                }`}
-              />
-            ))}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => { setIdx((i) => (i + 1) % items.length); setCycle((c) => c + 1); }}
-              aria-label="آیتم بعدی"
-              className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-primary-foreground/80 transition-colors hover:border-bronze/60 hover:text-bronze"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => { setIdx((i) => (i - 1 + items.length) % items.length); setCycle((c) => c + 1); }}
-              aria-label="آیتم قبلی"
-              className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-primary-foreground/80 transition-colors hover:border-bronze/60 hover:text-bronze"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          )}
         </div>
-      )}
+
+        {edge.next && (
+          <button
+            onClick={() => slide(-1)}
+            aria-label="مطالب بعدی"
+            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-card backdrop-blur transition-colors hover:border-bronze hover:text-bronze"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        )}
+        {edge.prev && (
+          <button
+            onClick={() => slide(1)}
+            aria-label="مطالب قبلی"
+            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-card backdrop-blur transition-colors hover:border-bronze hover:text-bronze"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+/** کارت مطلب — جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
+function FeedCard({
+  p,
+}: {
+  p: {
+    id: string; title: string; summary?: string; createdAt: string; commentsCount: number;
+    rating?: { avg: number; count: number };
+    categories?: string[];
+    category?: string;
+    author: { id: string; displayName: string; avatarUrl?: string | null };
+  };
+}) {
+  const cat = p.categories?.[0] ?? p.category ?? "other";
+  const cover = CATEGORY_COVER[cat] ?? CATEGORY_COVER.other;
+  const Icon = cover.Icon;
+  const catLabel = categoryLabelOf(cat);
+  // برآورد زمان مطالعه از حجم خلاصه — تشریفاتی ولی منطقی
+  const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
+
+  return (
+    <button
+      onClick={() => navigate({ view: "post", id: p.id })}
+      className="group w-[240px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
+    >
+      {/* جلد دسته‌بندی */}
+      <span className={`relative block h-[104px] bg-gradient-to-bl ${cover.bg}`}>
+        <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+        <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
+          {p.title.slice(0, 1)}
+        </span>
+        <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+          <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+        </span>
+        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+          {catLabel}
+        </span>
+      </span>
+
+      <span className="block space-y-2 p-3.5">
+        <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">
+          {p.title}
+        </span>
+        <span className="flex items-center gap-2">
+          <UserAvatar src={p.author.avatarUrl} name={p.author.displayName} size="xs" />
+          <span className="min-w-0 flex-1 truncate text-[11px] font-bold">{p.author.displayName}</span>
+          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-[#66756b]">{faDate(p.createdAt)}</span>
+        </span>
+        <span className="flex items-center gap-2 border-t border-black/10 pt-2 text-[10px] font-semibold text-[#66756b]">
+          <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
+          <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
+          {!!p.rating?.count && (
+            <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
+          )}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function FeedCardSkeleton() {
+  return (
+    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] sm:w-[268px]">
+      <span className="block h-[104px] bg-white/10" />
+      <span className="block space-y-2 p-3.5">
+        <span className="block h-3.5 w-4/5 rounded bg-white/15" />
+        <span className="block h-3 w-2/5 rounded bg-white/10" />
+        <span className="block h-2.5 w-3/5 rounded bg-white/[0.08]" />
+      </span>
+    </span>
+  );
+}
+
+/** برچسب فارسی دسته — بدون وابستگی به social-shared (سبک‌وزن برای هیرو) */
+function categoryLabelOf(slug: string): string {
+  return (
+    { tejarat: "تجارت", "ayin-dadresi": "آیین دادرسی مدنی", "azmoon-vekalat": "آزمون وکالت", takhassosi: "دروس تخصصی", other: "مطلب آموزشی" } as Record<string, string>
+  )[slug] ?? "مطلب آموزشی";
 }
 
 /** آواتار + نام کوچک روشن روی پنل تیره — کلیک به پروفایل استاد */

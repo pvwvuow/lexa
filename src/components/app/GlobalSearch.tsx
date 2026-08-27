@@ -96,7 +96,7 @@ function buildLawIndex(): LawIndexItem[] {
   return items;
 }
 
-export function GlobalSearch({ courses }: { courses: Course[] }) {
+export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[]; variant?: "icon" | "bar" }) {
   const [open, setOpen] = React.useState(false);
   const [rawQ, setRawQ] = React.useState("");
   // ورودی دیبانس می‌شود تا تایپ روان بماند
@@ -298,16 +298,28 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="جستجو در کتابخانه و اساتید"
-        title="جستجو در کتابخانه و اساتید (/)"
-        className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-card transition-colors hover:text-bronze"
-      >
-        <Search className="h-[17px] w-[17px]" />
-        <span className="hidden text-xs font-medium md:inline">جستجو…</span>
-        <kbd dir="ltr" className="hidden rounded-md border border-border bg-muted px-1.5 py-0.5 font-display text-[10px] leading-none opacity-80 lg:inline">/</kbd>
-      </button>
+      {variant === "bar" ? (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="جستجو در جلسه‌ها، مواد قانونی و اساتید"
+          className="group flex h-10 w-full max-w-xl min-w-[220px] items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 text-white/65 shadow-card transition-colors hover:border-bronze/60 hover:bg-white/[0.1]"
+        >
+          <Search className="h-4 w-4 shrink-0 text-bronze" />
+          <span className="min-w-0 flex-1 truncate text-start text-xs font-medium">جستجو در جلسه‌ها، مواد قانونی و اساتید…</span>
+          <kbd dir="ltr" className="hidden shrink-0 rounded-md border border-white/20 bg-white/[0.08] px-1.5 py-0.5 font-display text-[10px] leading-none text-white/70 sm:inline">Ctrl /</kbd>
+        </button>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="جستجو در کتابخانه و اساتید"
+          title="جستجو در کتابخانه و اساتید (/)"
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-card transition-colors hover:text-bronze"
+        >
+          <Search className="h-[17px] w-[17px]" />
+          <span className="hidden text-xs font-medium md:inline">جستجو…</span>
+          <kbd dir="ltr" className="hidden rounded-md border border-border bg-muted px-1.5 py-0.5 font-display text-[10px] leading-none opacity-80 lg:inline">/</kbd>
+        </button>
+      )}
 
       {open && (
         <div

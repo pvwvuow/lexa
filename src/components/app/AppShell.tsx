@@ -314,42 +314,58 @@ export function AppShell() {
       {Sidebar}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* هدر — لوگو راست، ابزارها چپ */}
-        <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-[-1px] h-px bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
-          <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6">
-            <button onClick={() => go({ view: "home" })} className="group flex items-center gap-2.5">
-              <span className="relative grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-card transition-transform duration-200 group-hover:scale-[1.04]">
-                <Scale className="h-5 w-5" />
-                <span aria-hidden className="absolute -bottom-1 -end-1 grid h-3.5 w-3.5 place-items-center rounded-full border-2 border-background bg-bronze" />
-              </span>
-              <span className="leading-tight">
-                <span className="block text-base font-bold tracking-tight">همیار حقوق</span>
-                <span className="block text-[10px] font-medium text-bronze">استاد حقوقی هوشمند</span>
-              </span>
-            </button>
+        {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
+        <header className="sticky top-0 z-40 bg-background/0 px-2.5 pt-3 sm:px-5">
+          <div className="mx-auto max-w-7xl">
+            <div className="relative flex h-14 items-center gap-2 overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-l from-[#0d211a] via-[#143026] to-[#0d211a] px-2 shadow-card sm:gap-3 sm:px-3.5">
+              <div aria-hidden className="pattern-quilt pointer-events-none absolute inset-0 opacity-40" />
+              <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-l from-transparent via-bronze/70 to-transparent" />
+              <div aria-hidden className="pointer-events-none absolute -top-16 start-1/3 h-32 w-64 rounded-full bg-bronze/15 blur-3xl" />
 
-            <div className="flex items-center gap-1.5 ms-auto">
-              {/* همبرگر موبایل — باز کردن منوی کشویی کامل */}
-              <button
-                onClick={() => setDrawerOpen(true)}
-                aria-label="باز کردن منو"
-                title="منو"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:text-bronze lg:hidden"
-              >
-                <Menu className="h-[18px] w-[18px]" />
+              {/* برند — ترازوی طلایی + نام + زیرعنوان */}
+              <button onClick={() => go({ view: "home" })} className="group relative flex shrink-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#d9b877] via-bronze to-[#8a6a30] text-[#132018] shadow-card transition-transform duration-200 group-hover:scale-105">
+                  <Scale className="h-4.5 w-4.5" />
+                </span>
+                <span className="hidden leading-tight sm:block">
+                  <span className="block text-[15px] font-extrabold tracking-tight text-white">همیار حقوق</span>
+                  <span className="block text-[9.5px] font-semibold text-bronze">استاد حقوقی هوشمند</span>
+                </span>
               </button>
-              <GlobalSearch courses={courses} />
-              <AccountArea />
-              <ThemeToggle />
-              <button
-                onClick={() => go({ view: "settings" })}
-                aria-label="تنظیمات و پروفایل"
-                title="تنظیمات و پروفایل"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:text-bronze"
-              >
-                <Settings className="h-[18px] w-[18px]" />
-              </button>
+
+              {/* جستجوی میانی — قرص جستجو با میانبر Ctrl / */}
+              <div className="relative hidden min-w-0 flex-1 justify-center md:flex">
+                <GlobalSearch courses={courses} variant="bar" />
+              </div>
+
+              {/* ابزارها — حساب، تم، تنظیمات، منوی موبایل */}
+              <div className="relative ms-auto flex items-center gap-1.5">
+                <div className="md:hidden">
+                  <GlobalSearch courses={courses} variant="icon" />
+                </div>
+                <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
+                  <AccountArea />
+                </span>
+                <span className="hidden [&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white sm:inline">
+                  <ThemeToggle />
+                </span>
+                <button
+                  onClick={() => go({ view: "settings" })}
+                  aria-label="تنظیمات و پروفایل"
+                  title="تنظیمات و پروفایل"
+                  className="hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/85 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze sm:inline-flex"
+                >
+                  <Settings className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="باز کردن منو"
+                  title="منو"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/90 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze lg:hidden"
+                >
+                  <Menu className="h-[18px] w-[18px]" />
+                </button>
+              </div>
             </div>
           </div>
         </header>
