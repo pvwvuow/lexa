@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  PlayCircle, Clock3, Sparkles, BookOpen, Layers3, Flame, ArrowLeft,
+  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Layers3, Flame, ArrowLeft,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
@@ -119,60 +119,11 @@ export function DashboardView() {
         </button>
       )}
 
-      {/* کارت‌های درس */}
-      <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-lg font-bold"><BookOpen className="h-5 w-5 text-bronze" /> درس‌های تو</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {courses.map((c) => {
-            const p = lessonProgressOf(c, progress);
-            return (
-              <button
-                key={c.id}
-                onClick={() => navigate({ view: "course", id: c.id })}
-                className="group rounded-2xl border border-border bg-card p-5 text-start shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-bronze/50"
-              >
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="relative grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105">
-                    <CourseIcon icon={c.icon} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold">{c.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-all duration-200 group-hover:-translate-x-0.5 group-hover:text-bronze" />
-                </div>
-                <ProgressBar value={p} />
-                <div className="mt-2.5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{fa(p)}٪ تکمیل شده</span>
-                  <span>{fa(c.chapters.reduce((n, x) => n + x.lessons.length, 0))} جلسه — {fa(c.chapters.length)} فصل</span>
-                </div>
-              </button>
-            );
-          })}
-
-          {/* درس‌های آینده */}
-          {["حقوق مدنی ۲", "حقوق کیفری ۱"].map((t) => (
-            <div key={t} aria-disabled className="relative select-none rounded-2xl border border-dashed border-border/80 bg-card/40 p-5 opacity-55 blur-[0.3px]">
-              <span className="absolute start-4 top-4 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">به‌زودی</span>
-              <div className="mb-3 mt-4 flex items-center gap-3">
-                <span className="grid h-12 w-12 place-items-center rounded-xl bg-muted text-muted-foreground"><Clock3 className="h-5 w-5" /></span>
-                <div>
-                  <p className="font-bold text-muted-foreground">{t}</p>
-                  <p className="text-xs text-muted-foreground">در حال آماده‌سازی محتوای تدریس</p>
-                </div>
-              </div>
-              <ProgressBar value={0} />
-              <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><CircleDotSm /> هنوز آغاز نشده</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* کتابخانهٔ من — قفسهٔ زیبا و حرفه‌ای: همهٔ کتاب‌ها، دوره‌های استاد و مطالب دنبال‌شده */}
+      <MyLibrary />
 
       {/* اساتید پیشنهادی — مثل پیشنهادهای اینستاگرام؛ فالو کن و مطالبشان را ببین */}
       <TeacherSuggestions />
-
-      {/* آخرین مطالب اساتیدی که دنبال می‌کنی */}
-      <TeacherFeedTeasers />
 
       {/* نقشهٔ پیشرفت — همهٔ کتاب‌ها روی یک تخته */}
       <section className="space-y-4">
@@ -241,11 +192,163 @@ export function DashboardView() {
   );
 }
 
-function CircleDotSm() {
+/* ═══ کتابخانهٔ من — قفسهٔ شخصی با جلدِ کتاب، دورهٔ استاد و مطالب دنبال‌شده ══════ */
+
+function BookCover({ c, progress }: { c: Course; progress: Record<string, { status?: string }> }) {
+  const owner = (c as Course & { _ownerUsername?: string })._ownerUsername;
+  const total = c.chapters.reduce((n, x) => n + x.lessons.length, 0);
+  const done = doneCountOf(c, progress);
+  const p = lessonProgressOf(c, progress);
+  const zone = owner
+    ? "bg-gradient-to-bl from-bronze/85 to-primary"
+    : "bg-gradient-to-bl from-primary to-black/25";
+
   return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-      <circle cx="5" cy="5" r="3.6" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
+    <button
+      onClick={() => navigate({ view: "course", id: c.id })}
+      title={`${c.title} — ${fa(p)}٪ تکمیل`}
+      className="group overflow-hidden rounded-2xl border border-border bg-card text-start shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-bronze/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+    >
+      <span aria-hidden className={`relative block h-24 ${zone}`}>
+        <span className="absolute -bottom-3 start-2 select-none font-display text-[64px] leading-none text-white/10">
+          {c.title.slice(0, 1)}
+        </span>
+        <span aria-hidden className="pattern-quilt absolute inset-0 opacity-60" />
+        <span className="absolute inset-x-0 bottom-2.5 mx-auto grid h-10 w-10 rotate-45 place-items-center rounded-[9px] border border-white/25 bg-background/20 shadow-card backdrop-blur-sm">
+          <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-white" />
+        </span>
+        {owner && (
+          <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[9.5px] font-bold text-white backdrop-blur-sm">
+            <GraduationCap className="h-3 w-3" /> {owner}
+          </span>
+        )}
+      </span>
+
+      <span className="block space-y-2 p-3">
+        <span className="line-clamp-1 block font-display text-[13.5px] font-bold">{c.title}</span>
+        <ProgressBar value={p} />
+        <span className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+          <span>{fa(p)}٪ پیشرفت</span>
+          <span>{fa(done)}/{fa(total)} جلسه</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ComingCover({ title }: { title: string }) {
+  return (
+    <div aria-disabled className="select-none rounded-2xl border border-dashed border-border/80 bg-card/40 p-3 pb-4 opacity-55 blur-[0.3px]">
+      <div className="relative mb-3 grid h-[88px] place-items-center rounded-xl bg-muted">
+        <Clock3 className="h-6 w-6 text-muted-foreground" />
+      </div>
+      <p className="line-clamp-1 font-display text-[13.5px] font-bold text-muted-foreground">{title}</p>
+      <p className="mt-0.5 text-[10.5px] text-muted-foreground">در حال آماده‌سازی محتوای تدریس</p>
+      <div className="mt-2.5"><ProgressBar value={0} /></div>
+    </div>
+  );
+}
+
+function MyLibrary() {
+  const progress = useApp((s) => s.progress);
+  const customCourses = useApp((s) => s.customCourses);
+  const tBooks = useApp((s) => s.tBooks);
+  const courses = mergeAll({ customCourses, tBooks });
+  const { user } = useAuth();
+  const { feed, teachers, showingAll, loading } = useSocial();
+
+  const followedIds = React.useMemo(
+    () => new Set(teachers.filter((t) => t.isFollowing).map((t) => t.id)),
+    [teachers],
+  );
+  const myPosts = React.useMemo(() => {
+    if (!user || !showingAll) return feed.slice(0, 8);
+    return feed.filter((p) => followedIds.has(p.author.id)).slice(0, 8);
+  }, [feed, followedIds, user, showingAll]);
+
+  const teacherCount = courses.filter((c) => (c as Course & { _ownerUsername?: string })._ownerUsername).length;
+
+  return (
+    <section className="space-y-4">
+      {/* سرصفحه + شمارنده‌ها */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-bold"><BookMarked className="h-5 w-5 text-bronze" /> کتابخانهٔ من</h2>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground shadow-card">
+            <BookOpen className="h-3.5 w-3.5 text-bronze" /> {fa(courses.length - teacherCount)} جزوهٔ پایه
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-muted-foreground shadow-card">
+            <GraduationCap className="h-3.5 w-3.5 text-bronze" /> {fa(teacherCount)} دورهٔ استاد
+          </span>
+        </div>
+      </div>
+
+      {/* قفسهٔ کتاب‌ها */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {courses.map((c) => (
+          <BookCover key={c.id} c={c} progress={progress} />
+        ))}
+        <ComingCover title="حقوق مدنی ۲" />
+        <ComingCover title="حقوق کیفری ۱" />
+      </div>
+      {/* تختهٔ قفسه زیر جلدِ کتاب‌ها */}
+      <div aria-hidden className="mt-[-14px] mr-2 ml-2 h-[7px] rounded-full bg-gradient-to-l from-transparent via-bronze/45 to-transparent" />
+
+      {/* مطالب استادهایی که دنبال می‌کنم */}
+      <div className="space-y-2.5 pt-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="flex items-center gap-2 text-[15px] font-bold">
+            <Rss className="h-4 w-4 text-bronze" /> مطالب استادهایی که دنبال می‌کنی
+          </h3>
+          <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
+            صفحهٔ اساتید ←
+          </button>
+        </div>
+
+        {!user && (
+          <button onClick={() => navigate({ view: "teachers" })} className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-start text-xs text-muted-foreground transition-colors hover:border-bronze/50">
+            <LogIn className="h-4 w-4 shrink-0 text-bronze" />
+            وارد شو یا حساب بساز، اساتید را دنبال کن تا تازه‌ترین مطالب آموزشی‌شان همین‌جا در کتابخانه‌ات بیاید.
+          </button>
+        )}
+
+        {user && loading && !feed.length && (
+          <p className="py-2 text-xs text-muted-foreground">در حال بارگذاری مطالب منتخب…</p>
+        )}
+
+        {user && !loading && myPosts.length === 0 && (
+          <button onClick={() => navigate({ view: "teachers" })} className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-start text-xs text-muted-foreground transition-colors hover:border-bronze/50">
+            <UserPlus className="h-4 w-4 shrink-0 text-bronze" />
+            هنوز کسی را دنبال نکرده‌ای؛ از صفحهٔ اساتید یکی را انتخاب کن تا نوشته‌هایش اینجا ببینی.
+          </button>
+        )}
+
+        {myPosts.length > 0 && (
+          <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 [scrollbar-width:thin]">
+            {myPosts.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => navigate({ view: "post", id: p.id })}
+                className="group relative min-w-[218px] flex-1 rounded-2xl border border-border bg-card p-3.5 pt-4 text-start shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50 sm:min-w-[240px]"
+              >
+                <span aria-hidden className="absolute -top-[7px] start-4 h-px w-12 bg-gradient-to-l from-transparent via-bronze/60 to-transparent rtl:start-auto rtl:end-4" />
+                <span className="mb-2 flex items-center gap-2">
+                  <DiamondAvatar name={p.author.displayName} size="sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-bold">{p.author.displayName}</span>
+                    <span className="block text-[9.5px] text-muted-foreground">{faDate(p.createdAt)}</span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">
+                    <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
+                  </span>
+                </span>
+                <span className="line-clamp-2 block font-display text-[13px] font-bold leading-relaxed group-hover:text-bronze">{p.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
