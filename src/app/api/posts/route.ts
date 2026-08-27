@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sanitizeSections } from "@/lib/social-shared";
+import { sanitizeSections, CATEGORY_SLUGS } from "@/lib/social-shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   if (me.role !== "teacher" && me.role !== "admin")
     return NextResponse.json({ error: "انتشار مطلب ویژهٔ اساتید است." }, { status: 403 });
 
-  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown };
+  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       title,
       summary: (body.summary ?? "").trim().slice(0, 280),
       tags: (body.tags ?? "").trim().slice(0, 120),
+      category: CATEGORY_SLUGS.includes(String(body.category ?? "")) ? String(body.category) : "",
       blocks: sections as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });

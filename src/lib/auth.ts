@@ -67,6 +67,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     username: u.username,
     role: u.role === "admin" ? "admin" : u.role === "teacher" ? "teacher" : "user",
     displayName: u.displayName,
+    bio: u.bio,
+    avatarUrl: u.avatarUrl,
     createdAt: u.createdAt.toISOString(),
     sessionId: session.id,
   };
@@ -81,7 +83,15 @@ export async function destroySession(): Promise<void> {
 
 /** نگاشت کاربر عمومی برای پاسخ API */
 export function toPublic(u: SessionUser): PublicUser {
-  return { id: u.id, username: u.username, role: u.role, createdAt: u.createdAt };
+  return {
+    id: u.id,
+    username: u.username,
+    role: u.role,
+    displayName: u.displayName,
+    bio: u.bio,
+    avatarUrl: u.avatarUrl,
+    createdAt: u.createdAt,
+  };
 }
 
 // ─── حساب مدیر ────────────────────────────────────────────────────────────────

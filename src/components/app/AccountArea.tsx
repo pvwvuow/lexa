@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogIn, LogOut, RefreshCw, ShieldCheck, UserRound, CloudCheck, Loader2, GraduationCap } from "lucide-react";
+import { LogIn, LogOut, RefreshCw, ShieldCheck, UserRound, CloudCheck, Loader2, GraduationCap, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { AuthDialog } from "./AuthDialog";
+import { UserAvatar } from "./common";
 
 /** بخش حساب کاربری در هدر: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب */
 export function AccountArea() {
@@ -30,13 +31,15 @@ export function AccountArea() {
   if (!auth.user) {
     return (
       <>
+        {/* دکمهٔ فیبر کربن — بافت تاریک بافته‌ای با لبهٔ براق و درخشش برنز */}
         <button
           onClick={() => setOpen(true)}
           title="ورود یا ساخت حساب کاربری"
-          className="inline-flex h-10 items-center gap-2 rounded-xl border border-bronze/50 bg-gradient-to-l from-bronze/15 to-transparent px-3.5 text-sm font-bold text-bronze shadow-card transition-colors hover:border-bronze hover:bg-bronze/20"
+          className="btn-carbon inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-bold text-bronze"
         >
-          <LogIn className="h-[18px] w-[18px]" />
-          <span className="hidden sm:inline">ورود / ثبت‌نام</span>
+          <span className="btn-carbon-glow" aria-hidden />
+          <LogIn className="relative z-10 h-[18px] w-[18px]" />
+          <span className="relative z-10 hidden sm:inline">ورود / ثبت‌نام</span>
         </button>
         <AuthDialog open={open} onOpenChange={setOpen} />
       </>
@@ -67,16 +70,7 @@ export function AccountArea() {
             className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-2 pe-2.5 ps-1.5 shadow-card transition-colors hover:border-bronze/60"
             aria-label={`حساب ${u.username}`}
           >
-            <span
-              aria-hidden
-              className={`grid h-7 w-7 place-items-center rounded-lg font-display text-sm font-bold text-primary-foreground ${
-                u.role === "admin"
-                  ? "bg-bronze"
-                  : "bg-gradient-to-bl from-primary to-bronze"
-              }`}
-            >
-              {u.username.slice(0, 1)}
-            </span>
+            <UserAvatar src={u.avatarUrl} name={u.username} size="xs" />
             <span className="hidden max-w-[110px] truncate text-start text-xs font-bold sm:block">
               {u.username}
             </span>
@@ -127,6 +121,13 @@ export function AccountArea() {
             </DropdownMenuItem>
           )}
 
+          <DropdownMenuItem
+            onClick={() => { setMenuOpen(false); navigate({ view: "settings" }); }}
+            className="cursor-pointer rounded-lg gap-2"
+          >
+            <Settings className="h-4 w-4" /> تنظیمات و پروفایل
+          </DropdownMenuItem>
+
           {u.role === "admin" && (
             <DropdownMenuItem
               onClick={() => { setMenuOpen(false); navigate({ view: "admin" }); }}
@@ -169,9 +170,11 @@ export function AccountArea() {
 }
 
 /** آمار کوچک داخل سایدبار برای حس اطمینان (فقط وقتی وارد شده) */
-export function SyncHint() {
+export function SyncHint({ collapsed = false }: { collapsed?: boolean }) {
   const auth = useAuth();
   if (auth.status !== "authed" || !auth.user) return null;
+  // منوی جمع‌شده: این نوشته‌ها جای غلطی برای فضای باریک‌اند و پنهان می‌شوند
+  if (collapsed) return null;
   return (
     <p className="mt-1 px-3 text-center text-[10px] leading-relaxed text-muted-foreground/70">
       حساب «{auth.user.username}» فعال است — پیشرفت شما خودکار ذخیره می‌شود

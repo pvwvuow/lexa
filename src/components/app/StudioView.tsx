@@ -12,6 +12,7 @@ import {
 import type { LessonSection } from "@/lib/law/types";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
+import { CATEGORIES } from "@/lib/social-shared";
 import { SectionBody } from "./common";
 import { useAuth } from "@/lib/auth-client";
 import { useTCourses } from "@/lib/social-client";
@@ -242,8 +243,8 @@ function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () =
 }
 
 /* ═══ ویرایشگر مطلب ══════════════════════════════════════════════════════════ */
-interface PostDraft { id?: string; title: string; summary: string; tags: string; blocks: LessonSection[] }
-const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", blocks: [] };
+interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; blocks: LessonSection[] }
+const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", blocks: [] };
 
 export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | null; onClose: () => void; onSaved: () => void }) {
   const [d, setD] = React.useState<PostDraft>(draft ?? EMPTY_POST);
@@ -294,6 +295,17 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
             <input value={d.tags} onChange={(e) => setD({ ...d, tags: e.target.value })} placeholder="قراردادها، بیع، نکته امتحانی" className={inputCls} />
           </div>
         </div>
+        {/* شاخهٔ کتابخانهٔ عمومی — دانشجو می‌تواند این مطلب را در دسته‌بندی مربوط ببیند */}
+        <div>
+          <label className={labelCls}>شاخهٔ کتابخانهٔ عمومی</label>
+          <select value={d.category} onChange={(e) => setD({ ...d, category: e.target.value })} className={inputCls}>
+            <option value="">— بدون شاخه (فقط فید)</option>
+            {CATEGORIES.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.label}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">اگر شاخه انتخاب کنی، این مطلب در همان دستهٔ کتابخانهٔ عمومی هم نمایش داده می‌شود.</p>
+        </div>
         <div>
           <label className={labelCls}>محتوا</label>
           <BlockEditor blocks={d.blocks} onChange={(blocks) => setD({ ...d, blocks })} />
@@ -313,10 +325,20 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
 /* ═══ ویرایشگر دورهٔ آنلاین ══════════════════════════════════════════════════ */
 interface TLesson { key: string; title: string; minutes?: number; sections: LessonSection[] }
 interface TChapter { key: string; title: string; lessons: TLesson[] }
-interface CourseDraft { id?: string; title: string; tagline: string; description: string; icon: string; accent: string; chapters: TChapter[] }
+interface CourseDraft {
+  id?: string; title: string; tagline: string; description: string;
+  icon: string; accent: string; category: string; status: string; chapters: TChapter[];
+}
 
-const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", chapters: [] };
+const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", status: "published", chapters: [] };
 const uid = () => Math.random().toString(36).slice(2, 9);
+
+/** سه حالت انتشار دوره */
+const COURSE_STATUS: { key: string; label: string; desc: string }[] = [
+  { key: "published", label: "منتشر شده", desc: "همه می‌بینند و قابل افزودن به کتابخانه است" },
+  { key: "prep", label: "در حال آماده‌سازی", desc: "قابل دیدن و افزودن؛ با برچسبِ زردِ آماده‌سازی" },
+  { key: "draft", label: "پیش‌نویس — فقط من", desc: "فقط خودت در اتاق استاد می‌بینی" },
+];
 
 export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft | null; onClose: () => void; onSaved: () => void }) {
   const [d, setD] = React.useState<CourseDraft>(draft ?? EMPTY_COURSE);
@@ -382,6 +404,49 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
           <div className="sm:col-span-2">
             <label className={labelCls}>توضیح دوره</label>
             <textarea value={d.description} onChange={(e) => mutate(() => ({ ...d, description: e.target.value }))} rows={2} maxLength={2000} className={`${inputCls} resize-y`} />
+          </div>
+        </div>
+
+        {/* شاخه و وضعیت انتشار */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className={labelCls}>شاخهٔ کتابخانهٔ عمومی</label>
+            <select value={d.category} onChange={(e) => mutate((x) => ({ ...x, category: e.target.value }))} className={inputCls}>
+              {CATEGORIES.map((c) => (
+                <option key={c.slug} value={c.slug}>{c.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              {CATEGORIES.find((c) => c.slug === d.category)?.desc}
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>وضعیت انتشار</label>
+            <div className="grid grid-cols-3 gap-1.5 rounded-xl bg-muted/60 p-1.5">
+              {COURSE_STATUS.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => mutate((x) => ({ ...x, status: s.key }))}
+                  aria-pressed={d.status === s.key}
+                  title={s.desc}
+                  className={`rounded-lg px-2 py-2 text-[11px] font-bold leading-tight transition-all ${
+                    d.status === s.key
+                      ? s.key === "prep"
+                        ? "bg-amber-400 text-amber-950 shadow-card"
+                        : s.key === "draft"
+                          ? "bg-muted-foreground/80 text-background shadow-card"
+                          : "bg-success text-success-foreground shadow-card"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              درس‌های ناقص را «در حال آماده‌سازی» بفرست تا دانشجوها بدانند هنوز کامل نشده، اما بتوانند از همان حالا به کتابخانه‌شان اضافه‌اش کنند.
+            </p>
           </div>
         </div>
 
@@ -542,6 +607,7 @@ export function StudioView() {
       if (!res.ok) throw new Error(j.error);
       setPostDraft({
         id: j.post.id, title: j.post.title, summary: j.post.summary, tags: j.post.tags,
+        category: j.post.category ?? "",
         blocks: (j.post.blocks as LessonSection[]) ?? [],
       });
     } catch {}
@@ -562,7 +628,7 @@ export function StudioView() {
           lessons: chc.lessons.map((l) => ({ key: uid(), title: l.title, minutes: l.minutes, sections: (l.sections ?? []) as LessonSection[] })),
         };
       });
-      setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", chapters });
+      setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", category: (c as unknown as { _category?: string })._category ?? "other", status: (c as unknown as { _status?: string })._status ?? "published", chapters });
     } catch {}
   }
 

@@ -15,7 +15,7 @@ export async function GET() {
   const rows = await db.user.findMany({
     where: { role: "teacher" },
     select: {
-      id: true, username: true, displayName: true, bio: true,
+      id: true, username: true, displayName: true, bio: true, avatarUrl: true,
       _count: { select: { followers: true, posts: true, teacherCourses: true } },
     },
   });
@@ -32,6 +32,7 @@ export async function GET() {
       username: t.username,
       displayName: t.displayName || t.username,
       bio: t.bio ?? "",
+      avatarUrl: t.avatarUrl,
       followers: t._count.followers,
       posts: t._count.posts,
       courses: t._count.teacherCourses,

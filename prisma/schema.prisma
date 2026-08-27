@@ -18,6 +18,7 @@ model User {
   role         String    @default("user") // "user" | "admin" | "teacher"
   displayName  String? // نام نمایشی استاد (برای وبلاگ و پیشنهادها)
   bio          String?   // معرفی کوتاه استاد
+  avatarUrl    String?   // آدرس نسبی آواتار آپلودشده (فقط استاد/مدیر) مثل /api/media/…
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   lastSeenAt   DateTime?
@@ -31,6 +32,7 @@ model User {
   feedbacks    LessonFeedback[]
   posts        Post[]
   comments     Comment[]
+  ratings      Rating[]
   following    Follow[]  @relation("FollowStudent")
   followers    Follow[]  @relation("FollowTeacher")
   teacherCourses TeacherCourse[]
@@ -155,6 +157,7 @@ model Post {
   title     String
   summary   String    @default("") // خلاصهٔ کوتاه برای فید
   tags      String    @default("")
+  category  String    @default("") // شاخهٔ کتابخانهٔ عمومی — خالی یعنی دسته‌بندی‌نشده
   blocks    Json // آرایهٔ LessonSection — همان المان‌های صفحهٔ تدریس
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -170,6 +173,9 @@ model Comment {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   text      String
+  replyToId String?
+  replyTo   Comment?  @relation("CommentThread", fields: [replyToId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentThread")
   createdAt DateTime @default(now())
 
   @@index([postId])
@@ -198,6 +204,8 @@ model TeacherCourse {
   description  String   @default("")
   icon         String   @default("")
   accent       String   @default("bronze")
+  category     String   @default("other") // شاخهٔ کتابخانهٔ عمومی
+  status       String   @default("published") // draft فقط استاد | prep در حال آماده‌سازی | published منتشر شده
   chaptersJson String   @default("[]")
   publishedAt  DateTime?
   createdAt    DateTime @default(now())
@@ -209,6 +217,8 @@ model TeacherCourse {
 }
 
 // کتابخانهٔ هر دانشجو: دوره‌های اساتیدی که به عنوان کتاب افزوده است
+// حذف، ردیف را پاک می‌کند ولی پیشرفت/تست‌ها مستقل در LessonState می‌مانند؛
+// افزودن دوباره همه را برمی‌گرداند.
 model LibraryEntry {
   id        String        @id @default(cuid())
   userId    String
@@ -218,4 +228,20 @@ model LibraryEntry {
   addedAt   DateTime      @default(now())
 
   @@unique([userId, courseId])
+}
+
+// امتیاز ستاره‌ای کاربر به مطلب یا دوره — قابل تغییر ولی بدون حذف تاریخچه;
+// میانگین امتیاز بالاتر، در فیدها و کتابخانهٔ عمومی جلوتر دیده می‌شود.
+model Rating {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType String // "post" | "tcourse"
+  targetId   String
+  stars      Int // ۱ تا ۵
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
 }

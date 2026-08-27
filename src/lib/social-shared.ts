@@ -5,6 +5,28 @@ export interface AuthorMeta {
   id: string;
   username: string;
   displayName: string; // نمایش: displayName یا username
+  avatarUrl?: string | null;
+}
+
+/** شاخه‌های کتابخانهٔ عمومی — استاد هنگام ساخت دوره یا مطلب یکی را انتخاب می‌کند */
+export const CATEGORIES = [
+  { slug: "tejarat", label: "تجارت", icon: "Scale", desc: "چک، برات، سفته و قانون تجارت" },
+  { slug: "ayin-dadresi", label: "آیین دادرسی مدنی", icon: "Gavel", desc: "اقدامات، رسیدگی، اجرای احکام" },
+  { slug: "azmoon-vekalat", label: "آزمون وکالت", icon: "GraduationCap", desc: "نکته‌های امتحانی و تست‌محور" },
+  { slug: "takhassosi", label: "دروس تخصصی کارشناسی وکالت", icon: "BookMarked", desc: "درس‌های عمیق رشتهٔ وکالت" },
+  { slug: "other", label: "سایر مباحث", icon: "Library", desc: "هر مبحث حقوقی دیگر" },
+] as const;
+
+export type CategorySlug = (typeof CATEGORIES)[number]["slug"];
+export const CATEGORY_SLUGS: string[] = CATEGORIES.map((c) => c.slug);
+
+export function categoryLabel(slug: string): string {
+  return CATEGORIES.find((c) => c.slug === slug)?.label ?? slug;
+}
+
+function safeCategory(v: unknown): string {
+  const s = typeof v === "string" ? v.trim() : "";
+  return CATEGORY_SLUGS.includes(s) ? s : "other";
 }
 
 /** حداکثرهای امن برای بلوک‌های مطلب/دوره */
@@ -112,9 +134,10 @@ export function teacherCourseToCourse(
   row: {
     id: string; title: string; tagline: string; description: string;
     icon: string; accent: string; chaptersJson: string;
+    category?: string; status?: string;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _status?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -128,7 +151,10 @@ export function teacherCourseToCourse(
     sourceLabel: `تدریس ${teacher.displayName} — دورهٔ آنلاین`,
     chapters: withIds(row.id, parsed),
     _ownerUsername: teacher.username,
+    _ownerAvatar: teacher.avatarUrl ?? null,
+    _category: safeCategory(row.category),
+    _status: row.status === "draft" || row.status === "prep" ? row.status : "published",
   };
 }
 
-export { LIMITS };
+export { LIMITS, safeCategory };

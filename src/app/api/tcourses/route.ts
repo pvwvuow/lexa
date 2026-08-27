@@ -1,16 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { LIMITS, teacherCourseToCourse } from "@/lib/social-shared";
+import { LIMITS, safeCategory, teacherCourseToCourse } from "@/lib/social-shared";
+import { ratingsAggMany, feedScore } from "@/lib/ratings-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorOf(u: { id: string; username: string; displayName: string | null }) {
-  return { id: u.id, username: u.username, displayName: u.displayName || u.username };
+function authorOf(u: {
+  id: string; username: string; displayName: string | null; avatarUrl?: string | null;
+}) {
+  return {
+    id: u.id,
+    username: u.username,
+    displayName: u.displayName || u.username,
+    avatarUrl: u.avatarUrl ?? null,
+  };
 }
 
-/** فهرست دوره‌های اساتید + وضعیت کتابخانهٔ کاربر جاری؛ mine=1 → فقط دورهٔ خودم */
+const TEACHER_SELECT = { id: true, username: true, displayName: true, avatarUrl: true } as const;
+
+/** فهرست دوره‌های اساتید (+ mine فقط دوره‌های خودم)؛ امتیاز بالاتر جلوتر */
 export async function GET(req: NextRequest) {
   const me = await getSessionUser();
   const mine = req.nextUrl.searchParams.get("mine") === "1";
@@ -19,8 +29,9 @@ export async function GET(req: NextRequest) {
   const rows = await db.teacherCourse.findMany({
     where,
     orderBy: { updatedAt: "desc" },
+    take: 80,
     include: {
-      teacher: { select: { id: true, username: true, displayName: true } },
+      teacher: { select: TEACHER_SELECT },
       _count: { select: { libraryEntries: true } },
     },
   });
@@ -31,19 +42,30 @@ export async function GET(req: NextRequest) {
     libIds = new Set(lib.map((e) => e.courseId));
   }
 
+  // مخفی کردن پیش‌نویس غیرمالک + تجمیع امتیازها
+  const visible = rows.filter(
+    (r) => r.status !== "draft" || (!!me && (me.id === r.teacherId || me.role === "admin")),
+  );
+  const aggMap = await ratingsAggMany("tcourse", visible.map((r) => r.id));
+
   return NextResponse.json({
-    courses: rows.map((r) => {
-      const author = authorOf(r.teacher);
-      return {
-        ...teacherCourseToCourse(r, author),
-        teacher: author,
-        lessonsCount: (JSON.parse(r.chaptersJson) as { lessons?: unknown[] }[]).reduce(
-          (n, c) => n + (Array.isArray(c?.lessons) ? c.lessons.length : 0), 0),
-        studentsCount: r._count.libraryEntries,
-        inLibrary: libIds.has(r.id),
-        canManage: !!me && me.id === r.teacherId,
-      };
-    }),
+    courses: visible
+      .map((r) => {
+        const author = authorOf(r.teacher);
+        const rating = aggMap.get(r.id) ?? { avg: 0, count: 0 };
+        return {
+          ...teacherCourseToCourse(r, author),
+          teacher: author,
+          lessonsCount: (JSON.parse(r.chaptersJson) as { lessons?: unknown[] }[]).reduce(
+            (n, c) => n + (Array.isArray(c?.lessons) ? c.lessons.length : 0), 0),
+          studentsCount: r._count.libraryEntries,
+          inLibrary: libIds.has(r.id),
+          canManage: !!me && (me.id === r.teacherId || me.role === "admin"),
+          rating,
+          score: feedScore(r.updatedAt, rating),
+        };
+      })
+      .sort((a, b) => b.score - a.score),
   });
 }
 
@@ -77,6 +99,8 @@ export async function POST(req: NextRequest) {
     description: String(body.description ?? "").trim().slice(0, 2000),
     icon: String(body.icon ?? "").trim().slice(0, 40),
     accent: ["navy", "bronze", "green"].includes(String(body.accent)) ? String(body.accent) : "bronze",
+    category: safeCategory(body.category),
+    status: ["draft", "prep", "published"].includes(String(body.status)) ? String(body.status) : "published",
     chaptersJson,
   };
 

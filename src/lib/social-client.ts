@@ -9,21 +9,26 @@ export interface SuggestionItem {
   username: string;
   displayName: string;
   bio: string;
+  avatarUrl?: string | null;
   followers: number;
   posts: number;
   courses: number;
   isFollowing: boolean;
 }
 
+export interface RatingInfo { avg: number; count: number }
+
 export interface FeedPost {
   id: string;
   title: string;
   summary: string;
   tags: string;
+  category?: string;
   createdAt: string;
   updatedAt: string;
   commentsCount: number;
-  author: { id: string; username: string; displayName: string };
+  rating?: RatingInfo;
+  author: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 
 export interface TCourseCard {
@@ -36,7 +41,13 @@ export interface TCourseCard {
   studentsCount: number;
   inLibrary: boolean;
   canManage: boolean;
-  teacher: { id: string; username: string; displayName: string };
+  rating?: RatingInfo;
+  /** متادیتای دورهٔ استاد از سرور */
+  _category?: string;
+  _status?: "draft" | "prep" | "published";
+  _ownerUsername?: string;
+  _ownerAvatar?: string | null;
+  teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 
 async function jf<T>(url: string, init?: RequestInit): Promise<T> {
@@ -144,4 +155,120 @@ export function useTCourses(mine = false) {
   );
 
   return { courses, loading, reload: load, toggleLibrary, setCourses };
+}
+
+/** وضعیت امتیاز یک هدف (مطلب یا دوره) + ثبت رأی ستاره‌ای */
+export function useTargetRating(targetType: "post" | "tcourse", targetId?: string | null) {
+  const [agg, setAgg] = React.useState<RatingInfo>({ avg: 0, count: 0 });
+  const [my, setMy] = React.useState<number | null>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!targetId) return;
+    let alive = true;
+    setAgg({ avg: 0, count: 0 });
+    setMy(null);
+    fetch(`/api/ratings?targetType=${targetType}&targetId=${encodeURIComponent(targetId)}`)
+      .then((r) => r.json())
+      .then((d: { avg?: number; count?: number; my?: number | null }) => {
+        if (!alive) return;
+        setAgg({ avg: d.avg ?? 0, count: d.count ?? 0 });
+        setMy(d.my ?? null);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [targetType, targetId]);
+
+  const rate = React.useCallback(
+    async (stars: number) => {
+      if (!targetId) throw new Error("هدف امتیاز یافت نشد.");
+      setBusy(true);
+      try {
+        const d = await jf<{ avg: number; count: number; my: number }>("/api/ratings", {
+          method: "POST",
+          body: JSON.stringify({ targetType, targetId, stars }),
+        });
+        setAgg({ avg: d.avg, count: d.count });
+        setMy(d.my);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [targetType, targetId],
+  );
+
+  return { agg, my, busy, rate };
+}
+
+/** واکشی کتابخانهٔ عمومی به تفکیک شاخه */
+export function usePublicLibrary(cat: string) {
+  const [courses, setCourses] = React.useState<TCourseCard[]>([]);
+  const [posts, setPosts] = React.useState<FeedPost[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const d = await jf<{ courses: TCourseCard[]; posts: FeedPost[] }>(
+        `/api/library/public${cat ? `?cat=${encodeURIComponent(cat)}` : ""}`,
+      );
+      setCourses(d.courses ?? []);
+      setPosts(d.posts ?? []);
+    } catch {
+      /* بی‌صدا */
+    } finally {
+      setLoading(false);
+    }
+  }, [cat]);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { courses, posts, loading, reload: load };
+}
+
+export interface TeacherProfileData {
+  profile: {
+    id: string;
+    username: string;
+    displayName: string;
+    bio: string;
+    avatarUrl?: string | null;
+    role: string;
+    joinedAt: string;
+    followersCount: number;
+    postsCount: number;
+    coursesCount: number;
+    avgRating: number;
+    isFollowing: boolean;
+  };
+  courses: TCourseCard[];
+  posts: Omit<FeedPost, "author">[];
+}
+
+/** پروفایل عمومی یک استاد */
+export function useTeacherProfile(userId?: string | null) {
+  const [data, setData] = React.useState<TeacherProfileData | null>(null);
+  const [notFound, setNotFound] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+
+  const load = React.useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    setNotFound(false);
+    try {
+      setData(await jf<TeacherProfileData>(`/api/users/${userId}`));
+    } catch {
+      setNotFound(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { data, loading, notFound, reload: load };
 }

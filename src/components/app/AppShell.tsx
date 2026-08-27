@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
+  LibraryBig,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
@@ -29,6 +30,8 @@ import { AdminView } from "./AdminView";
 import { TeachersView } from "./TeachersView";
 import { StudioView } from "./StudioView";
 import { PostView } from "./PostView";
+import { PublicLibraryView } from "./PublicLibraryView";
+import { TeacherProfileView } from "./TeacherProfileView";
 
 type NavMode = "expanded" | "rail";
 
@@ -233,6 +236,8 @@ export function AppShell() {
 
         <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
+        {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
+        <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
         <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
         {/* افزودن کتاب فقط برای مدیر */}
@@ -255,7 +260,7 @@ export function AppShell() {
 
       {/* یک دکمه واحد: جمع کردن / باز کردن */}
       <div className="border-t border-border/70 p-3">
-        <SyncHint />
+        <SyncHint collapsed={rail} />
         {rail ? (
           <button
             onClick={expandNav}
@@ -305,8 +310,8 @@ export function AppShell() {
               <ThemeToggle />
               <button
                 onClick={() => go({ view: "settings" })}
-                aria-label="تنظیمات هوش مصنوعی"
-                title="تنظیمات هوش مصنوعی"
+                aria-label="تنظیمات و پروفایل"
+                title="تنظیمات و پروفایل"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:text-bronze"
               >
                 <Settings className="h-[18px] w-[18px]" />
@@ -329,6 +334,8 @@ export function AppShell() {
           {route.view === "teachers" && <TeachersView />}
           {route.view === "studio" && <StudioView />}
           {route.view === "post" && <PostView id={route.id} />}
+          {route.view === "library" && <PublicLibraryView />}
+          {route.view === "teacher" && <TeacherProfileView id={route.id} />}
           {route.view === "admin" && <AdminView />}
         </main>
 

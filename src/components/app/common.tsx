@@ -719,3 +719,92 @@ export function SectionBody({ s, decorativeHeadless }: { s: LessonSection; decor
     </>
   );
 }
+
+/* ═══ آواتار لوزی — تصویر آپلودشدهٔ استاد یا حرف اول نام ═════════════════════ */
+
+const AVATAR_SIZE = {
+  xs: { box: "h-7 w-7 text-[11px] rounded-[7px]" },
+  sm: { box: "h-9 w-9 text-[13px] rounded-[8px]" },
+  md: { box: "h-11 w-11 text-[15px] rounded-[10px]" },
+  lg: { box: "h-16 w-16 text-[22px] rounded-[14px]" },
+  xl: { box: "h-28 w-28 text-[36px] rounded-[22px]" },
+} as const;
+
+export function UserAvatar({
+  src, name, size = "md", className = "",
+}: {
+  src?: string | null;
+  name: string;
+  size?: keyof typeof AVATAR_SIZE;
+  className?: string;
+}) {
+  const s = AVATAR_SIZE[size];
+  return (
+    <span
+      aria-hidden={!src}
+      className={`relative grid ${s.box} shrink-0 rotate-45 place-items-center overflow-hidden bg-gradient-to-bl from-primary/90 to-bronze shadow-card ${className}`}
+    >
+      {src ? (
+        // چرخش معکوس + مقیاس √۲ تا تصویر مربعی کامل در لوزی بپوشاند
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 m-auto h-full w-full -rotate-45 scale-[1.415] object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <span className="-rotate-45 font-display font-bold leading-none text-primary-foreground">
+          {(name || "؟").slice(0, 1)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/* ═══ ستاره‌های امتیاز — نمایشی یا تعاملی (ثبت رأی) ══════════════════════════ */
+
+export function StarRating({
+  value, count, onChange, disabled, size = 16,
+}: {
+  value: number;                       // میانگین برای نمایش یا رأی انتخابی کاربر
+  count?: number;                      // تعداد رأی‌ها (اختیاری)
+  onChange?: (stars: number) => void;  // اگر داده شود تعاملی است
+  disabled?: boolean;
+  size?: number;
+}) {
+  const [hover, setHover] = React.useState(0);
+  const interactive = !disabled && !!onChange;
+  const shown = hover || Math.round(value);
+
+  return (
+    <span className="inline-flex items-center gap-1.5" dir="ltr" role={interactive ? "radiogroup" : undefined} aria-label={`امتیاز ${fa(value)} از ۵`}>
+      <span className="inline-flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const filled = n <= shown;
+          const half = !filled && n - 0.5 <= value && value > 0 && shown !== n;
+          return (
+            <button
+              key={n}
+              type="button"
+              tabIndex={interactive ? 0 : -1}
+              aria-label={`${n} ستاره`}
+              disabled={!interactive}
+              onClick={interactive ? () => onChange?.(n) : undefined}
+              onMouseEnter={interactive ? () => setHover(n) : undefined}
+              onMouseLeave={interactive ? () => setHover(0) : undefined}
+              className={interactive ? "cursor-pointer transition-transform hover:scale-110 active:scale-95" : "cursor-default"}
+            >
+              <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" style={half ? { clipPath: "inset(0 50% 0 0)", fillOpacity: 0.45 } : undefined} />
+              </svg>
+            </button>
+          );
+        })}
+      </span>
+      <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+        {value > 0 ? fa(Math.round(value * 10) / 10) : "—"}
+        {count != null && count > 0 ? ` (${fa(count)})` : ""}
+      </span>
+    </span>
+  );
+}
