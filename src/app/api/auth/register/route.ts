@@ -47,8 +47,17 @@ export async function POST(req: NextRequest) {
     const user = await db.user.create({
       data: { username, passwordHash: await hashPassword(password), role: "user" },
     });
+    // سیاست کتابخانهٔ خالی برای حساب‌های تازه: همهٔ دوره‌های آماده «حذف‌شده» ثبت می‌شوند
+    // تا کاربر خودش از «کتابخانهٔ عمومی ← دوره‌های آماده» انتخاب و اضافه کند.
+    // (حساب‌های قدیمی builtinSeeded=false دارند و همان رفتار پیش‌فرض را می‌بینند.)
+    const { builtinCourses } = await import("@/lib/law/courses");
     await db.userBlob
-      .create({ data: { userId: user.id } })
+      .create({ data: { userId: user.id, builtinSeeded: true } })
+      .catch(() => {});
+    await db.builtinHidden
+      .createMany({
+        data: builtinCourses.map((c) => ({ userId: user.id, courseId: c.id })),
+      })
       .catch(() => {});
 
     const { token, expiresAt } = await createSession(user.id);

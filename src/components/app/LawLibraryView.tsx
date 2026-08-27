@@ -14,6 +14,35 @@ import {
   lawCategoryLabel, type LawCode, type LawArticle,
 } from "@/lib/law/statutes";
 
+/** دادهٔ کامل یک قانون از /api/laws (برگرفته از ویکی‌نبشته) */
+type FullLawData = Record<string, { articleWord?: string; metaLabel: string; sourceUrl?: string; books: LawCode["books"] }>;
+
+let fullCache: FullLawData | null = null;
+export function fetchFullLaws(): Promise<FullLawData | null> {
+  if (fullCache) return Promise.resolve(fullCache);
+  return fetch("/api/laws")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d: FullLawData | null) => {
+      fullCache = d && Object.keys(d).length ? d : {};
+      return fullCache;
+    })
+    .catch(() => null);
+}
+
+/** ترکیب قانون پایه با دادهٔ کامل — اگر متن کامل موجود باشد همان برنده است */
+function withFull(law: LawCode, full: FullLawData | null): LawCode {
+  const f = full?.[law.id];
+  if (!f || !f.books?.length) return law;
+  return {
+    ...law,
+    books: f.books,
+    metaLabel: f.metaLabel ?? law.metaLabel,
+    articleWord: f.articleWord ?? law.articleWord,
+    sourceUrl: f.sourceUrl ?? law.sourceUrl,
+    full: true,
+  };
+}
+
 // ─── نشان‌گذاری مواد (localStorage) ──────────────────────────────────────────
 const MARKS_KEY = "hh-law-marks";
 
@@ -57,12 +86,12 @@ function Hl({ text, tokens }: { text: string; tokens: string[] }) {
   );
 }
 
-/** مُهر لوزی شمارهٔ ماده — به‌جای چیپ معمولی، حس پلمپ اسناد */
-function ArticleSeal({ no }: { no: string }) {
+/** مُهر لوزی شمارهٔ ماده/اصل — حس پلمپ اسناد */
+function ArticleSeal({ no, word = "ماده" }: { no: string; word?: string }) {
   return (
     <span className="relative inline-grid h-14 w-14 shrink-0 rotate-45 place-items-center rounded-[12px] border border-bronze/45 bg-gradient-to-br from-bronze/15 to-transparent shadow-card">
       <span className="-rotate-45 text-center leading-tight">
-        <span className="block text-[8.5px] font-bold text-bronze/80">ماده</span>
+        <span className="block text-[8.5px] font-bold text-bronze/80">{word}</span>
         <span className="block font-display text-[13px] font-extrabold text-bronze">{no}</span>
       </span>
     </span>
@@ -80,12 +109,12 @@ function norm(s: string): string {
 
 // ═══ فهرست کتابخانهٔ قوانین ═══════════════════════════════════════════════════
 
-function LawIndex({ marks }: { marks: string[] }) {
+function LawIndex({ marks, full }: { marks: string[]; full: FullLawData | null }) {
   const [cat, setCat] = React.useState("");
   const [q, setQ] = React.useState("");
 
   const list = React.useMemo(() => {
-    let out = LAW_CODES;
+    let out = LAW_CODES.map((l) => withFull(l, full));
     if (cat) out = out.filter((l) => l.category === cat);
     if (q.trim()) {
       const nq = norm(q.trim());
@@ -99,7 +128,7 @@ function LawIndex({ marks }: { marks: string[] }) {
       );
     }
     return out;
-  }, [cat, q]);
+  }, [cat, q, full]);
 
   const markedLaws = React.useMemo(
     () => marks.filter((m) => m.startsWith("")).map((m) => m),
@@ -201,7 +230,8 @@ function LawIndex({ marks }: { marks: string[] }) {
                   </span>
                   <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted-foreground">{law.description}</span>
                   <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] font-semibold text-bronze">
-                    <span className="inline-flex items-center gap-1"><Diamond className="h-3 w-3" />{fa(lawArticleCount(law))} ماده</span>
+                    <span className="inline-flex items-center gap-1"><Diamond className="h-3 w-3" />{fa(lawArticleCount(law))} {law.articleWord === "اصل" ? "اصل" : "ماده"}</span>
+                    {law.full && <span className="rounded-full bg-success/15 px-2 py-0.5 text-[9.5px] font-bold text-success">متن کامل</span>}
                     <span className="text-muted-foreground">{law.metaLabel}</span>
                   </span>
                 </span>
@@ -301,7 +331,8 @@ function LawReader({ law }: { law: LawCode }) {
   );
 
   function copyArticle(a: LawArticle) {
-    const text = `مادهٔ ${a.no} ${law.title} — ${a.text}`;
+    const word = law.articleWord === "اصل" ? "اصل" : "مادهٔ";
+    const text = `${word} ${a.no} ${law.title} — ${a.text}`;
     navigator.clipboard?.writeText(text).then(
       () => { setCopied(a.no); setTimeout(() => setCopied(""), 1600); },
       () => {},
@@ -374,7 +405,7 @@ function LawReader({ law }: { law: LawCode }) {
       </div>
 
       <div className="mt-4 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>{fa(totalShown)} ماده در حال نمایش</span>
+        <span>{fa(totalShown)} {law.articleWord === "اصل" ? "اصل" : "ماده"} در حال نمایش</span>
         <span className="no-print">پیکر متن‌ها آموزشی است؛ برای استناد رسمی به سامانهٔ ملی قوانین مراجعه کنید.</span>
       </div>
 
@@ -423,7 +454,7 @@ function LawReader({ law }: { law: LawCode }) {
                         className="law-paper group relative rounded-[18px] border border-bronze/25 p-4 shadow-card sm:p-5"
                       >
                         <div className="flex items-start gap-3.5">
-                          <ArticleSeal no={a.no} />
+                          <ArticleSeal no={a.no} word={law.articleWord === "اصل" ? "اصل" : "ماده"} />
                           <p className="min-w-0 flex-1 leading-[2] text-foreground/95">
                             <Hl text={a.text} tokens={tokens} />
                             {a.gist && (
@@ -459,7 +490,9 @@ function LawReader({ law }: { law: LawCode }) {
           ))}
           {totalShown > 0 && (
             <p className="pt-2 text-center text-[11px] leading-relaxed text-muted-foreground">
-              پایان گزیدهٔ «{law.title}» — متن کامل مصوبه در {law.sourceLabel} موجود است.
+              {law.full
+                ? `پایان متن «${law.title}» — گردآوری از ${law.sourceLabel}؛ برای آخرین اصلاحیه‌ها به سامانهٔ ملی قوانین مراجعه کنید.`
+                : `پایان گزیدهٔ «${law.title}» — متن کامل مصوبه در ${law.sourceLabel} موجود است.`}
             </p>
           )}
         </div>
@@ -472,7 +505,15 @@ function LawReader({ law }: { law: LawCode }) {
 
 export function LawLibraryView({ id }: { id?: string }) {
   const { marks } = useLawMarks();
-  const law = id ? getLaw(id) : undefined;
+  const [full, setFull] = React.useState<FullLawData | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    fetchFullLaws().then((d) => { if (alive) setFull(d); });
+    return () => { alive = false; };
+  }, []);
+
+  const base = id ? getLaw(id) : undefined;
+  const law = base ? withFull(base, full) : undefined;
   if (id && !law) {
     return (
       <div className="mx-auto max-w-3xl px-4 pt-16 pb-28 text-center">
@@ -488,5 +529,5 @@ export function LawLibraryView({ id }: { id?: string }) {
       </div>
     );
   }
-  return law ? <LawReader law={law} /> : <LawIndex marks={marks} />;
+  return law ? <LawReader law={law} /> : <LawIndex marks={marks} full={full} />;
 }

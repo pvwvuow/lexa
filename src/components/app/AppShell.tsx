@@ -34,6 +34,7 @@ import { PublicLibraryView } from "./PublicLibraryView";
 import { TeacherProfileView } from "./TeacherProfileView";
 import { LawLibraryView } from "./LawLibraryView";
 import { BackButton } from "./common";
+import { FeedBell } from "./FeedBell";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type NavMode = "expanded" | "rail";
@@ -343,6 +344,7 @@ export function AppShell() {
                 <div className="md:hidden">
                   <GlobalSearch courses={courses} variant="icon" />
                 </div>
+                <FeedBell />
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
                 </span>

@@ -29,6 +29,12 @@ export interface LawCode {
   metaLabel: string; // سال تصویب / آخرین اصلاح
   description: string;
   books: LawBook[];
+  /** «ماده» یا «اصل» — برای قانون اساسی */
+  articleWord?: string;
+  /** پیوند منبع برای متن کامل */
+  sourceUrl?: string;
+  /** آیا متن کامل از data/laws-full.json تزریق شده است؟ */
+  full?: boolean;
 }
 
 export const LAW_CATEGORIES = [
