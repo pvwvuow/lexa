@@ -157,6 +157,13 @@ export function AuthDialog({
             </p>
           )}
 
+          {tab === "login" && (
+            <p className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+              با ورود، وضعیت ذخیره‌شدهٔ خودِ حساب شما بارگذاری می‌شود؛ مطالعهٔ مهمانِ همین دستگاه
+              به حساب شما ادغام نمی‌شود و فقط از آن نسخهٔ پشتیبان محلی برداشته می‌شود.
+            </p>
+          )}
+
           <button
             type="submit"
             disabled={busy || !username.trim() || !password}

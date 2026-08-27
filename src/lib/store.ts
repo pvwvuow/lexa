@@ -55,6 +55,8 @@ interface AppState {
   reset(): void;
   /** ادغام بی‌خلط دادهٔ سرور با دادهٔ محلی — هیچ پیشرفتی از بین نمی‌رود */
   mergeServerSnapshot(snap: SyncSnapshot): void;
+  /** جایگزینی کامل وضعیت محلی با نسخهٔ سرور — برای «ورود» به حساب موجود؛ بدون هیچ ادغامی */
+  replaceFromServer(snap: SyncSnapshot): void;
 }
 
 const initialFns = () => ({});
@@ -243,6 +245,60 @@ export const useApp = create<AppState>()(
           if (obj?.id && !courseIds.has(obj.id)) customCourses.push(c as unknown as Course);
         }
         const lastLocation = Object.keys(cur.lastLocation).length ? cur.lastLocation : ((snap.lastLocation ?? {}) as typeof cur.lastLocation);
+
+        set({ progress, notes, activity, streak, customCourses, lastLocation });
+      },
+
+      /**
+       * ورود به حساب موجود → دادهٔ سرور مقدس است؛ وضعیت محلی «دقیقاً» برابر آن می‌شود.
+       * هیچ چیزی از حالت مهمانِ دستگاه به حساب راه پیدا نمی‌کند (سیاست بدون ادغام).
+       */
+      replaceFromServer(snap) {
+        // ۱) بازسازی تاریخچهٔ تست سرور بر اساس lessonId
+        const remoteAttempts = new Map<string, { date: string; score: number }[]>();
+        for (const a of snap.quizAttempts ?? []) {
+          const arr = remoteAttempts.get(a.lessonId) ?? [];
+          arr.push({ date: a.date, score: a.score });
+          remoteAttempts.set(a.lessonId, arr);
+        }
+
+        // ۲) پیشرفت هر جلسه فقط از سرور
+        const ids = new Set([...Object.keys(snap.progress ?? {}), ...remoteAttempts.keys()]);
+        const progress: Record<string, LessonProgress> = {};
+        for (const id of ids) {
+          const r = snap.progress?.[id];
+          const attempts = [...(remoteAttempts.get(id) ?? [])].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+          if (!r && attempts.length === 0) continue;
+          const bestFromAtt = attempts.length ? Math.max(...attempts.map((x) => x.score)) : -1;
+          const best = Math.max(r?.quizBest ?? -1, bestFromAtt);
+          progress[id] = {
+            status: r?.status === "completed" ? "completed" : "in-progress",
+            sectionsSeen: Math.max(r?.sectionsSeen ?? 0, 1),
+            quizBest: best >= 0 ? best : undefined,
+            quizAttempts: attempts,
+            markedReview: !!r?.markedReview,
+          };
+        }
+
+        // ۳) یادداشت‌ها، فعالیت، استریک، کتاب‌ها و آخرین مکان — همه فقط از سرور
+        const notes: AppState["notes"] = {};
+        for (const [lid, list] of Object.entries(snap.notes ?? {})) {
+          if (!Array.isArray(list)) continue;
+          const merged = [...list]
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .slice(0, 300);
+          if (merged.length) notes[lid] = merged;
+        }
+        const activity = [...new Set((snap.activity ?? []).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort().slice(-240);
+        const sCount = Number((snap.streak as { count?: number } | undefined)?.count ?? 0);
+        const streak: { count: number; lastDate: string } =
+          sCount > 0
+            ? { count: sCount, lastDate: String((snap.streak as { lastDate?: string }).lastDate ?? "") }
+            : { count: 0, lastDate: "" };
+        const customCourses = ((snap.customCourses ?? []) as unknown[]).filter(
+          (c) => !!(c as { id?: string })?.id
+        ) as unknown as Course[];
+        const lastLocation = (snap.lastLocation ?? {}) as AppState["lastLocation"];
 
         set({ progress, notes, activity, streak, customCourses, lastLocation });
       },

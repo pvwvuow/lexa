@@ -31,6 +31,31 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+const PERSIST_KEY = "hamyar-hoghough-v1";
+
+/**
+ * نسخهٔ پشتیبانِ صرفاً محلی از دادهٔ مهمانِ همین دستگاه.
+ * طبق سیاست اپ، هنگام ورود به حساب موجود دادهٔ مهمان «ادغام نمی‌شود»؛
+ * برای اینکه چیزی هم گم نشود، یک کپی فقط روی همین مرورگر نگه می‌داریم.
+ */
+function backupGuestBlob() {
+  try {
+    const raw = localStorage.getItem(PERSIST_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as { state?: Record<string, unknown> };
+    const st = parsed?.state ?? {};
+    const hasData =
+      Object.keys((st.progress as object) ?? {}).length > 0 ||
+      Object.keys((st.notes as object) ?? {}).length > 0 ||
+      (((st.customCourses as unknown[]) ?? []).length > 0);
+    if (!hasData) return;
+    localStorage.setItem(
+      "hamyar-guest-backup-v1",
+      JSON.stringify({ savedAt: new Date().toISOString(), data: parsed })
+    );
+  } catch {}
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<PublicUser | null>(null);
   const [status, setStatus] = React.useState<AuthCtx["status"]>("loading");
@@ -149,12 +174,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [flush]);
 
+  /** پس از ورود/ثبت‌نام؛ رفتار دو مسیر کاملاً متفاوت است */
   const afterAuth = React.useCallback(
-    async (u: PublicUser) => {
+    async (u: PublicUser, mode: "login" | "register") => {
       setUser(u);
       userRef.current = u;
       setStatus("authed");
-      // اگر دستگاه فعلی داده‌هایی دارد؟ ابتدا سرور را بخوان، سپس همه را بفرست
+
+      if (mode === "login") {
+        // ── ورود به حساب موجود: بدون هیچ ادغامی ──
+        // ۱) پشتیبان محلی از وضعیت مهمان این دستگاه (هرگز به حساب نمی‌رود)
+        backupGuestBlob();
+        // ۲) جایگزینی کامل وضعیت محلی با نسخهٔ ذخیره‌شدهٔ سرور
+        hydratingRef.current = true;
+        try {
+          const dataRes = await fetch("/api/user/data");
+          if (dataRes.ok) {
+            const data = (await dataRes.json()) as { snapshot: SyncSnapshot };
+            if (data.snapshot) useApp.getState().replaceFromServer(data.snapshot);
+          }
+        } catch {}
+        setTimeout(() => {
+          hydratingRef.current = false;
+        }, 500);
+        return;
+      }
+
+      // ── ثبت‌نام حساب جدید: پیشرفتِ بی‌حسابِ همین دستگاه به آن منتقل می‌شود ──
       try {
         const dataRes = await fetch("/api/user/data");
         if (dataRes.ok) {
@@ -175,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ username, password }),
         });
         if (data.user) {
-          await afterAuth(data.user);
+          await afterAuth(data.user, "login");
           return { ok: true };
         }
         return { ok: false, error: data.error ?? "خطای ناشناخته." };
@@ -194,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           { method: "POST", body: JSON.stringify({ username, password }) }
         );
         if (data.user) {
-          await afterAuth(data.user);
+          await afterAuth(data.user, "register");
           return { ok: true };
         }
         return { ok: false, error: data.error ?? "خطای ناشناخته." };
@@ -212,7 +258,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
-    // حذف داده‌های محلی؛ چون همه چیز امن در پایگاه داده ماندگار است
+    // پشتیبان محلی، سپس حذف داده‌های محلی؛ چون همه چیز امن در پایگاه داده ماندگار است
+    backupGuestBlob();
     hydratingRef.current = true;
     useApp.setState({
       progress: {},
