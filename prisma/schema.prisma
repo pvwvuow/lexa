@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,20 +7,100 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── حساب کاربری ─────────────────────────────────────────────────────────────
+// سیاست حریم داده: پس از ثبت‌نام، هیچ دادهٔ کاربری هرگز حذف نمی‌شود.
+// تمام نوشتن‌ها «ادغامی» هستند (حداکثرها حفظ می‌شوند) و هیچ مسیر حذفی وجود ندارد.
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  role         String    @default("user") // "user" | "admin"
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSeenAt   DateTime?
+
+  sessions     Session[]
+  lessonStates LessonState[]
+  quizAttempts QuizAttempt[]
+  activityDays ActivityDay[]
+  notes        Note[]
+  blob         UserBlob?
 }
 
-model Post {
+// نشست‌های فعال (توکن هش‌شده) — تنها این جدول قابلیت پاکسازی منقضی‌ها دارد
+model Session {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+// وضعیت پیشرفت هر جلسه برای هر کاربر — ادغام حداکثری
+model LessonState {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId     String
+  status       String // in-progress | completed
+  sectionsSeen Int      @default(1)
+  quizBest     Int? // بهترین نمره از ۱۰۰
+  markedReview Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+}
+
+// تاریخچهٔ کامل همهٔ آزمون‌ها — فقط افزودنی (append-only)
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  date      String // ISO روز مطالعه (مبنای تحلیل)
+  score     Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([lessonId])
+}
+
+// روزهای دارای مطالعه (هیتمپ و استریک)
+model ActivityDay {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    String // YYYY-MM-DD
+
+  @@unique([userId, day])
+}
+
+// یادداشت‌های هر کاربر روی دروس — فقط افزودنی، سرور هیچ‌گاه حذف نمی‌کند
+model Note {
+  id        String   @id @default(cuid()) // شناسهٔ تولیدشده در کلاینت
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  text      String
+  quote     String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, id])
+  @@index([userId, lessonId])
+}
+
+// داده‌های سنگین/JSON مانند کتاب‌های واردشدهٔ اختصاصی کاربر و آخرین مکان مطالعه
+model UserBlob {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customCoursesJson  String   @default("[]")
+  lastLocationJson   String   @default("{}")
+  streakJson         String   @default("{}")
+  updatedAt          DateTime @updatedAt
 }

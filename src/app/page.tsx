@@ -1,5 +1,10 @@
 import { AppShell } from "@/components/app/AppShell";
+import { AuthProvider } from "@/lib/auth-client";
 
 export default function Page() {
-  return <AppShell />;
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
+  );
 }
