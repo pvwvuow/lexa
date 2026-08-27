@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       user: toPublic({
         id: user.id,
         username: user.username,
-        role: user.role === "admin" ? "admin" : "user",
+        role: user.role === "admin" ? "admin" : user.role === "teacher" ? "teacher" : "user",
         createdAt: user.createdAt.toISOString(),
         sessionId: "",
       }),

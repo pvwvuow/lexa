@@ -5,12 +5,12 @@ import { RotateCcw, Check, BookX } from "lucide-react";
 import type { Flashcard } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
-import { mergeAll } from "@/lib/books";
+import { mergeVisible } from "@/lib/books";
 import { fa } from "@/lib/fa";
 
 function buildDeck(): Flashcard[] {
   const st0 = useApp.getState();
-  const courses = mergeAll(st0);
+  const courses = mergeVisible(st0);
   const deck: Flashcard[] = [];
   for (const c of courses) {
     for (const ch of c.chapters) {

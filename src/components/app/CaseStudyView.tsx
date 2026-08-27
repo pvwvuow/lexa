@@ -4,7 +4,7 @@ import * as React from "react";
 import { FolderOpen, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
-import { mergeAll } from "@/lib/books";
+import { mergeAll, mergeVisible } from "@/lib/books";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { lessonToContextText } from "@/lib/law/lessonText";
@@ -15,7 +15,8 @@ interface Feedback { strengths: string[]; gaps: string[]; verdict: string; sugge
 export function CaseStudyView({ id }: { id?: string }) {
   const custom = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
-  const all = mergeAll({ customCourses: custom, tBooks });
+  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
+  const all = mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins });
   const ctx = React.useMemo(() => {
     if (id) {
       for (const c of all) for (const ch of c.chapters) {

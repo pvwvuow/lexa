@@ -1,24 +1,96 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles } from "lucide-react";
+import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star } from "lucide-react";
 import type { Course } from "@/lib/law/types";
-import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
-import { mergeAll } from "@/lib/books";
+import { mergeVisible } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
-import { CourseIcon, ProgressBar } from "./common";
+import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
+import { useAuth } from "@/lib/auth-client";
+import { useTargetRating } from "@/lib/social-client";
 
 export function CourseView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
+  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
   const progress = useApp((s) => s.progress);
   const openLesson = useApp((s) => s.openLesson);
   const [openCh, setOpenCh] = React.useState<string | null>(null);
 
-  const course: Course | undefined = mergeAll({ customCourses: custom, tBooks }).find((c) => c.id === id);
-  if (!course) return <p className="p-10 text-center text-muted-foreground">درس پیدا نشد.</p>;
+  const local = React.useMemo(
+    () => mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins }).find((c) => c.id === id),
+    [custom, tBooks, hiddenBuiltins, id],
+  );
+
+  // ── دورهٔ استاد که هنوز در کتابخانهٔ من نیست: واکشی فقط‌خواندنی از سرور ──
+  // (همان دورهٔ کارت «پروفایل استاد» که با کلیک اینجا باز می‌شود)
+  const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
+  const [remoteLoading, setRemoteLoading] = React.useState(false);
+  const [remoteFailed, setRemoteFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (local || remoteCourse || remoteFailed) return;
+    let alive = true;
+    setRemoteLoading(true);
+    fetch(`/api/tcourses/${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { course?: Course } | null) => {
+        if (alive && d?.course) setRemoteCourse(d.course);
+        else if (alive) setRemoteFailed(true);
+      })
+      .catch(() => { if (alive) setRemoteFailed(true); })
+      .finally(() => { if (alive) setRemoteLoading(false); });
+    return () => { alive = false; };
+  }, [local, remoteCourse, remoteFailed, id]);
+
+  const course: Course | undefined = local ?? remoteCourse ?? undefined;
+
+  if (!course) {
+    if (remoteLoading) {
+      return (
+        <p className="flex items-center justify-center gap-2 p-16 text-sm text-bronze">
+          <Loader2 className="h-5 w-5 animate-spin" /> در حال بارگذاری دوره…
+        </p>
+      );
+    }
+    return <p className="p-10 text-center text-muted-foreground">درس پیدا نشد.</p>;
+  }
+
+  return (
+    <CourseBody
+      course={course}
+      isRemote={!!remoteCourse}
+      inLibrary={!!local && !hiddenBuiltins.includes(course.id)}
+      progress={progress}
+      openCh={openCh}
+      setOpenCh={setOpenCh}
+      openLesson={openLesson}
+    />
+  );
+}
+
+/* ─── بدنهٔ صفحهٔ دوره — مشترک بین دورهٔ محلی و پیش‌نمایش سروری ─────────── */
+
+function CourseBody({
+  course, isRemote, inLibrary, progress, openCh, setOpenCh, openLesson,
+}: {
+  course: Course;
+  isRemote?: boolean;
+  inLibrary: boolean;
+  progress: Record<string, { status?: string; quizBest?: number }>;
+  openCh: string | null;
+  setOpenCh: (v: string | null) => void;
+  openLesson: (id: string) => void;
+}) {
+  const auth = useAuth();
+  const owner = (course as Course & { _ownerUsername?: string })._ownerUsername;
+  const ownerAvatar = (course as Course & { _ownerAvatar?: string | null })._ownerAvatar;
+  const status = (course as Course & { _status?: string })._status;
+
+  // امتیاز ستاره‌ای برای دوره‌های استاد — از هر جای برنامه قابل رأی دادن است
+  const rate = useTargetRating("tcourse", isRemote ? course.id : null);
 
   const allLessons = course.chapters.flatMap((c) => c.lessons);
   const doneCount = allLessons.filter((l) => progress[l.id]?.status === "completed").length;
@@ -39,8 +111,71 @@ export function CourseView({ id }: { id: string }) {
             {course.sourceLabel && (
               <p className="pt-1 text-xs text-bronze">منبع: {course.sourceLabel}</p>
             )}
+            {/* صاحب دورهٔ استاد — کلیک رفتن به پروفایل او */}
+            {owner && (
+              <button
+                onClick={() => navigate({ view: "teacher", id: (course as Course & { _teacherId?: string })._teacherId ?? "" })}
+                disabled={!course.id.startsWith("tc-")}
+                title="پروفایل استاد"
+                className="mt-1 inline-flex w-fit items-center gap-2 rounded-xl px-1 py-0.5 transition-colors hover:bg-muted/60"
+              >
+                <UserAvatar src={ownerAvatar} name={owner} size="xs" />
+                <GraduationCap className="h-3.5 w-3.5 text-bronze" />
+                <span className="text-[11.5px] font-bold">{owner}</span>
+              </button>
+            )}
+            {status === "prep" && (
+              <p className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-950">
+                <Sparkles className="h-3 w-3" /> این دوره در حال آماده‌سازی است
+              </p>
+            )}
           </div>
         </div>
+
+        {/* امتیازدهی دورهٔ استاد */}
+        {!!isRemote && (
+          <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-bronze/25 bg-bronze/[0.05] px-4 py-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-bronze">
+              <Star className="h-4 w-4 fill-current" /> امتیاز شما به این دوره
+            </span>
+            {auth.user ? (
+              <StarRating
+                value={rate.my ?? rate.agg.avg}
+                count={rate.agg.count}
+                disabled={rate.busy}
+                onChange={(n) => void rate.rate(n)}
+                size={20}
+              />
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <StarRating value={rate.agg.avg} count={rate.agg.count} size={14} />
+                <span className="text-[11px] text-muted-foreground">برای ثبت امتیاز وارد شو</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {!inLibrary && (
+          <p className="relative mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+            این دوره را به کتابخانهٔ خود اضافه نکرده‌ای؛ پیش‌نمایش فهرست جلسات آزاد است.
+            {auth.user && (
+              <button
+                onClick={async () => {
+                  await fetch("/api/library", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ courseId: course.id }),
+                  });
+                  window.location.reload();
+                }}
+                className="ms-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:brightness-110"
+              >
+                افزودن به کتابخانهٔ من
+              </button>
+            )}
+          </p>
+        )}
+
         <div className="relative mt-5">
           <ProgressBar value={(doneCount / Math.max(1, allLessons.length)) * 100} />
           <p className="mt-2 text-xs text-muted-foreground">{fa(doneCount)} از {fa(allLessons.length)} جلسه تکمیل شده</p>
@@ -79,7 +214,7 @@ export function CourseView({ id }: { id: string }) {
                         <button
                           onClick={() => {
                             if (!aiPending) openLesson(l.id);
-                            navigate(aiPending ? { view: "learn", id: l.id } : { view: "learn", id: l.id });
+                            navigate({ view: "learn", id: l.id });
                           }}
                           className="group flex w-full items-center gap-3 px-4 py-3.5 text-start transition-all duration-150 hover:bg-accent/60 sm:px-6"
                         >
