@@ -1,0 +1,605 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Users, Activity, ClipboardCheck, Award, BookOpenCheck, Search, ShieldCheck,
+     6→  Loader2, CloudCheck, ChevronDown, StickyNote, KeyRound, UserRound, Lock,
+     7→} from "lucide-react";
+     8→import { useAuth } from "@/lib/auth-client";
+     9→import { fa, pct } from "@/lib/fa";
+    10→import { ProgressBar, StatChip } from "./common";
+    11→
+    12→// ─── انواع داده ───────────────────────────────────────────────────────────────
+    13→interface AdminUser {
+    14→  id: string;
+    15→  username: string;
+    16→  role: "user" | "admin";
+    17→  createdAt: string;
+    18→  lastSeenAt: string | null;
+    19→  onlineNow: boolean;
+    20→  activeToday: boolean;
+    21→  stats: {
+    22→    started: number;
+    23→    completed: number;
+    24→    quizzes: number;
+    25→    avgBest: number | null;
+    26→    activityDays: number;
+    27→    notesCount: number;
+    28→  };
+    29→}
+    30→
+    31→interface DetailData {
+    32→  user: { id: string; username: string; role: string; createdAt: string; lastSeenAt: string | null };
+    33→  lessonStates: {
+    34→    lessonId: string; status: string; sectionsSeen: number;
+    35→    quizBest: number | null; markedReview: boolean; updatedAt: string;
+    36→  }[];
+    37→  quizAttempts: { id: string; lessonId: string; date: string; score: number; createdAt: string }[];
+    38→  activityDays: string[];
+    39→  notes: { id: string; lessonId: string; text: string; createdAt: number }[];
+    40→  customCoursesCount: number;
+    41→  customCoursesTitles: string[];
+    42→}
+    43→
+    44→const faDate = (iso?: string | null) =>
+    45→  iso
+    46→    ? new Date(iso).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })
+    47→    : "—";
+    48→const faDateTime = (iso?: string | null) =>
+    49→  iso
+    50→    ? new Date(iso).toLocaleString("fa-IR", {
+    51→        year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+    52→      })
+    53→    : "هیچ‌گاه";
+    54→
+    55→/** عنوان جلسه از شناسه (برای نمایش خوانا) */
+    56→function prettyLesson(id: string): string {
+    57→  const m = id.match(/^(m|t|md7)-l(\d+)-(\d+)$/);
+    58→  if (!m) return id;
+    59→  const book = m[1] === "t" ? "تجارت ۳" : m[1] === "md7" ? "مدنی ۷" : `مدنی ${m[1] === "m" ? "" : ""}${m[2]}`;
+    60→  return `${book} — جلسهٔ ${fa(m[3])} فصل ${fa(m[2])}`;
+    61→}
+    62→
+    63→function scoreColor(s: number) {
+    64→  return s >= 80 ? "text-success" : s >= 60 ? "text-bronze" : "text-destructive";
+    65→}
+    66→
+    67→// ─── کارت آماری کوچک ──────────────────────────────────────────────────────────
+    68→function MiniStat({
+    69→  icon: Icon, label, value, sub,
+    70→}: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; sub?: string }) {
+    71→  return (
+    72→    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card">
+    73→      <span aria-hidden className="grid h-10 w-10 place-items-center rounded-xl border border-bronze/30 bg-bronze/10">
+    74→        <Icon className="h-5 w-5 text-bronze" />
+    75→      </span>
+    76→      <p className="mt-3 font-display text-2xl font-bold leading-none">{value}</p>
+    77→      <p className="mt-1.5 text-xs font-bold text-muted-foreground">{label}</p>
+    78→      {sub && <p className="mt-0.5 text-[10.5px] text-muted-foreground/70">{sub}</p>}
+    79→    </div>
+    80→  );
+    81→}
+    82→
+    83→// ─── هیت‌استریپ فعالیت (۱۲ هفتهٔ اخیر) ────────────────────────────────────────
+    84→function HeatStrip({ days }: { days: string[] }) {
+    85→  const set = new Set(days);
+    86→  const cells = Array.from({ length: 84 }, (_, i) => {
+    87→    const d = new Date(Date.now() - (83 - i) * 86_400_000);
+    88→    const iso = d.toISOString().slice(0, 10);
+    89→    return set.has(iso);
+    90→  });
+    91→  return (
+    92→    <div className="flex flex-wrap gap-[3px]" dir="ltr" aria-label={`فعال در ${fa(set.size)} روز`}>
+    93→      {cells.map((hot, i) => (
+    94→        <span
+    95→          key={i}
+    96→          aria-hidden
+    97→          className={`h-2.5 w-2.5 rounded-[3px] ${hot ? "bg-bronze" : "bg-border/70"}`}
+    98→          style={hot ? { opacity: 0.65 + Math.min(0.35, set.size / 120) } : undefined}
+    99→        />
+   100→      ))}
+   101→    </div>
+   102→  );
+   103→}
+   104→
+   105→// ─── ردیف کاربر در جدول ───────────────────────────────────────────────────────
+   106→function UserRow({ u, onOpen }: { u: AdminUser; onOpen: () => void }) {
+   107→  return (
+   108→    <button
+   109→      onClick={onOpen}
+   110→      className="group grid w-full grid-cols-12 items-center gap-2 rounded-xl border border-border/70 bg-card px-4 py-3 text-start shadow-card transition-all duration-150 hover:border-bronze/50 hover:shadow-md"
+   111→    >
+   112→      {/* کاربر */}
+   113→      <div className="col-span-6 flex min-w-0 items-center gap-3 sm:col-span-4">
+   114→        <span
+   115→          aria-hidden
+   116→          className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl font-display text-sm font-bold text-primary-foreground ${
+   117→            u.role === "admin" ? "bg-bronze" : "bg-gradient-to-bl from-primary to-bronze"
+   118→          }`}
+   119→        >
+   120→          {u.role === "admin" ? <ShieldCheck className="h-4.5 w-4.5" /> : u.username.slice(0, 1)}
+   121→        </span>
+   122→        <span className="min-w-0">
+   123→          <span className="flex items-center gap-1.5">
+   124→            <strong className="truncate font-display text-sm">{u.username}</strong>
+   125→            {u.onlineNow && (
+   126→              <span title="آنلاین (۱۰ دقیقهٔ اخیر)" className="h-2 w-2 shrink-0 rounded-full bg-success shadow-[0_0_6px_var(--success)]" />
+   127→            )}
+   128→          </span>
+   129→          <span className="block truncate text-[11px] text-muted-foreground">
+   130→            عضویت: {faDate(u.createdAt)} · آخرین فعالیت: {u.lastSeenAt ? faDateTime(u.lastSeenAt) : "هرگز"}
+   131→          </span>
+   132→        </span>
+   133→      </div>
+   134→
+   135→      {/* تکمیل‌شده */}
+   136→      <div className="col-span-3 hidden sm:block">
+   137→        <p className="mb-1 flex items-baseline justify-between text-[11px] text-muted-foreground">
+   138→          <span>جلسات تکمیل‌شده</span>
+   139→          <strong className="font-display text-sm text-foreground">{fa(u.stats.completed)}</strong>
+   140→        </p>
+   141→        <ProgressBar value={pct(u.stats.completed, Math.max(56, u.stats.started))} />
+   142→      </div>
+   143→
+   144→      {/* تست‌ها */}
+   145→      <div className="col-span-3 hidden items-center justify-end gap-5 text-center md:flex">
+   146→        <div>
+   147→          <p className="font-display text-lg font-bold leading-none">{fa(u.stats.quizzes)}</p>
+   148→          <p className="mt-1 text-[10px] text-muted-foreground">تست</p>
+   149→        </div>
+   150→        <div>
+   151→          <p className={`font-display text-lg font-bold leading-none ${u.stats.avgBest != null ? scoreColor(u.stats.avgBest) : ""}`}>
+   152→            {u.stats.avgBest != null ? fa(u.stats.avgBest) + "٪" : "—"}
+   153→          </p>
+   154→          <p className="mt-1 text-[10px] text-muted-foreground">میانگین بهترین</p>
+   155→        </div>
+   156→        <div>
+   157→          <p className="font-display text-lg font-bold leading-none">{fa(u.stats.activityDays)}</p>
+   158→          <p className="mt-1 text-[10px] text-muted-foreground">روز فعال</p>
+   159→        </div>
+   160→      </div>
+   161→
+   162→      {/* دکمهٔ بازشدن موبایل */}
+   163→      <ChevronDown className="col-span-6 h-4 w-4 rotate-90 text-muted-foreground transition-colors group-hover:text-bronze sm:col-span-1 sm:-rotate-90" />
+   164→    </button>
+   165→  );
+   166→}
+   167→
+   168→// ─── برگهٔ جزئیات یک کاربر ─────────────────────────────────────────────────────
+   169→function UserDetail({ userId, onClose }: { userId: string; onClose: () => void }) {
+   170→  const [data, setData] = React.useState<DetailData | null>(null);
+   171→  const [loading, setLoading] = React.useState(true);
+   172→
+   173→  React.useEffect(() => {
+   174→    let alive = true;
+   175→    setLoading(true);
+   176→    fetch(`/api/admin/users/${userId}`)
+   177→      .then((r) => r.json())
+   178→      .then((d: DetailData) => { if (alive) setData(d); })
+   179→      .catch(() => {})
+   180→      .finally(() => alive && setLoading(false));
+   181→    return () => { alive = false; };
+   182→  }, [userId]);
+   183→
+   184→  return (
+   185→    <div className="fixed inset-0 z-50 flex items-stretch justify-start bg-foreground/40 backdrop-blur-sm" onClick={onClose}>
+   186→      <div
+   187→        dir="rtl"
+   188→        onClick={(e) => e.stopPropagation()}
+   189→        className="ms-auto h-full w-full max-w-2xl overflow-y-auto border-s border-border bg-background p-5 shadow-2xl sm:p-7"
+   190→        role="dialog"
+   191→        aria-label="جزئیات کاربر"
+   192→      >
+   193→        {loading || !data ? (
+   194→          <div className="flex h-full items-center justify-center gap-3 text-bronze">
+   195→            <Loader2 className="h-5 w-5 animate-spin" /> در حال خواندن پرونده…
+   196→          </div>
+   197→        ) : (
+   198→          <>
+   199→            {/* سرصفحه */}
+   200→            <div className="mb-6 flex items-start justify-between gap-3">
+   201→              <div>
+   202→                <h3 className="flex items-center gap-2 font-display text-xl font-bold">
+   203→                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-bl from-primary to-bronze text-primary-foreground">
+   204→                    {data.user.username.slice(0, 1)}
+   205→                  </span>
+   206→                  {data.user.username}
+   207→                  {data.user.role === "admin" && (
+   208→                    <span className="rounded-full bg-bronze/15 px-2 py-0.5 text-[11px] font-bold text-bronze">مدیر</span>
+   209→                  )}
+   210→                </h3>
+   211→                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+   212→                  عضویت {faDate(data.user.createdAt)} · آخرین فعالیت {faDateTime(data.user.lastSeenAt)}
+   213→                </p>
+   214→              </div>
+   215→              <button onClick={onClose} className="rounded-xl border border-border px-3 py-1.5 text-xs font-bold hover:border-bronze">
+   216→                بستن ×
+   217→              </button>
+   218→            </div>
+   219→
+   220→            {/* شاخص‌ها */}
+   221→            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+   222→              {[
+   223→                ["جلسه شروع‌شده", fa(data.lessonStates.length)],
+   224→                ["تکمیل‌شده", fa(data.lessonStates.filter((l) => l.status === "completed").length)],
+   225→                ["تست انجام‌شده", fa(data.quizAttempts.length)],
+   226→                ["روز مطالعه", fa(new Set(data.activityDays).size)],
+   227→              ].map(([label, v]) => (
+   228→                <div key={label} className="rounded-xl border border-border bg-card p-3 text-center shadow-card">
+   229→                  <p className="font-display text-xl font-bold">{v}</p>
+   230→                  <p className="mt-1 text-[10.5px] text-muted-foreground">{label}</p>
+   231→                </div>
+   232→              ))}
+   233→            </div>
+   234→
+   235→            {/* فعالیت */}
+   236→            <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card">
+   237→              <h4 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   238→                <Activity className="h-4 w-4 text-bronze" /> تقویم فعالیت (۱۲ هفتهٔ اخیر)
+   239→              </h4>
+   240→              <HeatStrip days={data.activityDays} />
+   241→            </section>
+   242→
+   243→            {/* وضعیت جلسات */}
+   244→            <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card">
+   245→              <h4 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   246→                <BookOpenCheck className="h-4 w-4 text-bronze" /> ریز پیشرفت جلسات ({fa(data.lessonStates.length)})
+   247→              </h4>
+   248→              {data.lessonStates.length === 0 ? (
+   249→                <p className="py-3 text-xs text-muted-foreground">هنوز جلسه‌ای باز نکرده است.</p>
+   250→              ) : (
+   251→                <ul className="max-h-72 space-y-2 overflow-y-auto pe-1">
+   252→                  {data.lessonStates.map((l) => (
+   253→                    <li key={l.lessonId} className="flex items-center gap-3 rounded-xl border border-border/70 px-3 py-2.5">
+   254→                      <span
+   255→                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${
+   256→                          l.status === "completed" ? "bg-success/15 text-success" : "bg-bronze/10 text-bronze"
+   257→                        }`}
+   258→                        title={l.status === "completed" ? "تکمیل‌شده" : "در حال انجام"}
+   259→                      >
+   260→                        {l.status === "completed" ? "✓" : "…"}
+   261→                      </span>
+   262→                      <span className="min-w-0 flex-1">
+   263→                        <span className="block truncate text-xs font-bold">{prettyLesson(l.lessonId)}</span>
+   264→                        <span className="text-[10px] text-muted-foreground">
+   265→                          بخش {fa(Math.min(8, l.sectionsSeen))} از ۸ · آخرین تغییر {faDateTime(l.updatedAt)}
+   266→                          {typeof l.quizBest === "number" && <> · بهترین تست {fa(l.quizBest)}٪</>}
+   267→                        </span>
+   268→                      </span>
+   269→                    </li>
+   270→                  ))}
+   271→                </ul>
+   272→              )}
+   273→            </section>
+   274→
+   275→            {/* تاریخچهٔ تست‌ها */}
+   276→            <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card">
+   277→              <h4 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   278→                <ClipboardCheck className="h-4 w-4 text-bronze" /> تاریخچهٔ کامل آزمون‌ها ({fa(data.quizAttempts.length)})
+   279→              </h4>
+   280→              {data.quizAttempts.length === 0 ? (
+   281→                <p className="py-3 text-xs text-muted-foreground">هنوز آزمونی نداده است.</p>
+   282→              ) : (
+   283→                <ul className="max-h-64 space-y-1.5 overflow-y-auto pe-1">
+   284→                  {data.quizAttempts.map((a) => (
+   285→                    <li key={a.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
+   286→                      <span className="truncate text-muted-foreground">{prettyLesson(a.lessonId)}</span>
+   287→                      <span className="shrink-0 tabular-nums">
+   288→                        <strong className={scoreColor(a.score)}>{fa(a.score)}٪</strong>
+   289→                        <span className="ms-2 opacity-70">{faDateTime(a.createdAt)}</span>
+   290→                      </span>
+   291→                    </li>
+   292→                  ))}
+   293→                </ul>
+   294→              )}
+   295→            </section>
+   296→
+   297→            {/* یادداشت‌ها و کتاب‌های اختصاصی */}
+   298→            <div className="grid gap-4 sm:grid-cols-2">
+   299→              <section className="rounded-2xl border border-border bg-card p-4 shadow-card">
+   300→                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   301→                  <StickyNote className="h-4 w-4 text-bronze" /> یادداشت‌ها ({fa(data.notes.length)})
+   302→                </h4>
+   303→                {data.notes.length === 0 ? (
+   304→                  <p className="text-xs text-muted-foreground">یادداشتی ثبت نشده.</p>
+   305→                ) : (
+   306→                  <ul className="max-h-52 space-y-2 overflow-y-auto pe-1">
+   307→                    {data.notes.slice(0, 30).map((n) => (
+   308→                      <li key={n.id} className="border-s-2 border-bronze/50 bg-muted/40 px-3 py-2 text-[11.5px] leading-relaxed">
+   309→                        {n.text}
+   310→                      </li>
+   311→                    ))}
+   312→                  </ul>
+   313→                )}
+   314→              </section>
+   315→
+   316→              <section className="rounded-2xl border border-border bg-card p-4 shadow-card">
+   317→                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   318→                  <CloudCheck className="h-4 w-4 text-bronze" /> کتاب‌های اختصاصی ({fa(data.customCoursesCount)})
+   319→                </h4>
+   320→                {data.customCoursesTitles.length === 0 ? (
+   321→                  <p className="text-xs text-muted-foreground">کتابی وارد نکرده است.</p>
+   322→                ) : (
+   323→                  <ul className="space-y-1.5">
+   324→                    {data.customCoursesTitles.map((t, i) => (
+   325→                      <li key={i} className="truncate text-xs">📘 {t}</li>
+   326→                    ))}
+   327→                  </ul>
+   328→                )}
+   329→              </section>
+   330→            </div>
+   331→          </>
+   332→        )}
+   333→      </div>
+   334→    </div>
+   335→  );
+   336→}
+   337→
+   338→// ─── تنظیم حساب مدیر ──────────────────────────────────────────────────────────
+   339→function AdminAccountCard() {
+   340→  const auth = useAuth();
+   341→  const [currentPassword, setCurrentPassword] = React.useState("");
+   342→  const [newUsername, setNewUsername] = React.useState("");
+   343→  const [newPassword, setNewPassword] = React.useState("");
+   344→  const [msg, setMsg] = React.useState<{ ok: boolean; text: string } | null>(null);
+   345→  const [busy, setBusy] = React.useState(false);
+   346→
+   347→  async function save(e: React.FormEvent) {
+   348→    e.preventDefault();
+   349→    setBusy(true);
+   350→    setMsg(null);
+   351→    try {
+   352→      const res = await fetch("/api/admin/account", {
+   353→        method: "POST",
+   354→        headers: { "Content-Type": "application/json" },
+   355→        body: JSON.stringify({
+   356→          currentPassword,
+   357→          newUsername: newUsername.trim() || undefined,
+   358→          newPassword: newPassword || undefined,
+   359→        }),
+   360→      });
+   361→      const data = (await res.json()) as { ok?: boolean; error?: string; newUsername?: string };
+   362→      if (data.ok) {
+   363→        setMsg({ ok: true, text: "اطلاعات حساب مدیر به‌روزرسانی شد." });
+   364→        setCurrentPassword("");
+   365→        setNewPassword("");
+   366→        if (data.newUsername) {
+   367→          setNewUsername("");
+   368→          // تازه‌سازی نام کاربری در همین نشست
+   369→          window.location.reload();
+   370→        }
+   371→      } else {
+   372→        setMsg({ ok: false, text: data.error ?? "خطای نامشخص." });
+   373→      }
+   374→    } catch {
+   375→      setMsg({ ok: false, text: "ارتباط برقرار نشد." });
+   376→    }
+   377→    setBusy(false);
+   378→  }
+   379→
+   380→  const empty = !currentPassword || (!newUsername.trim() && !newPassword);
+   381→
+   382→  return (
+   383→    <form onSubmit={save} className="space-y-3.5 rounded-2xl border border-bronze/30 bg-card p-5 shadow-card">
+   384→      <div>
+   385→        <h3 className="flex items-center gap-2 font-display text-sm font-bold">
+   386→          <KeyRound className="h-4 w-4 text-bronze" /> اطلاعات ورود مدیر (یوزر و پسورد اختصاصی خودتان)
+   387→        </h3>
+   388→        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+   389→          رمز فعلی را برای تأیید وارد کنید؛ سپس نام کاربری یا رمز تازه را تعیین کنید.
+   390→          تا زمانی که خودتان این‌جا عوضش کنید، همان اطلاعات اولیه معتبر است.
+   391→        </p>
+   392→      </div>
+   393→
+   394→      <div className="grid gap-3 sm:grid-cols-2">
+   395→        <label className="space-y-1">
+   396→          <span className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+   397→            <Lock className="h-3 w-3" /> رمز فعلی
+   398→          </span>
+   399→          <input
+   400→            type="password"
+   401→            dir="ltr"
+   402→            value={currentPassword}
+   403→            onChange={(e) => setCurrentPassword(e.target.value)}
+   404→            required
+   405→            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-bronze"
+   406→          />
+   407→        </label>
+   408→        <label className="space-y-1">
+   409→          <span className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+   410→            <UserRound className="h-3 w-3" /> نام کاربری جدید (اختیاری)
+   411→          </span>
+   412→          <input
+   413→            dir="ltr"
+   414→            value={newUsername}
+   415→            onChange={(e) => setNewUsername(e.target.value)}
+   416→            placeholder="بدون تغییر"
+   417→            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/50 focus:border-bronze"
+   418→          />
+   419→        </label>
+   420→        <label className="space-y-1 sm:col-span-2">
+   421→          <span className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+   422→            <KeyRound className="h-3 w-3" /> رمز عبور جدید (اختیاری)
+   423→          </span>
+   424→          <input
+   425→            type="password"
+   426→            dir="ltr"
+   427→            value={newPassword}
+   428→            onChange={(e) => setNewPassword(e.target.value)}
+   429→            placeholder="حداقل ۶ نویسه؛ بدون تغییر رها کنید"
+   430→            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground/50 focus:border-bronze"
+   431→          />
+   432→        </label>
+   433→      </div>
+   434→
+   435→      {msg && (
+   436→        <p
+   437→          role="status"
+   438→          className={`rounded-xl px-3.5 py-2.5 text-xs font-medium leading-relaxed ${
+   439→            msg.ok
+   440→              ? "border border-success/40 bg-success/10 text-success"
+   441→              : "border border-destructive/40 bg-destructive/10 text-destructive"
+   442→          }`}
+   443→        >
+   444→          {msg.text}
+   445→        </p>
+   446→      )}
+   447→
+   448→      <button
+   449→        type="submit"
+   450→        disabled={busy || empty}
+   451→        className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-card transition-all hover:brightness-110 disabled:opacity-50"
+   452→      >
+   453→        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+   454→        ذخیرهٔ اطلاعات مدیر
+   455→      </button>
+   456→    </form>
+   457→  );
+   458→}
+   459→
+   460→// ─── ویو اصلی پنل مدیریت ──────────────────────────────────────────────────────
+   461→export function AdminView() {
+   462→  const auth = useAuth();
+   463→  const isAdmin = auth.user?.role === "admin";
+   464→  const [users, setUsers] = React.useState<AdminUser[] | null>(null);
+   465→  const [totals, setTotals] = React.useState<{
+   466→    users: number; admins: number; completions: number; totalQuizzes: number; onlineNow: number;
+   467→  } | null>(null);
+   468→  const [error, setError] = React.useState<string | null>(null);
+   469→  const [q, setQ] = React.useState("");
+   470→  const [openUserId, setOpenUserId] = React.useState<string | null>(null);
+   471→  const [showAccount, setShowAccount] = React.useState(false);
+   472→
+   473→  React.useEffect(() => {
+   474→    if (!isAdmin) return;
+   475→    let alive = true;
+   476→    fetch("/api/admin/users")
+   477→      .then((r) => r.json())
+   478→      .then((d: { users?: AdminUser[]; totals?: never[] | object; error?: string }) => {
+   479→        if (!alive) return;
+   480→        if (d.error) setError(d.error);
+   481→        else {
+   482→          setUsers(d.users ?? []);
+   483→          setTotals(d.totals as unknown as NonNullable<typeof totals>);
+   484→        }
+   485→      })
+   486→      .catch(() => alive && setError("ارتباط با سرور برقرار نشد."));
+   487→    return () => { alive = false; };
+   488→  }, [isAdmin]);
+   489→
+   490→  // گارد دسترسی
+   491→  if (!isAdmin) {
+   492→    return (
+   493→      <div className="mx-auto max-w-md pt-20">
+   494→        <div className="rounded-2xl border border-dashed border-destructive/50 bg-card p-8 text-center shadow-card">
+   495→          <Lock className="mx-auto mb-4 h-10 w-10 text-destructive/70" />
+   496→          <h2 className="font-display text-lg font-bold">ناحیهٔ محافظت‌شدهٔ مدیر</h2>
+   497→          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+   498→            این صفحه فقط با حساب مدیر قابل مشاهده است. لطفاً از دکمهٔ «ورود / ثبت‌نام»
+   499→            بالای صفحه با اطلاعات مدیر وارد شوید.
+   500→          </p>
+   501→        </div>
+   502→      </div>
+   503→    );
+   504→  }
+   505→
+   506→  const filtered = (users ?? []).filter(
+   507→    (u) => !q.trim() || u.username.toLowerCase().includes(q.trim().toLowerCase())
+   508→  );
+   509→
+   510→  return (
+   511→    <div className="mx-auto max-w-6xl space-y-6">
+   512→      {/* سرصفحه */}
+   513→      <header className="flex flex-wrap items-center justify-between gap-3">
+   514→        <div>
+   515→          <h1 className="flex items-center gap-2.5 font-display text-2xl font-extrabold tracking-tight">
+   516→            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-bronze text-primary-foreground shadow-card">
+   517→              <ShieldCheck className="h-6 w-6" />
+   518→            </span>
+   519→            پنل مدیریت همیار حقوق
+   520→          </h1>
+   521→          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+   522→            فهرست کاربران، عملکرد مطالعاتی و داده‌های ذخیره‌شدهٔ هر نفر — هیچ داده‌ای هرگز حذف نمی‌شود.
+   523→          </p>
+   524→        </div>
+   525→        <StatChip icon={CloudCheck}>پایگاه دادهٔ ماندگار · سیاست نگهداری ابدی</StatChip>
+   526→      </header>
+   527→
+   528→      {/* آمار کلی */}
+   529→      {totals && (
+   530→        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   531→          <MiniStat icon={Users} label="کاربران ثبت‌نام‌شده" value={fa(totals.users)} sub={`${fa(totals.admins)} حساب مدیریت`} />
+   532→          <MiniStat icon={Activity} label="آنلاین در حال حاضر" value={fa(totals.onlineNow)} sub="کمتر از ۱۰ دقیقه پیش" />
+   533→          <MiniStat icon={Award} label="جلسات تکمیل‌شده" value={fa(totals.completions)} sub="مجموع همهٔ کاربران" />
+   534→          <MiniStat icon={ClipboardCheck} label="آزمون‌های داده‌شده" value={fa(totals.totalQuizzes)} sub="با تاریخچهٔ کامل" />
+   535→        </div>
+   536→      )}
+   537→
+   538→      {/* جستجو */}
+   539→      <div className="relative">
+   540→        <Search className="pointer-events-none absolute end-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+   541→        <input
+   542→          value={q}
+   543→          onChange={(e) => setQ(e.target.value)}
+   544→          placeholder="جستجوی نام کاربری…"
+   545→          aria-label="جستجوی کاربر"
+   546→          className="w-full rounded-xl border border-border bg-card px-4 py-3 pe-10 text-sm shadow-card outline-none transition-colors focus:border-bronze"
+   547→        />
+   548→      </div>
+   549→
+   550→      {/* فهرست کاربران */}
+   551→      {users == null && !error && (
+   552→        <p className="flex items-center justify-center gap-2 py-14 text-sm text-bronze">
+   553→          <Loader2 className="h-5 w-5 animate-spin" /> در حال دریافت کاربران…
+   554→        </p>
+   555→      )}
+   556→      {error && (
+   557→        <p className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">{error}</p>
+   558→      )}
+   559→      {users != null && filtered.length === 0 && (
+   560→        <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-10 text-center text-sm text-muted-foreground shadow-card">
+   561→          هنوز کاربری ثبت‌نام نکرده است — به‌محض ثبت‌نام، پرونده‌اش این‌جا ساخته می‌شود.
+   562→        </p>
+   563→      )}
+   564→
+   565→      <div className="hidden grid-cols-12 gap-2 px-4 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground/70 sm:grid">
+   566→        <span className="col-span-4">کاربر</span>
+   567→        <span className="col-span-3">پیشرفت مطالعه</span>
+   568→        <span className="col-span-5 grid grid-cols-3 text-center">
+   569→          <span>تست</span><span>میانگین بهترین</span><span>روز فعال</span>
+   570→        </span>
+   571→      </div>
+   572→
+   573→      <div className="space-y-2.5">
+   574→        {filtered.map((u) => (
+   575→          <UserRow key={u.id} u={u} onOpen={() => setOpenUserId(u.id)} />
+   576→        ))}
+   577→      </div>
+   578→
+   579→      {/* مدیریت حساب */}
+   580→      <section className="pt-2">
+   581→        <button
+   582→          onClick={() => setShowAccount((v) => !v)}
+   583→          aria-expanded={showAccount}
+   584→          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-5 py-4 text-start shadow-card transition-colors hover:border-bronze/50"
+   585→        >
+   586→          <span className="flex items-center gap-2 font-display text-sm font-bold">
+   587→            <KeyRound className="h-4 w-4 text-bronze" /> تنظیم یوزر و پسورد اختصاصی مدیر
+   588→          </span>
+   589→          <ChevronDown className={`h-4 w-4 transition-transform ${showAccount ? "rotate-180" : ""}`} />
+   590→        </button>
+   591→        {showAccount && <div className="mt-3"><AdminAccountCard /></div>}
+   592→      </section>
+   593→
+   594→      {/* بیانیهٔ حریم داده */}
+   595→      <p className="rounded-2xl border border-dashed border-success/40 bg-success/[0.05] px-5 py-3.5 text-center text-[11.5px] leading-relaxed text-muted-foreground">
+   596→        به موجب طراحی سامانه، هیچ مسیری برای حذف دادهٔ کاربر وجود ندارد؛ همهٔ نوشتن‌ها «ادغامی»
+   597→        هستند و حتی پسورد ادمین هم فقط رشته‌ای هش‌شده است. بازرسی و خروجی گزارش تنها مزیت شماست.
+   598→      </p>
+   599→
+   600→      {/* پردهٔ جزئیات */}
+   601→      {openUserId && <UserDetail userId={openUserId} onClose={() => setOpenUserId(null)} />}
+   602→    </div>
+   603→  );
+   604→}
+   605→

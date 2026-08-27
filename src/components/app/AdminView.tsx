@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/lib/auth-client";
 import { fa, pct } from "@/lib/fa";
 import { ProgressBar, StatChip } from "./common";
+import { AdminFeedbackSection } from "./AdminFeedbackSection";
 
 // ─── انواع داده ───────────────────────────────────────────────────────────────
 interface AdminUser {
@@ -519,7 +520,7 @@ export function AdminView() {
             پنل مدیریت همیار حقوق
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            فهرست کاربران، عملکرد مطالعاتی و داده‌های ذخیره‌شدهٔ هر نفر — هیچ داده‌ای هرگز حذف نمی‌شود.
+            فهرست کاربران، عملکرد مطالعاتی، بازخوردهای دانشجویان و داده‌های ذخیره‌شدهٔ هر نفر — هیچ داده‌ای هرگز حذف نمی‌شود.
           </p>
         </div>
         <StatChip icon={CloudCheck}>پایگاه دادهٔ ماندگار · سیاست نگهداری ابدی</StatChip>
@@ -534,6 +535,9 @@ export function AdminView() {
           <MiniStat icon={ClipboardCheck} label="آزمون‌های داده‌شده" value={fa(totals.totalQuizzes)} sub="با تاریخچهٔ کامل" />
         </div>
       )}
+
+      {/* پیشنهادهای اصلاح تدریس — انتقاد کاربران + تحلیل AI + تایید/رد مدیر */}
+      <AdminFeedbackSection />
 
       {/* جستجو */}
       <div className="relative">

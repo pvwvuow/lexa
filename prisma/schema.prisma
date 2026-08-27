@@ -26,6 +26,36 @@ model User {
   activityDays ActivityDay[]
   notes        Note[]
   blob         UserBlob?
+  feedbacks    LessonFeedback[]
+}
+
+// ─── بازخورد و انتقاد از تدریس هر جلسه ────────────────────────────────────────
+// گفت‌وگوی کاربر با استاد دربارهٔ کیفیت تدریس جلسه؛ تحلیل AI نسبت به جزوه،
+// درصد تطابق گفتهٔ کاربر با جزوه و پیشنهاد اصلاح — مدیر تایید/رد می‌کند.
+// فقط افزودنی: هیچ مسیر حذفی وجود ندارد؛ وضعیت تنها تغییر می‌کند.
+model LessonFeedback {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId     String // شناسهٔ دوره (m4 / t3 / md7 / …)
+  chapterTitle String
+  lessonId     String
+  lessonTitle  String
+  conversation Json // آرایهٔ کامل پیام‌ها [{role, content, ts}]
+  matchPercent Int       @default(0) // درصد تطابق حرف کاربر با جزوه (۰–۱۰۰)
+  needsChange  Boolean   @default(false)
+  severity     String    @default("minor") // minor | moderate | major
+  analysis     String // تحلیل هوش مصنوعی دربارهٔ انتقادها
+  suggestion   String // پیشنهاد مشخص برای مدیر
+  status       String    @default("pending") // pending | approved | rejected
+  adminNote    String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([lessonId])
 }
 
 // نشست‌های فعال (توکن هش‌شده) — تنها این جدول قابلیت پاکسازی منقضی‌ها دارد

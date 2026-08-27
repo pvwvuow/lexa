@@ -253,3 +253,21 @@ Work Log:
 Stage Summary:
 - کاربران می‌توانند حساب بسازند؛ همهٔ داده (پیشرفت، تست‌ها، یادداشت‌ها، کتاب‌های واردشده، استریک، آخرین مکان) در SQLite ذخیرهٔ ابدی می‌شود و حتی reset محلی یا دستگاه دیگر آن را از بین نمی‌برد
 - پنل مدیریت #/admin با ورود admin / hamyar@1404 در دسترس است؛ فهرست، عملکرد و پروندهٔ کامل هر کاربر را نشان می‌دهد و مدیر می‌تواند از همان‌جا یوزر/پسورد اختصاصی خودش را تعیین کند
+
+---
+Task ID: 12
+Agent: main (Super Z)
+Task: ویژگی «نقد تدریس و گفت‌وگو با AI» — انتقاد کاربر از هر جلسه، تحلیل لحظه‌ای نسبت به جزوه، درصد تطابق، ثبت پیشنهاد برای مدیر و تایید/رد در پنل مدیریت
+
+Work Log:
+- Prisma: مدل LessonFeedback اضافه شد (userId، courseId/lessonId/lessonTitle، conversation Json، matchPercent ۰–۱۰۰، needsChange، severity minor/moderate/major، analysis، suggestion، status pending/approved/rejected، adminNote، reviewedAt) — append-only، هیچ مسیر حذفی در اپ نیست؛ db push موفق
+- لایهٔ AI مشترک: providers.ts جدید (callBuiltin/callGemini/callOpenAiCompatible/dispatch/extractJson/PERSIAN_FAIL از api/ai استخراج شد)؛ /api/ai بدون تغییر رفتار به import مشترک مهاجرت کرد
+- پرامپت‌ها: FEEDBACK_SYSTEM (تحلیلگر بازخورد — مقایسهٔ ادعای کاربر با متن جزوه، خروجی JSON {reply, matchEstimate}) و FEEDBACK_ANALYZE_SPEC (قضاوت نهایی ساختاریافته {matchPercent, needsChange, severity, analysis, suggestion}) در prompts.ts
+- API: POST /api/feedback/chat (بدون نیاز به ورود؛ هر نوبت گفتگو + برآورد زندهٔ درصد)، POST /api/feedback/submit (نیازمند ورود؛ تحلیل نهایی + create ابدی رکورد)، GET /api/feedback/mine (وضعیت بازخوردهای خود کاربر)، GET /api/admin/feedback (فهرست کامل + totals + پیام‌های گفت‌وگو، گارد admin)، PATCH /api/admin/feedback/[id] (تایید/رد + یادداشت مدیر؛ رکورد حذف نمی‌شود)
+- UI کاربر: FeedbackDialog.tsx — دکمهٔ «نقد تدریس» در نوار کنش‌های صفحهٔ تدریس؛ دیالوگ گفت‌وگوی RTL با حباب‌ها، باکس 📜 مواد، نشان زندهٔ «تطابق گفته‌های تو با متن جزوه» با رنگ‌بندی، کارت سبز نتیجهٔ ثبت (تطابق/شدت/تغییر لازم + تحلیل + پیشنهاد)، فهرست «بازخوردهای قبلی من» با وضعیت و پیام مدیر، پیام ورود برای مهمان؛ زمینهٔ جزوه با همان lessonToContextText+lawRegistry صفحهٔ تدریس ساخته می‌شود
+- UI مدیر: AdminFeedbackSection.tsx در بالای پنل مدیریت — شمارندهٔ «در انتظار»، فیلتر وضعیت، کارت هر پیشنهاد با متریک‌ها، تحلیل AI، پیشنهاد، گفت‌وگوی کامل کاربر (کولاپس)، یادداشت اختیاری مدیر و دکمه‌های تایید/رد؛ پس از تصمیم، زمان بررسی + پیام مدیر ذخیره می‌شود
+- تست واقعی: curl چرخهٔ کامل (ثبت‌نام آزمایشی → chat با پاسخ واقعی AI و ٪۷۵ → submit با ٪۵۰/needsChange/major-guard → ورود مدیر → فهرست → PATCH approved+note → mine نشان‌دهندهٔ وضعیت) + گاردها (submit بدون ورود 401، admin API برای کاربر عادی 403)؛ مرورگر: دیالوگ دسکتاپ و موبایل ۳۹۰، ثبت موفق از UI، پنل مدیر با دو کارت، بازکردن جزئیات، تایید با یادداشت، بازگشت وضعیت و پیام مدیر به دیالوگ کاربر؛ خوانایی هر دو تم
+- پاک‌سازی: حساب آزمایشی zz_test_pak و تمام رکوردهایش دستی از DB حذف شد (کاربر واقعی danial81180 و admin دست‌نخورده)؛ tsc و ESLint صفر خطا؛ سرور پس از db push ری‌استارت شد تا کلاینت Prisma تازه لود شود
+
+Stage Summary:
+- حلقهٔ کامل «انتقاد دانشجو → تحلیل لحظه‌ای AI نسبت به جزوه → درصد تطابق → پیشنهاد ساختاریافته → بررسی و تایید مدیر → بازخورد وضعیت به دانشجو» فعال است و همهٔ رکوردها ابدی در SQLite می‌مانند
