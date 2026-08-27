@@ -2,6 +2,7 @@
 
 // ─── کلاینت شبکهٔ اساتید ──────────────────────────────────────────────────────
 import * as React from "react";
+import { useApp } from "@/lib/store";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 
 export interface SuggestionItem {
@@ -62,6 +63,27 @@ async function jf<T>(url: string, init?: RequestInit): Promise<T> {
 
 export function faNum(n: number): string {
   try { return n.toLocaleString("fa-IR"); } catch { return String(n); }
+}
+
+/**
+ * توگل حذف/برگرداندن یک «دورهٔ داخلی» از کتابخانهٔ من.
+ * وضعیت محلی بی‌درنگ عوض می‌شود؛ اگر وارد حساب شده باشد همان تغییر با سینک خودکار
+ * (و یک POST فوری) روی سرور ثبت می‌شود. مهمان فقط در همین مرورگر ثبت می‌کند.
+ * پیشرفت، تست و یادداشت آن جلسات به هیچ عنوان دست نمی‌خورد.
+ */
+export async function toggleBuiltinHidden(courseId: string): Promise<boolean /* اکنون مخفی؟ */> {
+  const st = useApp.getState();
+  const cur = st.hiddenBuiltins;
+  const willHide = !cur.includes(courseId);
+  st.setHiddenBuiltins(willHide ? [...cur, courseId] : cur.filter((x) => x !== courseId));
+  try {
+    await fetch("/api/library", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "builtin", courseId }),
+    });
+  } catch { /* مهمان یا آفلاین: حالت محلی می‌ماند؛ سینک بعدی هندل می‌کند */ }
+  return willHide;
 }
 
 /** پیشنهاد اساتید + فید مطالب؛ خودکار با وضعیت ورود همگام می‌شود */
@@ -200,13 +222,14 @@ export function useTargetRating(targetType: "post" | "tcourse", targetId?: strin
   return { agg, my, busy, rate };
 }
 
-/** واکشی کتابخانهٔ عمومی به تفکیک شاخه */
-export function usePublicLibrary(cat: string) {
+/** واکشی کتابخانهٔ عمومی به تفکیک شاخه — enabled=false یعنی کلاً درخواست نزن */
+export function usePublicLibrary(cat: string, enabled = true) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [posts, setPosts] = React.useState<FeedPost[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(enabled);
 
   const load = React.useCallback(async () => {
+    if (!enabled) { setCourses([]); setPosts([]); setLoading(false); return; }
     setLoading(true);
     try {
       const d = await jf<{ courses: TCourseCard[]; posts: FeedPost[] }>(
@@ -219,7 +242,7 @@ export function usePublicLibrary(cat: string) {
     } finally {
       setLoading(false);
     }
-  }, [cat]);
+  }, [cat, enabled]);
 
   React.useEffect(() => {
     void load();

@@ -32,6 +32,8 @@ export interface SyncSnapshot {
   customCourses?: unknown[];
   lastLocation?: Record<string, unknown>;
   streak?: Record<string, unknown>;
+  /** دوره‌های داخلی که کاربر از کتابخانه حذف کرده — فقط افزودنی */
+  hiddenBuiltins?: string[];
 }
 
 // ─── قواعد نام کاربری و رمز عبور ──────────────────────────────────────────────

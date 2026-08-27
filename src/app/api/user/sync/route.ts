@@ -140,6 +140,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── دوره‌های داخلی حذف‌شده از کتابخانهٔ من (فقط افزودنی؛ برخلاف «هرگز پاک نشو») ──
+    const hiddens = (snap.hiddenBuiltins ?? []).filter(
+      (c) => typeof c === "string" && /^[a-z0-9][a-z0-9-]{1,39}$/i.test(c)
+    );
+    if (hiddens.length) {
+      const have = await db.builtinHidden.findMany({
+        where: { userId: user.id, courseId: { in: [...new Set(hiddens)] } },
+        select: { courseId: true },
+      });
+      const haveSet = new Set(have.map((h) => h.courseId));
+      const fresh = [...new Set(hiddens)].filter((cid) => !haveSet.has(cid));
+      if (fresh.length)
+        await db.builtinHidden
+          .createMany({ data: fresh.map((courseId) => ({ userId: user.id, courseId })) })
+          .catch(() => {});
+    }
+
     // ── بلاب (کتاب‌های اختصاصی، آخرین مکان، استریک) ──
     let blob = await db.userBlob.findUnique({ where: { userId: user.id } });
     if (!blob) blob = await db.userBlob.create({ data: { userId: user.id } });

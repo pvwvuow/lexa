@@ -4,13 +4,16 @@
 import * as React from "react";
 import {
   LibraryBig, BookPlus, BookCheck, Loader2, GraduationCap, Star,
-  MessageCircle, Clock3, LogIn, Users, Layers3,
+  MessageCircle, Clock3, LogIn, Users, Layers3, Trash2, Sparkles,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { CATEGORIES } from "@/lib/social-shared";
+import { useApp } from "@/lib/store";
+import { builtinCourses } from "@/lib/law/courses";
+import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
-import { usePublicLibrary, type TCourseCard, type FeedPost } from "@/lib/social-client";
+import { usePublicLibrary, toggleBuiltinHidden, type TCourseCard, type FeedPost } from "@/lib/social-client";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
 
 /** افزودن/حذف یک دوره از کتابخانهٔ من؛ true یعنی اضافه شد */
@@ -171,10 +174,116 @@ function PostTeaser({ p }: { p: FeedPost }) {
   );
 }
 
+/* ═══ دوره‌های آماده اپ — کارت جزوهٔ رسمی با افزودن/حذف آزاد از کتابخانه ════ */
+
+function builtinPercent(c: Course, progress: Record<string, { status?: string }>): number {
+  const flat = c.chapters.flatMap((ch) => ch.lessons);
+  let done = 0;
+  flat.forEach((l) => {
+    const p = progress[l.id];
+    if (p?.status === "completed") done += 1;
+    else if (p) done += 0.5;
+  });
+  return Math.round((done / Math.max(1, flat.length)) * 100);
+}
+
+function BuiltinCourseCard({ c }: { c: Course }) {
+  const progress = useApp((s) => s.progress);
+  const hidden = useApp((s) => s.hiddenBuiltins);
+  const inLib = !hidden.includes(c.id);
+  const [busy, setBusy] = React.useState(false);
+  const chaptersN = c.chapters.length;
+  const lessonsN = c.chapters.reduce((n, x) => n + x.lessons.length, 0);
+  const quizN = c.chapters.reduce(
+    (n, x) => n + x.lessons.reduce((m, l) => m + (l.quiz?.length ?? 0), 0),
+    0,
+  );
+  const p = builtinPercent(c, progress);
+
+  async function act() {
+    setBusy(true);
+    try { await toggleBuiltinHidden(c.id); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5">
+      <span aria-hidden className="absolute -top-[7px] start-1/2 h-px w-16 -translate-x-1/2 rtl:translate-x-1/2 bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
+
+      <div className="mb-3 flex items-start gap-3">
+        <button
+          onClick={() => navigate({ view: "course", id: c.id })}
+          className="grid h-11 w-11 shrink-0 rotate-45 place-items-center rounded-[11px] bg-primary/10 shadow-card transition-transform hover:scale-105"
+          aria-hidden
+        >
+          <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-primary" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <button onClick={() => navigate({ view: "course", id: c.id })} className="block w-full truncate text-start font-bold hover:text-bronze">{c.title}</button>
+          <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>
+          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-bronze/10 px-2 py-0.5 text-[9.5px] font-bold text-bronze">
+            <Sparkles className="h-3 w-3" /> دورهٔ آمادهٔ همیار حقوق
+          </p>
+        </div>
+      </div>
+
+      {c.description && (
+        <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{c.description}</p>
+      )}
+
+      <p className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1"><Layers3 className="h-3.5 w-3.5" />{fa(chaptersN)} فصل · {fa(lessonsN)} جلسه</span>
+        {quizN > 0 && (
+          <span className="inline-flex items-center gap-1"><GraduationCap className="h-3.5 w-3.5" />{fa(quizN)} سؤال آزمون</span>
+        )}
+        {p > 0 && <span className="font-bold text-success">{fa(p)}٪ خوانده‌شده</span>}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={act}
+          disabled={busy}
+          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-50 ${
+            inLib
+              ? "border border-success/50 bg-success/10 text-success"
+              : "bg-primary text-primary-foreground hover:brightness-110"
+          }`}
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : inLib ? (
+            <><BookCheck className="h-4 w-4" /> در کتابخانهٔ مطالعهٔ توست</>
+          ) : (
+            <><BookPlus className="h-4 w-4" /> افزودن به عنوان کتاب</>
+          )}
+        </button>
+        {inLib && (
+          <button
+            onClick={act}
+            disabled={busy}
+            title="حذف از کتابخانهٔ من — پیشرفتت حفظ می‌شود و هر وقت خواستی برمی‌گردد"
+            aria-label={`حذف ${c.title} از کتابخانه`}
+            className="grid h-[42px] w-[46px] shrink-0 place-items-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive disabled:opacity-40"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+      {!inLib && (
+        <p className="mt-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
+          حذف شده؛ با همین دکمه برگردان — پیشرفت، تست و یادداشت‌هایت سر جایش می‌ماند.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PublicLibraryView() {
   const auth = useAuth();
-  const [cat, setCat] = React.useState("");
-  const { courses, posts, loading } = usePublicLibrary(cat);
+  // شروع از «دوره‌های آماده» — جایی که جزوات رسمی اپ همیشه اینجاست
+  const [cat, setCat] = React.useState("builtin");
+  // تب داخلی هیچ فراخوانی شبکه‌ای نمی‌زند؛ داده‌اش از خود باندل می‌آید
+  const { courses, posts, loading } = usePublicLibrary(cat, cat !== "builtin");
+
   const [busyId, setBusyId] = React.useState("");
   const [err, setErr] = React.useState("");
 
@@ -188,14 +297,14 @@ export function PublicLibraryView() {
           کتابخانهٔ عمومی
         </h1>
         <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          دوره‌ها و مطالبی که اساتید همیار منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه.
-          هر چیزی را خواستی به بخش مطالعهٔ خودت اضافه کن؛ حتی دوره‌هایی که هنوز در حال آماده‌سازی‌اند.
+          دوره‌های آمادهٔ خودِ همیار حقوق + آنچه اساتید منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه.
+          هر چیزی را خواستی به بخش مطالعهٔ خودت اضافه یا حذف کن؛ حتی دوره‌هایی که هنوز در حال آماده‌سازی‌اند.
         </p>
       </header>
 
-      {/* تب‌های شاخه */}
+      {/* تب‌های شاخه — «دوره‌های آماده» همیشه اول */}
       <nav aria-label="شاخه‌های کتابخانه" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
-        {[{ slug: "", label: "همه" }, ...CATEGORIES].map((c) => (
+        {[{ slug: "builtin", label: "دوره‌های آماده" }, { slug: "", label: "همه" }, ...CATEGORIES].map((c) => (
           <button
             key={c.slug || "all"}
             onClick={() => setCat(c.slug)}
@@ -214,17 +323,33 @@ export function PublicLibraryView() {
       {err && <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{err}</p>}
 
       {!auth.user && (
-        <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
           <LogIn className="h-4 w-4 shrink-0 text-bronze" />
-          دیدنِ آزاد است؛ اما برای افزودن به کتابخانه و امتیاز دادن باید از «ورود / ثبت‌نام» وارد شوی.
+          دیدنِ آزاد است؛ دوره‌های آماده را حتی بدون حساب می‌توانی به کتابخانه بیفزایی یا برداری — ولی برای امتیاز دادن وارد شو.
         </p>
       )}
 
-      {loading && (
-        <p className="flex items-center gap-2 py-8 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت کتابخانه…</p>
+      {/* ═══ دوره‌های آمادهٔ اپ ═══ */}
+      {cat === "builtin" && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5 text-bronze" /> دوره‌های آماده ({fa(builtinCourses.length)})</h2>
+          <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            جزوات رسمی همیار حقوق بر پایهٔ جزوه‌های معتبر دانشگاهی — همه به‌صورت پیش‌فرض در «کتابخانهٔ من» تو هستند؛
+            اگر حذفشان کنی پیشرفت، تست و یادداشت‌هایت محفوظ می‌ماند و با یک کلیک برمی‌گردند.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {builtinCourses.map((c) => (
+              <BuiltinCourseCard key={c.id} c={c as Course} />
+            ))}
+          </div>
+        </section>
       )}
 
-      {!loading && (
+      {/* ═══ بخش اساتید ═══ */}
+      {cat !== "builtin" && loading && (
+        <p className="flex items-center gap-2 py-8 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت کتابخانه…</p>
+      )}
+      {cat !== "builtin" && !loading && (
         <>
           {/* دوره‌ها */}
           <section className="space-y-3">

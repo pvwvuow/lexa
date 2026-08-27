@@ -39,6 +39,8 @@ interface AppState {
   customCourses: Course[];
   /** دوره‌های اساتیدی که کاربر به کتابخانه‌اش افزوده — از سرور هیدرات می‌شود */
   tBooks: Course[];
+  /** دوره‌های داخلی که کاربر از کتابخانه حذف کرده — توگل روی سرور ثبت می‌شود */
+  hiddenBuiltins: string[];
   notes: Record<string, { id: string; text: string; quote?: string; createdAt: number }[]>;
   ai: AiSettings;
   lastLocation: { courseId?: string; lessonId?: string };
@@ -54,6 +56,8 @@ interface AppState {
   addCourse(course: Course): void;
   upsertCourse(course: Course): void;
   setTBooks(courses: Course[]): void;
+  /** جایگزینی کامل لیست دوره‌های داخلی حذف‌شده (پس از هیدریشن از سرور یا توگل محلی) */
+  setHiddenBuiltins(ids: string[]): void;
   updateAi(patch: Partial<AiSettings>): void;
   reset(): void;
   /** ادغام بی‌خلط دادهٔ سرور با دادهٔ محلی — هیچ پیشرفتی از بین نمی‌رود */
@@ -72,6 +76,7 @@ export const useApp = create<AppState>()(
       activity: [],
       customCourses: [],
       tBooks: [],
+      hiddenBuiltins: [],
       notes: {},
       ai: DEFAULT_AI,
       lastLocation: {},
@@ -170,13 +175,17 @@ export const useApp = create<AppState>()(
         set({ tBooks: courses });
       },
 
+      setHiddenBuiltins(ids) {
+        set({ hiddenBuiltins: [...new Set(ids)] });
+      },
+
       updateAi(patch) {
         set({ ai: { ...get().ai, ...patch } });
       },
 
       reset() {
         set({
-          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], notes: {}, lastLocation: {},
+          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {},
         });
       },
 
@@ -253,8 +262,10 @@ export const useApp = create<AppState>()(
           if (obj?.id && !courseIds.has(obj.id)) customCourses.push(c as unknown as Course);
         }
         const lastLocation = Object.keys(cur.lastLocation).length ? cur.lastLocation : ((snap.lastLocation ?? {}) as typeof cur.lastLocation);
+        // دوره‌های داخلی حذف‌شده: اتحاد محلی و سرور — چیزی ناپدید نمی‌شود
+        const hiddenBuiltins = [...new Set([...cur.hiddenBuiltins, ...((snap.hiddenBuiltins ?? []) as string[])])];
 
-        set({ progress, notes, activity, streak, customCourses, lastLocation });
+        set({ progress, notes, activity, streak, customCourses, lastLocation, hiddenBuiltins });
       },
 
       /**
@@ -307,8 +318,10 @@ export const useApp = create<AppState>()(
           (c) => !!(c as { id?: string })?.id
         ) as unknown as Course[];
         const lastLocation = (snap.lastLocation ?? {}) as AppState["lastLocation"];
+        // ورود به حساب موجود: لیست سرور مقدس است (بدون ادغام) — نه پیوست و نه حذف
+        const hiddenBuiltins = [...new Set(((snap.hiddenBuiltins ?? []) as string[]).filter((x) => typeof x === 'string'))];
 
-        set({ progress, notes, activity, streak, customCourses, lastLocation });
+        set({ progress, notes, activity, streak, customCourses, lastLocation, hiddenBuiltins });
       },
     }),
     {
@@ -319,6 +332,7 @@ export const useApp = create<AppState>()(
         streak: s.streak,
         activity: s.activity,
         customCourses: s.customCourses,
+        hiddenBuiltins: s.hiddenBuiltins,
         notes: s.notes,
         ai: s.ai,
         lastLocation: s.lastLocation,
@@ -344,6 +358,7 @@ export function buildSyncSnapshot(s: {
   customCourses: Course[];
   lastLocation: Record<string, string>;
   streak: { count: number; lastDate: string };
+  hiddenBuiltins?: string[];
 }): SyncSnapshot {
   const progress: Record<string, SyncLessonProgress> = {};
   const quizAttempts: { lessonId: string; date: string; score: number }[] = [];
@@ -365,6 +380,7 @@ export function buildSyncSnapshot(s: {
     customCourses: s.customCourses as unknown[],
     lastLocation: s.lastLocation as Record<string, unknown>,
     streak: s.streak as unknown as Record<string, unknown>,
+    hiddenBuiltins: s.hiddenBuiltins ?? [],
   };
 }
 

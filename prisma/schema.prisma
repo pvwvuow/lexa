@@ -37,6 +37,7 @@ model User {
   followers    Follow[]  @relation("FollowTeacher")
   teacherCourses TeacherCourse[]
   library      LibraryEntry[]
+  builtinHidden BuiltinHidden[]
 }
 
 // ─── بازخورد و انتقاد از تدریس هر جلسه ────────────────────────────────────────
@@ -228,6 +229,21 @@ model LibraryEntry {
   addedAt   DateTime      @default(now())
 
   @@unique([userId, courseId])
+}
+
+// دوره‌های داخلی اپ (مدنی ۱/۴/۷ و تجارت ۳) به‌صورت پیش‌فرض در «کتابخانهٔ من» همه هستند؛
+// اگر کاربر آن را از کتابخانه حذف کند اینجا ثبت می‌شود تا در هیچ دستگاهی دوباره
+// پیدا نیاید — ولی پیشرفت، تست‌ها و یادداشت‌های همان جلسات کاملاً سر جایش می‌ماند
+// و افزودن دوباره از «کتابخانهٔ عمومی ← دوره‌های آماده» همه را برمی‌گرداند.
+model BuiltinHidden {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String // مثل "madani-1"
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
 }
 
 // امتیاز ستاره‌ای کاربر به مطلب یا دوره — قابل تغییر ولی بدون حذف تاریخچه;

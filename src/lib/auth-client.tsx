@@ -37,14 +37,15 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
 const PERSIST_KEY = "hamyar-hoghough-v1";
 
-/** هیدرات کتابخانهٔ دوره‌های اساتیدی که کاربر افزوده است */
+/** هیدرات کتابخانهٔ دوره‌های اساتیدی که کاربر افزوده است + لیست حذف‌شده‌های داخلی */
 export async function refreshLibrary() {
   try {
     const res = await fetch("/api/library");
     if (!res.ok) return;
-    const data = (await res.json()) as { courses?: unknown[] };
+    const data = (await res.json()) as { courses?: unknown[]; hiddenBuiltins?: string[] };
     const { useApp } = await import("@/lib/store");
     useApp.getState().setTBooks((data.courses ?? []) as never[]);
+    if (Array.isArray(data.hiddenBuiltins)) useApp.getState().setHiddenBuiltins(data.hiddenBuiltins);
   } catch {}
 }
 
@@ -97,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         customCourses: state.customCourses,
         lastLocation: state.lastLocation as unknown as Record<string, string>,
         streak: state.streak,
+        hiddenBuiltins: state.hiddenBuiltins,
       });
       const res = await fetch("/api/user/sync", {
         method: "POST",
@@ -156,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // همگام‌سازی خودکار تغییرات store با فاصلهٔ خواب ۳ ثانیه
@@ -284,6 +286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       streak: { count: 0, lastDate: "" },
       activity: [],
       customCourses: [],
+      hiddenBuiltins: [],
       notes: {},
       lastLocation: {},
     });

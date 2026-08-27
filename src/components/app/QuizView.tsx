@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale,
   Timer, Flag, GraduationCap, ClipboardList, ArrowLeft, ArrowRight, Shuffle,
-  Library, Target, Filter, House,
+  Library, Target, House,
 } from "lucide-react";
 import type { QuizQuestion } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -144,7 +144,7 @@ export function QuizView({ id }: { id?: string }) {
     setAiPool(null);
     setGenErr("");
     setCount(pool.length ? Math.min(5, pool.length) : 5);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [id, hubActive, basePool.length]);
 
   // زمان‌سنج
@@ -389,14 +389,19 @@ export function QuizView({ id }: { id?: string }) {
               ))}
             </div>
 
-            {/* درخت فصل/جلسه */}
+        {/* درخت فصل/جلسه — هر کتاب یک آکاردئون جمع‌شونده برای انتخاب دقیق */}
             <div className="max-h-[46vh] space-y-2 overflow-y-auto pe-1">
-              {groupChapters(visibleLessons).map(({ course, groups }) => (
-                <div key={course.id} className="rounded-xl border border-border bg-background">
-                  {scopeCourse === "ALL" && (
-                    <p className="border-b border-dashed border-border px-4 pt-3 pb-2 text-[12px] font-bold text-primary">{course.title}</p>
-                  )}
-                  <ul className="p-2">
+              {groupChapters(visibleLessons).map(({ course, groups }, ci) => (
+                <details key={course.id} className="group/details rounded-xl border border-border bg-background" open={scopeCourse !== "ALL" || ci === 0}>
+                  <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 transition-colors hover:bg-muted/40">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><Library className="h-3.5 w-3.5" /></span>
+                    <span className="flex-1 truncate text-[13px] font-bold">{course.title}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                      {fa(groups.reduce((n, g) => n + g.lessons.filter((l) => picked.has(l.id)).length, 0))}/{fa(groups.reduce((n, g) => n + g.lessons.length, 0))}
+                    </span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open/details:rotate-180" />
+                  </summary>
+                  <ul className="border-t border-dashed border-border p-2">
                     {groups.map(({ chapter, lessons }) => {
                       const ids = lessons.map((l) => l.id);
                       const selN = ids.filter((i) => picked.has(i)).length;
@@ -409,8 +414,8 @@ export function QuizView({ id }: { id?: string }) {
                             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors hover:bg-muted/50"
                           >
                             <Tick state={full ? "on" : partial ? "some" : "off"} />
-                            <span className="flex-1 truncate text-[13px] font-semibold">فصل {chapter.order}: {chapter.title}</span>
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-bold text-muted-foreground">{fa(selN)}/{fa(ids.length)}</span>
+                            <span className="flex-1 truncate text-[12.5px] font-semibold">فصل {chapter.order}: {chapter.title}</span>
+                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{fa(selN)}/{fa(ids.length)}</span>
                           </button>
                           <ul className="mb-1 ms-7 space-y-0.5 border-s border-dashed border-border ps-3">
                             {lessons.map((l) => {
@@ -423,7 +428,7 @@ export function QuizView({ id }: { id?: string }) {
                                     className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start transition-colors ${on ? "bg-bronze/[0.07]" : "hover:bg-muted/40"}`}
                                   >
                                     <Tick state={on ? "on" : "off"} small />
-                                    <span className={`flex-1 truncate text-[12.5px] ${on ? "font-medium text-foreground" : "text-muted-foreground"}`}>{l.title}</span>
+                                    <span className={`flex-1 truncate text-[12px] ${on ? "font-medium text-foreground" : "text-muted-foreground"}`}>{l.title}</span>
                                     <span className="shrink-0 text-[10px] font-bold text-bronze/80">{fa(l.quiz.length)} سؤال</span>
                                   </button>
                                 </li>
@@ -434,90 +439,91 @@ export function QuizView({ id }: { id?: string }) {
                       );
                     })}
                   </ul>
-                </div>
+                </details>
               ))}
             </div>
             <p className="text-[11px] text-muted-foreground">خلاصهٔ دامنه: {fa(hubStats.lessons)} جلسه از {fa(hubStats.courses)} کتاب — {fa(basePool.length)} سؤال پایه</p>
           </section>
         )}
 
-        {/* ── تمرین هوشمند ── */}
-        <section className="grid gap-3 sm:grid-cols-2">
-          <button
-            onClick={pickWeakScope}
-            disabled={hubStats.weakQuestions === 0}
-            className={`flex items-start gap-3 rounded-xl border p-4 text-start transition-all duration-200 ${
-              weakOnly ? "border-bronze bg-bronze/[0.07] shadow-card" : "border-border bg-card hover:border-bronze/50 disabled:opacity-45"
-            }`}
-          >
-            <Target className={`mt-0.5 h-4.5 w-4.5 shrink-0 ${weakOnly ? "text-bronze" : "text-muted-foreground"}`} />
-            <span>
-              <span className="block text-sm font-bold">تمرین مباحث ضعیف من{weakOnly && " · فعال"}</span>
-              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                {hubStats.weakQuestions > 0 ? `${fa(hubStats.weakQuestions)} سؤال از مبحث‌هایی که جایشان را اشتباه زده‌ای` : "هنوز مبحث ضعیفی ثبت نشده؛ اول چند آزمون بده"}
-              </span>
-            </span>
-          </button>
-          <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-            <Filter className="mt-0.5 h-4.5 w-4.5 shrink-0 text-muted-foreground" />
-            <label className="flex w-full cursor-pointer items-start" onClick={() => hubStats.weakQuestions > 0 && setWeakOnly((v) => !v)}>
-              <span>
-                <span className="block text-sm font-bold">فقط سؤال‌های مبحث ضعیف</span>
-                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                  {weakOnly ? "روشن — از دامنهٔ انتخابی فقط ضعیف‌ها می‌آیند" : hubStats.weakQuestions > 0 ? `${fa(hubStats.weakQuestions)} سؤال ضعیف داخل همین دامنه پیدا شد` : "در این دامنه سؤال ضعیفی نیست"}
-                </span>
-              </span>
-              <span className={`relative mt-1 ms-auto h-6 w-11 shrink-0 rounded-full transition-colors ${weakOnly && hubStats.weakQuestions > 0 ? "bg-primary" : "bg-border"}`}>
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${weakOnly && hubStats.weakQuestions > 0 ? "start-[22px]" : "start-0.5"}`} />
-              </span>
-            </label>
-          </div>
-        </section>
-
-        {/* حالت برگزاری */}
+        {/* ── تنظیمات برگزاری — همهٔ گزینه‌ها یکجا؛ گزینهٔ بی‌اثری وجود ندارد ── */}
         <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
-          <p className="mb-3 text-sm font-bold">حالت برگزاری</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {([
-              { k: "train", Icon: GraduationCap, t: "آموزشی", d: "پاسخ و تشریح فوری بعد از هر انتخاب؛ برای یادگیری" },
-              { k: "exam", Icon: ClipboardList, t: "آزمونی", d: "بدون بازخورد تا پایان؛ نتیجه و پاسخ‌نامه در آخر" },
-            ] as const).map(({ k, Icon, t, d }) => (
-              <button
-                key={k}
-                onClick={() => setMode(k)}
-                className={`rounded-xl border p-4 text-start transition-all duration-200 ${mode === k ? "border-bronze bg-bronze/[0.07] shadow-card" : "border-border bg-background hover:border-bronze/50"}`}
-              >
-                <span className="mb-1.5 flex items-center gap-2">
-                  <Icon className={`h-4.5 w-4.5 ${mode === k ? "text-bronze" : "text-muted-foreground"}`} />
-                  <span className="font-display text-sm font-bold">{t}</span>
-                  {mode === k && <span className="ms-auto h-2.5 w-2.5 rounded-full bg-bronze" />}
-                </span>
-                <span className="block text-xs leading-relaxed text-muted-foreground">{d}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+          <p className="mb-4 text-sm font-bold">تنظیمات برگزاری</p>
 
-        {/* تعداد سؤال + بُر زدن */}
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
-          <p className="mb-3 text-sm font-bold">تعداد سؤال</p>
-          <div className="flex flex-wrap gap-2">
-            {countOptions.map((v) => (
-              <button
-                key={v}
-                onClick={() => setCount(v)}
-                className={`rounded-full border px-5 py-2 font-display text-sm font-bold transition-colors ${count === v ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"}`}
-              >
-                {v === pool.length && pool.length !== 5 && pool.length !== 10 && pool.length !== 20 ? `همه (${fa(v)})` : fa(v)}
+          <div className="space-y-5">
+            {/* حالت پاسخ‌دهی */}
+            <div>
+              <p className="mb-2 text-[11.5px] font-semibold text-muted-foreground">حالت پاسخ‌دهی</p>
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1">
+                {([
+                  { k: "train", Icon: GraduationCap, t: "آموزشی", d: "تشریح فوری بعد از هر پاسخ" },
+                  { k: "exam", Icon: ClipboardList, t: "آزمونی", d: "نتیجه فقط در پایان؛ مثل جلسهٔ آزمون" },
+                ] as const).map(({ k, Icon, t, d }) => (
+                  <button
+                    key={k}
+                    onClick={() => setMode(k)}
+                    aria-pressed={mode === k}
+                    className={`relative rounded-lg px-3 py-2.5 text-start transition-all ${mode === k ? "bg-bronze/15 shadow-card ring-1 ring-bronze/60" : "hover:bg-muted"}`}
+                  >
+                    <span className="mb-0.5 flex items-center gap-1.5 text-[13px] font-bold">
+                      <Icon className={`h-4 w-4 ${mode === k ? "text-bronze" : "text-muted-foreground"}`} /> {t}
+                    </span>
+                    <span className="block text-[10.5px] leading-relaxed text-muted-foreground">{d}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* تعداد سؤال */}
+            <div>
+              <p className="mb-2 text-[11.5px] font-semibold text-muted-foreground">تعداد سؤال</p>
+              <div className="flex flex-wrap gap-2">
+                {countOptions.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setCount(v)}
+                    aria-pressed={count === v}
+                    className={`rounded-full border px-4 py-1.5 font-display text-[13px] font-bold transition-colors ${count === v ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"}`}
+                  >
+                    {v === pool.length && pool.length !== 5 && pool.length !== 10 && pool.length !== 20 ? `همه (${fa(v)})` : fa(v)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* دو کلید واقعی: بُر زدن + تمرکز روی مباحث ضعیف (فقط مرکز آزمون) */}
+            <div className={`grid gap-2 ${hubActive ? "sm:grid-cols-2" : ""}`}>
+              <button onClick={() => setShuffleOn((v) => !v)} aria-pressed={shuffleOn} className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-bronze/50">
+                <span className="flex items-center gap-2 text-[13px] font-medium"><Shuffle className="h-4 w-4 shrink-0 text-bronze" /> بُر زدن ترتیب</span>
+                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${shuffleOn ? "bg-primary" : "bg-border"}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${shuffleOn ? "start-[22px]" : "start-0.5"}`} />
+                </span>
               </button>
-            ))}
+              {hubActive && (
+                <button
+                  onClick={() => {
+                    if (!weakOnly && hubStats.weakQuestions === 0) { pickWeakScope(); return; }
+                    setWeakOnly((v) => !v);
+                  }}
+                  aria-pressed={weakOnly}
+                  title="سؤال‌هایی از مبحث‌هایی که جایشان را اشتباه زده‌ای"
+                  className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${weakOnly ? "border-bronze bg-bronze/[0.06]" : "border-border bg-background hover:border-bronze/50"}`}
+                >
+                  <span className="flex min-w-0 flex-col items-start pe-2 text-start">
+                    <span className="flex items-center gap-2 whitespace-nowrap text-[13px] font-medium">
+                      <Target className={`h-4 w-4 shrink-0 ${weakOnly ? "text-bronze" : "text-bronze/70"}`} /> تمرکز روی ضعیف‌ها
+                    </span>
+                    <span className="truncate text-[10.5px] leading-relaxed text-muted-foreground">
+                      {hubStats.weakQuestions > 0 ? `${fa(hubStats.weakQuestions)} سؤالِ مباحثی که در خطا رفته‌ای` : "کلیک کن؛ دامنه با ضعیف‌هایت پر می‌شود"}
+                    </span>
+                  </span>
+                  <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${weakOnly ? "bg-primary" : "bg-border"}`}>
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${weakOnly ? "start-[22px]" : "start-0.5"}`} />
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
-          <button onClick={() => setShuffleOn((v) => !v)} className="mt-4 flex w-full items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-bronze/50">
-            <span className="flex items-center gap-2 text-sm font-medium"><Shuffle className="h-4 w-4 text-bronze" /> بُر زدن ترتیب سؤال‌ها</span>
-            <span className={`relative h-6 w-11 rounded-full transition-colors ${shuffleOn ? "bg-primary" : "bg-border"}`}>
-              <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${shuffleOn ? "start-[22px]" : "start-0.5"}`} />
-            </span>
-          </button>
         </section>
 
         {/* شروع */}

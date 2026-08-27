@@ -12,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: "ابتدا وارد شوید." }, { status: 401 });
 
   try {
-    const [lessonStates, attempts, activityDays, notes, blob] = await Promise.all([
+    const [lessonStates, attempts, activityDays, notes, blob, hiddenBuiltins] = await Promise.all([
       db.lessonState.findMany({ where: { userId: user.id } }),
       db.quizAttempt.findMany({
         where: { userId: user.id },
@@ -22,6 +22,7 @@ export async function GET() {
       db.activityDay.findMany({ where: { userId: user.id }, select: { day: true } }),
       db.note.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 2000 }),
       db.userBlob.findUnique({ where: { userId: user.id } }),
+      db.builtinHidden.findMany({ where: { userId: user.id }, select: { courseId: true } }),
     ]);
 
     const progress: Record<string, unknown> = {};
@@ -81,6 +82,7 @@ export async function GET() {
         customCourses,
         lastLocation,
         streak,
+        hiddenBuiltins: hiddenBuiltins.map((h) => h.courseId),
       },
     });
   } catch (e) {
