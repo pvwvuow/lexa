@@ -3,10 +3,11 @@
 import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
-  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck,
+  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { useAuth } from "@/lib/auth-client";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
@@ -25,6 +26,9 @@ import { CourseIcon } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
 import { AccountArea, SyncHint } from "./AccountArea";
 import { AdminView } from "./AdminView";
+import { TeachersView } from "./TeachersView";
+import { StudioView } from "./StudioView";
+import { PostView } from "./PostView";
 
 type NavMode = "expanded" | "rail";
 
@@ -96,7 +100,8 @@ export function AppShell() {
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
   const customCourses = useApp((s) => s.customCourses);
-  const courses = [...builtinCourses, ...customCourses];
+  const tBooks = useApp((s) => s.tBooks);
+  const courses = mergeAll({ customCourses, tBooks });
   const [mounted, setMounted] = React.useState(false);
 
   // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است
@@ -111,7 +116,7 @@ export function AppShell() {
     } catch {}
   }, []);
 
-  const isSubPage = ["learn", "quiz", "case", "admin"].includes(route.view) || route.view === "cards";
+  const isSubPage = ["learn", "quiz", "case", "admin", "studio"].includes(route.view) || route.view === "cards";
 
   // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
   React.useEffect(() => {
@@ -228,7 +233,15 @@ export function AppShell() {
 
         <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
-        <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
+        {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
+        <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+        {/* افزودن کتاب فقط برای مدیر */}
+        {auth.user?.role === "admin" && (
+          <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
+        )}
+        {auth.user?.role === "teacher" && (
+          <SideItem icon={PenSquare} label="اتاق استاد" rail={rail} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+        )}
         {auth.user?.role === "admin" && (
           <SideItem
             icon={ShieldCheck}
@@ -313,6 +326,9 @@ export function AppShell() {
           {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && <ImportView />}
+          {route.view === "teachers" && <TeachersView />}
+          {route.view === "studio" && <StudioView />}
+          {route.view === "post" && <PostView id={route.id} />}
           {route.view === "admin" && <AdminView />}
         </main>
 

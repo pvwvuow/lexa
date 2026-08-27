@@ -12,7 +12,10 @@ export type Route =
   | { view: "progress" }
   | { view: "settings" }
   | { view: "import" }
-  | { view: "admin" };
+  | { view: "admin" }
+  | { view: "teachers" }
+  | { view: "studio" }
+  | { view: "post"; id: string };
 
 export function routeToHash(r: Route): string {
   switch (r.view) {
@@ -33,7 +36,8 @@ export function parseHash(h: string): Route {
   if (head === "learn" && id) return { view: "learn", id };
   if (head === "quiz") return { view: "quiz", id };
   if (head === "case") return { view: "case", id };
-  if (["cards", "progress", "settings", "import", "admin"].includes(head)) return { view: head as never };
+  if (head === "post" && id) return { view: "post", id };
+  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio"].includes(head)) return { view: head as never };
   return { view: "home" };
 }
 

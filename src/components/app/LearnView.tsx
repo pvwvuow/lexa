@@ -11,10 +11,11 @@ import {
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox, SectionHead, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
+import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
@@ -24,6 +25,7 @@ const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number
 
 export function LearnView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
+  const tBooks = useApp((s) => s.tBooks);
   const upsertCourse = useApp((s) => s.upsertCourse);
   const openLesson = useApp((s) => s.openLesson);
   const seen = useApp((s) => s.setSectionSeen);
@@ -36,7 +38,7 @@ export function LearnView({ id }: { id: string }) {
 
   // ── یافتن جلسه و دوره ──
   let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
-  for (const c of [...builtinCourses, ...custom]) {
+  for (const c of mergeAll({ customCourses: custom, tBooks })) {
     for (let ci = 0; ci < c.chapters.length; ci++) {
       const li = c.chapters[ci].lessons.findIndex((l) => l.id === id);
       if (li >= 0) ctx = { lesson: c.chapters[ci].lessons[li], chapter: c.chapters[ci], course: c, index: li, total: 0 };
@@ -301,60 +303,8 @@ export function LearnView({ id }: { id: string }) {
               >
                 <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
 
-                {s.body && (
-                  <div className="teach-body text-foreground/95">
-                    <BodyRich text={s.body} />
-                  </div>
-                )}
-
-                {/* مرز بصری واضح بین بلوک‌ها — باکس ماده نباید به کارت‌های بدنه بچسبد */}
-                {s.law && s.law.length > 0 && (
-                  <div className="pt-2">
-                    {(s.body || s.bullets) && <BlockDivider label="مستند قانونی این بخش" Icon={Scale} />}
-                    <LawBox laws={s.law} />
-                  </div>
-                )}
-
-                {s.bullets && (
-                  <div className="pt-2">
-                    {s.type === "summary" ? (
-                      /* جمع‌بندی: برگهٔ مرور اختصاصی — نه شبکهٔ کارت مستطیلی */
-                      <>
-                        {s.body && <BlockDivider label="چکیدهٔ نهایی" Icon={ListChecks} />}
-                        <SummarySheet items={s.bullets} />
-                      </>
-                    ) : (
-                      <>
-                        {s.body && <BlockDivider label="نکته‌های کلیدی" Icon={ListChecks} />}
-                        <BulletRich items={s.bullets} />
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {s.table && (
-                  <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
-                    <table className="w-full min-w-[520px] text-sm">
-                      <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
-                      <tbody>
-                        {s.table.rows.map((r, k) => (
-                          <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {s.questionText && (
-                  <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
-                    <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
-                    <p className="font-body relative z-10 text-[18px] font-semibold leading-loose">{s.questionText}</p>
-                    <details className="relative z-10 mt-3 text-sm">
-                      <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی استاد</summary>
-                      <p className="mt-2 rounded-lg bg-background/60 p-3 text-[15.5px] leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
-                    </details>
-                  </div>
-                )}
+                {/* موتور رندر مشترک — همان المان‌هایی که مطالب اساتید هم استفاده می‌کنند */}
+                <SectionBody s={s} />
 
                 {/* پاسخ‌های AI پیوست‌شده — مستندهای 📜 در باکس جدا رندر می‌شوند */}
                 {aiNotes.filter((a) => a.sectionId === s.id).map((a, k) => (

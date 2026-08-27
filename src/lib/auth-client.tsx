@@ -33,6 +33,17 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
 const PERSIST_KEY = "hamyar-hoghough-v1";
 
+/** هیدرات کتابخانهٔ دوره‌های اساتیدی که کاربر افزوده است */
+export async function refreshLibrary() {
+  try {
+    const res = await fetch("/api/library");
+    if (!res.ok) return;
+    const data = (await res.json()) as { courses?: unknown[] };
+    const { useApp } = await import("@/lib/store");
+    useApp.getState().setTBooks((data.courses ?? []) as never[]);
+  } catch {}
+}
+
 /**
  * نسخهٔ پشتیبانِ صرفاً محلی از دادهٔ مهمانِ همین دستگاه.
  * طبق سیاست اپ، هنگام ورود به حساب موجود دادهٔ مهمان «ادغام نمی‌شود»؛
@@ -126,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch {}
         setStatus("authed");
+        void refreshLibrary();
         // پس از دریافت، یک flush اولیه تا داده‌های صرفاً محلی هم به سرور برسند
         void flush().finally(() => {
           hydratingRef.current = false;
@@ -197,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => {
           hydratingRef.current = false;
         }, 500);
+        void refreshLibrary();
         return;
       }
 
@@ -208,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (data.snapshot) useApp.getState().mergeServerSnapshot(data.snapshot);
         }
       } catch {}
+      void refreshLibrary();
       await flush();
     },
     [flush]
@@ -270,6 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastLocation: {},
     });
     try { localStorage.removeItem("hoh_weak_topics"); } catch {}
+    useApp.getState().setTBooks([]);
     userRef.current = null;
     setUser(null);
     setLastSavedAt(null);

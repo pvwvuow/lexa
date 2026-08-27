@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogIn, LogOut, RefreshCw, ShieldCheck, UserRound, CloudCheck, Loader2 } from "lucide-react";
+import { LogIn, LogOut, RefreshCw, ShieldCheck, UserRound, CloudCheck, Loader2, GraduationCap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,15 +87,19 @@ export function AccountArea() {
         <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-2">
           <DropdownMenuLabel dir="rtl" className="space-y-0.5 px-2">
             <p className="flex items-center gap-1.5 text-sm font-bold leading-none">
-              {u.role === "admin" && (
+              {u.role === "admin" ? (
                 <ShieldCheck className="h-4 w-4 text-bronze" />
-              )}
+              ) : u.role === "teacher" ? (
+                <GraduationCap className="h-4 w-4 text-bronze" />
+              ) : null}
               {u.username}
             </p>
             <p className="text-[11px] font-medium leading-relaxed text-muted-foreground">
               {u.role === "admin"
                 ? "مدیر سامانه"
-                : `عضو از ${new Date(u.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })}`}
+                : u.role === "teacher"
+                  ? "استاد همیار حقوق"
+                  : `عضو از ${new Date(u.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })}`}
             </p>
             <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-muted-foreground/80">
               {auth.syncing ? (
@@ -113,6 +117,15 @@ export function AccountArea() {
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
+
+          {u.role === "teacher" && (
+            <DropdownMenuItem
+              onClick={() => { setMenuOpen(false); navigate({ view: "studio" }); }}
+              className="cursor-pointer rounded-lg gap-2 text-bronze"
+            >
+              <GraduationCap className="h-4 w-4" /> اتاق استاد
+            </DropdownMenuItem>
+          )}
 
           {u.role === "admin" && (
             <DropdownMenuItem

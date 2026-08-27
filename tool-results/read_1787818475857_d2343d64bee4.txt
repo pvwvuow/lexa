@@ -1,0 +1,571 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion, AnimatePresence } from "framer-motion";
+     5→import ReactMarkdown from "react-markdown";
+     6→import {
+     7→  ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
+     8→  ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
+     9→  MoreHorizontal, CheckCircle2,
+    10→} from "lucide-react";
+    11→import type { Course, LessonSection } from "@/lib/law/types";
+    12→import { builtinCourses } from "@/lib/law/courses";
+    13→import { useApp } from "@/lib/store";
+    14→import { fa } from "@/lib/fa";
+    15→import { navigate } from "@/lib/router";
+    16→import { askAi } from "@/lib/aiClient";
+    17→import { AIThinking, SECTION_META, LawBox, SectionHead, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
+    18→import { lessonToContextText } from "@/lib/law/lessonText";
+    19→import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+    20→import { FeedbackDialog } from "./FeedbackDialog";
+    21→
+    22→interface AiNote { sectionId: string; text: string }
+    23→const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
+    24→
+    25→export function LearnView({ id }: { id: string }) {
+    26→  const custom = useApp((s) => s.customCourses);
+    27→  const upsertCourse = useApp((s) => s.upsertCourse);
+    28→  const openLesson = useApp((s) => s.openLesson);
+    29→  const seen = useApp((s) => s.setSectionSeen);
+    30→  const complete = useApp((s) => s.completeLesson);
+    31→  const prog = useApp((s) => s.progress[id]);
+    32→  const notesAll = useApp((s) => s.notes);
+    33→  const notes = notesAll[id] ?? EMPTY_NOTES;
+    34→  const addNote = useApp((s) => s.addNote);
+    35→  const removeNote = useApp((s) => s.removeNote);
+    36→
+    37→  // ── یافتن جلسه و دوره ──
+    38→  let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
+    39→  for (const c of [...builtinCourses, ...custom]) {
+    40→    for (let ci = 0; ci < c.chapters.length; ci++) {
+    41→      const li = c.chapters[ci].lessons.findIndex((l) => l.id === id);
+    42→      if (li >= 0) ctx = { lesson: c.chapters[ci].lessons[li], chapter: c.chapters[ci], course: c, index: li, total: 0 };
+    43→    }
+    44→  }
+    45→
+    46→  const [aiPendingBusy, setAiPendingBusy] = React.useState(false);
+    47→  const [aiErr, setAiErr] = React.useState("");
+    48→  const [aiNotes, setAiNotes] = React.useState<AiNote[]>([]);
+    49→  const [loadingFor, setLoadingFor] = React.useState<string | null>(null); // نوع دکمه فعال
+    50→  const [questionInput, setQuestionInput] = React.useState("");
+    51→  const [showTocMobile, setShowTocMobile] = React.useState(false);
+    52→  const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
+    53→  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+    54→
+    55→  React.useEffect(() => {
+    56→    if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
+    57→    // eslint-disable-next-line react-hooks/exhaustive-deps
+    58→  }, [id]);
+    59→
+    60→  if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
+    61→
+    62→  const { lesson, chapter, course } = ctx;
+    63→  const sections: LessonSection[] = lesson.sections ?? [];
+    64→  const laws = sections.flatMap((s) => s.law ?? []);
+    65→
+    66→  // فصل بعدیِ همین درس (برای دکمهٔ پایان جلسه)
+    67→  const chaptersOrdered = [...course.chapters].sort((a, b) => a.order - b.order);
+    68→  const chiIdx = chaptersOrdered.findIndex((ch) => ch.id === chapter.id);
+    69→  const nextChapter = chiIdx >= 0 ? chaptersOrdered[chiIdx + 1] ?? null : null;
+    70→
+    71→  /** تولید جلسه برای جلسات وارداتی (ai-pending) */
+    72→  async function generateAiLesson() {
+    73→    setAiPendingBusy(true);
+    74→    setAiErr("");
+    75→    try {
+    76→      const res = await askAi<{ lesson: { title: string; sections: LessonSection[]; quiz?: never[] } }>({
+    77→        task: "generate_lesson",
+    78→        question: lesson.title,
+    79→        content: lesson.sourceSlice ?? "",
+    80→        context: { courseTitle: course.title, chapterTitle: chapter.title },
+    81→      });
+    82→      const generated = res.lesson;
+    83→      generated.title = lesson.title;
+    84→      const updatedCourse: Course = {
+    85→        ...course,
+    86→        chapters: course.chapters.map((ch) => ({
+    87→          ...ch,
+    88→          lessons: ch.lessons.map((l) =>
+    89→            l.id === id
+    90→              ? { ...l, status: "ready", sections: generated.sections, quiz: normalizeQuiz(generated.quiz) }
+    91→              : l,
+    92→          ),
+    93→        })),
+    94→      };
+    95→      upsertCourse(updatedCourse);
+    96→    } catch (e) {
+    97→      setAiErr(e instanceof Error ? e.message : "تولید جلسه ناموفق بود.");
+    98→    } finally {
+    99→      setAiPendingBusy(false);
+   100→    }
+   101→  }
+   102→
+   103→  function normalizeQuiz(q: unknown[] | undefined): never[] {
+   104→    if (!Array.isArray(q)) return [] as never[];
+   105→    return q.filter((x) => x && typeof x === "object") as never[];
+   106→  }
+   107→
+   108→  const visibleCount = Math.min(prog?.sectionsSeen ?? 1, sections.length);
+   109→  const atEnd = visibleCount >= sections.length;
+   110→
+   111→  async function handleAction(kind: "simple" | "examples" | "ask" | "free", textOverride?: string) {
+   112→    const lastVisible = sections[Math.max(0, visibleCount - 1)];
+   113→    setLoadingFor(kind + (textOverride ?? ""));
+   114→    setAiErr("");
+   115→    // متن واقعی همان بخش‌هایی که دانشجو دیده + فهرست مواد معتبر — منبع پاسخ استاد
+   116→    const ground = lessonToContextText(sections.slice(0, visibleCount));
+   117→    try {
+   118→      const res = await askAi<{ text: string }>({
+   119→        task: "free",
+   120→        mode: kind === "simple" ? "QA" : kind === "examples" ? "TEACH" : "QA",
+   121→        modeDirective:
+   122→          kind === "simple"
+   123→            ? "دانشجو گفت متوجه نشد؛ مفهوم را با یک تشبیه ساده و مثال روزمره دوباره توضیح بده، نه با تکرار متن."
+   124→            : kind === "examples"
+   125→              ? "دانشجو مثال بیشتر می‌خواهد؛ دو مثال تازه با اعداد فرضی ارائه کن و ماده مرتبط را یادآوری کن."
+   126→              : undefined,
+   127→        question: kind === "free" || kind === "ask" ? textOverride : `درباره «${lesson.title}» توضیح بیشتر`,
+   128→        context: {
+   129→          courseTitle: course.title,
+   130→          chapterTitle: chapter.title,
+   131→          lessonTitle: lesson.title,
+   132→          seenSections: sections.slice(0, visibleCount).map((s) => s.title ?? ""),
+   133→          extra: ground.text,
+   134→          lawRegistry: ground.lawRegistry,
+   135→        },
+   136→      });
+   137→      setAiNotes((n) => [{ sectionId: lastVisible.id, text: res.text }, ...n]);
+   138→    } catch (e) {
+   139→      setAiErr(e instanceof Error ? e.message : "پاسخی دریافت نشد.");
+   140→    } finally {
+   141→      setLoadingFor(null);
+   142→    }
+   143→  }
+   144→
+   145→  function revealNext() {
+   146→    seen(id, visibleCount + 1);
+   147→    setTimeout(() => {
+   148→      document.getElementById(`sec-${visibleCount}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+   149→    }, 60);
+   150→  }
+   151→
+   152→  const Sidebar = (
+   153→    <aside className="hidden lg:block">
+   154→      <div className="sticky top-24 space-y-4">
+   155→        <nav className="rounded-2xl border border-border bg-card p-4 shadow-card">
+   156→          <p className="mb-3 flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><ListOrdered className="h-4 w-4 text-bronze" /> فهرست مطالب جلسه</p>
+   157→          <ol className="space-y-0.5 text-[13px]">
+   158→            {sections.map((s, i) => (
+   159→              <li key={s.id}>
+   160→                {i < visibleCount ? (
+   161→                  <button onClick={() => document.getElementById(`sec-${i}`)?.scrollIntoView({ behavior: "smooth" })} className={`w-full rounded-lg px-2.5 py-1.5 text-start transition-colors ${i === visibleCount - 1 ? "bg-bronze/10 font-semibold text-bronze" : "text-muted-foreground hover:bg-muted hover:text-primary"}`}>
+   162→                    <span className="me-1.5 inline-block w-5 text-left text-[11px] opacity-60" dir="ltr">{fa(i + 1)}</span>
+   163→                    {SECTION_META[s.type].title}
+   164→                  </button>
+   165→                ) : (
+   166→                  <span className="block px-2.5 py-1.5 text-muted-foreground/35">{fa(i + 1)}. ▒▒▒</span>
+   167→                )}
+   168→              </li>
+   169→            ))}
+   170→          </ol>
+   171→        </nav>
+   172→
+   173→        {/* پرسش آزاد از استاد — دسکتاپ: کارت در سایدبار به‌جای نوار شناور */}
+   174→        <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+   175→          <p className="mb-2 flex items-center gap-2 text-sm font-bold"><Send className="h-4 w-4 -scale-x-100 text-bronze" /> از استاد بپرس</p>
+   176→          <form
+   177→            onSubmit={(e) => {
+   178→              e.preventDefault();
+   179→              if (!questionInput.trim()) return;
+   180→              handleAction("free", questionInput.trim());
+   181→              setQuestionInput("");
+   182→            }}
+   183→            className="flex items-center gap-2"
+   184→          >
+   185→            <input
+   186→              value={questionInput}
+   187→              onChange={(e) => setQuestionInput(e.target.value)}
+   188→              placeholder="سوالی از استاد داری؟ بپرس…"
+   189→              className="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none placeholder:text-muted-foreground/70 focus:border-bronze"
+   190→              aria-label="سؤال آزاد از استاد"
+   191→            />
+   192→            <button type="submit" disabled={!!loadingFor} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
+   193→              <Send className="h-4 w-4 -scale-x-100" />
+   194→            </button>
+   195→          </form>
+   196→        </div>
+   197→        {laws.length > 0 && (
+   198→          <div className="max-h-[46vh] space-y-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-card">
+   199→            <p className="flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
+   200→            {laws.map((l, i) => (
+   201→              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[15px] leading-relaxed">
+   202→                <span className="font-display font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
+   203→              </p>
+   204→            ))}
+   205→          </div>
+   206→        )}
+   207→
+   208→        <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+   209→          <p className="mb-2 flex items-center gap-2 text-sm font-bold"><StickyNote className="h-4 w-4 text-bronze" /> یادداشت من</p>
+   210→          <NoteBox onSave={(t) => addNote(id, t)} />
+   211→          <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-xs">
+   212→            {notes.map((n) => (
+   213→              <li key={n.id} className="group rounded-lg bg-muted px-3 py-2">
+   214→                {n.text}
+   215→                <button onClick={() => removeNote(id, n.id)} aria-label="حذف یادداشت" className="float-left opacity-0 transition-opacity group-hover:opacity-100">
+   216→                  <Trash2 className="h-3 w-3 text-danger" />
+   217→                </button>
+   218→              </li>
+   219→            ))}
+   220→            {notes.length === 0 && <li className="text-muted-foreground/60">هنوز یادداشتی نداری؛ اولین نکته مهم را ثبت کن.</li>}
+   221→          </ul>
+   222→        </div>
+   223→      </div>
+   224→    </aside>
+   225→  );
+   226→
+   227→  // ─── حالت تولید هوشمند جلسه وارداتی ───
+   228→  if (lesson.status === "ai-pending") {
+   229→    return (
+   230→      <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
+   231→        <BookMarked className="mx-auto mb-4 h-10 w-10 text-bronze" />
+   232→        <h1 className="mb-2 text-xl font-bold">{lesson.title}</h1>
+   233→        <p className="mx-auto mb-6 max-w-md text-sm leading-loose text-muted-foreground">
+   234→          این جلسه از کتاب وارداتی استخراج شده و هنوز محتوای کامل ندارد. دکمه زیر را بزن تا «استاد حقوقی هوشمند» بر اساس متن اصلی همین کتاب، جلسه را طبق الگوی هشت‌بخشی تدریس کند.
+   235→        </p>
+   236→        {aiPendingBusy ? (
+   237→          <AIThinking label="در حال تحلیل متن کتاب و تنظیم طرح درس" />
+   238→        ) : (
+   239→          <button onClick={generateAiLesson} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-transform active:scale-[.98]">
+   240→            <Sparkles className="h-5 w-5" /> تدریس این جلسه توسط استاد
+   241→          </button>
+   242→        )}
+   243→        {aiErr && <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{aiErr}</p>}
+   244→      </div>
+   245→    );
+   246→  }
+   247→
+   248→  const bodyTabContent =
+   249→    tab === "toc" ? (
+   250→      <nav className="space-y-1 lg:hidden">
+   251→        {sections.map((s, i) => (
+   252→          <button key={s.id} disabled={i >= visibleCount} onClick={() => setTab("teach")} className={`block w-full rounded-lg px-3 py-2 text-start text-sm ${i < visibleCount ? "bg-muted" : "opacity-40"}`}>
+   253→            {fa(i + 1)}. {SECTION_META[s.type].title}
+   254→          </button>
+   255→        ))}
+   256→      </nav>
+   257→    ) : tab === "laws" ? (
+   258→      <LawBox laws={laws} />
+   259→    ) : null;
+   260→
+   261→  return (
+   262→    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pb-28 pt-6 sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
+   263→      {/* ستون اصلی */}
+   264→      <main className="min-w-0">
+   265→        {/* نوار پیشرفت جلسه */}
+   266→        <header className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+   267→          <p className="text-xs font-medium text-bronze">{course.title} · فصل {fa(chapter.order)}</p>
+   268→          <h1 className="mt-1.5 text-xl font-bold leading-relaxed sm:text-2xl">{lesson.title}</h1>
+   269→          <div className="mt-4 h-2 overflow-hidden rounded-full bg-border/80">
+   270→            <motion.div
+   271→              className="progress-sheen h-full rounded-full"
+   272→              style={{ background: "linear-gradient(to left, var(--bronze), color-mix(in srgb, var(--primary) 82%, var(--bronze)))" }}
+   273→              animate={{ width: `${(visibleCount / Math.max(1, sections.length)) * 100}%` }}
+   274→            />
+   275→          </div>
+   276→          <p className="mt-2 text-xs text-muted-foreground">بخش {fa(visibleCount)} از {fa(sections.length)} — هر بار یکی را با دقت بخوان، استاد ادامه می‌دهد.</p>
+   277→
+   278→          {/* تب‌های موبایل */}
+   279→          <div className="mt-3 flex gap-2 lg:hidden">
+   280→            {[["teach", "تدریس"], ["toc", "فهرست"], ["laws", `مواد (${fa(laws.length)})`]].map(([k, t]) => (
+   281→              <button key={k} onClick={() => setTab(k as never)} className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${tab === k ? "border-bronze bg-bronze/10 text-bronze" : "border-border text-muted-foreground"}`}>
+   282→                {t}
+   283→              </button>
+   284→            ))}
+   285→          </div>
+   286→          {tab !== "teach" && <div className="lg:hidden">{bodyTabContent}</div>}
+   287→        </header>
+   288→
+   289→        {/* بخش‌های تدریس */}
+   290→        <article className="space-y-6" style={{ display: tab === "teach" ? undefined : "none" }}>
+   291→          {sections.slice(0, visibleCount).map((s, i) => {
+   292→            const meta = SECTION_META[s.type];
+   293→            return (
+   294→              <motion.section
+   295→                key={s.id}
+   296→                id={`sec-${i}`}
+   297→                initial={{ opacity: 0, y: 14 }}
+   298→                animate={{ opacity: 1, y: 0 }}
+   299→                transition={{ duration: 0.25 }}
+   300→                className="scroll-mt-28 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7"
+   301→              >
+   302→                <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
+   303→
+   304→                {s.body && (
+   305→                  <div className="teach-body text-foreground/95">
+   306→                    <BodyRich text={s.body} />
+   307→                  </div>
+   308→                )}
+   309→
+   310→                {/* مرز بصری واضح بین بلوک‌ها — باکس ماده نباید به کارت‌های بدنه بچسبد */}
+   311→                {s.law && s.law.length > 0 && (
+   312→                  <div className="pt-2">
+   313→                    {(s.body || s.bullets) && <BlockDivider label="مستند قانونی این بخش" Icon={Scale} />}
+   314→                    <LawBox laws={s.law} />
+   315→                  </div>
+   316→                )}
+   317→
+   318→                {s.bullets && (
+   319→                  <div className="pt-2">
+   320→                    {s.type === "summary" ? (
+   321→                      /* جمع‌بندی: برگهٔ مرور اختصاصی — نه شبکهٔ کارت مستطیلی */
+   322→                      <>
+   323→                        {s.body && <BlockDivider label="چکیدهٔ نهایی" Icon={ListChecks} />}
+   324→                        <SummarySheet items={s.bullets} />
+   325→                      </>
+   326→                    ) : (
+   327→                      <>
+   328→                        {s.body && <BlockDivider label="نکته‌های کلیدی" Icon={ListChecks} />}
+   329→                        <BulletRich items={s.bullets} />
+   330→                      </>
+   331→                    )}
+   332→                  </div>
+   333→                )}
+   334→
+   335→                {s.table && (
+   336→                  <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
+   337→                    <table className="w-full min-w-[520px] text-sm">
+   338→                      <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
+   339→                      <tbody>
+   340→                        {s.table.rows.map((r, k) => (
+   341→                          <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
+   342→                        ))}
+   343→                      </tbody>
+   344→                    </table>
+   345→                  </div>
+   346→                )}
+   347→
+   348→                {s.questionText && (
+   349→                  <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
+   350→                    <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
+   351→                    <p className="font-body relative z-10 text-[18px] font-semibold leading-loose">{s.questionText}</p>
+   352→                    <details className="relative z-10 mt-3 text-sm">
+   353→                      <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی استاد</summary>
+   354→                      <p className="mt-2 rounded-lg bg-background/60 p-3 text-[15.5px] leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
+   355→                    </details>
+   356→                  </div>
+   357→                )}
+   358→
+   359→                {/* پاسخ‌های AI پیوست‌شده — مستندهای 📜 در باکس جدا رندر می‌شوند */}
+   360→                {aiNotes.filter((a) => a.sectionId === s.id).map((a, k) => (
+   361→                  <div key={k} className="relative mt-4 rounded-xl border border-dashed border-bronze/50 bg-bronze/5 p-4">
+   362→                    <Sparkles aria-hidden className="absolute -top-2.5 end-4 grid h-5 w-5 place-items-center rounded-full bg-card text-bronze" />
+   363→                    <p className="mb-1 flex items-center gap-1 text-xs font-bold text-bronze"><HelpCircle className="h-3.5 w-3.5" /> تکمیل استاد</p>
+   364→                    <AiAnswerRich text={a.text} />
+   365→                  </div>
+   366→                ))}
+   367→              </motion.section>
+   368→            );
+   369→          })}
+   370→
+   371→          <AnimatePresence>
+   372→            {loadingFor && (
+   373→              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+   374→                <AIThinking label={loadingFor.startsWith("simple") ? "در حال بازتعریف ساده‌تر" : loadingFor.startsWith("examples") ? "در حال طراحی مثال‌های تازه" : "در حال بررسی پرسش شما"} />
+   375→              </motion.div>
+   376→            )}
+   377→          </AnimatePresence>
+   378→
+   379→          {aiErr && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{aiErr}</p>}
+   380→
+   381→          {/* نوار کنش جلسه — مینیمال: یک کنش اصلی + منوی بیشتر برای بقیه */}
+   382→          <div className="flex flex-wrap items-center gap-2.5">
+   383→            {!atEnd ? (
+   384→              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3 font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]">
+   385→                <ArrowDownCircle className="h-5 w-5" /> ادامه بده
+   386→              </button>
+   387→            ) : (
+   388→              <>
+   389→                <button
+   390→                  onClick={() => { complete(id); navigate({ view: "quiz", id }); }}
+   391→                  className="inline-flex items-center gap-2 rounded-xl bg-success px-6 py-3 font-semibold text-white shadow-card transition-transform active:scale-[.98]"
+   392→                >
+   393→                  <ClipboardList className="h-5 w-5" /> برو به تست
+   394→                </button>
+   395→                {nextChapter && nextChapter.lessons[0] && (
+   396→                  <button
+   397→                    onClick={() => {
+   398→                      complete(id);
+   399→                      const first = nextChapter.lessons[0];
+   400→                      window.scrollTo({ top: 0, behavior: "smooth" });
+   401→                      setTimeout(() => navigate({ view: "learn", id: first.id }), 120);
+   402→                    }}
+   403→                    title={`رفتن به ${nextChapter.title}`}
+   404→                    className="inline-flex items-center gap-1.5 rounded-xl border border-bronze/50 bg-bronze/10 px-5 py-3 text-sm font-bold text-bronze transition-colors hover:bg-bronze/20 active:scale-[.99]"
+   405→                  >
+   406→                    <ArrowLeft className="h-4 w-4 shrink-0" />
+   407→                    فصل بعدی
+   408→                    <span className="hidden max-w-[140px] truncate opacity-75 md:inline">· {nextChapter.title}</span>
+   409→                  </button>
+   410→                )}
+   411→                {!nextChapter && (
+   412→                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+   413→                    <CheckCircle2 className="h-4 w-4 text-success" /> این آخرین فصل این درس است
+   414→                  </span>
+   415→                )}
+   416→              </>
+   417→            )}
+   418→
+   419→            {/* همهٔ کنش‌های فرعی فقط داخل منوی بیشتر — بدون شلوغی پایین صفحه */}
+   420→            <DropdownMenu>
+   421→              <DropdownMenuTrigger asChild>
+   422→                <button
+   423→                  disabled={!!loadingFor}
+   424→                  aria-label="کنش‌های بیشتر"
+   425→                  title="موارد کمکی و تکمیلی"
+   426→                  className="inline-flex h-[46px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-45"
+   427→                >
+   428→                  <MoreHorizontal className="h-5 w-5" /> بیشتر
+   429→                </button>
+   430→              </DropdownMenuTrigger>
+   431→              <DropdownMenuContent align="start" sideOffset={10} className="w-72 rounded-xl p-1.5">
+   432→                <DropdownMenuItem
+   433→                  onClick={() => handleAction("simple")}
+   434→                  disabled={!!loadingFor}
+   435→                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+   436→                >
+   437→                  <HelpCircle className="h-4 w-4 shrink-0 text-bronze" /> متوجه نشدم؛ ساده‌تر توضیح بده
+   438→                </DropdownMenuItem>
+   439→                <DropdownMenuItem
+   440→                  onClick={() => handleAction("examples")}
+   441→                  disabled={!!loadingFor}
+   442→                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+   443→                >
+   444→                  <Lightbulb className="h-4 w-4 shrink-0 text-bronze" /> مثال بیشتر بده
+   445→                </DropdownMenuItem>
+   446→                <DropdownMenuSeparator />
+   447→                <DropdownMenuItem
+   448→                  onClick={() => setFeedbackOpen(true)}
+   449→                  disabled={!!loadingFor}
+   450→                  title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر"
+   451→                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+   452→                >
+   453→                  <MessageSquareWarning className="h-4 w-4 shrink-0 text-bronze" /> نقد تدریس این جلسه…
+   454→                </DropdownMenuItem>
+   455→                {atEnd && (
+   456→                  <DropdownMenuItem onClick={() => navigate({ view: "case", id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
+   457→                    <Scale className="h-4 w-4 shrink-0 text-bronze" /> تمرین کیس واقعی
+   458→                  </DropdownMenuItem>
+   459→                )}
+   460→                <DropdownMenuSeparator />
+   461→                <DropdownMenuItem onClick={() => navigate({ view: "course", id: course.id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
+   462→                  <RotateCcw className="h-4 w-4 shrink-0 text-bronze" /> بازگشت به فهرست درس
+   463→                </DropdownMenuItem>
+   464→              </DropdownMenuContent>
+   465→            </DropdownMenu>
+   466→          </div>
+   467→        </article>
+   468→      </main>
+   469→
+   470→      {Sidebar}
+   471→
+   472→      {/* گفت‌وگوی بازخورد: انتقاد → تحلیل AI نسبت به جزوه → ثبت پیشنهاد برای مدیر */}
+   473→      <FeedbackDialog
+   474→        open={feedbackOpen}
+   475→        onOpenChange={setFeedbackOpen}
+   476→        courseId={course.id}
+   477→        chapterTitle={chapter.title}
+   478→        lessonId={id}
+   479→        lessonTitle={lesson.title}
+   480→        getContext={() => {
+   481→          const ground = lessonToContextText(sections.slice(0, visibleCount));
+   482→          return {
+   483→            courseTitle: course.title,
+   484→            chapterTitle: chapter.title,
+   485→            lessonTitle: lesson.title,
+   486→            seenSections: sections.slice(0, visibleCount).map((s) => s.title ?? ""),
+   487→            extra: ground.text,
+   488→            lawRegistry: ground.lawRegistry,
+   489→          };
+   490→        }}
+   491→      />
+   492→
+   493→      {/* ورودی پرسش آزاد — فقط موبایل/تبلت؛ دسکتاپ: کارت سایدبار */}
+   494→      <div className="fixed inset-x-0 bottom-14 z-30 mx-auto max-w-7xl px-3 sm:px-6 lg:hidden">
+   495→        <form
+   496→          onSubmit={(e) => {
+   497→            e.preventDefault();
+   498→            if (!questionInput.trim()) return;
+   499→            handleAction("free", questionInput.trim());
+   500→            setQuestionInput("");
+   501→          }}
+   502→          className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur"
+   503→        >
+   504→          <input
+   505→            value={questionInput}
+   506→            onChange={(e) => setQuestionInput(e.target.value)}
+   507→            placeholder="سوالی از استاد داری؟ بپرس…"
+   508→            className="h-11 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/70"
+   509→            aria-label="سؤال آزاد از استاد"
+   510→          />
+   511→          <button type="submit" disabled={!!loadingFor} className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
+   512→            <Send className="h-4 w-4 -scale-x-100" />
+   513→          </button>
+   514→        </form>
+   515→      </div>
+   516→    </div>
+   517→  );
+   518→}
+   519→
+   520→/** پاسخ استاد: متن Markdown + خطوط 📜 (مستند قانونی) در باکس‌های جدا */
+   521→function AiAnswerRich({ text }: { text: string }) {
+   522→  const { prose, laws } = React.useMemo(() => {
+   523→    const lawLines: string[] = [];
+   524→    const proseLines: string[] = [];
+   525→    for (const ln of text.split("\n")) {
+   526→      const t = ln.trim();
+   527→      if (t.startsWith("📜")) lawLines.push(t.replace(/^📜\s*/, ""));
+   528→      else proseLines.push(ln);
+   529→    }
+   530→    return { prose: proseLines.join("\n").replace(/\n{3,}/g, "\n\n").trim(), laws: lawLines };
+   531→  }, [text]);
+   532→  return (
+   533→    <>
+   534→      {prose && (
+   535→        <div className="teach-body prose-p:leading-[1.9] text-[17px] [&_p]:my-1 [&_strong]:text-foreground">
+   536→          <ReactMarkdown>{prose}</ReactMarkdown>
+   537→        </div>
+   538→      )}
+   539→      {laws.length > 0 && (
+   540→        <div className="mt-3 space-y-2">
+   541→          <p className="text-[11px] font-bold text-muted-foreground">مستند قانونی پاسخ:</p>
+   542→          {laws.map((l, i) => (
+   543→            <p key={i} className="law-text flex gap-2 rounded-lg border-s-2 border-bronze/60 bg-background/70 px-3 py-2.5 text-[15.5px] leading-[1.9]">
+   544→              <Scale className="mt-1.5 h-3.5 w-3.5 shrink-0 text-bronze" />
+   545→              <span>{l}</span>
+   546→            </p>
+   547→          ))}
+   548→        </div>
+   549→      )}
+   550→    </>
+   551→  );
+   552→}
+   553→
+   554→function NoteBox({ onSave }: { onSave: (t: string) => void }) {
+   555→  const [v, setV] = React.useState("");
+   556→  return (
+   557→    <form onSubmit={(e) => { e.preventDefault(); if (!v.trim()) return; onSave(v.trim()); setV(""); }}>
+   558→      <textarea
+   559→        value={v}
+   560→        onChange={(e) => setV(e.target.value)}
+   561→        rows={2}
+   562→        placeholder="یک نکته برای خودت بنویس…"
+   563→        className="w-full resize-none rounded-lg border border-input bg-background p-2 text-xs outline-none focus:border-bronze"
+   564→      />
+   565→      <button type="submit" className="mt-1 inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+   566→        <Plus className="h-3 w-3" /> افزودن
+   567→      </button>
+   568→    </form>
+   569→  );
+   570→}
+   571→
