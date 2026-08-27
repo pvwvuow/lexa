@@ -129,7 +129,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
                   tabIndex={0}
                   onClick={() => navigate({ view: "post", id: p.id })}
                   onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
-                  className="group flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50"
+                  className="group flex cursor-pointer items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50"
                 >
                   <span aria-hidden className="grid h-9 w-9 shrink-0 rotate-45 place-items-center rounded-[9px] bg-primary/10">
                     <MessageCircle className="h-4 w-4 -rotate-45 text-bronze" />
@@ -199,7 +199,7 @@ function FollowButton({
   );
 }
 
-/* ─── کارت دورهٔ پروفایل با افزودن به کتابخانه ── */
+/* ─── کارت دورهٔ پروفایل — کلیک روی کارت = باز شدن دوره ── */
 function ProfileCourseCard({
   c, user, busyId, setBusyId, onErr, onChanged,
 }: {
@@ -234,11 +234,23 @@ function ProfileCourseCard({
   const isDraft = c._status === "draft";
 
   return (
-    <div className={`rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5 ${isDraft ? "border-dashed opacity-90" : ""}`}>
+    <div
+      role={isDraft ? undefined : "link"}
+      tabIndex={isDraft ? -1 : 0}
+      onClick={() => !isDraft && navigate({ view: "course", id: c.id })}
+      onKeyDown={(e) => {
+        if (!isDraft && e.key === "Enter") {
+          e.preventDefault();
+          navigate({ view: "course", id: c.id });
+        }
+      }}
+      title={!isDraft ? `باز کردن «${c.title}»` : undefined}
+      className={`group rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5 ${isDraft ? "border-dashed opacity-90" : "cursor-pointer"}`}
+    >
       <div className="mb-2.5 flex items-center gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-bronze/10 text-bronze"><CourseIcon icon={c.icon} /></span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-bold">{c.title}</p>
+          <p className={`truncate font-bold transition-colors ${!isDraft && "group-hover:text-bronze"}`}>{c.title}</p>
           <p className="truncate text-xs text-muted-foreground">{fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو</p>
         </div>
         {isDraft ? (
@@ -250,13 +262,13 @@ function ProfileCourseCard({
         ) : null}
       </div>
       {c.description && <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{c.description}</p>}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         {!!(c.rating as RatingInfo | undefined)?.count && (
           <StarRating value={c.rating!.avg} count={c.rating!.count} size={13} />
         )}
         {!isDraft && (
           <button
-            onClick={act}
+            onClick={(e) => { e.stopPropagation(); void act(); }}
             disabled={!user || busyId === c.id}
             className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors disabled:opacity-45 ${
               c.inLibrary ? "border border-success/50 bg-success/10 text-success" : "bg-bronze/15 text-bronze hover:bg-bronze/25"

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
-import { mergeAll } from "@/lib/books";
+import { mergeVisible } from "@/lib/books";
 import { useAuth } from "@/lib/auth-client";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
@@ -104,7 +104,12 @@ export function AppShell() {
   const progress = useApp((s) => s.progress);
   const customCourses = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
-  const courses = mergeAll({ customCourses, tBooks });
+  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
+  // دوره‌هایی که کاربر از «کتابخانهٔ من» برداشته، از همهٔ سطح‌های نمایشی کنار می‌روند
+  const courses = React.useMemo(
+    () => mergeVisible({ customCourses, tBooks, hiddenBuiltins }),
+    [customCourses, tBooks, hiddenBuiltins],
+  );
   const [mounted, setMounted] = React.useState(false);
 
   // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است

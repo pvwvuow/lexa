@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, X, CornerDownLeft, GraduationCap } from "lucide-react";
+import { Search, X, CornerDownLeft, GraduationCap, BookOpenText, Sparkles } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { flatLessons } from "@/lib/law/types";
@@ -68,21 +68,33 @@ function buildIndex(courses: Course[]) {
   return items;
 }
 
+/** پیشنهادهای پایهٔ حالت خالی */
+const QUICK_CHIPS = ["اهلیت", "موت فرضی", "ضمان قهری", "چک صیادی", "برات", "محاربه", "قصاص", "تعارض قوانین"];
+
 export function GlobalSearch({ courses }: { courses: Course[] }) {
   const [open, setOpen] = React.useState(false);
+  const [rawQ, setRawQ] = React.useState("");
+  // ورودی دیبانس می‌شود تا تایپ روان بماند
   const [q, setQ] = React.useState("");
   const [cursor, setCursor] = React.useState(0);
+  const [indexReady, setIndexReady] = React.useState(false);
+  const [teachersLoading, setTeachersLoading] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── اساتید (برای جستجوی اسم استاد) — یک‌بار در هر باز شدن؛ مهمان هم آزاد است ──
+  React.useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setQ(rawQ), 110);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [rawQ]);
+
+  // ── اساتید (برای جستجوی اسم استاد)؛ مهمان هم آزاد است ──
   const [teachers, setTeachers] = React.useState<
     { id: string; displayName: string; username: string; avatarUrl?: string | null; followers: number; posts: number; courses: number }[]
   >([]);
 
   const [index, setIndex] = React.useState<ReturnType<typeof buildIndex> | null>(null);
-  React.useEffect(() => {
-    setIndex(null);
-  }, [courses]);
 
   /* میانبرهای کیبورد: / یا Ctrl+K باز میکند؛ Esc میبندد */
   React.useEffect(() => {
@@ -99,26 +111,36 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // آماده‌سازی شاخص به صورت غیرمسدودکننده پس از باز شدن
   React.useEffect(() => {
-    if (open) {
-      setQ("");
-      setCursor(0);
-      setTimeout(() => inputRef.current?.focus(), 40);
-      if (!index) setIndex(buildIndex(courses));
-      // فهرست اساتید هم بی‌دردسر لود می‌شود — نتایج اسمی بالای جلسه‌ها می‌آیند
-      fetch("/api/social/suggestions")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d: { teachers?: typeof teachers } | null) => {
-          if (d?.teachers) setTeachers(d.teachers);
-        })
-        .catch(() => {});
-    }
+    if (!open) return;
+    setRawQ("");
+    setQ("");
+    setCursor(0);
+    setIndex(null);
+    setIndexReady(false);
+    setTimeout(() => inputRef.current?.focus(), 40);
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+      ?? ((cb: () => void) => window.setTimeout(cb, 120));
+    idle(() => {
+      setIndex(buildIndex(courses));
+      setIndexReady(true);
+    });
+    setTeachersLoading(true);
+    fetch("/api/social/suggestions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { teachers?: typeof teachers } | null) => {
+        if (d?.teachers) setTeachers(d.teachers);
+      })
+      .catch(() => {})
+      .finally(() => setTeachersLoading(false));
      
   }, [open]);
 
   const hits: Hit[] = React.useMemo(() => {
+    if (!indexReady || !index) return [];
     const tokens = q.trim().split(/\s+/).filter(Boolean).map(norm);
-    if (!index || tokens.length === 0) return [];
+    if (tokens.length === 0) return [];
     const out: Hit[] = [];
     for (const it of index) {
       let ok = true;
@@ -141,14 +163,14 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
         courseId: it.c.id, courseTitle: it.c.title, icon: it.c.icon,
         chapterTitle: it.ch, lessonId: it.l.id, lessonTitle: it.l.title,
         idx: it.flatIdx + 1, total: it.total,
-        score: sc, snippet: (start > 0 ? "…​" : "") + raw.trim() + (start + 130 < it.plain.length ? "…" : ""), at,
+        score: sc, snippet: (start > 0 ? "…" : "") + raw.trim() + (start + 130 < it.plain.length ? "…" : ""), at,
       });
     }
     out.sort((a, b) => b.score - a.score);
     return out.slice(0, 24);
-  }, [q, index]);
+  }, [q, index, indexReady]);
 
-  /** مطابقت اساتید با عبارت جستجو — تطابق نام نمایشی/یوزرنیم؛ محبوبیت به‌عنوان بیک سردسته */
+  /** مطابقت اساتید با عبارت — تطابق نام نمایشی/یوزرنیم؛ محبوبیت بیک سردسته */
   const teacherHits: TeacherHit[] = React.useMemo(() => {
     const tokens = q.trim().split(/\s+/).filter(Boolean).map(norm);
     if (tokens.length === 0 || teachers.length === 0) return [];
@@ -158,18 +180,14 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
       let ok = true;
       let sc = 0;
       for (const tk of tokens) {
-        if (nameHay.includes(tk)) sc += 4; // تطابق نام، قوی‌ترین سیگنال
+        if (nameHay.includes(tk)) sc += 4;
         else { ok = false; break; }
       }
       if (!ok) continue;
       out.push({
-        id: t.id,
-        displayName: t.displayName,
-        username: t.username,
-        avatarUrl: t.avatarUrl ?? null,
-        followers: t.followers,
-        postsCount: t.posts,
-        coursesCount: t.courses,
+        id: t.id, displayName: t.displayName, username: t.username,
+        avatarUrl: t.avatarUrl ?? null, followers: t.followers,
+        postsCount: t.posts, coursesCount: t.courses,
         score: sc + Math.min(t.followers, 12),
       });
     }
@@ -192,10 +210,16 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
   }
 
   function onKeyDownList(e: React.KeyboardEvent) {
-    if (e.key === "ArrowDown") { e.preventDefault(); setCursor((v) => Math.min(v + 1, flat.length - 1)); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setCursor((v) => Math.min(v + 1, Math.max(0, flat.length - 1))); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setCursor((v) => Math.max(v - 1, 0)); }
     else if (e.key === "Enter" && flat[cursor]) { e.preventDefault(); go(flat[cursor]); }
   }
+
+  // نشانگر صفحه‌کلید همیشه در دید باشد
+  React.useEffect(() => {
+    const el = listRef.current?.querySelector('[aria-selected="true"]');
+    el?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
 
   function hl(text: string): React.ReactNode[] {
     const tokens = q.trim().split(/\s+/).filter((t) => t.length >= 2);
@@ -203,12 +227,15 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
     const rx = new RegExp("(" + tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
     return text.split(rx).map((part, i) =>
       rx.test(part) ? (
-        <mark key={i} className="rounded-[4px] bg-bronze/20 px-0.5 text-bronze">{part}</mark>
+        <mark key={i} className="rounded-[4px] bg-bronze/20 px-0.5 font-bold text-bronze">{part}</mark>
       ) : (
         <React.Fragment key={i}>{part}</React.Fragment>
       ),
     );
   }
+
+  const busy = (!indexReady || rawQ !== q) && true;
+  const hasQuery = rawQ.trim().length > 0;
 
   return (
     <>
@@ -228,106 +255,165 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
           role="dialog"
           aria-modal="true"
           aria-label="جستجوی سراسری"
-          className="fixed inset-0 z-[60] flex items-start justify-center bg-background/70 p-4 pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-background/70 p-0 backdrop-blur-sm sm:items-start sm:p-4 sm:pt-[12vh]"
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+          <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-card sm:max-h-[70vh] sm:rounded-2xl">
             {/* ورودی */}
             <div className="flex items-center gap-2 border-b border-border/70 px-4">
               <Search className="h-4 w-4 shrink-0 text-bronze" />
               <input
                 ref={inputRef}
-                value={q}
-                onChange={(e) => { setQ(e.target.value); setCursor(0); }}
+                value={rawQ}
+                onChange={(e) => { setRawQ(e.target.value); setCursor(0); }}
                 onKeyDown={onKeyDownList}
-                placeholder="جلسه، ماده یا اسم استاد؛ مثلاً «دفاع مشروع» یا «سلیمانی»…"
+                placeholder="جلسه، ماده یا اسم استاد…"
                 className="h-14 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
               />
+              {(busy || teachersLoading) && hasQuery && (
+                <span aria-hidden className="h-4 w-4 shrink-0 animate-pulse rounded-full bg-bronze/30" />
+              )}
               <button onClick={() => setOpen(false)} aria-label="بستن" className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* نتایج — اول استادها، بعد جلسه‌ها */}
-            <div className="max-h-[52vh] overflow-y-auto p-1.5" dir="rtl">
-              {q.trim() === "" ? (
-                <p className="px-3 py-6 text-center text-xs leading-6 text-muted-foreground">
-                  همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — و با نوشتن نام استاد،
-                  پروفایلش را هم پیدا می‌کنی.<br />
-                  یک عبارت بنویس تا دقیقاً همان را پیدا کنی.
-                </p>
-              ) : flat.length === 0 ? (
-                <p className="px-3 py-6 text-center text-xs text-muted-foreground">چیزی پیدا نشد؛ با کلمهٔ دیگری امتحان کن.</p>
-              ) : (
-                <ul role="listbox" aria-label="نتیجه‌ها" className="space-y-0.5">
-                  {teacherHits.length > 0 && (
-                    <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-2 text-[10px] font-bold tracking-wide text-muted-foreground/80">
-                      <GraduationCap className="h-3.5 w-3.5 text-bronze" /> اساتید
-                    </li>
-                  )}
-                  {flat.map((item, i) =>
-                    item.kind === "teacher" ? (
-                      <li key={`t-${item.t.id}`}>
+            {/* بدنه */}
+            <div ref={listRef} dir="rtl" className="min-h-0 flex-1 overflow-y-auto p-1.5">
+              {/* حالت خالی: راهنما + پیشنهادها */}
+              {!hasQuery ? (
+                <div className="space-y-4 px-2 pb-3 pt-3">
+                  <p className="text-center text-xs leading-6 text-muted-foreground">
+                    همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام استاد، پروفایلش را هم پیدا می‌کنی.
+                  </p>
+                  <div className="space-y-2">
+                    <p className="flex items-center gap-1.5 text-[10.5px] font-bold tracking-wide text-muted-foreground/80">
+                      <Sparkles className="h-3.5 w-3.5 text-bronze" /> پیشنهاد شروع
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {QUICK_CHIPS.map((chip) => (
                         <button
-                          onMouseEnter={() => setCursor(i)}
-                          onClick={() => go(item)}
-                          aria-selected={i === cursor}
-                          role="option"
-                          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
-                            i === cursor ? "bg-primary/10" : "hover:bg-muted"
-                          }`}
+                          key={chip}
+                          onClick={() => { setRawQ(chip); setTimeout(() => inputRef.current?.focus(), 20); }}
+                          className="rounded-full border border-border bg-background px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-bronze/50 hover:text-bronze"
                         >
-                          <UserAvatar src={item.t.avatarUrl} name={item.t.displayName} size="sm" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] font-bold text-foreground">{hl(item.t.displayName)}</span>
-                            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                              @{hl(item.t.username)} · {fa(item.t.followers)} دنبال‌کننده · {fa(item.t.postsCount)} مطلب{item.t.coursesCount > 0 ? ` · ${fa(item.t.coursesCount)} دوره` : ""}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-[10px] font-semibold text-bronze">پروفایل ←</span>
-                          {i === cursor && <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                          {chip}
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                  {teachers.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="flex items-center gap-1.5 text-[10.5px] font-bold tracking-wide text-muted-foreground/80">
+                        <GraduationCap className="h-3.5 w-3.5 text-bronze" /> اساتیدی که سریع پیدایشان می‌کنی
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {teachers.slice(0, 5).map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => { setOpen(false); navigate({ view: "teacher", id: t.id }); }}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background py-1 pe-3 ps-1 text-[11px] font-semibold transition-colors hover:border-bronze/50"
+                          >
+                            <UserAvatar src={t.avatarUrl} name={t.displayName} size="xs" />
+                            {t.displayName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : busy ? (
+                <div className="space-y-1.5 p-1">
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} className="block animate-pulse rounded-xl bg-muted/80 p-3">
+                      <span className="mb-1.5 block h-3 w-2/5 rounded bg-border" />
+                      <span className="block h-2.5 w-4/5 rounded bg-muted" />
+                    </span>
+                  ))}
+                </div>
+              ) : flat.length === 0 ? (
+                <p className="px-3 py-8 text-center text-xs leading-6 text-muted-foreground">
+                  چیزی پیدا نشد؛ با کلمهٔ دیگری امتحان کن.
+                  <br />
+                  <span className="text-[11px] opacity-80">نام ماده (مثلاً «ماده ۲۲۰») یا کلیدواژهٔ بحث را امتحان کن.</span>
+                </p>
+              ) : (
+                <>
+                  {/* نوار نتیجه */}
+                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-card/95 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground backdrop-blur-sm">
+                    <span>{fa(teacherHits.length)} استاد · {fa(hits.length)} جلسه</span>
+                    <span dir="ltr" className="hidden font-display tabular-nums opacity-70 sm:inline">Esc</span>
+                  </div>
+                  <ul role="listbox" aria-label="نتیجه‌ها" className="space-y-0.5">
+                    {teacherHits.length > 0 && (
+                      <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-1 text-[10px] font-bold tracking-wide text-muted-foreground/80">
+                        <GraduationCap className="h-3.5 w-3.5 text-bronze" /> اساتید
                       </li>
-                    ) : (
-                      <React.Fragment key={item.h.lessonId}>
-                        {i === teacherHits.length && teacherHits.length > 0 && (
-                          <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-2 text-[10px] font-bold tracking-wide text-muted-foreground/80">
-                            <Search className="h-3.5 w-3.5 text-bronze" /> جلسه‌ها
-                          </li>
-                        )}
-                        <li>
+                    )}
+                    {flat.map((item, i) =>
+                      item.kind === "teacher" ? (
+                        <li key={`t-${item.t.id}`}>
                           <button
                             onMouseEnter={() => setCursor(i)}
                             onClick={() => go(item)}
                             aria-selected={i === cursor}
                             role="option"
-                            className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
-                              i === cursor ? "bg-primary/10" : "hover:bg-muted"
+                            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
+                              i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
                             }`}
                           >
-                            <CourseIcon icon={item.h.icon} className="mt-0.5 h-4 w-4 shrink-0 text-bronze" />
+                            <UserAvatar src={item.t.avatarUrl} name={item.t.displayName} size="sm" />
                             <span className="min-w-0 flex-1">
-                              <span className="flex items-baseline gap-2">
-                                <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-foreground">{hl(item.h.lessonTitle)}</span>
-                                <span dir="ltr" className="shrink-0 font-display text-[10px] tabular-nums text-muted-foreground">{fa(item.h.idx)}/{fa(item.h.total)}</span>
+                              <span className="block truncate text-[13px] font-bold text-foreground">{hl(item.t.displayName)}</span>
+                              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                                @{hl(item.t.username)} · {fa(item.t.followers)} دنبال‌کننده · {fa(item.t.postsCount)} مطلب{item.t.coursesCount > 0 ? ` · ${fa(item.t.coursesCount)} دوره` : ""}
                               </span>
-                              <span className="mt-0.5 block truncate text-[11px] text-bronze">{item.h.courseTitle} · {item.h.chapterTitle}</span>
-                              <span className="mt-1 block line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">{hl(item.h.snippet)}</span>
                             </span>
-                            {i === cursor && <CornerDownLeft className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                            <span className="shrink-0 rounded-full bg-bronze/10 px-2 py-0.5 text-[10px] font-bold text-bronze">استاد</span>
+                            <CornerDownLeft className={`h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
                           </button>
                         </li>
-                      </React.Fragment>
-                    ),
-                  )}
-                </ul>
+                      ) : (
+                        <React.Fragment key={item.h.lessonId}>
+                          {i === teacherHits.length && teacherHits.length > 0 && (
+                            <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-2 text-[10px] font-bold tracking-wide text-muted-foreground/80">
+                              <BookOpenText className="h-3.5 w-3.5 text-bronze" /> جلسه‌ها
+                            </li>
+                          )}
+                          <li>
+                            <button
+                              onMouseEnter={() => setCursor(i)}
+                              onClick={() => go(item)}
+                              aria-selected={i === cursor}
+                              role="option"
+                              className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
+                                i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
+                              }`}
+                            >
+                              <CourseIcon icon={item.h.icon} className="mt-0.5 h-4 w-4 shrink-0 text-bronze" />
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-baseline gap-2">
+                                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-foreground">{hl(item.h.lessonTitle)}</span>
+                                  <span dir="ltr" className="shrink-0 font-display text-[10px] tabular-nums text-muted-foreground">{fa(item.h.idx)}/{fa(item.h.total)}</span>
+                                </span>
+                                <span className="mt-0.5 block truncate text-[11px] text-bronze">{item.h.courseTitle} · {item.h.chapterTitle}</span>
+                                <span className="mt-1 block line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">{hl(item.h.snippet)}</span>
+                              </span>
+                              <CornerDownLeft className={`mt-1 h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
+                            </button>
+                          </li>
+                        </React.Fragment>
+                      ),
+                    )}
+                  </ul>
+                </>
               )}
             </div>
 
             {/* پانویس */}
             <div className="flex items-center justify-between border-t border-border/70 px-4 py-2 text-[10.5px] text-muted-foreground">
               <span>بالا/پایین برای حرکت · Enter برای رفتن</span>
-              <span dir="ltr" className="font-display tabular-nums">Esc</span>
+              <span className="hidden md:inline">کلاً {fa(indexReady ? courses.reduce((n, c) => n + c.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) : 0)} جلسه ایندکس شده</span>
             </div>
           </div>
         </div>

@@ -4,13 +4,23 @@ import * as React from "react";
 import {
   Scale, BookOpen, HelpCircle, Lightbulb, ListChecks, GitCompareArrows,
   GraduationCap, Quote, FileText, Sparkles, BookOpenCheck, Handshake,
-  AlertTriangle, Zap, Info, Compass,
-} from "lucide-react";
+  AlertTriangle, Zap, Info, Compass, Gavel, Globe } from "lucide-react";
 import type { SectionType, LawRef, LessonSection } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
 
 export function CourseIcon({ icon, className }: { icon?: string; className?: string }) {
-  const Ico = icon === "FileText" ? FileText : icon === "BookOpenCheck" ? BookOpenCheck : icon === "Handshake" ? Handshake : Scale;
+  const Ico =
+    icon === "FileText"
+      ? FileText
+      : icon === "BookOpenCheck"
+        ? BookOpenCheck
+        : icon === "Handshake"
+          ? Handshake
+          : icon === "Gavel"
+            ? Gavel
+            : icon === "Globe"
+              ? Globe
+              : Scale;
   return <Ico className={className ?? "h-5 w-5"} />;
 }
 
@@ -125,7 +135,10 @@ export function AIThinking({ label = "در حال تحلیل ماده قانون
  */
 export function Donut({
   value, size = 92, stroke = 9, label, flat,
-}: { value: number; size?: number; stroke?: number; label?: string; flat?: boolean }) {
+  /** برای سطوح تیره (مثل هیرو) — رنگ متن درصد و برچسب */
+  toneClass = "fill-foreground",
+  labelToneClass = "fill-muted-foreground",
+}: { value: number; size?: number; stroke?: number; label?: string; flat?: boolean; toneClass?: string; labelToneClass?: string }) {
   const id = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const r = (size - stroke - 8) / 2;
   const c = 2 * Math.PI * r;
@@ -167,11 +180,11 @@ export function Donut({
         style={{ transition: "stroke-dasharray .7s cubic-bezier(.4,0,.2,1)" }}
       />
 
-      <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-display text-lg font-bold">
+      <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" className={toneClass + " font-display text-lg font-bold"}>
         {fa(v)}٪
       </text>
       {label && (
-        <text x="50%" y="67%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">
+        <text x="50%" y="67%" textAnchor="middle" dominantBaseline="middle" className={labelToneClass + " text-[10px]"}>
           {label}
         </text>
       )}
@@ -772,7 +785,7 @@ export function StarRating({
   disabled?: boolean;
   size?: number;
 }) {
-  const [hover, setHover] = React.useState(0);
+    const [hover, setHover] = React.useState(0);
   const interactive = !disabled && !!onChange;
   const shown = hover || Math.round(value);
 

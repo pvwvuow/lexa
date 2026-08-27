@@ -12,7 +12,7 @@ import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson, Chapter } from "@/lib/law/types";
 import { flattenAll } from "@/lib/law/types";
 import { useApp, weakTopics } from "@/lib/store";
-import { mergeAll } from "@/lib/books";
+import { mergeVisible } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
@@ -39,12 +39,16 @@ function mergeWeakTopics(adds: string[]) {
 export function QuizView({ id }: { id?: string }) {
   const custom = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
+  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
   const recordQuiz = useApp((s) => s.recordQuiz);
   const complete = useApp((s) => s.completeLesson);
   const touchStreak = useApp((s) => s.touchStreak);
 
   // منبع سؤالات — کل کتابخانه (داخلی + وارداتی)
-  const all: Course[] = React.useMemo(() => mergeAll({ customCourses: custom, tBooks }), [custom, tBooks]);
+  const all: Course[] = React.useMemo(
+    () => mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins }),
+    [custom, tBooks, hiddenBuiltins],
+  );
 
   const ctx = React.useMemo(() => {
     if (!id) return null;
