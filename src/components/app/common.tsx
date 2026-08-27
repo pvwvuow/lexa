@@ -3,13 +3,13 @@
 import * as React from "react";
 import {
   Scale, BookOpen, HelpCircle, Lightbulb, ListChecks, GitCompareArrows,
-  GraduationCap, Quote, FileText, Sparkles, BookOpenCheck,
+  GraduationCap, Quote, FileText, Sparkles, BookOpenCheck, Handshake,
 } from "lucide-react";
 import type { SectionType, LawRef } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
 
 export function CourseIcon({ icon, className }: { icon?: string; className?: string }) {
-  const Ico = icon === "FileText" ? FileText : icon === "BookOpenCheck" ? BookOpenCheck : Scale;
+  const Ico = icon === "FileText" ? FileText : icon === "BookOpenCheck" ? BookOpenCheck : icon === "Handshake" ? Handshake : Scale;
   return <Ico className={className ?? "h-5 w-5"} />;
 }
 

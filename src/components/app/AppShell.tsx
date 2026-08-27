@@ -21,6 +21,7 @@ import { ProgressView } from "./ProgressView";
 import { SettingsView } from "./SettingsView";
 import { ImportView } from "./ImportView";
 import { CourseIcon } from "./common";
+import { GlobalSearch } from "./GlobalSearch";
 
 type NavMode = "expanded" | "rail";
 
@@ -272,6 +273,7 @@ export function AppShell() {
             </button>
 
             <div className="flex items-center gap-1.5 ms-auto">
+              <GlobalSearch courses={courses} />
               <ThemeToggle />
               <button
                 onClick={() => go({ view: "settings" })}
