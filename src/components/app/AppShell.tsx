@@ -3,10 +3,11 @@
 import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
-  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle,
+  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
+import { useAuth } from "@/lib/auth-client";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
 import { fa, pct } from "@/lib/fa";
@@ -22,6 +23,8 @@ import { SettingsView } from "./SettingsView";
 import { ImportView } from "./ImportView";
 import { CourseIcon } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
+import { AccountArea, SyncHint } from "./AccountArea";
+import { AdminView } from "./AdminView";
 
 type NavMode = "expanded" | "rail";
 
@@ -89,6 +92,7 @@ function lessonPctOf(course: Course, progress: Record<string, { status?: string 
 
 export function AppShell() {
   const route = useRoute();
+  const auth = useAuth();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
   const customCourses = useApp((s) => s.customCourses);
@@ -107,7 +111,7 @@ export function AppShell() {
     } catch {}
   }, []);
 
-  const isSubPage = ["learn", "quiz", "case"].includes(route.view);
+  const isSubPage = ["learn", "quiz", "case", "admin"].includes(route.view) || route.view === "cards";
 
   // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
   React.useEffect(() => {
@@ -225,10 +229,20 @@ export function AppShell() {
         <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
+        {auth.user?.role === "admin" && (
+          <SideItem
+            icon={ShieldCheck}
+            label="پنل مدیریت"
+            rail={rail}
+            active={current === "admin"}
+            onClick={() => go({ view: "admin" })}
+          />
+        )}
       </nav>
 
       {/* یک دکمه واحد: جمع کردن / باز کردن */}
       <div className="border-t border-border/70 p-3">
+        <SyncHint />
         {rail ? (
           <button
             onClick={expandNav}
@@ -274,6 +288,7 @@ export function AppShell() {
 
             <div className="flex items-center gap-1.5 ms-auto">
               <GlobalSearch courses={courses} />
+              <AccountArea />
               <ThemeToggle />
               <button
                 onClick={() => go({ view: "settings" })}
@@ -298,6 +313,7 @@ export function AppShell() {
           {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && <ImportView />}
+          {route.view === "admin" && <AdminView />}
         </main>
 
         {/* فوتر دسکتاپ */}
