@@ -29,6 +29,35 @@ function safeCategory(v: unknown): string {
   return CATEGORY_SLUGS.includes(s) ? s : "other";
 }
 
+/** شاخه‌های چندگانه — آرایهٔ ورودی را پالایش و تکراری‌زدایی می‌کند (حداکثر ۴ شاخه) */
+function safeCategories(v: unknown): string[] {
+  const raw = Array.isArray(v) ? v : typeof v === "string" ? (() => { try { return JSON.parse(v); } catch { return []; } })() : [];
+  const out: string[] = [];
+  for (const item of raw) {
+    const s = typeof item === "string" ? item.trim() : "";
+    if (!CATEGORY_SLUGS.includes(s)) continue;
+    if (!out.includes(s)) out.push(s);
+    if (out.length >= 4) break;
+  }
+  return out.length ? out : ["other"];
+}
+
+/** خواندن شاخه‌های چندگانه از ردیف دیتابیس — با سازگاری ستون قدیمی category */
+export function parseCategories(categoriesJson: string | undefined | null, legacy: string | undefined | null): string[] {
+  try {
+    const parsed = categoriesJson ? JSON.parse(categoriesJson) : [];
+    if (Array.isArray(parsed) && parsed.length) return safeCategories(parsed);
+  } catch {}
+  return [safeCategory(legacy)];
+}
+
+/** آیا یک آیتم در شاخهٔ خواسته‌شده می‌آید؟ (سازگار با ستون قدیمی) */
+export function inCategory(cats: string[], legacy: string | null | undefined, cat: string): boolean {
+  if (!cat) return true;
+  if (cats.includes(cat)) return true;
+  return cat === "other" ? safeCategory(legacy) === "other" : legacy === cat;
+}
+
 /** حداکثرهای امن برای بلوک‌های مطلب/دوره */
 const LIMITS = {
   postsBlocks: 80,
@@ -134,10 +163,10 @@ export function teacherCourseToCourse(
   row: {
     id: string; title: string; tagline: string; description: string;
     icon: string; accent: string; chaptersJson: string;
-    category?: string; status?: string;
+    category?: string; categories?: string; status?: string;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _status?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -153,8 +182,9 @@ export function teacherCourseToCourse(
     _ownerUsername: teacher.username,
     _ownerAvatar: teacher.avatarUrl ?? null,
     _category: safeCategory(row.category),
+    _categories: parseCategories(row.categories, row.category),
     _status: row.status === "draft" || row.status === "prep" ? row.status : "published",
   };
 }
 
-export { LIMITS, safeCategory };
+export { LIMITS, safeCategory, safeCategories };

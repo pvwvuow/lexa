@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Search, X, CornerDownLeft, GraduationCap, BookOpenText, Sparkles } from "lucide-react";
+import { Search, X, CornerDownLeft, GraduationCap, BookOpenText, Landmark } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { flatLessons } from "@/lib/law/types";
 import type { Course } from "@/lib/law/types";
+import { LAW_CODES, allLawArticles, type LawCode } from "@/lib/law/statutes";
 import { CourseIcon, UserAvatar } from "./common";
 
 /* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
@@ -68,8 +69,32 @@ function buildIndex(courses: Course[]) {
   return items;
 }
 
-/** پیشنهادهای پایهٔ حالت خالی */
-const QUICK_CHIPS = ["اهلیت", "موت فرضی", "ضمان قهری", "چک صیادی", "برات", "محاربه", "قصاص", "تعارض قوانین"];
+/** نتیجهٔ مادهٔ قانونی از کتابخانهٔ قوانین */
+interface LawHit {
+  lawId: string;
+  lawTitle: string;
+  icon: string;
+  book: string;
+  chapter: string;
+  no: string;
+  text: string;
+  score: number;
+  snippet: string;
+}
+
+/** شاخص سبک قوانین — یک‌بار ساخته می‌شود و همیشه در حافظه می‌ماند */
+interface LawIndexItem { law: LawCode; no: string; text: string; book: string; chapter: string; hay: string; plain: string }
+let LAW_INDEX: LawIndexItem[] | null = null;
+function buildLawIndex(): LawIndexItem[] {
+  if (LAW_INDEX) return LAW_INDEX;
+  const items: LawIndexItem[] = [];
+  for (const { law, article, book, chapter } of allLawArticles()) {
+    const plain = `${article.text}`.replace(/\s+/g, " ");
+    items.push({ law, no: article.no, text: article.text, book, chapter, hay: norm(`${law.title} ماده ${article.no} ${plain}`), plain });
+  }
+  LAW_INDEX = items;
+  return items;
+}
 
 export function GlobalSearch({ courses }: { courses: Course[] }) {
   const [open, setOpen] = React.useState(false);
@@ -95,6 +120,7 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
   >([]);
 
   const [index, setIndex] = React.useState<ReturnType<typeof buildIndex> | null>(null);
+  const [lawIndex, setLawIndex] = React.useState<ReturnType<typeof buildLawIndex> | null>(null);
 
   /* میانبرهای کیبورد: / یا Ctrl+K باز میکند؛ Esc میبندد */
   React.useEffect(() => {
@@ -124,6 +150,7 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
       ?? ((cb: () => void) => window.setTimeout(cb, 120));
     idle(() => {
       setIndex(buildIndex(courses));
+      setLawIndex(buildLawIndex());
       setIndexReady(true);
     });
     setTeachersLoading(true);
@@ -194,18 +221,50 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
     return out.sort((a, b) => b.score - a.score).slice(0, 6);
   }, [q, teachers]);
 
-  type FlatHit = { kind: "teacher"; t: TeacherHit } | { kind: "lesson"; h: Hit };
+  /** مطابقت مواد قوانین با عبارت — از کتابخانهٔ قوانین */
+  const lawHits: LawHit[] = React.useMemo(() => {
+    const tokens = q.trim().split(/\s+/).filter(Boolean).map(norm);
+    if (tokens.length === 0 || !lawIndex) return [];
+    const out: LawHit[] = [];
+    for (const it of lawIndex) {
+      let ok = true;
+      let sc = 0;
+      for (const tk of tokens) {
+        const i = it.hay.indexOf(tk);
+        if (i === -1) { ok = false; break; }
+        sc += 1 + Math.min((it.hay.split(tk).length - 1), 4);
+      }
+      if (!ok) continue;
+      // تطبیق شمارهٔ ماده وزن بالا دارد (مثل «۲۲۰» یا «ماده ۲۲۰»)
+      if (norm(`ماده ${it.no}`).includes(tokens.join(" "))) sc += 6;
+      const firstTok = tokens[0];
+      let at = it.hay.indexOf(firstTok);
+      if (at > it.plain.length) at = 0;
+      const start = Math.max(0, at - 42);
+      const raw = it.plain.slice(start, start + 150);
+      out.push({
+        lawId: it.law.id, lawTitle: it.law.title, icon: it.law.icon,
+        book: it.book, chapter: it.chapter, no: it.no, text: it.text,
+        score: sc, snippet: (start > 0 ? "…" : "") + raw.trim() + (start + 150 < it.plain.length ? "…" : ""),
+      });
+    }
+    return out.sort((a, b) => b.score - a.score).slice(0, 8);
+  }, [q, lawIndex]);
+
+  type FlatHit = { kind: "teacher"; t: TeacherHit } | { kind: "law"; h: LawHit } | { kind: "lesson"; h: Hit };
   const flat: FlatHit[] = React.useMemo(
     () => [
       ...teacherHits.map((t) => ({ kind: "teacher" as const, t })),
+      ...lawHits.map((h) => ({ kind: "law" as const, h })),
       ...hits.map((h) => ({ kind: "lesson" as const, h })),
     ],
-    [teacherHits, hits],
+    [teacherHits, lawHits, hits],
   );
 
   function go(item: FlatHit) {
     setOpen(false);
     if (item.kind === "teacher") navigate({ view: "teacher", id: item.t.id });
+    else if (item.kind === "law") navigate({ view: "law", id: item.h.lawId });
     else navigate({ view: "learn", id: item.h.lessonId });
   }
 
@@ -260,7 +319,7 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
         >
           <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-card sm:max-h-[70vh] sm:rounded-2xl">
             {/* ورودی */}
-            <div className="flex items-center gap-2 border-b border-border/70 px-4">
+            <div className="flex items-center gap-2 border-b border-border/70 px-4 transition-colors focus-within:border-bronze/50">
               <Search className="h-4 w-4 shrink-0 text-bronze" />
               <input
                 ref={inputRef}
@@ -280,28 +339,12 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
 
             {/* بدنه */}
             <div ref={listRef} dir="rtl" className="min-h-0 flex-1 overflow-y-auto p-1.5">
-              {/* حالت خالی: راهنما + پیشنهادها */}
+              {/* حالت خالی: راهنما + دسترسی سریع به اساتید (چیپ‌های «پیشنهاد شروع» به درخواست کاربر حذف شد) */}
               {!hasQuery ? (
                 <div className="space-y-4 px-2 pb-3 pt-3">
                   <p className="text-center text-xs leading-6 text-muted-foreground">
                     همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام استاد، پروفایلش را هم پیدا می‌کنی.
                   </p>
-                  <div className="space-y-2">
-                    <p className="flex items-center gap-1.5 text-[10.5px] font-bold tracking-wide text-muted-foreground/80">
-                      <Sparkles className="h-3.5 w-3.5 text-bronze" /> پیشنهاد شروع
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {QUICK_CHIPS.map((chip) => (
-                        <button
-                          key={chip}
-                          onClick={() => { setRawQ(chip); setTimeout(() => inputRef.current?.focus(), 20); }}
-                          className="rounded-full border border-border bg-background px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-bronze/50 hover:text-bronze"
-                        >
-                          {chip}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   {teachers.length > 0 && (
                     <div className="space-y-2">
                       <p className="flex items-center gap-1.5 text-[10.5px] font-bold tracking-wide text-muted-foreground/80">
@@ -341,7 +384,7 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
                 <>
                   {/* نوار نتیجه */}
                   <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-card/95 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground backdrop-blur-sm">
-                    <span>{fa(teacherHits.length)} استاد · {fa(hits.length)} جلسه</span>
+                    <span>{fa(teacherHits.length)} استاد · {fa(lawHits.length)} ماده · {fa(hits.length)} جلسه</span>
                     <span dir="ltr" className="hidden font-display tabular-nums opacity-70 sm:inline">Esc</span>
                   </div>
                   <ul role="listbox" aria-label="نتیجه‌ها" className="space-y-0.5">
@@ -373,9 +416,34 @@ export function GlobalSearch({ courses }: { courses: Course[] }) {
                             <CornerDownLeft className={`h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
                           </button>
                         </li>
+                      ) : item.kind === "law" ? (
+                        <li key={`law-${item.h.lawId}-${item.h.no}`}>
+                          <button
+                            onMouseEnter={() => setCursor(i)}
+                            onClick={() => go(item)}
+                            aria-selected={i === cursor}
+                            role="option"
+                            className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
+                              i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
+                            }`}
+                          >
+                            <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-bronze" />
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline gap-2">
+                                <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-foreground">
+                                  مادهٔ {item.h.no} {hl(item.h.lawTitle)}
+                                </span>
+                                <span className="shrink-0 rounded-full bg-bronze/10 px-2 py-0.5 text-[10px] font-bold text-bronze">قانون</span>
+                              </span>
+                              <span className="mt-0.5 block truncate text-[11px] text-bronze">{item.h.book} · {item.h.chapter}</span>
+                              <span className="mt-1 block line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">{hl(item.h.snippet)}</span>
+                            </span>
+                            <CornerDownLeft className={`mt-1 h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
+                          </button>
+                        </li>
                       ) : (
                         <React.Fragment key={item.h.lessonId}>
-                          {i === teacherHits.length && teacherHits.length > 0 && (
+                          {i === teacherHits.length + lawHits.length && teacherHits.length + lawHits.length > 0 && (
                             <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-2 text-[10px] font-bold tracking-wide text-muted-foreground/80">
                               <BookOpenText className="h-3.5 w-3.5 text-bronze" /> جلسه‌ها
                             </li>

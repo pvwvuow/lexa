@@ -6,6 +6,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest) {
       { error: "آپلود آواتار ویژهٔ اساتید است؛ آواتار شما با حرف اول نام ساخته می‌شود." },
       { status: 403 },
     );
+  if (!rateLimit(req, `avatar:${me.id}`, 6, 10 * 60_000))
+    return NextResponse.json({ error: "تغییر آواتار زیاد بود؛ کمی بعد تلاش کنید." }, { status: 429 });
 
   let form: FormData;
   try {

@@ -4,11 +4,11 @@
 import * as React from "react";
 import {
   LibraryBig, BookPlus, BookCheck, Loader2, GraduationCap, Star,
-  MessageCircle, Clock3, LogIn, Users, Layers3, Trash2, Sparkles,
+  MessageCircle, Clock3, LogIn, Users, Layers3, Trash2, Sparkles, Landmark,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
-import { CATEGORIES } from "@/lib/social-shared";
+import { CATEGORIES, categoryLabel } from "@/lib/social-shared";
 import { useApp } from "@/lib/store";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
@@ -82,6 +82,13 @@ function CourseCardLib({
           <p className="truncate font-bold">{c.title}</p>
           <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>
           {isPrep && <p className="mt-1"><PrepBadge /></p>}
+          {(c._categories?.length ?? 0) > 0 && (
+            <p className="mt-1.5 flex flex-wrap gap-1">
+              {c._categories!.map((s) => (
+                <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-[9.5px] font-bold text-muted-foreground">{categoryLabel(s)}</span>
+              ))}
+            </p>
+          )}
         </div>
       </div>
 
@@ -170,6 +177,13 @@ function PostTeaser({ p }: { p: FeedPost }) {
       </div>
       <p className="line-clamp-1 font-display text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
       {p.summary && <p className="line-clamp-2 mt-1 text-xs leading-relaxed text-muted-foreground">{p.summary}</p>}
+      {(p.categories?.length ?? 0) > 0 && (
+        <p className="mt-2 flex flex-wrap gap-1">
+          {p.categories!.map((s) => (
+            <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-[9.5px] font-bold text-muted-foreground">{categoryLabel(s)}</span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }
@@ -302,7 +316,7 @@ export function PublicLibraryView() {
         </p>
       </header>
 
-      {/* تب‌های شاخه — «دوره‌های آماده» همیشه اول */}
+      {/* تب‌های شاخه — «دوره‌های آماده» همیشه اول؛ «قوانین» به کتابخانهٔ جداگانه می‌رود */}
       <nav aria-label="شاخه‌های کتابخانه" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
         {[{ slug: "builtin", label: "دوره‌های آماده" }, { slug: "", label: "همه" }, ...CATEGORIES].map((c) => (
           <button
@@ -318,6 +332,12 @@ export function PublicLibraryView() {
             {c.label}
           </button>
         ))}
+        <button
+          onClick={() => navigate({ view: "law" })}
+          className="ms-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border border-bronze/50 bg-bronze/10 px-4 py-2 text-xs font-bold text-bronze shadow-card transition-colors hover:bg-bronze/20"
+        >
+          <Landmark className="h-3.5 w-3.5" /> کتابخانهٔ قوانین ←
+        </button>
       </nav>
 
       {err && <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{err}</p>}

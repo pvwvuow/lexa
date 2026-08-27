@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { FEEDBACK_SYSTEM, lessonContextBlock } from "@/lib/ai/prompts";
 import { dispatch, extractJson, PERSIAN_FAIL, type AiConf } from "@/lib/ai/providers";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -18,6 +19,8 @@ interface Body {
 
 /** یک نوبت گفت‌وگوی بازخورد: پاسخ استاد + برآورد زندهٔ درصد تطابق با جزوه */
 export async function POST(req: Request) {
+  if (!rateLimit(req, "fbchat", 20, 60_000))
+    return NextResponse.json({ error: "درخواست‌ها زیاد است؛ چند لحظه صبر کنید." }, { status: 429 });
   let body: Body;
   try {
     body = (await req.json()) as Body;

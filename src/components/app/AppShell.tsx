@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig,
+  LibraryBig, Landmark, Menu, ScrollText,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
@@ -32,6 +32,9 @@ import { StudioView } from "./StudioView";
 import { PostView } from "./PostView";
 import { PublicLibraryView } from "./PublicLibraryView";
 import { TeacherProfileView } from "./TeacherProfileView";
+import { LawLibraryView } from "./LawLibraryView";
+import { BackButton } from "./common";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type NavMode = "expanded" | "rail";
 
@@ -116,6 +119,9 @@ export function AppShell() {
   const [mode, setMode] = React.useState<NavMode>("expanded");
   // درخواست کاربر: کلیک روی «مطالعه» فهرست کشویی درس‌ها را باز می‌کند
   const [studyOpen, setStudyOpen] = React.useState(false);
+  // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [drawerStudy, setDrawerStudy] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
@@ -177,7 +183,19 @@ export function AppShell() {
   const rail = mode === "rail";
 
   function go(r: Route) {
+    setDrawerOpen(false);
+    setDrawerStudy(false);
     navigate(r);
+  }
+
+  /** دکمهٔ «تدریس» داک موبایل: اگر جلسه‌ای جاری بود برو همان؛ والا فهرست درس‌های فعال باز شود */
+  function dockTadriss() {
+    if (last.lessonId) {
+      go({ view: "learn", id: last.lessonId });
+    } else {
+      setDrawerStudy(true);
+      setDrawerOpen(true);
+    }
   }
 
   // ─── سایدبار ستونی سمت راست (دسکتاپ) ───
@@ -243,6 +261,8 @@ export function AppShell() {
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+        {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
+        <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
         <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
         {/* افزودن کتاب فقط برای مدیر */}
@@ -310,6 +330,15 @@ export function AppShell() {
             </button>
 
             <div className="flex items-center gap-1.5 ms-auto">
+              {/* همبرگر موبایل — باز کردن منوی کشویی کامل */}
+              <button
+                onClick={() => setDrawerOpen(true)}
+                aria-label="باز کردن منو"
+                title="منو"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:text-bronze lg:hidden"
+              >
+                <Menu className="h-[18px] w-[18px]" />
+              </button>
               <GlobalSearch courses={courses} />
               <AccountArea />
               <ThemeToggle />
@@ -327,7 +356,13 @@ export function AppShell() {
 
         {/* محتوا */}
         <main className="flex-1">
-          {route.view === "home" && <DashboardView />}
+          {/* نوار بازگشت — در همهٔ زیرصفحه‌ها یکدست */}
+        {current !== "home" && (
+          <div className="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-6">
+            <BackButton />
+          </div>
+        )}
+        {route.view === "home" && <DashboardView />}
           {route.view === "course" && <CourseView id={route.id} />}
           {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
           {route.view === "quiz" && <QuizView key={route.id ?? "mixed"} id={route.id} />}
@@ -340,6 +375,7 @@ export function AppShell() {
           {route.view === "studio" && <StudioView />}
           {route.view === "post" && <PostView id={route.id} />}
           {route.view === "library" && <PublicLibraryView />}
+          {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && <TeacherProfileView id={route.id} />}
           {route.view === "admin" && <AdminView />}
         </main>
@@ -349,15 +385,82 @@ export function AppShell() {
           همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
-        {/* داک شناور موبایل */}
+        {/* داک شناور موبایل — با دکمهٔ «منو» برای دسترسی کامل به همهٔ بخش‌ها */}
         <nav aria-label="ناوبری پایین" className="fixed inset-x-3 bottom-2 z-40 rounded-2xl border border-border/80 bg-card/95 shadow-card backdrop-blur-md lg:hidden pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto grid max-w-md grid-cols-4 p-1">
+          <div className="mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
-            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={() => go(last.lessonId ? { view: "learn", id: last.lessonId } : { view: "course", id: "madani-1" })} />
+            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />
             <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
-            <DockBtn icon={TrendingUp} label="پیشرفت" active={current === "progress"} onClick={() => go({ view: "progress" })} />
+            <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
+            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
           </div>
         </nav>
+
+        {/* ═══ منوی کشویی موبایل — کامل معادل سایدبار دسکتاپ ═══ */}
+        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <SheetContent side="right" className="flex w-[290px] flex-col gap-0 overflow-y-auto p-4 sm:w-[320px]">
+            <SheetHeader className="p-0 pb-3 text-start">
+              <SheetTitle className="flex items-center gap-2.5 text-base">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
+                منوی همیار حقوق
+              </SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-1">
+              <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
+              <SideItem
+                icon={BookOpen}
+                label="مطالعه"
+                rail={false}
+                active={["course", "learn", "case", "cards"].includes(current)}
+                onClick={() => setDrawerStudy((v) => !v)}
+                chevron
+                open={drawerStudy}
+              />
+              {drawerStudy && (
+                <div className="mb-1 space-y-1 border-s border-dashed border-border ps-2.5 pe-1 py-1">
+                  <p className="px-2 pb-0.5 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
+                  {courses.length === 0 ? (
+                    <p className="px-2 text-[11px] leading-relaxed text-muted-foreground/70">هنوز درسی فعال نیست؛ از کتابخانهٔ عمومی یکی را انتخاب کن.</p>
+                  ) : (
+                    courses.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => go({ view: "course", id: c.id })}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <CourseIcon icon={c.icon} className="h-3.5 w-3.5 shrink-0 text-bronze" />
+                        <span className="min-w-0 flex-1 truncate text-start">{c.title}</span>
+                        <span dir="ltr" className="shrink-0 text-[10px] tabular-nums opacity-70">{fa(lessonPctOf(c, progress))}%</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+              <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
+              <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+              <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
+              <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+              {auth.user?.role === "teacher" && (
+                <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+              )}
+              {auth.user?.role === "admin" && (
+                <>
+                  <SideItem icon={Upload} label="افزودن کتاب" rail={false} active={current === "import"} onClick={() => go({ view: "import" })} />
+                  <SideItem icon={ShieldCheck} label="پنل مدیریت" rail={false} active={current === "admin"} onClick={() => go({ view: "admin" })} />
+                </>
+              )}
+              <SideItem icon={Settings} label="تنظیمات و پروفایل" rail={false} active={current === "settings"} onClick={() => go({ view: "settings" })} />
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-border/70 pt-3">
+              <span className="text-[11px] text-muted-foreground">همیار حقوق</span>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <SyncHint collapsed />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

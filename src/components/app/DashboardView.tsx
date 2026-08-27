@@ -10,9 +10,9 @@ import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
 import { mergeAll } from "@/lib/books";
-import { fa, pct } from "@/lib/fa";
+import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
-import { Donut, ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
 
@@ -29,7 +29,7 @@ function lessonProgressOf(course: Course, progress: Record<string, { status?: st
     if (p?.status === "completed") completed += 1;
     else if (p) completed += 0.5;
   });
-  return pct(completed, Math.max(1, flat.length));
+  return Math.round((completed / Math.max(1, flat.length)) * 100);
 }
 
 /** تعداد جلسات تمام‌شدهٔ یک درس */
@@ -174,11 +174,7 @@ export function DashboardView() {
       !hidden.includes(c.id) &&
       ((c.chapters?.flatMap?.((ch) => ch.lessons) ?? []).length > 0 || !BUILTIN_IDS.has(c.id)),
   );
-  const heroCourse = resumeTarget
-    ? allCourses.find((c) => c.title === resumeTarget?.courseTitle) ?? allCourses[0]
-    : allCourses[0];
-
-  // سرفصل‌های بعدی هر کتاب — برای زبانهٔ «سرفصل‌های بعدی» هیرو
+  // سرفصل‌های بعدی هر کتاب — برای صحنهٔ تئاتری و اسلایدر پایین هیرو
   const nextLessons = React.useMemo(() => {
     const out: {
       lessonId: string; courseTitle: string; lessonTitle: string;
@@ -203,14 +199,12 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-9 px-4 pb-28 pt-5 sm:px-6">
-      {/* ═══ هیروی کربنی — سلام + ادامهٔ یادگیری + تازه‌ترین‌های فیلترشدنی ═══ */}
+      {/* ═══ هیروی کربنی — سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
       <HeroPanel
         greeting={greeting}
         streak={streak.count}
         books={shelfCourses.length}
         resumeTarget={resumeTarget}
-        heroCourse={heroCourse}
-        progress={progress}
         nextLessons={nextLessons}
       />
 
@@ -219,6 +213,33 @@ export function DashboardView() {
 
       {/* ═══ قفسهٔ کتابخانهٔ من — اسلایدر ═══ */}
       <MyLibraryShelf courses={shelfCourses} progress={progress} />
+
+      {/* ═══ سرفصل‌های بعدی — نوار افقی بدون هیچ درصدی ═══ */}
+      {nextLessons.length > 0 && (
+        <SectionSlider icon={ListChecks} title="سرفصل‌های بعدی" hint="یک قدم تا جلسهٔ تازه" ariaLabel="سرفصل‌های بعدی" padEnds>
+          {nextLessons.map((n) => (
+            <button
+              key={n.lessonId}
+              onClick={() => navigate({ view: "learn", id: n.lessonId })}
+              title={`${n.courseTitle} — جلسهٔ ${n.lessonTitle}`}
+              className="group flex w-[250px] shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-start shadow-card transition-colors hover:border-bronze/60 sm:w-[290px]"
+            >
+              <span className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[10px] border border-border bg-primary/5 shadow-card">
+                <CourseIcon icon={n.icon} className="h-4 w-4 -rotate-45 text-bronze" />
+              </span>
+              <span className="min-w-0 flex-1 space-y-0.5">
+                <span className="flex items-baseline gap-x-2">
+                  <span className="truncate text-[12.5px] font-bold group-hover:text-bronze">{n.courseTitle}</span>
+                  {n.owner && <span className="hidden shrink-0 text-[9.5px] font-bold text-muted-foreground sm:inline">استاد {n.owner}</span>}
+                  {n.isPrep && <span className="shrink-0 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">جلسهٔ بعد: {n.lessonTitle}</span>
+              </span>
+              <PlayCircle className="h-5 w-5 shrink-0 text-bronze/60 transition-all group-hover:-translate-x-0.5 group-hover:text-bronze" />
+            </button>
+          ))}
+        </SectionSlider>
+      )}
 
       {/* ═══ اساتید همیار — پیشنهاد اینستاگرامی ═══ */}
       <TeacherSuggestions />
@@ -230,17 +251,21 @@ export function DashboardView() {
   );
 }
 
-/* ═══ هیروی کربنی v2 — بزرگ‌تر، با زبانه‌های تازه‌ترین مطالب/سرفصل‌ها ═════ */
+/* ═══ هیروی کربنی v3 — بدون حلقهٔ پیشرفت؛ صحنهٔ تئاتری تک‌آیتم تایم‌دار ═══ */
+
+type StageItem =
+  | { kind: "post"; id: string; title: string; summary?: string; authorId: string; authorName: string; avatarUrl?: string | null; commentsCount: number; ratingAvg?: number; date: string }
+  | { kind: "lesson"; lessonId: string; courseTitle: string; lessonTitle: string; owner?: string; isPrep: boolean; icon?: string };
+
+const STAGE_DELAY = 7000; // هفت ثانیه روی هر آیتم، بعد آیتم تازه
 
 function HeroPanel({
-  greeting, streak, books, resumeTarget, heroCourse, progress, nextLessons,
+  greeting, streak, books, resumeTarget, nextLessons,
 }: {
   greeting: string;
   streak: number;
   books: number;
   resumeTarget: { courseTitle: string; lesson: Lesson } | null;
-  heroCourse?: Course;
-  progress: Record<string, { status?: string }>;
   nextLessons: {
     lessonId: string; courseTitle: string; lessonTitle: string;
     pct: number; icon?: string; owner?: string; isPrep: boolean;
@@ -257,69 +282,54 @@ function HeroPanel({
       <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
 
       <div className="relative space-y-6">
-        {/* سطر بالایی: سلام + آمار + حلقه */}
-        <div className="flex flex-col items-start gap-7 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1 space-y-3">
-            <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
-            {resumeTarget ? (
-              <>
-                <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">جلسهٔ بعدی آماده است</h1>
-                <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
-                  <span className="font-semibold text-bronze">{resumeTarget.courseTitle}</span> · {resumeTarget.lesson.title}
-                </p>
-                <button
-                  onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}
-                  className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
-                >
-                  <PlayCircle className="h-[18px] w-[18px]" />
-                  ادامه یادگیری
-                </button>
-              </>
-            ) : (
-              <>
-                <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">به استاد حقوقی هوشمند خوش آمدی</h1>
-                <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
-                  یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
-                </p>
-                <button
-                  onClick={() => navigate({ view: "library" })}
-                  className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
-                >
-                  <LibraryBig className="h-[18px] w-[18px]" />
-                  انتخاب درس از کتابخانه
-                </button>
-              </>
-            )}
-            <div className="flex flex-wrap gap-2 pt-1.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><BookOpen className="h-3.5 w-3.5 text-bronze" />{fa(books)} درس فعال</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><Flame className="h-3.5 w-3.5 text-bronze" />استریک {fa(streak)} روز</span>
-            </div>
-          </div>
-          {heroCourse && (
-            <div className="rounded-2xl bg-white/10 p-2.5 backdrop-blur-sm">
-              <Donut
-                value={lessonProgressOf(heroCourse, progress)}
-                size={120}
-                stroke={9}
-                label={heroCourse.title.slice(0, 14)}
-                flat
-                toneClass="fill-white"
-                labelToneClass="fill-white/70"
-              />
-            </div>
+        {/* سطر بالایی: سلام + آمار — بدون هیچ درصد پیشرفتی */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
+          {resumeTarget ? (
+            <>
+              <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">جلسهٔ بعدی آماده است</h1>
+              <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+                <span className="font-semibold text-bronze">{resumeTarget.courseTitle}</span> · {resumeTarget.lesson.title}
+              </p>
+              <button
+                onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}
+                className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
+              >
+                <PlayCircle className="h-[18px] w-[18px]" />
+                ادامه یادگیری
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">به استاد حقوقی هوشمند خوش آمدی</h1>
+              <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+                یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
+              </p>
+              <button
+                onClick={() => navigate({ view: "library" })}
+                className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
+              >
+                <LibraryBig className="h-[18px] w-[18px]" />
+                انتخاب درس از کتابخانه
+              </button>
+            </>
           )}
+          <div className="flex flex-wrap gap-2 pt-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><BookOpen className="h-3.5 w-3.5 text-bronze" />{fa(books)} درس فعال</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><Flame className="h-3.5 w-3.5 text-bronze" />استریک {fa(streak)} روز</span>
+          </div>
         </div>
 
-        {/* زبانه‌های تازه‌ترین‌ها — مطالب استادها یا سرفصل‌های بعدیِ کتاب‌ها */}
-        <HeroLiveFeed nextLessons={nextLessons} />
+        {/* صحنهٔ تئاتری — یک مطلب مهم، نورافکن‌وار، تایم‌دار */}
+        <StageRotator nextLessons={nextLessons} />
       </div>
     </section>
   );
 }
 
-/* ─── قلب جدید هیرو: دو زبانهٔ فیلترشدنی داخل پنل کربنی ─────────────────── */
+/* ─── صحنهٔ تئاتری: یک آیتم تازه در مرکز نور؛ تایمر می‌چرخد و آیتم بعدی می‌آید ── */
 
-function HeroLiveFeed({
+function StageRotator({
   nextLessons,
 }: {
   nextLessons: {
@@ -327,46 +337,83 @@ function HeroLiveFeed({
     pct: number; icon?: string; owner?: string; isPrep: boolean;
   }[];
 }) {
-  const [tab, setTab] = React.useState<"feed" | "lessons">("feed");
   const { feed, loading } = useSocial();
   const [authorFilter, setAuthorFilter] = React.useState("");
 
-  // فهرست نویسندگان در فید — چیپ‌های فیلتر بر اساس آنان ساخته می‌شود
+  // نویسندگان فید برای چیپ‌های فیلتر
   const authors = React.useMemo(() => {
     const seen = new Map<string, string>();
     for (const p of feed) if (!seen.has(p.author.id)) seen.set(p.author.id, p.author.displayName);
     return [...seen.entries()];
   }, [feed]);
 
-  const filtered = React.useMemo(
-    () => (authorFilter ? feed.filter((p) => p.author.id === authorFilter) : feed).slice(0, 5),
-    [feed, authorFilter],
-  );
+  // آیتم‌های صحنه: مطالب استادها؛ اگر فیدی نبود سرفصل‌های بعدی همان‌جا زیر نور می‌روند
+  const items = React.useMemo<StageItem[]>(() => {
+    const posts = (authorFilter ? feed.filter((p) => p.author.id === authorFilter) : feed)
+      .slice(0, 8)
+      .map<StageItem>((p) => ({
+        kind: "post", id: p.id, title: p.title, summary: p.summary,
+        authorId: p.author.id, authorName: p.author.displayName, avatarUrl: p.author.avatarUrl,
+        commentsCount: p.commentsCount, ratingAvg: p.rating?.count ? p.rating.avg : undefined,
+        date: p.createdAt,
+      }));
+    if (posts.length > 0) return posts;
+    return nextLessons.slice(0, 6).map<StageItem>((n) => ({
+      kind: "lesson", lessonId: n.lessonId, courseTitle: n.courseTitle,
+      lessonTitle: n.lessonTitle, owner: n.owner, isPrep: n.isPrep, icon: n.icon,
+    }));
+  }, [feed, authorFilter, nextLessons]);
 
-  const tabBtn = (key: "feed" | "lessons", Icon: React.ComponentType<{ className?: string }>, label: string) => (
-    <button
-      onClick={() => setTab(key)}
-      aria-pressed={tab === key}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-all ${
-        tab === key
-          ? "bg-bronze text-bronze-foreground shadow-card"
-          : "bg-white/[0.08] text-primary-foreground/80 hover:bg-white/[0.14]"
-      }`}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </button>
-  );
+  const [idx, setIdx] = React.useState(0);
+  const [paused, setPaused] = React.useState(false);
+  const [cycle, setCycle] = React.useState(0); // ریست انیمیشن نوار تایمر
+
+  React.useEffect(() => { setIdx(0); setCycle((c) => c + 1); }, [authorFilter, feed.length]);
+
+  React.useEffect(() => {
+    if (paused || items.length <= 1) return;
+    const t = setTimeout(() => {
+      setIdx((i) => (i + 1) % items.length);
+      setCycle((c) => c + 1);
+    }, STAGE_DELAY);
+    return () => clearTimeout(t);
+  }, [idx, paused, items.length, cycle]);
+
+  const item = items[Math.min(idx, items.length - 1)];
+
+  if (loading && feed.length === 0) {
+    return (
+      <div className="space-y-3" aria-label="در حال بارگذاری تازه‌ها">
+        <span className="block h-3.5 w-28 animate-pulse rounded bg-white/15" />
+        <div className="grid min-h-[168px] place-items-center rounded-[22px] border border-white/10 bg-white/[0.04]">
+          <div className="space-y-2.5 text-center">
+            <span className="mx-auto block h-10 w-10 animate-pulse rounded-full bg-white/15" />
+            <span className="mx-auto block h-3.5 w-44 animate-pulse rounded bg-white/15" />
+            <span className="mx-auto block h-2.5 w-64 animate-pulse rounded bg-white/10" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <p className="rounded-[22px] border border-dashed border-white/25 bg-white/[0.05] px-4 py-6 text-center text-xs leading-relaxed text-primary-foreground/80">
+        هنوز مطلب تازه‌ای برای نمایش نیست؛ از «اساتید همیار» یکی را دنبال کن تا نوشته‌هایش اینجا روی صحنه بیاید.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-3.5">
-      {/* سرصفحهٔ زبانه‌ها */}
+    <div className="space-y-3.5" aria-label="تازه‌ها از استادها">
+      {/* سرصفحه + فیلتر نویسنده (فقط وقتی فید پست دارد) */}
       <div className="flex flex-wrap items-center gap-2">
-        {tabBtn("feed", Rss, "تازه از استادها")}
-        {tabBtn("lessons", ListChecks, "سرفصل‌های بعدی")}
-        {tab === "feed" && authors.length > 1 && (
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-primary-foreground/80">
+          <Rss className="h-3.5 w-3.5 text-bronze" /> تازه از استادها
+        </span>
+        {items[0]?.kind === "post" && authors.length > 1 && (
           <>
-            <span aria-hidden className="mx-1 hidden h-5 w-px bg-white/20 sm:block" />
+            <span aria-hidden className="mx-1 hidden h-4 w-px bg-white/20 sm:block" />
             <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
                 onClick={() => setAuthorFilter("")}
@@ -394,89 +441,132 @@ function HeroLiveFeed({
         )}
       </div>
 
-      {/* بدنهٔ زبانه */}
-      {tab === "feed" ? (
-        loading && feed.length === 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2].map((i) => <HeroRowSkeleton key={i} />)}
+      {/* ═══ صحنه — زیر نورافکن ═══ */}
+      <div
+        className="stage-spotlight relative min-h-[190px] overflow-hidden rounded-[22px] border border-white/12 bg-white/[0.055] px-5 py-6 backdrop-blur-sm sm:px-8 sm:py-7"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocus={() => setPaused(true)}
+        onBlur={() => setPaused(false)}
+        onTouchStart={() => setPaused(true)}
+        onTouchEnd={() => setTimeout(() => setPaused(false), 3500)}
+      >
+        {/* پرتو نور از بالا — حس صحنهٔ تئاتر */}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 h-56 bg-[radial-gradient(ellipse_at_top,rgba(205,166,94,0.22),transparent_65%)]" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 start-1/2 h-40 w-[70%] -translate-x-1/2 rounded-full bg-[#0e2f22]/60 blur-2xl rtl:translate-x-1/2" />
+
+        {item.kind === "post" ? (
+          <div key={item.id} className="stage-in relative flex h-full flex-col items-center gap-3 text-center">
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate({ view: "teacher", id: item.authorId }); }}
+              className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] py-1 pe-3.5 ps-1 transition-colors hover:border-bronze/50"
+              title={`پروفایل ${item.authorName}`}
+            >
+              <UserAvatar src={item.avatarUrl} name={item.authorName} size="sm" />
+              <span className="text-[11.5px] font-bold text-white">{item.authorName}</span>
+            </button>
+            <button
+              onClick={() => navigate({ view: "post", id: item.id })}
+              className="group mx-auto max-w-2xl space-y-2.5"
+            >
+              <h3 className="font-display text-[19px] font-extrabold leading-snug text-white transition-colors group-hover:text-bronze sm:text-[22px]">
+                {item.title}
+              </h3>
+              {item.summary && (
+                <p className="mx-auto max-w-xl line-clamp-2 text-[12.5px] leading-relaxed text-primary-foreground/75">{item.summary}</p>
+              )}
+              <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10.5px] text-primary-foreground/60">
+                <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(item.commentsCount)} گفتگو</span>
+                {!!item.ratingAvg && (
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-bronze/25 px-1.5 py-0.5 font-bold text-white">
+                    <Star className="h-2.5 w-2.5 fill-current text-bronze" /> {fa(Math.round(item.ratingAvg * 10) / 10)}
+                  </span>
+                )}
+                <span>· {faDate(item.date)}</span>
+              </p>
+            </button>
+            <button
+              onClick={() => navigate({ view: "post", id: item.id })}
+              className="group mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-bronze px-4 py-2 text-[12px] font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.97]"
+            >
+              خواندن مطلب
+              <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            </button>
           </div>
-        ) : filtered.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-white/25 bg-white/[0.05] px-4 py-4 text-start text-xs leading-relaxed text-primary-foreground/80">
-            هنوز مطلبی برای نمایش نیست؛ از «اساتید همیار» یکی را دنبال کن تا نوشته‌های تازه‌اش همین‌جا بدرخشد.
-          </p>
         ) : (
-          <ul className="space-y-2">
-            {filtered.map((p) => (
-              <li key={p.id}>
-                <button
-                  onClick={() => navigate({ view: "post", id: p.id })}
-                  className="group flex w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-3.5 py-3 text-start backdrop-blur-sm transition-colors hover:border-bronze/60 hover:bg-white/[0.11]"
-                >
-                  <ToTeacherProfileLight id={p.author.id} displayName={p.author.displayName} avatarUrl={p.author.avatarUrl} />
-                  <span className="min-w-0 flex-1 space-y-0.5">
-                    <span className="block truncate text-[13px] font-bold text-white group-hover:text-bronze">{p.title}</span>
-                    <span className="flex items-center gap-2 text-[10.5px] text-primary-foreground/65">
-                      <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)} گفتگو
-                      {!!p.rating?.count && (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-bronze/25 px-1.5 py-0.5 font-bold text-white">
-                          <Star className="h-2.5 w-2.5 fill-current text-bronze" /> {fa(Math.round(p.rating.avg * 10) / 10)}
-                        </span>
-                      )}
-                      <span>· {faDate(p.createdAt)}</span>
-                    </span>
-                  </span>
-                  <ArrowLeft className="h-4 w-4 shrink-0 text-bronze/70 transition-all group-hover:-translate-x-0.5 group-hover:text-bronze" />
-                </button>
-              </li>
+          <div key={item.lessonId} className="stage-in relative flex h-full flex-col items-center gap-3 text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1 text-[11px] font-bold text-primary-foreground/85">
+              <ListChecks className="h-3.5 w-3.5 text-bronze" /> سرفصل بعدی تو
+            </span>
+            <button
+              onClick={() => navigate({ view: "learn", id: item.lessonId })}
+              className="group mx-auto max-w-2xl space-y-2.5"
+            >
+              <h3 className="font-display text-[19px] font-extrabold leading-snug text-white transition-colors group-hover:text-bronze sm:text-[22px]">
+                {item.lessonTitle}
+              </h3>
+              <p className="text-[12.5px] text-primary-foreground/75">
+                <span className="font-bold text-bronze">{item.courseTitle}</span>
+                {item.owner && <> · استاد {item.owner}</>}
+                {item.isPrep && <span className="ms-1.5 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
+              </p>
+            </button>
+            <button
+              onClick={() => navigate({ view: "learn", id: item.lessonId })}
+              className="group mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-bronze px-4 py-2 text-[12px] font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.97]"
+            >
+              شروع تدریس
+              <PlayCircle className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* نوار تایمر پایین صحنه — گذشت زمان تا آیتم تازه */}
+        {items.length > 1 && (
+          <div aria-hidden className="absolute inset-x-5 bottom-0 h-[3px] overflow-hidden rounded-t bg-white/10 sm:inset-x-8">
+            <span
+              key={cycle}
+              className="stage-timer block h-full rounded-t bg-gradient-to-l from-bronze to-[color-mix(in_srgb,var(--bronze)_55%,white)]"
+              style={{ animationPlayState: paused ? "paused" : "running" }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* پیمایش صحنه: نقطه‌ها + فلش‌ها */}
+      {items.length > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5" role="tablist" aria-label="انتخاب آیتم صحنه">
+            {items.map((_, i) => (
+              <button
+                key={i}
+                role="tab"
+                aria-selected={i === idx}
+                aria-label={`آیتم ${fa(i + 1)}`}
+                onClick={() => { setIdx(i); setCycle((c) => c + 1); }}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === idx ? "w-6 bg-bronze" : "w-1.5 bg-white/25 hover:bg-white/45"
+                }`}
+              />
             ))}
-            <li>
-              <button
-                onClick={() => navigate({ view: "teachers" })}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl py-1.5 text-[11.5px] font-bold text-bronze transition-colors hover:bg-white/[0.07]"
-              >
-                همهٔ اساتید و مقالات ←
-              </button>
-            </li>
-          </ul>
-        )
-      ) : nextLessons.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-white/25 bg-white/[0.05] px-4 py-4 text-start text-xs leading-relaxed text-primary-foreground/80">
-          قفسه‌ات خالی است؛ از «کتابخانهٔ عمومی» یک درس انتخاب کن تا سرفصل بعدیش اینجا منتظرت بماند.
-        </p>
-      ) : (
-        <ul className="grid gap-2 md:grid-cols-2">
-          {nextLessons.map((n) => (
-            <li key={n.lessonId}>
-              <button
-                onClick={() => navigate({ view: "learn", id: n.lessonId })}
-                title={`${n.courseTitle} — جلسهٔ ${n.lessonTitle}`}
-                className="group flex w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-3.5 py-3 text-start backdrop-blur-sm transition-colors hover:border-bronze/60 hover:bg-white/[0.11]"
-              >
-                <span className="grid h-9 w-9 shrink-0 rotate-45 place-items-center rounded-[9px] border border-white/20 bg-background/20 shadow-card">
-                  <CourseIcon icon={n.icon} className="h-3.5 w-3.5 -rotate-45 text-bronze" />
-                </span>
-                <span className="min-w-0 flex-1 space-y-0.5">
-                  <span className="flex items-baseline gap-x-2">
-                    <span className="truncate text-[12.5px] font-bold text-white group-hover:text-bronze">{n.courseTitle}</span>
-                    {n.owner && (
-                      <span className="hidden shrink-0 items-center gap-1 text-[9.5px] font-bold text-primary-foreground/60 sm:inline-flex">
-                        <GraduationCap className="h-3 w-3" />{n.owner}
-                      </span>
-                    )}
-                    {n.isPrep && <span className="shrink-0 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
-                  </span>
-                  <span className="block truncate text-[11px] text-primary-foreground/70">جلسهٔ بعد: {n.lessonTitle}</span>
-                  <span className="mt-0.5 block">
-                    <span className="block h-1.5 w-full overflow-hidden rounded-full bg-white/15">
-                      <span className="block h-full rounded-full bg-gradient-to-l from-bronze to-[color-mix(in_srgb,var(--bronze)_60%,white)]" style={{ width: `${Math.min(100, n.pct)}%` }} />
-                    </span>
-                  </span>
-                </span>
-                <PlayCircle className="h-5 w-5 shrink-0 text-bronze/70 transition-all group-hover:-translate-x-0.5 group-hover:text-bronze" />
-              </button>
-            </li>
-          ))}
-        </ul>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => { setIdx((i) => (i + 1) % items.length); setCycle((c) => c + 1); }}
+              aria-label="آیتم بعدی"
+              className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-primary-foreground/80 transition-colors hover:border-bronze/60 hover:text-bronze"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => { setIdx((i) => (i - 1 + items.length) % items.length); setCycle((c) => c + 1); }}
+              aria-label="آیتم قبلی"
+              className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-primary-foreground/80 transition-colors hover:border-bronze/60 hover:text-bronze"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -589,11 +679,6 @@ function MyLibraryShelf({
       hint={`${fa(courses.length - teacherCount)} جزوهٔ پایه · ${fa(teacherCount)} دورهٔ استاد${hidden.length ? ` · ${fa(hidden.length)} عنوان مخفی` : ""}`}
       ariaLabel="قفسهٔ کتابخانهٔ من"
       padEnds
-      action={
-        <span className="hidden text-[11px] font-medium text-muted-foreground sm:inline">
-          طول کشید؟ خودش می‌غزد
-        </span>
-      }
     >
       {courses.length === 0 ? (
         <button

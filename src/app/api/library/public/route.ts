@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { CATEGORY_SLUGS, teacherCourseToCourse } from "@/lib/social-shared";
+import { CATEGORY_SLUGS, inCategory, parseCategories, teacherCourseToCourse } from "@/lib/social-shared";
 import { ratingsAggMany, feedScore, type RatingAgg } from "@/lib/ratings-server";
 
 export const runtime = "nodejs";
@@ -17,18 +17,16 @@ export async function GET(req: NextRequest) {
   const cat = CATEGORY_SLUGS.includes(catParam) ? catParam : "";
 
   const rows = await db.teacherCourse.findMany({
-    where:
-      cat === "other"
-        ? { status: { not: "draft" }, OR: [{ category: "other" }, { category: "" }] }
-        : { status: { not: "draft" }, ...(cat ? { category: cat } : {}) },
+    where: { status: { not: "draft" } },
     orderBy: { updatedAt: "desc" },
-    take: 60,
+    take: 120,
     include: {
       teacher: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
       _count: { select: { libraryEntries: true } },
     },
   });
-  const filtered = rows;
+  // شاخهٔ چندگانه: دوره در هر دسته‌ای که عضو آن است دیده می‌شود
+  const filtered = rows.filter((r) => inCategory(parseCategories(r.categories, r.category), r.category, cat));
 
   const courseIds = filtered.map((r) => r.id);
   const [aggMap, libIds] = await Promise.all([
@@ -63,21 +61,16 @@ export async function GET(req: NextRequest) {
     })
     .sort((a, b) => b.score - a.score);
 
-  // مطالب همان شاخه
-  const postRows = await db.post.findMany({
-    where:
-      cat === "other"
-        ? { OR: [{ category: "other" }, { category: "" }] }
-        : cat
-          ? { category: cat }
-          : {},
+  // مطالب همان شاخه — با سازگاری شاخهٔ چندگانه و ستون قدیمی
+  const postRows = (await db.post.findMany({
+    where: {},
     orderBy: { createdAt: "desc" },
-    take: 40,
+    take: 80,
     include: {
       author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
       _count: { select: { comments: true } },
     },
-  });
+  })).filter((p) => inCategory(parseCategories(p.categories, p.category), p.category, cat));
 
   const pAgg = await ratingsAggMany("post", postRows.map((p) => p.id));
   const posts = postRows
@@ -87,6 +80,7 @@ export async function GET(req: NextRequest) {
       summary: p.summary,
       tags: p.tags,
       category: p.category,
+      categories: parseCategories(p.categories, p.category),
       createdAt: p.createdAt.toISOString(),
       commentsCount: p._count.comments,
       rating: pAgg.get(p.id) ?? ({ avg: 0, count: 0 } as RatingAgg),

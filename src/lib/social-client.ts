@@ -25,6 +25,7 @@ export interface FeedPost {
   summary: string;
   tags: string;
   category?: string;
+  categories?: string[];
   createdAt: string;
   updatedAt: string;
   commentsCount: number;
@@ -45,6 +46,7 @@ export interface TCourseCard {
   rating?: RatingInfo;
   /** متادیتای دورهٔ استاد از سرور */
   _category?: string;
+  _categories?: string[];
   _status?: "draft" | "prep" | "published";
   _ownerUsername?: string;
   _ownerAvatar?: string | null;

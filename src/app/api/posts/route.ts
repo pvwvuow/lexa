@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sanitizeSections, CATEGORY_SLUGS } from "@/lib/social-shared";
+import { sanitizeSections, CATEGORY_SLUGS, safeCategories } from "@/lib/social-shared";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,12 +14,15 @@ export async function POST(req: NextRequest) {
   if (me.role !== "teacher" && me.role !== "admin")
     return NextResponse.json({ error: "انتشار مطلب ویژهٔ اساتید است." }, { status: 403 });
 
-  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown };
+  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown; categories?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "درخواست نامعتبر است." }, { status: 400 });
   }
+
+  if (!rateLimit(req, `post:${me.id}`, 20, 60_000))
+    return NextResponse.json({ error: "تعداد درخواست‌ها زیاد است؛ کمی بعد دوباره تلاش کنید." }, { status: 429 });
 
   const title = (body.title ?? "").trim().slice(0, 140);
   if (!title) return NextResponse.json({ error: "عنوان مطلب را بنویسید." }, { status: 400 });
@@ -26,13 +30,15 @@ export async function POST(req: NextRequest) {
   if (!sections.length)
     return NextResponse.json({ error: "دست‌کم یک بلوک محتوا لازم است." }, { status: 400 });
 
+  const cats = safeCategories(body.categories ?? body.category);
   const p = await db.post.create({
     data: {
       authorId: me.id,
       title,
       summary: (body.summary ?? "").trim().slice(0, 280),
       tags: (body.tags ?? "").trim().slice(0, 120),
-      category: CATEGORY_SLUGS.includes(String(body.category ?? "")) ? String(body.category) : "",
+      category: CATEGORY_SLUGS.includes(String(body.category ?? "")) ? String(body.category) : cats[0] ?? "",
+      categories: JSON.stringify(cats),
       blocks: sections as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });
