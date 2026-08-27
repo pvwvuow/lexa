@@ -4,6 +4,7 @@ import * as React from "react";
 import { Flame, TrendingUp, BookOpenCheck, ArrowLeft, Activity, Target } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp, weakTopics, clearWeakTopic } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { Donut, EmptyState } from "./common";
@@ -109,7 +110,8 @@ export function ProgressView() {
   const streak = useApp((s) => s.streak);
   const activity = useApp((s) => s.activity);
   const custom = useApp((s) => s.customCourses);
-  const courses = [...builtinCourses, ...custom];
+  const tBooks = useApp((s) => s.tBooks);
+  const courses = mergeAll({ customCourses: custom, tBooks });
   const [courseId, setCourseId] = React.useState(courses[0].id);
   const course = courses.find((c) => c.id === courseId) ?? courses[0];
 

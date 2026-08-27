@@ -3,7 +3,8 @@
 export interface PublicUser {
   id: string;
   username: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "teacher";
+  displayName?: string | null;
   createdAt: string; // ISO
 }
 

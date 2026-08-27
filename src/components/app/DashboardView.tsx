@@ -1,13 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { PlayCircle, Clock3, Sparkles, BookOpen, Layers3, Flame, ArrowLeft } from "lucide-react";
+import {
+  PlayCircle, Clock3, Sparkles, BookOpen, Layers3, Flame, ArrowLeft,
+  UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn,
+} from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { fa, pct } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { Donut, ProgressBar, CourseIcon, StatChip } from "./common";
+import { useAuth } from "@/lib/auth-client";
+import { useSocial } from "@/lib/social-client";
+
+const faDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
 
 function lessonProgressOf(course: Course, progress: Record<string, { status?: string; sectionsSeen?: number; quizBest?: number }>) {
   let completed = 0;
@@ -38,7 +47,8 @@ export function DashboardView() {
   const last = useApp((s) => s.lastLocation);
   const streak = useApp((s) => s.streak);
   const customCourses = useApp((s) => s.customCourses);
-  const courses = [...builtinCourses, ...customCourses];
+  const tBooks = useApp((s) => s.tBooks);
+  const courses = mergeAll({ customCourses, tBooks });
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -158,6 +168,12 @@ export function DashboardView() {
         </div>
       </section>
 
+      {/* اساتید پیشنهادی — مثل پیشنهادهای اینستاگرام؛ فالو کن و مطالبشان را ببین */}
+      <TeacherSuggestions />
+
+      {/* آخرین مطالب اساتیدی که دنبال می‌کنی */}
+      <TeacherFeedTeasers />
+
       {/* نقشهٔ پیشرفت — همهٔ کتاب‌ها روی یک تخته */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -230,5 +246,136 @@ function CircleDotSm() {
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
       <circle cx="5" cy="5" r="3.6" stroke="currentColor" strokeWidth="1.4" />
     </svg>
+  );
+}
+
+/* ═══ اساتید — پیشنهاد اینستاگرامی + فید مطالب ═════════════════════════════ */
+
+function DiamondAvatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
+  const cls = size === "sm" ? "h-8 w-8 text-[12px]" : "h-11 w-11 text-[15px]";
+  return (
+    <span className={`relative grid ${cls} shrink-0 rotate-45 place-items-center rounded-[10px] bg-gradient-to-bl from-primary/90 to-bronze shadow-card`}>
+      <span className="-rotate-45 font-display font-bold leading-none text-primary-foreground">{name.slice(0, 1)}</span>
+    </span>
+  );
+}
+
+/** ردیف پیشنهاد اساتید با کارت‌های لوزی‌محور (بدون قاب مستطیلی) */
+export function TeacherSuggestions() {
+  const { teachers, loading, toggleFollow } = useSocial();
+  const { user } = useAuth();
+  const [err, setErr] = React.useState("");
+
+  async function onFollow(id: string) {
+    setErr("");
+    try {
+      await toggleFollow(id);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+    }
+  }
+
+  if (loading && !teachers.length) {
+    return (
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> اساتید همیار</h2>
+        <p className="text-sm text-muted-foreground">در حال دریافت فهرست اساتید…</p>
+      </section>
+    );
+  }
+  if (!teachers.length) return null;
+
+  const suggestions = teachers.filter((t) => !t.isFollowing).slice(0, 6);
+  const following = teachers.filter((t) => t.isFollowing);
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> اساتید همیار</h2>
+        <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
+          دیدن همه و دوره‌هایشان ←
+        </button>
+      </div>
+
+      {!user && (
+        <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5 text-xs text-muted-foreground">
+          <LogIn className="h-4 w-4 shrink-0 text-bronze" />
+          برای دنبال کردن اساتید و مشاهدهٔ مطالبشان، وارد حساب شو یا حساب بساز.
+        </p>
+      )}
+      {err && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</p>}
+
+      {/* کارت‌های افقی قابل پیمایش */}
+      <div className="-mx-1 flex gap-3 overflow-x-auto pb-1.5 px-1 [scrollbar-width:thin]">
+        {[...suggestions, ...following].map((t) => (
+          <div key={t.id} className="group relative min-w-[188px] flex-1 rounded-2xl border border-border bg-card p-4 pt-5 text-center shadow-card transition-colors hover:border-bronze/50">
+            <span aria-hidden className="absolute -top-[7px] start-1/2 h-px w-14 -translate-x-1/2 rtl:translate-x-1/2 bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
+            <div className="mx-auto mb-3 w-fit" aria-hidden>
+              <DiamondAvatar name={t.displayName} />
+            </div>
+            <p className="truncate font-display text-[13.5px] font-bold">{t.displayName}</p>
+            <p className="truncate text-[10.5px] text-muted-foreground">@{t.username}</p>
+            <p className="mt-1 text-[10.5px] text-muted-foreground">
+              {fa(t.followers)} دنبال‌کننده · {fa(t.posts)} مطلب{t.courses > 0 ? ` · ${fa(t.courses)} دوره` : ""}
+            </p>
+            <button
+              onClick={() => onFollow(t.id)}
+              disabled={!user}
+              title={!user ? "ابتدا وارد شو" : undefined}
+              className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11.5px] font-bold transition-all ${
+                t.isFollowing
+                  ? "border border-success/50 bg-success/10 text-success"
+                  : "bg-primary text-primary-foreground hover:brightness-110 disabled:opacity-45"
+              }`}
+            >
+              {t.isFollowing ? <UserCheck className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+              {t.isFollowing ? "دنبال می‌کنی" : "دنبال کردن"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** تیزرهای آخرین مطالب اساتیدی که دنبال می‌شوند (+ همه اگر کسی دنبال نشده) */
+export function TeacherFeedTeasers() {
+  const { feed, showingAll, loading } = useSocial();
+  if (!loading && !feed.length) return null;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-bold"><Rss className="h-5 w-5 text-bronze" /> مطالب اساتید</h2>
+        <span className="text-[11px] text-muted-foreground">
+          {showingAll ? "برای اختصاصی شدن فید، اساتید را دنبال کن" : "فقط از اساتیدی که دنبال می‌کنی"}
+        </span>
+      </div>
+
+      {loading && <p className="text-sm text-muted-foreground">در حال بارگذاری مطالب…</p>}
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {feed.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => navigate({ view: "post", id: p.id })}
+            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-4 text-start shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50 sm:p-5"
+          >
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <DiamondAvatar name={p.author.displayName} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12.5px] font-bold">{p.author.displayName}</span>
+                <span className="block text-[10px] text-muted-foreground">{faDate(p.createdAt)}</span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
+              </span>
+            </div>
+            <p className="font-display line-clamp-1 text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
+            {p.summary && <p className="line-clamp-2 mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{p.summary}</p>}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

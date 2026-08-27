@@ -37,6 +37,8 @@ interface AppState {
   streak: { count: number; lastDate: string };
   activity: string[];              // روزهای دارای مطالعه (ISO) برای هیتمپ
   customCourses: Course[];
+  /** دوره‌های اساتیدی که کاربر به کتابخانه‌اش افزوده — از سرور هیدرات می‌شود */
+  tBooks: Course[];
   notes: Record<string, { id: string; text: string; quote?: string; createdAt: number }[]>;
   ai: AiSettings;
   lastLocation: { courseId?: string; lessonId?: string };
@@ -51,6 +53,7 @@ interface AppState {
   removeNote(lessonId: string, noteId: string): void;
   addCourse(course: Course): void;
   upsertCourse(course: Course): void;
+  setTBooks(courses: Course[]): void;
   updateAi(patch: Partial<AiSettings>): void;
   reset(): void;
   /** ادغام بی‌خلط دادهٔ سرور با دادهٔ محلی — هیچ پیشرفتی از بین نمی‌رود */
@@ -68,6 +71,7 @@ export const useApp = create<AppState>()(
       streak: { count: 0, lastDate: '' },
       activity: [],
       customCourses: [],
+      tBooks: [],
       notes: {},
       ai: DEFAULT_AI,
       lastLocation: {},
@@ -162,13 +166,17 @@ export const useApp = create<AppState>()(
         set({ customCourses: [...list, course] });
       },
 
+      setTBooks(courses) {
+        set({ tBooks: courses });
+      },
+
       updateAi(patch) {
         set({ ai: { ...get().ai, ...patch } });
       },
 
       reset() {
         set({
-          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], notes: {}, lastLocation: {},
+          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], notes: {}, lastLocation: {},
         });
       },
 

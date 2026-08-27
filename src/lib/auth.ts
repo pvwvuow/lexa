@@ -65,7 +65,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   return {
     id: u.id,
     username: u.username,
-    role: u.role === "admin" ? "admin" : "user",
+    role: u.role === "admin" ? "admin" : u.role === "teacher" ? "teacher" : "user",
+    displayName: u.displayName,
     createdAt: u.createdAt.toISOString(),
     sessionId: session.id,
   };

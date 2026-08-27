@@ -5,17 +5,19 @@ import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles } 
 import type { Course } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar } from "./common";
 
 export function CourseView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
+  const tBooks = useApp((s) => s.tBooks);
   const progress = useApp((s) => s.progress);
   const openLesson = useApp((s) => s.openLesson);
   const [openCh, setOpenCh] = React.useState<string | null>(null);
 
-  const course: Course | undefined = [...builtinCourses, ...custom].find((c) => c.id === id);
+  const course: Course | undefined = mergeAll({ customCourses: custom, tBooks }).find((c) => c.id === id);
   if (!course) return <p className="p-10 text-center text-muted-foreground">درس پیدا نشد.</p>;
 
   const allLessons = course.chapters.flatMap((c) => c.lessons);

@@ -15,7 +15,9 @@ model User {
   id           String    @id @default(cuid())
   username     String    @unique
   passwordHash String
-  role         String    @default("user") // "user" | "admin"
+  role         String    @default("user") // "user" | "admin" | "teacher"
+  displayName  String? // نام نمایشی استاد (برای وبلاگ و پیشنهادها)
+  bio          String?   // معرفی کوتاه استاد
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   lastSeenAt   DateTime?
@@ -27,6 +29,12 @@ model User {
   notes        Note[]
   blob         UserBlob?
   feedbacks    LessonFeedback[]
+  posts        Post[]
+  comments     Comment[]
+  following    Follow[]  @relation("FollowStudent")
+  followers    Follow[]  @relation("FollowTeacher")
+  teacherCourses TeacherCourse[]
+  library      LibraryEntry[]
 }
 
 // ─── بازخورد و انتقاد از تدریس هر جلسه ────────────────────────────────────────
@@ -133,4 +141,81 @@ model UserBlob {
   lastLocationJson   String   @default("{}")
   streakJson         String   @default("{}")
   updatedAt          DateTime @updatedAt
+}
+
+// ─── شبکهٔ اجتماعی اساتید و دانشجویان ─────────────────────────────────────────
+// مطالب وبلاگی استاد از همان المان‌های تدریس (LessonSection) ساخته می‌شود تا
+// «موقع نوشتن» هم بتواند از طراحی اپ استفاده کند. دانشجوها فالو می‌کنند،
+// کامنت می‌گذارند و دورهٔ استاد را به‌عنوان کتاب به بخش مطالعه می‌افزایند.
+
+model Post {
+  id        String    @id @default(cuid())
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title     String
+  summary   String    @default("") // خلاصهٔ کوتاه برای فید
+  tags      String    @default("")
+  blocks    Json // آرایهٔ LessonSection — همان المان‌های صفحهٔ تدریس
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  comments  Comment[]
+
+  @@index([authorId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Follow {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation("FollowStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User     @relation("FollowTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, teacherId])
+  @@index([teacherId])
+}
+
+// دورهٔ خودساختهٔ استاد؛ ساختار chapters دقیقاً مثل Course داخلی است تا موتور
+// مطالعه بدون تغییر کار کند (شناسه جلسه‌ها tc-{courseId}-{n})
+model TeacherCourse {
+  id           String   @id @default(cuid())
+  teacherId    String
+  teacher      User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title        String
+  tagline      String   @default("")
+  description  String   @default("")
+  icon         String   @default("")
+  accent       String   @default("bronze")
+  chaptersJson String   @default("[]")
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  libraryEntries LibraryEntry[]
+
+  @@index([teacherId])
+}
+
+// کتابخانهٔ هر دانشجو: دوره‌های اساتیدی که به عنوان کتاب افزوده است
+model LibraryEntry {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    TeacherCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  addedAt   DateTime      @default(now())
+
+  @@unique([userId, courseId])
 }

@@ -5,10 +5,12 @@ import { RotateCcw, Check, BookX } from "lucide-react";
 import type { Flashcard } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 
 function buildDeck(): Flashcard[] {
-  const courses = [...builtinCourses, ...useApp.getState().customCourses];
+  const st0 = useApp.getState();
+  const courses = mergeAll(st0);
   const deck: Flashcard[] = [];
   for (const c of courses) {
     for (const ch of c.chapters) {
@@ -35,6 +37,7 @@ function buildDeck(): Flashcard[] {
 
 export function FlashcardsView() {
   const custom = useApp((s) => s.customCourses);
+  const tBooks = useApp((s) => s.tBooks);
   const [deck, setDeck] = React.useState<Flashcard[]>([]);
   const [i, setI] = React.useState(0);
   const [flipped, setFlipped] = React.useState(false);

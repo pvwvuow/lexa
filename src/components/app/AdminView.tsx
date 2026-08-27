@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-client";
 import { fa, pct } from "@/lib/fa";
 import { ProgressBar, StatChip } from "./common";
 import { AdminFeedbackSection } from "./AdminFeedbackSection";
+import { AdminTeachersSection } from "./AdminTeachersSection";
 
 // ─── انواع داده ───────────────────────────────────────────────────────────────
 interface AdminUser {
@@ -538,6 +539,9 @@ export function AdminView() {
 
       {/* پیشنهادهای اصلاح تدریس — انتقاد کاربران + تحلیل AI + تایید/رد مدیر */}
       <AdminFeedbackSection />
+
+      {/* اساتید: ایجاد حساب + آمار فالو/مطلب/دوره */}
+      <AdminTeachersSection />
 
       {/* جستجو */}
       <div className="relative">
