@@ -6,7 +6,8 @@ import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { flatLessons } from "@/lib/law/types";
 import type { Course } from "@/lib/law/types";
-import { LAW_CODES, allLawArticles, type LawCode } from "@/lib/law/statutes";
+import { LAW_CODES, type LawCode, type LawBook } from "@/lib/law/statutes";
+import { fetchFullLaws } from "./LawLibraryView";
 import { CourseIcon, UserAvatar } from "./common";
 
 /* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
@@ -82,17 +83,22 @@ interface LawHit {
   snippet: string;
 }
 
-/** شاخص سبک قوانین — یک‌بار ساخته می‌شود و همیشه در حافظه می‌ماند */
+/** شاخص سبک قوانین — یک‌بار ساخته می‌شود و همیشه در حافظه می‌ماند؛ با متن کامل غنی‌تر می‌شود */
 interface LawIndexItem { law: LawCode; no: string; text: string; book: string; chapter: string; hay: string; plain: string }
 let LAW_INDEX: LawIndexItem[] | null = null;
-function buildLawIndex(): LawIndexItem[] {
-  if (LAW_INDEX) return LAW_INDEX;
+function buildLawIndex(full?: Record<string, { books?: LawBook[] }> | null): LawIndexItem[] {
   const items: LawIndexItem[] = [];
-  for (const { law, article, book, chapter } of allLawArticles()) {
-    const plain = `${article.text}`.replace(/\s+/g, " ");
-    items.push({ law, no: article.no, text: article.text, book, chapter, hay: norm(`${law.title} ماده ${article.no} ${plain}`), plain });
+  for (const law of LAW_CODES) {
+    const fbooks = full?.[law.id]?.books;
+    const books = fbooks?.length ? fbooks : law.books;
+    const word = law.articleWord === "اصل" ? "اصل" : "ماده";
+    for (const b of books)
+      for (const ch of b.chapters)
+        for (const a of ch.articles) {
+          const plain = `${a.text}`.replace(/\s+/g, " ");
+          items.push({ law, no: a.no, text: a.text, book: b.title, chapter: ch.title, hay: norm(`${law.title} ${word} ${a.no} ${plain}`), plain });
+        }
   }
-  LAW_INDEX = items;
   return items;
 }
 
@@ -152,6 +158,10 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
       setIndex(buildIndex(courses));
       setLawIndex(buildLawIndex());
       setIndexReady(true);
+    });
+    // متن کامل قوانین برسد، شاخص قانونی غنی‌تر می‌شود
+    fetchFullLaws().then((d) => {
+      if (d && Object.keys(d).length) setLawIndex(buildLawIndex(d));
     });
     setTeachersLoading(true);
     fetch("/api/social/suggestions")

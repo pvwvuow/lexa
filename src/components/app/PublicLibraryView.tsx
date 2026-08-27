@@ -354,8 +354,8 @@ export function PublicLibraryView() {
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5 text-bronze" /> دوره‌های آماده ({fa(builtinCourses.length)})</h2>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            جزوات رسمی همیار حقوق بر پایهٔ جزوه‌های معتبر دانشگاهی — همه به‌صورت پیش‌فرض در «کتابخانهٔ من» تو هستند؛
-            اگر حذفشان کنی پیشرفت، تست و یادداشت‌هایت محفوظ می‌ماند و با یک کلیک برمی‌گردند.
+            جزوات رسمی همیار حقوق بر پایهٔ جزوه‌های معتبر دانشگاهی — خودت انتخاب می‌کنی کدام را به «کتابخانهٔ من»
+            بیفزایی؛ افزودن و حذف هر لحظه آزاد است و پیشرفت، تست و یادداشت‌هایت همیشه محفوظ می‌ماند.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             {builtinCourses.map((c) => (

@@ -16,7 +16,7 @@ import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
 
-const faDate = (iso: string) =>
+export const faDate = (iso: string) =>
   new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
 
 const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
@@ -273,12 +273,19 @@ function HeroPanel({
     >
       {/* بافت فیبرکربنی و هالهٔ برنزی */}
       <div aria-hidden className="pattern-quilt absolute inset-0 opacity-90" />
+      {/* تصویر صحنهٔ حقوق — نیمهٔ خالی هیرو را پر می‌کند (موبایل: پس‌زمینهٔ کم‌رنگ) */}
+      <img
+        src="/media/hero-law.png"
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-[0.16] lg:inset-y-0 lg:end-0 lg:start-auto lg:h-full lg:w-[47%] lg:opacity-95 lg:[mask-image:linear-gradient(to_right,black_36%,transparent_97%)]"
+      />
       <div aria-hidden className="absolute -top-28 start-1/4 h-64 w-64 rounded-full bg-bronze/25 blur-3xl" />
       <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
 
       <div className="relative space-y-6">
-        {/* سطر بالایی: سلام + آمار — بدون هیچ درصد پیشرفتی */}
-        <div className="space-y-3">
+        {/* سطر بالایی: سلام + آمار — بدون هیچ درصد پیشرفتی؛ در دسکتاپ در نیمهٔ راست */}
+        <div className="space-y-3 lg:max-w-[55%]">
           <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
           {resumeTarget ? (
             <>
@@ -613,12 +620,33 @@ function MyLibraryShelf({
       padEnds
     >
       {courses.length === 0 ? (
-        <button
-          onClick={() => navigate({ view: "library" })}
-          className="w-full shrink-0 rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-start text-sm text-muted-foreground transition-colors hover:border-bronze/50"
-        >
-          هنوز درسی در قفسه نداری؛ از «کتابخانهٔ عمومی» یکی را انتخاب کن تا همین‌جا ببینی‌اش.
-        </button>
+        <div className="flex w-full shrink-0 gap-3">
+          <button
+            onClick={() => navigate({ view: "library" })}
+            className="min-w-[240px] flex-1 rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-start text-sm leading-relaxed text-muted-foreground transition-colors hover:border-bronze/50"
+          >
+            هنوز درسی در قفسه نداری؛ از «کتابخانهٔ عمومی» یکی را انتخاب کن تا همین‌جا ببینی‌اش.
+          </button>
+          <div className="hidden w-[260px] shrink-0 rounded-2xl border border-border bg-card p-3.5 sm:block">
+            <p className="mb-2 text-[11px] font-bold text-bronze">افزودن سریع</p>
+            <div className="space-y-1.5">
+              {["madani-1", "madani-4", "tejarat-3"].map((bid) => {
+                const bc = builtinCourses.find((x) => x.id === bid);
+                if (!bc) return null;
+                return (
+                  <button
+                    key={bid}
+                    onClick={() => void toggleBuiltinHidden(bid)}
+                    className="flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-[12px] font-bold transition-colors hover:border-bronze/60 hover:text-bronze"
+                  >
+                    <span className="grid h-5 w-5 place-items-center rounded-md bg-bronze/15 text-bronze">+</span>
+                    <span className="min-w-0 flex-1 truncate text-start">{bc.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ) : (
         courses.map((c) => {
           const cid = c.id;
