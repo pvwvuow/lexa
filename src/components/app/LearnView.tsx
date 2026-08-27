@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
-  ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft,
+  ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -15,6 +15,7 @@ import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
+import { FeedbackDialog } from "./FeedbackDialog";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -47,6 +48,7 @@ export function LearnView({ id }: { id: string }) {
   const [questionInput, setQuestionInput] = React.useState("");
   const [showTocMobile, setShowTocMobile] = React.useState(false);
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
@@ -387,6 +389,9 @@ export function LearnView({ id }: { id: string }) {
             <ActionBtn onClick={() => handleAction("examples")} disabled={!!loadingFor}>
               <Lightbulb className="h-4 w-4" /> مثال بیشتر بده
             </ActionBtn>
+            <ActionBtn onClick={() => setFeedbackOpen(true)} disabled={!!loadingFor} title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر">
+              <MessageSquareWarning className="h-4 w-4" /> نقد تدریس
+            </ActionBtn>
             {atEnd && (
               <>
                 <button
@@ -422,6 +427,27 @@ export function LearnView({ id }: { id: string }) {
       </main>
 
       {Sidebar}
+
+      {/* گفت‌وگوی بازخورد: انتقاد → تحلیل AI نسبت به جزوه → ثبت پیشنهاد برای مدیر */}
+      <FeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        courseId={course.id}
+        chapterTitle={chapter.title}
+        lessonId={id}
+        lessonTitle={lesson.title}
+        getContext={() => {
+          const ground = lessonToContextText(sections.slice(0, visibleCount));
+          return {
+            courseTitle: course.title,
+            chapterTitle: chapter.title,
+            lessonTitle: lesson.title,
+            seenSections: sections.slice(0, visibleCount).map((s) => s.title ?? ""),
+            extra: ground.text,
+            lawRegistry: ground.lawRegistry,
+          };
+        }}
+      />
 
       {/* ورودی پرسش آزاد — فقط موبایل/تبلت؛ دسکتاپ: کارت سایدبار */}
       <div className="fixed inset-x-0 bottom-14 z-30 mx-auto max-w-7xl px-3 sm:px-6 lg:hidden">
