@@ -164,22 +164,24 @@ export function AuthDialog({
             </p>
           )}
 
+          {/* دکمهٔ اصلی فیبر کربن — بافت تاریک بافته‌ای، لبهٔ براق و درخشش برنز */}
           <button
             type="submit"
             disabled={busy || !username.trim() || !password}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-card transition-all duration-200 hover:brightness-110 disabled:opacity-50"
+            className="btn-carbon inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-bronze"
           >
+            <span className="btn-carbon-glow" aria-hidden />
             {busy ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> در حال پردازش…
+                <Loader2 className="relative z-10 h-4 w-4 animate-spin" /> در حال پردازش…
               </>
             ) : tab === "login" ? (
               <>
-                <LogIn className="h-4 w-4" /> ورود به حساب
+                <LogIn className="relative z-10 h-4 w-4" /> ورود به حساب
               </>
             ) : (
               <>
-                <CloudUpload className="h-4 w-4" /> ساخت حساب و انتقال پیشرفت من
+                <CloudUpload className="relative z-10 h-4 w-4" /> ساخت حساب و انتقال پیشرفت من
               </>
             )}
           </button>

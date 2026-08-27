@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sanitizeSections } from "@/lib/social-shared";
+import { sanitizeSections, CATEGORY_SLUGS } from "@/lib/social-shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,11 +14,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const p = await db.post.findUnique({
     where: { id },
     include: {
-      author: { select: { id: true, username: true, displayName: true, bio: true } },
+      author: { select: { id: true, username: true, displayName: true, bio: true, avatarUrl: true } },
       comments: {
-        orderBy: { createdAt: "desc" },
-        take: 100,
-        include: { user: { select: { username: true } } },
+        orderBy: { createdAt: "asc" },
+        take: 200,
+        include: { user: { select: { id: true, username: true, avatarUrl: true } } },
       },
     },
   });
@@ -30,6 +30,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       title: p.title,
       summary: p.summary,
       tags: p.tags,
+      category: p.category,
       blocks: p.blocks,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
@@ -38,6 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         username: p.author.username,
         displayName: p.author.displayName || p.author.username,
         bio: p.author.bio ?? "",
+        avatarUrl: p.author.avatarUrl,
       },
       canManage: !!me && (me.id === p.authorId || me.role === "admin"),
     },
@@ -45,7 +47,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       id: c.id,
       text: c.text,
       createdAt: c.createdAt.toISOString(),
+      replyToId: c.replyToId ?? null,
+      userId: c.user.id,
       username: c.user.username,
+      avatarUrl: c.user.avatarUrl,
     })),
   });
 }
@@ -61,7 +66,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (p.authorId !== me.id && me.role !== "admin")
     return NextResponse.json({ error: "اجازهٔ ویرایش این مطلب را ندارید." }, { status: 403 });
 
-  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown };
+  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -77,6 +82,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       title: (body.title ?? "").trim().slice(0, 140) || undefined,
       summary: typeof body.summary === "string" ? body.summary.trim().slice(0, 280) : undefined,
       tags: typeof body.tags === "string" ? body.tags.trim().slice(0, 120) : undefined,
+      ...(typeof body.category === "string"
+        ? { category: CATEGORY_SLUGS.includes(body.category) ? body.category : "" }
+        : {}),
       blocks: sections as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });

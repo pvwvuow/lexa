@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const row = await db.teacherCourse.findUnique({
     where: { id },
-    include: { teacher: { select: { id: true, username: true, displayName: true } } },
+    include: { teacher: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
   });
   if (!row) return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
 
@@ -21,11 +21,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     id: row.teacher.id,
     username: row.teacher.username,
     displayName: row.teacher.displayName || row.teacher.username,
+    avatarUrl: row.teacher.avatarUrl,
   });
 
   return NextResponse.json({
     course,
-    teacher: { id: row.teacher.id, username: row.teacher.username, displayName: row.teacher.displayName || row.teacher.username },
+    teacher: {
+      id: row.teacher.id,
+      username: row.teacher.username,
+      displayName: row.teacher.displayName || row.teacher.username,
+      avatarUrl: row.teacher.avatarUrl,
+    },
     canManage: !!me && (me.id === row.teacherId || me.role === "admin"),
   });
 }

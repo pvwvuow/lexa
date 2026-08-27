@@ -3,7 +3,7 @@
 import * as React from "react";
 import {
   PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Layers3, Flame, ArrowLeft,
-  UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn,
+  UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -11,8 +11,8 @@ import { useApp } from "@/lib/store";
 import { mergeAll } from "@/lib/books";
 import { fa, pct } from "@/lib/fa";
 import { navigate } from "@/lib/router";
-import { Donut, ProgressBar, CourseIcon, StatChip } from "./common";
-import { useAuth } from "@/lib/auth-client";
+import { Donut, ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial } from "@/lib/social-client";
 
 const faDate = (iso: string) =>
@@ -194,8 +194,16 @@ export function DashboardView() {
 
 /* ═══ کتابخانهٔ من — قفسهٔ شخصی با جلدِ کتاب، دورهٔ استاد و مطالب دنبال‌شده ══════ */
 
-function BookCover({ c, progress }: { c: Course; progress: Record<string, { status?: string }> }) {
+function BookCover({
+  c, progress, onRemove,
+}: {
+  c: Course;
+  progress: Record<string, { status?: string }>;
+  onRemove?: () => void;
+}) {
   const owner = (c as Course & { _ownerUsername?: string })._ownerUsername;
+  const isPrep = (c as Course & { _status?: string })._status === "prep";
+  const [confirming, setConfirming] = React.useState(false);
   const total = c.chapters.reduce((n, x) => n + x.lessons.length, 0);
   const done = doneCountOf(c, progress);
   const p = lessonProgressOf(c, progress);
@@ -204,35 +212,74 @@ function BookCover({ c, progress }: { c: Course; progress: Record<string, { stat
     : "bg-gradient-to-bl from-primary to-black/25";
 
   return (
-    <button
-      onClick={() => navigate({ view: "course", id: c.id })}
-      title={`${c.title} — ${fa(p)}٪ تکمیل`}
-      className="group overflow-hidden rounded-2xl border border-border bg-card text-start shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-bronze/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
-    >
-      <span aria-hidden className={`relative block h-24 ${zone}`}>
-        <span className="absolute -bottom-3 start-2 select-none font-display text-[64px] leading-none text-white/10">
-          {c.title.slice(0, 1)}
-        </span>
-        <span aria-hidden className="pattern-quilt absolute inset-0 opacity-60" />
-        <span className="absolute inset-x-0 bottom-2.5 mx-auto grid h-10 w-10 rotate-45 place-items-center rounded-[9px] border border-white/25 bg-background/20 shadow-card backdrop-blur-sm">
-          <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-white" />
-        </span>
-        {owner && (
-          <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[9.5px] font-bold text-white backdrop-blur-sm">
-            <GraduationCap className="h-3 w-3" /> {owner}
+    <div className="group relative">
+      <button
+        onClick={() => navigate({ view: "course", id: c.id })}
+        title={`${c.title} — ${fa(p)}٪ تکمیل`}
+        className="block w-full overflow-hidden rounded-2xl border border-border bg-card text-start shadow-card transition-all duration-200 hover:-translate-y-1 hover:border-bronze/60 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+      >
+        <span aria-hidden className={`relative block h-24 ${zone}`}>
+          <span className="absolute -bottom-3 start-2 select-none font-display text-[64px] leading-none text-white/10">
+            {c.title.slice(0, 1)}
           </span>
-        )}
-      </span>
-
-      <span className="block space-y-2 p-3">
-        <span className="line-clamp-1 block font-display text-[13.5px] font-bold">{c.title}</span>
-        <ProgressBar value={p} />
-        <span className="flex items-center justify-between text-[10.5px] text-muted-foreground">
-          <span>{fa(p)}٪ پیشرفت</span>
-          <span>{fa(done)}/{fa(total)} جلسه</span>
+          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-60" />
+          <span className="absolute inset-x-0 bottom-2.5 mx-auto grid h-10 w-10 rotate-45 place-items-center rounded-[9px] border border-white/25 bg-background/20 shadow-card backdrop-blur-sm">
+            <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-white" />
+          </span>
+          {owner && (
+            <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[9.5px] font-bold text-white backdrop-blur-sm">
+              <GraduationCap className="h-3 w-3" /> {owner}
+            </span>
+          )}
+          {isPrep && (
+            <span className="absolute end-2 top-2 inline-flex items-center gap-1 rounded-full bg-amber-400/95 px-2 py-0.5 text-[9px] font-extrabold text-amber-950 shadow-card">
+              <Clock3 className="h-3 w-3" /> در حال آماده‌سازی
+            </span>
+          )}
         </span>
-      </span>
-    </button>
+
+        <span className="block space-y-2 p-3">
+          <span className="line-clamp-1 block font-display text-[13.5px] font-bold">{c.title}</span>
+          <ProgressBar value={p} />
+          <span className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+            <span>{fa(p)}٪ پیشرفت</span>
+            <span>{fa(done)}/{fa(total)} جلسه</span>
+          </span>
+        </span>
+      </button>
+
+      {/* حذف از کتابخانهٔ من — فقط دوره‌های استاد؛ پیشرفت روی سرور باقی می‌ماند */}
+      {onRemove && (
+        confirming ? (
+          <span className="absolute -top-2 end-1.5 z-10 flex items-center gap-1 rounded-xl border border-destructive/50 bg-background p-1 ps-2 shadow-card">
+            <span className="text-[10px] font-bold text-destructive">حذف شود؟</span>
+            <button
+              aria-label="تایید حذف"
+              onClick={(e) => { e.stopPropagation(); setConfirming(false); onRemove(); }}
+              className="rounded-lg bg-destructive px-2 py-1 text-[10px] font-bold text-white hover:brightness-110"
+            >
+              بله
+            </button>
+            <button
+              aria-label="انصراف"
+              onClick={(e) => { e.stopPropagation(); setConfirming(false); }}
+              className="rounded-lg border border-border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground"
+            >
+              نه
+            </button>
+          </span>
+        ) : (
+          <button
+            aria-label={`حذف ${c.title} از کتابخانه`}
+            title="حذف از کتابخانهٔ من (پیشرفتت حفظ می‌شود)"
+            onClick={() => setConfirming(true)}
+            className="absolute end-1.5 bottom-[76px] z-10 rounded-lg border border-border bg-background/90 p-1.5 text-muted-foreground opacity-0 shadow-card transition-all duration-150 hover:border-destructive/60 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 sm:bottom-auto sm:-top-2"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )
+      )}
+    </div>
   );
 }
 
@@ -248,14 +295,27 @@ function ComingCover({ title }: { title: string }) {
     </div>
   );
 }
+void ComingCover;
 
 function MyLibrary() {
   const progress = useApp((s) => s.progress);
   const customCourses = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
-  const courses = mergeAll({ customCourses, tBooks });
   const { user } = useAuth();
   const { feed, teachers, showingAll, loading } = useSocial();
+  const [removedMsg, setRemovedMsg] = React.useState("");
+
+  // «کتابخانهٔ من» فقط دوره‌های واقعاً خواندنی را نشان می‌دهد؛ دوره‌هایی که محتوایشان
+  // هنوز کامل بارگذاری نشده حذفِ نمایش می‌شوند ولی داده‌شان دست‌نخورده باقی است.
+  const allCourses = mergeAll({ customCourses, tBooks });
+  const courses = React.useMemo(
+    () =>
+      allCourses.filter((c) => {
+        const flat = c.chapters?.flatMap?.((ch) => ch.lessons) ?? [];
+        return flat.length > 0 || !builtinCourses.some((b) => b.id === c.id);
+      }),
+    [allCourses],
+  );
 
   const followedIds = React.useMemo(
     () => new Set(teachers.filter((t) => t.isFollowing).map((t) => t.id)),
@@ -267,6 +327,20 @@ function MyLibrary() {
   }, [feed, followedIds, user, showingAll]);
 
   const teacherCount = courses.filter((c) => (c as Course & { _ownerUsername?: string })._ownerUsername).length;
+
+  /** حذف یک دورهٔ استاد از کتابخانهٔ من — پیشرفت و تست‌ها روی سرور می‌مانند */
+  async function removeFromLibrary(courseId: string, title: string) {
+    try {
+      await fetch("/api/library", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId }),
+      });
+      await refreshLibrary();
+      setRemovedMsg(`«${title}» از کتابخانه حذف شد؛ اگر دوباره اضافه‌اش کنی، همهٔ فعالیتت سر جایش است.`);
+      setTimeout(() => setRemovedMsg(""), 6000);
+    } catch {}
+  }
 
   return (
     <section className="space-y-4">
@@ -284,12 +358,22 @@ function MyLibrary() {
       </div>
 
       {/* قفسهٔ کتاب‌ها */}
+      {removedMsg && (
+        <p className="rounded-xl border border-success/40 bg-success/10 px-4 py-2.5 text-xs leading-relaxed text-success">{removedMsg}</p>
+      )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {courses.map((c) => (
-          <BookCover key={c.id} c={c} progress={progress} />
-        ))}
-        <ComingCover title="حقوق مدنی ۲" />
-        <ComingCover title="حقوق کیفری ۱" />
+        {courses.map((c) => {
+          const cid = (c as Course & { id: string }).id;
+          const ownerCourse = !!((c as Course & { _ownerUsername?: string })._ownerUsername) && tBooks.some((t) => t.id === cid);
+          return (
+            <BookCover
+              key={cid}
+              c={c}
+              progress={progress}
+              onRemove={ownerCourse ? () => removeFromLibrary(cid, c.title) : undefined}
+            />
+          );
+        })}
       </div>
       {/* تختهٔ قفسه زیر جلدِ کتاب‌ها */}
       <div aria-hidden className="mt-[-14px] mr-2 ml-2 h-[7px] rounded-full bg-gradient-to-l from-transparent via-bronze/45 to-transparent" />
@@ -326,24 +410,29 @@ function MyLibrary() {
         {myPosts.length > 0 && (
           <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 [scrollbar-width:thin]">
             {myPosts.map((p) => (
-              <button
+              <div
                 key={p.id}
+                role="link"
+                tabIndex={0}
                 onClick={() => navigate({ view: "post", id: p.id })}
-                className="group relative min-w-[218px] flex-1 rounded-2xl border border-border bg-card p-3.5 pt-4 text-start shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50 sm:min-w-[240px]"
+                onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
+                className="group relative min-w-[218px] flex-1 cursor-pointer rounded-2xl border border-border bg-card p-3.5 pt-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50 sm:min-w-[240px]"
               >
                 <span aria-hidden className="absolute -top-[7px] start-4 h-px w-12 bg-gradient-to-l from-transparent via-bronze/60 to-transparent rtl:start-auto rtl:end-4" />
-                <span className="mb-2 flex items-center gap-2">
-                  <DiamondAvatar name={p.author.displayName} size="sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12px] font-bold">{p.author.displayName}</span>
-                    <span className="block text-[9.5px] text-muted-foreground">{faDate(p.createdAt)}</span>
-                  </span>
+                <div className="mb-2 flex items-center gap-2">
+                  <ToTeacherProfile id={p.author.id} displayName={p.author.displayName} avatarUrl={p.author.avatarUrl} />
+                  <span className="min-w-0 flex-1" />
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">
                     <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
                   </span>
-                </span>
-                <span className="line-clamp-2 block font-display text-[13px] font-bold leading-relaxed group-hover:text-bronze">{p.title}</span>
-              </button>
+                  {!!p.rating?.count && (
+                    <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-bronze/10 px-1.5 py-0.5 text-[9.5px] font-bold text-bronze">
+                      <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
+                    </span>
+                  )}
+                </div>
+                <p className="line-clamp-2 font-display text-[13px] font-bold leading-relaxed group-hover:text-bronze">{p.title}</p>
+              </div>
             ))}
           </div>
         )}
@@ -354,12 +443,27 @@ function MyLibrary() {
 
 /* ═══ اساتید — پیشنهاد اینستاگرامی + فید مطالب ═════════════════════════════ */
 
-function DiamondAvatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
-  const cls = size === "sm" ? "h-8 w-8 text-[12px]" : "h-11 w-11 text-[15px]";
+/** دکمهٔ کوچک رفتن به پروفایل استاد (آواتار + نام) */
+function ToTeacherProfile({
+  id, displayName, avatarUrl, compact = false,
+}: { id: string; displayName: string; avatarUrl?: string | null; compact?: boolean }) {
   return (
-    <span className={`relative grid ${cls} shrink-0 rotate-45 place-items-center rounded-[10px] bg-gradient-to-bl from-primary/90 to-bronze shadow-card`}>
-      <span className="-rotate-45 font-display font-bold leading-none text-primary-foreground">{name.slice(0, 1)}</span>
-    </span>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        navigate({ view: "teacher", id });
+      }}
+      title={`پروفایل ${displayName}`}
+      className="flex min-w-0 items-center gap-2 rounded-lg p-0.5 -m-0.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+    >
+      <UserAvatar src={avatarUrl} name={displayName} size={compact ? "xs" : "sm"} />
+      {!compact && (
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12px] font-bold hover:text-bronze">{displayName}</span>
+          <span className="block text-[9.5px] text-muted-foreground">پروفایل و فعالیت‌ها ←</span>
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -368,7 +472,6 @@ export function TeacherSuggestions() {
   const { teachers, loading, toggleFollow } = useSocial();
   const { user } = useAuth();
   const [err, setErr] = React.useState("");
-
   async function onFollow(id: string) {
     setErr("");
     try {
@@ -414,9 +517,17 @@ export function TeacherSuggestions() {
           <div key={t.id} className="group relative min-w-[188px] flex-1 rounded-2xl border border-border bg-card p-4 pt-5 text-center shadow-card transition-colors hover:border-bronze/50">
             <span aria-hidden className="absolute -top-[7px] start-1/2 h-px w-14 -translate-x-1/2 rtl:translate-x-1/2 bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
             <div className="mx-auto mb-3 w-fit" aria-hidden>
-              <DiamondAvatar name={t.displayName} />
+              <button onClick={() => navigate({ view: "teacher", id: t.id })} title={`پروفایل ${t.displayName}`} className="rounded-full p-0.5 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze">
+                <UserAvatar src={t.avatarUrl} name={t.displayName} />
+              </button>
             </div>
-            <p className="truncate font-display text-[13.5px] font-bold">{t.displayName}</p>
+            <button
+              onClick={() => navigate({ view: "teacher", id: t.id })}
+              className="w-full truncate rounded-lg font-display text-[13.5px] font-bold transition-colors hover:text-bronze"
+              title={`پروفایل و فعالیت‌های ${t.displayName}`}
+            >
+              {t.displayName}
+            </button>
             <p className="truncate text-[10.5px] text-muted-foreground">@{t.username}</p>
             <p className="mt-1 text-[10.5px] text-muted-foreground">
               {fa(t.followers)} دنبال‌کننده · {fa(t.posts)} مطلب{t.courses > 0 ? ` · ${fa(t.courses)} دوره` : ""}
@@ -459,24 +570,29 @@ export function TeacherFeedTeasers() {
 
       <div className="grid gap-3 md:grid-cols-2">
         {feed.map((p) => (
-          <button
+          <div
             key={p.id}
+            role="link"
+            tabIndex={0}
             onClick={() => navigate({ view: "post", id: p.id })}
-            className="group relative overflow-hidden rounded-2xl border border-border bg-card p-4 text-start shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50 sm:p-5"
+            onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
+            className="group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-bronze/50 sm:p-5"
           >
             <div className="mb-2.5 flex items-center gap-2.5">
-              <DiamondAvatar name={p.author.displayName} size="sm" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px] font-bold">{p.author.displayName}</span>
-                <span className="block text-[10px] text-muted-foreground">{faDate(p.createdAt)}</span>
-              </span>
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <ToTeacherProfile id={p.author.id} displayName={p.author.displayName} avatarUrl={p.author.avatarUrl} />
+              <span className="text-[10px] text-muted-foreground">{faDate(p.createdAt)}</span>
+              <span className="ms-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
               </span>
+              {!!p.rating?.count && (
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-bronze/10 px-2 py-0.5 text-[10px] font-bold text-bronze">
+                  <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
+                </span>
+              )}
             </div>
             <p className="font-display line-clamp-1 text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
             {p.summary && <p className="line-clamp-2 mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{p.summary}</p>}
-          </button>
+          </div>
         ))}
       </div>
     </section>

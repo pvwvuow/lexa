@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { useSocial, useTCourses } from "@/lib/social-client";
-import { CourseIcon } from "./common";
+import { CourseIcon, UserAvatar } from "./common";
 import { TeacherFeedTeasers } from "./DashboardView";
 
 export function TeachersView() {
@@ -82,6 +82,9 @@ export function TeachersView() {
       {/* فهرست اساتید */}
       <section className="space-y-3">
         <h2 className="text-lg font-bold">پیشنهاد ما</h2>
+        <p className="-mt-1.5 text-xs text-muted-foreground">
+          روی آواتار یا نام هر استاد بزن تا پروفایل و فعالیت‌هایش را ببینی.
+        </p>
         {loading && (
           <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>
         )}
@@ -94,9 +97,21 @@ export function TeachersView() {
           {teachers.map((t) => (
             <div key={t.id} className="rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5">
               <div className="flex items-start gap-3.5">
-                <span className="relative mt-1 h-12 w-12 shrink-0 rotate-45 place-items-center rounded-[10px] bg-gradient-to-bl from-primary/90 to-bronze shadow-card" aria-hidden />
+                <button
+                  onClick={() => navigate({ view: "teacher", id: t.id })}
+                  title={`پروفایل ${t.displayName}`}
+                  className="mt-1 shrink-0 rounded-full p-0.5 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+                >
+                  <UserAvatar src={t.avatarUrl} name={t.displayName} />
+                </button>
                 <div className="min-w-0 flex-1">
-                  <p className="font-display font-bold">{t.displayName}</p>
+                  <button
+                    onClick={() => navigate({ view: "teacher", id: t.id })}
+                    className="rounded-lg font-display font-bold transition-colors hover:text-bronze"
+                    title="پروفایل و فعالیت‌ها"
+                  >
+                    {t.displayName}
+                  </button>
                   <p className="truncate text-[11px] text-muted-foreground">@{t.username}</p>
                   {t.bio && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{t.bio}</p>}
                 </div>
@@ -134,7 +149,7 @@ export function TeachersView() {
                       <button
                         onClick={() => onAddLibrary(c.id)}
                         disabled={!user || busyId === c.id}
-                        title={!user ? "ابتدا وارد شو" : c.inLibrary ? "حذف از کتابخانهٔ من" : "افزودن به کتابخانهٔ من"}
+                        title={!user ? "ابتدا وارد شو" : c.inLibrary ? "حذف از کتابخانهٔ من — پیشرفتت می‌ماند" : "افزودن به کتابخانهٔ من"}
                         className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
                           c.inLibrary
                             ? "border border-success/50 bg-success/10 text-success"

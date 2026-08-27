@@ -46,8 +46,11 @@ export async function POST(req: NextRequest) {
   const courseId = String(body.courseId ?? "");
   if (!courseId) return NextResponse.json({ error: "شناسهٔ دوره لازم است." }, { status: 400 });
 
-  const course = await db.teacherCourse.findUnique({ where: { id: courseId }, select: { id: true } });
+  const course = await db.teacherCourse.findUnique({ where: { id: courseId }, select: { id: true, teacherId: true, status: true } });
   if (!course) return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
+  // پیش‌نویس فقط برای خود استاد در اتاقش دیده می‌شود و افزودنی نیست
+  if (course.status === "draft" && !(me && (me.id === course.teacherId || me.role === "admin")))
+    return NextResponse.json({ error: "این دوره هنوز منتشر نشده است." }, { status: 403 });
 
   const existing = await db.libraryEntry.findUnique({
     where: { userId_courseId: { userId: me.id, courseId } },

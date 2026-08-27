@@ -5,6 +5,8 @@ export interface PublicUser {
   username: string;
   role: "user" | "admin" | "teacher";
   displayName?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null; // آواتار آپلودشده — فقط استاد/مدیر
   createdAt: string; // ISO
 }
 

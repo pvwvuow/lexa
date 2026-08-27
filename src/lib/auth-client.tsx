@@ -13,6 +13,10 @@ interface AuthCtx {
   register(username: string, password: string): Promise<{ ok: boolean; error?: string }>;
   logout(): Promise<void>;
   syncNow(): Promise<boolean>;
+  /** ویرایش پروفایل شخصی (نام نمایشی/بیو) از تنظیمات عمومی */
+  updateProfile(patch: { displayName?: string; bio?: string }): Promise<{ ok: boolean; error?: string }>;
+  /** بازخوانی اطلاعات حساب از سرور (پس از تغییر آواتار و…) */
+  refreshMe(): Promise<void>;
 }
 
 const Ctx = React.createContext<AuthCtx | null>(null);
@@ -292,9 +296,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => (hydratingRef.current = false), 500);
   }, [flush]);
 
+  const updateProfile = React.useCallback<AuthCtx["updateProfile"]>(
+    async (patch) => {
+      try {
+        const res = await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        const data = (await res.json()) as { ok?: boolean; user?: PublicUser; error?: string };
+        if (!res.ok || !data.user)
+          return { ok: false, error: data.error ?? "ذخیره ناموفق بود." };
+        setUser(data.user);
+        return { ok: true };
+      } catch {
+        return { ok: false, error: "ارتباط با سرور برقرار نشد." };
+      }
+    },
+    [],
+  );
+
+  const refreshMe = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = (await res.json()) as { user: PublicUser | null };
+      if (data.user) {
+        userRef.current = data.user;
+        setUser(data.user);
+      }
+    } catch {}
+  }, []);
+
   const value = React.useMemo<AuthCtx>(
-    () => ({ user, status, syncing, lastSavedAt, login, register, logout, syncNow: flush }),
-    [user, status, syncing, lastSavedAt, login, register, logout, flush]
+    () => ({
+      user,
+      status,
+      syncing,
+      lastSavedAt,
+      login,
+      register,
+      logout,
+      syncNow: flush,
+      updateProfile,
+      refreshMe,
+    }),
+    [user, status, syncing, lastSavedAt, login, register, logout, flush, updateProfile, refreshMe]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -15,7 +15,9 @@ export type Route =
   | { view: "admin" }
   | { view: "teachers" }
   | { view: "studio" }
-  | { view: "post"; id: string };
+  | { view: "post"; id: string }
+  | { view: "library" }
+  | { view: "teacher"; id: string };
 
 export function routeToHash(r: Route): string {
   switch (r.view) {
@@ -25,6 +27,7 @@ export function routeToHash(r: Route): string {
     case "quiz": return r.id ? `#/quiz/${r.id}` : "#/quiz";
     case "case": return r.id ? `#/case/${r.id}` : "#/case";
     case "post": return `#/post/${r.id}`;
+    case "teacher": return `#/teacher/${r.id}`;
     default: return `#/${r.view}`;
   }
 }
@@ -38,7 +41,8 @@ export function parseHash(h: string): Route {
   if (head === "quiz") return { view: "quiz", id };
   if (head === "case") return { view: "case", id };
   if (head === "post" && id) return { view: "post", id };
-  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio"].includes(head)) return { view: head as never };
+  if (head === "teacher" && id) return { view: "teacher", id };
+  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio", "library"].includes(head)) return { view: head as never };
   return { view: "home" };
 }
 
