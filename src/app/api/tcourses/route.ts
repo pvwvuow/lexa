@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { LIMITS, safeCategory, safeCategories, teacherCourseToCourse } from "@/lib/social-shared";
+import { LIMITS, safeCategory, safeCategories, safeThumbnail, teacherCourseToCourse } from "@/lib/social-shared";
 import { ratingsAggMany, feedScore } from "@/lib/ratings-server";
 
 export const runtime = "nodejs";
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
     category: safeCategory(body.category),
     categories: JSON.stringify(safeCategories(body.categories ?? body.category)),
     status: ["draft", "prep", "published"].includes(String(body.status)) ? String(body.status) : "published",
+    thumbnail: safeThumbnail(body.thumbnail),
     chaptersJson,
   };
 

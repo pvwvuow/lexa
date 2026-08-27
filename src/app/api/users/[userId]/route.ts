@@ -108,6 +108,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       summary: p.summary,
       tags: p.tags,
       category: p.category,
+      thumbnail: p.thumbnail,
       createdAt: p.createdAt.toISOString(),
       commentsCount: p._count.comments,
       rating: pAgg.get(p.id) ?? ({ avg: 0, count: 0 } as RatingAgg),
