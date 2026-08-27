@@ -51,12 +51,13 @@ export function LearnView({ id }: { id: string }) {
   const [loadingFor, setLoadingFor] = React.useState<string | null>(null); // نوع دکمه فعال
   const [questionInput, setQuestionInput] = React.useState("");
   const [showTocMobile, setShowTocMobile] = React.useState(false);
+  const [askOpen, setAskOpen] = React.useState(false); // فرم شناور پرسش در موبایل
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [id]);
 
   if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
@@ -261,7 +262,7 @@ export function LearnView({ id }: { id: string }) {
     ) : null;
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pb-28 pt-6 sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
+    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[186px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
       {/* ستون اصلی */}
       <main className="min-w-0">
         {/* نوار پیشرفت جلسه */}
@@ -440,28 +441,47 @@ export function LearnView({ id }: { id: string }) {
         }}
       />
 
-      {/* ورودی پرسش آزاد — فقط موبایل/تبلت؛ دسکتاپ: کارت سایدبار */}
-      <div className="fixed inset-x-0 bottom-14 z-30 mx-auto max-w-7xl px-3 sm:px-6 lg:hidden">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!questionInput.trim()) return;
-            handleAction("free", questionInput.trim());
-            setQuestionInput("");
-          }}
-          className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur"
-        >
-          <input
-            value={questionInput}
-            onChange={(e) => setQuestionInput(e.target.value)}
-            placeholder="سوالی از استاد داری؟ بپرس…"
-            className="h-11 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/70"
-            aria-label="سؤال آزاد از استاد"
-          />
-          <button type="submit" disabled={!!loadingFor} className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
-            <Send className="h-4 w-4 -scale-x-100" />
-          </button>
-        </form>
+      {/* ورودی پرسش آزاد — فقط موبایل/تبلت: دکمهٔ فشرده‌ای چسبیده به داک پایین، نه معلق وسط صفحه */}
+      <div className="fixed inset-x-0 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-30 px-3 sm:px-6 lg:hidden">
+        {askOpen ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!questionInput.trim()) return;
+              handleAction("free", questionInput.trim());
+              setQuestionInput("");
+            }}
+            className="mx-auto flex max-w-3xl items-center gap-1.5 rounded-2xl border border-bronze/40 bg-card/95 p-1.5 shadow-lg backdrop-blur"
+          >
+            <input
+              autoFocus
+              value={questionInput}
+              onChange={(e) => setQuestionInput(e.target.value)}
+              placeholder="سوالی از استاد داری؟ بپرس…"
+              className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/70"
+              aria-label="سؤال آزاد از استاد"
+            />
+            <button type="submit" disabled={!!loadingFor} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
+              <Send className="h-4 w-4 -scale-x-100" />
+            </button>
+            <button type="button" onClick={() => setAskOpen(false)} aria-label="بستن پرسش سریع" className="grid h-10 w-8 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-muted">
+              ×
+            </button>
+          </form>
+        ) : (
+          <div className="flex max-w-7xl">
+            <button
+              onClick={() => setAskOpen(true)}
+              title="سؤال آزاد از استاد هوشمند همین جلسه"
+              className="inline-flex items-center gap-2 rounded-full border border-bronze/45 bg-card/95 p-1.5 pe-4 shadow-lg backdrop-blur transition-colors hover:border-bronze active:scale-[.98]"
+            >
+              <span aria-hidden className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Send className="h-4 w-4 -scale-x-100" />
+              </span>
+              <span className="text-[12.5px] font-bold">از استاد بپرس</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

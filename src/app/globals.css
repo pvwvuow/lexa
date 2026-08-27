@@ -452,3 +452,18 @@ h1, h2, h3, h4, h5, h6 {
   transition: opacity 250ms ease;
   pointer-events: none;
 }
+
+/* ─── اسلایدر افقی (قفسه‌های خانه و کتابخانه) ─────────────────────────────────
+ * نوار پیمایش پنهان، اسنپ نرم به ابتدای کارت‌ها، مهرف رفتار لمسی کنترل‌شده */
+.hslider {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+.hslider::-webkit-scrollbar {
+  display: none;
+}
+.hslider > * {
+  scroll-snap-align: start;
+}
