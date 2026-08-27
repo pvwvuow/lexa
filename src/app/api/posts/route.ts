@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sanitizeSections, CATEGORY_SLUGS, safeCategories } from "@/lib/social-shared";
+import { sanitizeSections, sanitizeQuiz, safeThumbnail, CATEGORY_SLUGS, safeCategories } from "@/lib/social-shared";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
       tags: (body.tags ?? "").trim().slice(0, 120),
       category: CATEGORY_SLUGS.includes(String(body.category ?? "")) ? String(body.category) : cats[0] ?? "",
       categories: JSON.stringify(cats),
+      thumbnail: safeThumbnail(body.thumbnail),
+      quizJson: JSON.stringify(sanitizeQuiz(body.quiz)),
       blocks: sections as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });
@@ -56,7 +58,7 @@ export async function GET() {
   const rows = await db.post.findMany({
     where: { authorId: me.id },
     orderBy: { createdAt: "desc" },
-    select: { id: true, title: true, summary: true, tags: true, createdAt: true, _count: { select: { comments: true } } },
+    select: { id: true, title: true, summary: true, tags: true, thumbnail: true, quizJson: true, createdAt: true, _count: { select: { comments: true } } },
   });
 
   return NextResponse.json({
@@ -65,6 +67,8 @@ export async function GET() {
       title: p.title,
       summary: p.summary,
       tags: p.tags,
+      thumbnail: p.thumbnail,
+      quizCount: (() => { try { return (JSON.parse(p.quizJson) as unknown[]).length; } catch { return 0; } })(),
       createdAt: p.createdAt.toISOString(),
       commentsCount: p._count.comments,
     })),

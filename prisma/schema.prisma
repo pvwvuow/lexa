@@ -164,6 +164,8 @@ model Post {
   tags      String    @default("")
   category  String    @default("") // شاخهٔ اصلی (سازگاری با نسخه‌های قبل)
   categories String   @default("[]") // شاخه‌های چندگانهٔ کتابخانهٔ عمومی — JSON آرایه‌ای از slug
+  thumbnail String    @default("") // تصویر شاخص دلخواه مطلب (آپلودی یا لینک)
+  quizJson  String    @default("[]") // آزمون پایان مبحث — JSON آرایهٔ QuizQuestion
   blocks    Json // آرایهٔ LessonSection — همان المان‌های صفحهٔ تدریس
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -213,7 +215,8 @@ model TeacherCourse {
   category     String   @default("other") // شاخهٔ اصلی (سازگاری با نسخه‌های قبل)
   categories   String   @default("[]") // شاخه‌های چندگانه — استاد می‌تواند چند شاخه انتخاب کند
   status       String   @default("published") // draft فقط استاد | prep در حال آماده‌سازی | published منتشر شده
-  chaptersJson String   @default("[]")
+  thumbnail    String   @default("") // تصویر شاخص دلخواه دوره (آپلودی یا لینک)
+  chaptersJson String   @default("[]") // آزمون هر فصل/جلسه داخل همین JSON ذخیره می‌شود
   publishedAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
       tags: p.tags,
       category: p.category,
       categories: parseCategories(p.categories, p.category),
+      thumbnail: p.thumbnail,
       createdAt: p.createdAt.toISOString(),
       commentsCount: p._count.comments,
       rating: pAgg.get(p.id) ?? ({ avg: 0, count: 0 } as RatingAgg),

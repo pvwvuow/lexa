@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { sanitizeSections, CATEGORY_SLUGS, safeCategories, parseCategories } from "@/lib/social-shared";
+import { sanitizeSections, sanitizeQuiz, safeThumbnail, CATEGORY_SLUGS, safeCategories, parseCategories } from "@/lib/social-shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +32,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       tags: p.tags,
       category: p.category,
       categories: parseCategories(p.categories, p.category),
+      thumbnail: p.thumbnail,
+      quiz: (() => { try { return sanitizeQuiz(JSON.parse(p.quizJson)); } catch { return []; } })(),
       blocks: p.blocks,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
@@ -67,7 +69,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (p.authorId !== me.id && me.role !== "admin")
     return NextResponse.json({ error: "اجازهٔ ویرایش این مطلب را ندارید." }, { status: 403 });
 
-  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown; categories?: unknown };
+  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown; categories?: unknown; thumbnail?: unknown; quiz?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -92,6 +94,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             categories: JSON.stringify(cats),
           }
         : {}),
+      // تصویر شاخص و آزمون دلخواه‌اند؛ ولی اگر در بدنه باشند (حتی خالی) جایگزین می‌شوند
+      ...(body.thumbnail !== undefined ? { thumbnail: safeThumbnail(body.thumbnail) } : {}),
+      ...(body.quiz !== undefined ? { quizJson: JSON.stringify(sanitizeQuiz(body.quiz)) } : {}),
       blocks: sections as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });

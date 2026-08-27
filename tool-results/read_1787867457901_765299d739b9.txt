@@ -1,0 +1,839 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion, AnimatePresence } from "framer-motion";
+     5→import {
+     6→  CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale,
+     7→  Timer, Flag, GraduationCap, ClipboardList, ArrowLeft, ArrowRight, Shuffle,
+     8→  Library, Target, House,
+     9→} from "lucide-react";
+    10→import type { QuizQuestion } from "@/lib/law/types";
+    11→import { builtinCourses } from "@/lib/law/courses";
+    12→import type { Course, Lesson, Chapter } from "@/lib/law/types";
+    13→import { flattenAll } from "@/lib/law/types";
+    14→import { useApp, weakTopics } from "@/lib/store";
+    15→import { mergeVisible } from "@/lib/books";
+    16→import { fa } from "@/lib/fa";
+    17→import { navigate } from "@/lib/router";
+    18→import { askAi } from "@/lib/aiClient";
+    19→import { lessonToContextText } from "@/lib/law/lessonText";
+    20→import { AIThinking, Donut, ProgressBar, EmptyState } from "./common";
+    21→
+    22→const KEYS = ["a", "b", "c", "d"] as const;
+    23→type Key = (typeof KEYS)[number];
+    24→const FA_LETTER: Record<string, string> = { a: "الف", b: "ب", c: "ج", d: "د" };
+    25→
+    26→type Phase = "setup" | "run" | "result";
+    27→type Mode = "train" | "exam";
+    28→
+    29→const WEAK_KEY = "hoh_weak_topics";
+    30→
+    31→/** ادغام مبحث‌های ضعیف در مخزن localStorage — بدون ساخت رکورد پیشرفت جعلی */
+    32→function mergeWeakTopics(adds: string[]) {
+    33→  const set = new Set(weakTopics());
+    34→  adds.forEach((t) => t && set.add(t));
+    35→  set.delete("");
+    36→  try { localStorage.setItem(WEAK_KEY, JSON.stringify([...set])); } catch { /* ignore */ }
+    37→}
+    38→
+    39→export function QuizView({ id }: { id?: string }) {
+    40→  const custom = useApp((s) => s.customCourses);
+    41→  const tBooks = useApp((s) => s.tBooks);
+    42→  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
+    43→  const recordQuiz = useApp((s) => s.recordQuiz);
+    44→  const complete = useApp((s) => s.completeLesson);
+    45→  const touchStreak = useApp((s) => s.touchStreak);
+    46→
+    47→  // منبع سؤالات — کل کتابخانه (داخلی + وارداتی)
+    48→  const all: Course[] = React.useMemo(
+    49→    () => mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins }),
+    50→    [custom, tBooks, hiddenBuiltins],
+    51→  );
+    52→
+    53→  const ctx = React.useMemo(() => {
+    54→    if (!id) return null;
+    55→    for (const c of all) for (const ch of c.chapters) {
+    56→      const l = ch.lessons.find((x) => x.id === id);
+    57→      if (l && l.quiz.length > 0) return { course: c, chapter: ch, lesson: l as Lesson };
+    58→    }
+    59→    return null;
+    60→  }, [id, all]);
+    61→
+    62→  /** حالت «مرکز آزمون»: انتخاب دامنه از کل کتابخانه */
+    63→  const [hubActive, setHubActive] = React.useState<boolean>(() => !id);
+    64→
+    65→  // ── انتخاب دامنه در مرکز آزمون ──
+    66→  const flatAll = React.useMemo(() => flattenAll(all), [all]);
+    67→  const readyFlat = React.useMemo(() => flatAll.filter((f) => f.lesson.status !== "ai-pending" && f.lesson.quiz.length > 0), [flatAll]);
+    68→
+    69→  const [scopeCourse, setScopeCourse] = React.useState<string>("ALL");
+    70→  const [picked, setPicked] = React.useState<Set<string>>(() => new Set());
+    71→  const [weakOnly, setWeakOnly] = React.useState(false);
+    72→  const [weakVer, setWeakVer] = React.useState(0); // با هر ثبت مبحث ضعیف، آمار تازه شود
+    73→  const initialized = React.useRef(false);
+    74→
+    75→  // مقدار اولیهٔ دامنه: جلسهٔ فعلی اگر از تدریس آمده، وگرنه همهٔ کتاب‌ها
+    76→  React.useEffect(() => {
+    77→    if (initialized.current) return;
+    78→    initialized.current = true;
+    79→    if (ctx) setPicked(new Set([ctx.lesson.id]));
+    80→    else setPicked(new Set(readyFlat.map((f) => f.lesson.id)));
+    81→  }, [ctx, readyFlat]);
+    82→
+    83→  /** درس‌های قابل‌مشاهده در درخت انتخاب — بر اساس درسِ انتخابیِ جاری */
+    84→  const visibleLessons = React.useMemo(
+    85→    () => readyFlat.filter((f) => scopeCourse === "ALL" || f.course.id === scopeCourse),
+    86→    [readyFlat, scopeCourse],
+    87→  );
+    88→
+    89→  // استخر سؤال
+    90→  const lessonBase: QuizQuestion[] = React.useMemo(() => (ctx ? [...ctx.lesson.quiz] : []), [ctx]);
+    91→
+    92→  const hubStats = React.useMemo(() => {
+    93→    let questions = 0;
+    94→    let weakQuestions = 0;
+    95→    const courses = new Set<string>();
+    96→    const chapters = new Set<string>();
+    97→    const weakList = weakTopics();
+    98→    for (const f of readyFlat) {
+    99→      if (!picked.has(f.lesson.id)) continue;
+   100→      questions += f.lesson.quiz.length;
+   101→      for (const q of f.lesson.quiz) if (q.topic && weakList.includes(q.topic)) weakQuestions += 1;
+   102→      courses.add(f.course.id);
+   103→      chapters.add(f.chapter.id);
+   104→    }
+   105→    return { questions, weakQuestions, lessons: picked.size, courses: courses.size, chapters: chapters.size };
+   106→    // weakTopics() خواندن مستقیم localStorage است؛ با weakVer دستی تازه می‌شود
+   107→  }, [readyFlat, picked, weakVer]);
+   108→
+   109→  const basePool: QuizQuestion[] = React.useMemo(() => {
+   110→    if (hubActive) {
+   111→      const qs: QuizQuestion[] = [];
+   112→      for (const f of readyFlat) {
+   113→        if (!picked.has(f.lesson.id)) continue;
+   114→        for (const q of f.lesson.quiz) qs.push(q);
+   115→      }
+   116→      return weakOnly ? qs.filter((q) => q.topic && weakTopics().includes(q.topic)) : qs;
+   117→    }
+   118→    return lessonBase;
+   119→  }, [hubActive, readyFlat, picked, weakOnly, lessonBase, weakVer]);
+   120→
+   121→  /** استخر تولیدشدهٔ استاد — تا وقتی جایگزین نشده، مبنای آزمون است */
+   122→  const [aiPool, setAiPool] = React.useState<QuizQuestion[] | null>(null);
+   123→  const pool = aiPool ?? basePool;
+   124→
+   125→  // ── وضعیت آزمون ──
+   126→  const [phase, setPhase] = React.useState<Phase>("setup");
+   127→  const [mode, setMode] = React.useState<Mode>("train");
+   128→  const [count, setCount] = React.useState(5);
+   129→  const [shuffleOn, setShuffleOn] = React.useState(true);
+   130→
+   131→  const [questions, setQuestions] = React.useState<QuizQuestion[]>([]);
+   132→  const [answers, setAnswers] = React.useState<Record<number, Key>>({});
+   133→  const [flags, setFlags] = React.useState<number[]>([]);
+   134→  const [idx, setIdx] = React.useState(0);
+   135→  const [furthest, setFurthest] = React.useState(0);
+   136→  const [explainOpen, setExplainOpen] = React.useState(true);
+   137→  const [wrongTopics, setWrongTopics] = React.useState<string[]>([]);
+   138→  const [startedAt, setStartedAt] = React.useState(0);
+   139→  const [tick, setTick] = React.useState(0);
+   140→  const [finalScore, setFinalScore] = React.useState(0);
+   141→  const finalAt = React.useRef(0);
+   142→
+   143→  const [genBusy, setGenBusy] = React.useState(false);
+   144→  const [genErr, setGenErr] = React.useState("");
+   145→
+   146→  React.useEffect(() => {
+   147→    setPhase("setup");
+   148→    setAiPool(null);
+   149→    setGenErr("");
+   150→    setCount(pool.length ? Math.min(5, pool.length) : 5);
+   151→     
+   152→  }, [id, hubActive, basePool.length]);
+   153→
+   154→  // زمان‌سنج
+   155→  React.useEffect(() => {
+   156→    if (phase !== "run") return;
+   157→    const t = window.setInterval(() => setTick((v) => v + 1), 1000);
+   158→    return () => window.clearInterval(t);
+   159→  }, [phase]);
+   160→
+   161→  const elapsed = startedAt ? Math.max(0, Math.floor(((phase === "result" ? (finalAt.current || Date.now()) : Date.now()) - startedAt) / 1000)) : 0;
+   162→  const answeredCount = Object.keys(answers).length;
+   163→
+   164→  function fmtTime(sec: number) {
+   165→    const m = Math.floor(sec / 60);
+   166→    const s = sec % 60;
+   167→    return `${fa(m)}:${fa(String(s).padStart(2, "0"))}`;
+   168→  }
+   169→
+   170→  // ── عملیات دامنه انتخاب ──
+   171→  const toggleLesson = (lessonId: string) =>
+   172→    setPicked((p) => {
+   173→      const n = new Set(p);
+   174→      if (n.has(lessonId)) n.delete(lessonId); else n.add(lessonId);
+   175→      return n;
+   176→    });
+   177→
+   178→  const toggleChapter = (lessons: Lesson[]) =>
+   179→    setPicked((p) => {
+   180→      const ids = lessons.filter((l) => l.status !== "ai-pending" && l.quiz.length > 0).map((l) => l.id);
+   181→      const allIn = ids.every((i) => p.has(i));
+   182→      const n = new Set(p);
+   183→      ids.forEach((i) => (allIn ? n.delete(i) : n.add(i)));
+   184→      return n;
+   185→    });
+   186→
+   187→  const applyCoursePreset = (cid: string) => {
+   188→    setScopeCourse(cid);
+   189→    setPicked(new Set(readyFlat.filter((f) => cid === "ALL" || f.course.id === cid).map((f) => f.lesson.id)));
+   190→  };
+   191→
+   192→  const pickWeakScope = () => {
+   193→    // کل کتابخانه‌ای که سؤال ضعیف دارد؛ بدون توجه به فیلتر درس
+   194→    setScopeCourse("ALL");
+   195→    setWeakOnly(true);
+   196→    const list = weakTopics();
+   197→    const target = readyFlat.filter((f) => f.lesson.quiz.some((q) => q.topic && list.includes(q.topic))).map((f) => f.lesson.id);
+   198→    setPicked(new Set(target.length ? target : readyFlat.map((f) => f.lesson.id)));
+   199→  };
+   200→
+   201→  function startQuiz(poolOverride?: QuizQuestion[]) {
+   202→    touchStreak();
+   203→    const src = poolOverride ?? pool;
+   204→    const shuf = shuffleOn ? shuffle(src) : [...src];
+   205→    const qs = poolOverride ? shuf : shuf.slice(0, Math.min(count, src.length));
+   206→    setQuestions(qs);
+   207→    setAnswers({}); setFlags([]); setIdx(0); setFurthest(0);
+   208→    setWrongTopics([]); setExplainOpen(true); setGenErr("");
+   209→    setStartedAt(Date.now()); setTick(0);
+   210→    setPhase("run");
+   211→  }
+   212→
+   213→  async function generateMore() {
+   214→    setGenBusy(true); setGenErr("");
+   215→    try {
+   216→      let content = "";
+   217→      let label = "";
+   218→      const registry: string[] = [];
+   219→
+   220→      if (!hubActive && ctx) {
+   221→        const ground = lessonToContextText(ctx.lesson.sections, 5000);
+   222→        content = ground.text;
+   223→        registry.push(...ground.lawRegistry);
+   224→        label = `${ctx.course.title} · ${ctx.lesson.title}`;
+   225→      } else {
+   226→        // چند جلسهٔ منتخب به ترتیب کتاب تا سقف ~۷۲۰۰ کاراکتر
+   227→        const chosen = readyFlat.filter((f) => picked.has(f.lesson.id));
+   228→        if (!chosen.length) throw new Error("جلسهٔ آماده‌ای در دامنه نیست؛ اول جلسه را تدریس کن.");
+   229→        for (const f of chosen) {
+   230→          if (content.length >= 7200) break;
+   231→          const g = lessonToContextText(f.lesson.sections, 2400);
+   232→          content += `\n\n### جلسه: ${f.lesson.title} (${f.course.title} / ${f.chapter.title})\n${g.text}`;
+   233→          for (const r of g.lawRegistry) if (!registry.includes(r)) registry.push(r);
+   234→        }
+   235→        if (registry.length > 40) registry.length = 40;
+   236→        label = `${hubStats.lessons} جلسه از ${fa(hubStats.courses)} کتاب`;
+   237→      }
+   238→
+   239→      const res = await askAi<{ quiz: QuizQuestion[] }>({
+   240→        task: "gen_quiz",
+   241→        n: 5,
+   242→        content: content.trim(),
+   243→        context: { courseTitle: label, lawRegistry: registry },
+   244→      });
+   245→      const clean = (res.quiz ?? []).filter(
+   246→        (q) => q?.q && q.options?.length >= 3 && q.options.some((o) => o.key === q.answer) && q.explanation,
+   247→      );
+   248→      if (!clean.length) throw new Error("سؤال سالمی تولید نشد؛ دوباره تلاش کن.");
+   249→      setAiPool(clean);
+   250→      setCount(Math.min(5, clean.length));
+   251→      setPhase("setup");
+   252→    } catch (e) {
+   253→      setGenErr(e instanceof Error ? e.message : "تولید تست ناموفق بود.");
+   254→    } finally {
+   255→      setGenBusy(false);
+   256→    }
+   257→  }
+   258→
+   259→  function scopeLine(): string {
+   260→    if (!hubActive && ctx) return `${ctx.course.title} · ${ctx.lesson.title}`;
+   261→    if (weakOnly) return `مباحث ضعیف تو — ${fa(hubStats.lessons)} جلسه`;
+   262→    return `${fa(hubStats.lessons)} جلسه · ${fa(hubStats.chapters)} فصل · ${fa(hubStats.courses)} کتاب`;
+   263→  }
+   264→
+   265→  if (!pool.length && phase === "setup" && !genBusy)
+   266→    return (
+   267→      <div className="mx-auto max-w-2xl px-4 py-16">
+   268→        <EmptyState
+   269→          title={hubActive ? "با این دامنه، سؤالی آماده نیست" : "اینجا تستی نیست"}
+   270→          desc={hubActive
+   271→            ? "دامنهٔ دیگری انتخاب کن یا جلسات بیشتری را تیک بزن؛ بعد از هر جلسه، سؤال‌هایش به همین مرکز اضافه می‌شود."
+   272→            : "هنوز برای این مبحث سؤالی آماده نشده است."}
+   273→          action={
+   274→            <div className="flex flex-wrap justify-center gap-2">
+   275→              {hubActive && (
+   276→                <button
+   277→                  onClick={() => { setScopeCourse("ALL"); setWeakOnly(false); setPicked(new Set(readyFlat.map((f) => f.lesson.id))); }}
+   278→                  className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+   279→                >
+   280→                  انتخاب کل کتابخانه
+   281→                </button>
+   282→              )}
+   283→              <button onClick={() => navigate({ view: "home" })} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">برگشت به خانه</button>
+   284→            </div>
+   285→          }
+   286→        />
+   287→      </div>
+   288→    );
+   289→
+   290→  const q = questions[idx];
+   291→
+   292→  function pick(k: Key) {
+   293→    if (!q) return;
+   294→    if (mode === "train" && answers[idx]) return; // حالت آموزشی: یک انتخاب
+   295→    setAnswers((a) => ({ ...a, [idx]: k }));
+   296→    if (mode === "train" && k !== q.answer) {
+   297→      const t = q.topic ?? (!hubActive && ctx ? ctx.lesson.title : "مبحث نامشخص");
+   298→      setWrongTopics((w) => (w.includes(t) ? w : [...w, t]));
+   299→    }
+   300→  }
+   301→
+   302→  function toggleFlag(i: number) {
+   303→    setFlags((f) => (f.includes(i) ? f.filter((x) => x !== i) : [...f, i]));
+   304→  }
+   305→
+   306→  function goto(i: number) {
+   307→    if (i < 0 || i > furthest) return;
+   308→    setIdx(i); setExplainOpen(true);
+   309→  }
+   310→
+   311→  function next() {
+   312→    if (idx + 1 < questions.length) {
+   313→      const ni = idx + 1;
+   314→      setIdx(ni); setFurthest((f) => Math.max(f, ni)); setExplainOpen(true);
+   315→      return;
+   316→    }
+   317→    finish();
+   318→  }
+   319→
+   320→  function finish() {
+   321→    let correct = 0;
+   322→    const wrongT = new Set<string>();
+   323→    questions.forEach((qq, i) => {
+   324→      if (answers[i] === qq.answer) correct++;
+   325→      else wrongT.add(qq.topic ?? (!hubActive && ctx ? ctx.lesson.title : "مبحث نامشخص"));
+   326→    });
+   327→    wrongT.delete("");
+   328→    const score = Math.round((correct / Math.max(1, questions.length)) * 100);
+   329→    setFinalScore(score);
+   330→    finalAt.current = Date.now();
+   331→    setWrongTopics([...wrongT]);
+   332→    if (!hubActive && ctx) {
+   333→      recordQuiz(ctx.lesson.id, score, ctx.lesson.title, [...wrongT]);
+   334→      complete(ctx.lesson.id);
+   335→    } else {
+   336→      mergeWeakTopics([...wrongT]); // مرکز آزمون: مباحث ضعیف ثبت می‌شود، نه رکورد پیشرفت جعلی
+   337→    }
+   338→    setWeakVer((v) => v + 1); // آمار «مباحث ضعیف» بلافاصله در تنظیمات دیده شود
+   339→    setPhase("result");
+   340→  }
+   341→
+   342→  /* ═══ صفحهٔ تنظیمات آزمون ═══ */
+   343→  if (phase === "setup") {
+   344→    const countOptions = [5, 10, 20, pool.length].filter((v, i, arr) => v > 0 && v <= pool.length && arr.indexOf(v) === i);
+   345→    return (
+   346→      <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+   347→        <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+   348→          <div className="flex items-start justify-between gap-3">
+   349→            <div className="min-w-0">
+   350→              <p className="text-xs font-medium text-bronze">{hubActive ? "مرکز آزمون — کل کتابخانه" : "آزمون این جلسه"}{aiPool ? " · با سؤال‌های تازهٔ استاد" : ""}</p>
+   351→              <h1 className="mt-1.5 font-display text-xl font-bold">تنظیمات آزمون</h1>
+   352→            </div>
+   353→            {/* جابه‌جایی بین آزمون جلسه و مرکز آزمون */}
+   354→            {(ctx || hubActive) && (
+   355→              <button
+   356→                onClick={() => { setHubActive((v) => !v); setWeakOnly(false); }}
+   357→                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[11.5px] font-bold transition-colors ${
+   358→                  hubActive ? "border-border bg-background text-muted-foreground hover:border-bronze/50 hover:text-bronze" : "border-bronze bg-bronze/10 text-bronze hover:bg-bronze/15"
+   359→                }`}
+   360→              >
+   361→                {hubActive ? "فقط این جلسه" : "مرکز آزمون"}
+   362→              </button>
+   363→            )}
+   364→          </div>
+   365→          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{fa(pool.length)} سؤال در دامنهٔ «{scopeLine()}» آماده است.</p>
+   366→        </motion.header>
+   367→
+   368→        {/* ── دامنهٔ سؤال ── */}
+   369→        {hubActive && (
+   370→          <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-card">
+   371→            <p className="text-sm font-bold">۱) از کجا سؤال بدهم؟</p>
+   372→
+   373→            {/* پیش‌تنظیم‌ها: کل کتابخانه یا یک کتاب */}
+   374→            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+   375→              <button
+   376→                onClick={() => applyCoursePreset("ALL")}
+   377→                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition-colors ${
+   378→                  scopeCourse === "ALL" ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"
+   379→                }`}
+   380→              >
+   381→                <Library className="h-3.5 w-3.5" /> همهٔ کتاب‌ها
+   382→              </button>
+   383→              {all.map((c) => (
+   384→                <button
+   385→                  key={c.id}
+   386→                  onClick={() => applyCoursePreset(c.id)}
+   387→                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition-colors ${
+   388→                    scopeCourse === c.id ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"
+   389→                  }`}
+   390→                >
+   391→                  {c.title}
+   392→                </button>
+   393→              ))}
+   394→            </div>
+   395→
+   396→        {/* درخت فصل/جلسه — هر کتاب یک آکاردئون جمع‌شونده برای انتخاب دقیق */}
+   397→            <div className="max-h-[46vh] space-y-2 overflow-y-auto pe-1">
+   398→              {groupChapters(visibleLessons).map(({ course, groups }, ci) => (
+   399→                <details key={course.id} className="group/details rounded-xl border border-border bg-background" open={scopeCourse !== "ALL" || ci === 0}>
+   400→                  <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 transition-colors hover:bg-muted/40">
+   401→                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><Library className="h-3.5 w-3.5" /></span>
+   402→                    <span className="flex-1 truncate text-[13px] font-bold">{course.title}</span>
+   403→                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+   404→                      {fa(groups.reduce((n, g) => n + g.lessons.filter((l) => picked.has(l.id)).length, 0))}/{fa(groups.reduce((n, g) => n + g.lessons.length, 0))}
+   405→                    </span>
+   406→                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open/details:rotate-180" />
+   407→                  </summary>
+   408→                  <ul className="border-t border-dashed border-border p-2">
+   409→                    {groups.map(({ chapter, lessons }) => {
+   410→                      const ids = lessons.map((l) => l.id);
+   411→                      const selN = ids.filter((i) => picked.has(i)).length;
+   412→                      const full = selN === ids.length && ids.length > 0;
+   413→                      const partial = selN > 0 && !full;
+   414→                      return (
+   415→                        <li key={chapter.id}>
+   416→                          <button
+   417→                            onClick={() => toggleChapter(lessons)}
+   418→                            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start transition-colors hover:bg-muted/50"
+   419→                          >
+   420→                            <Tick state={full ? "on" : partial ? "some" : "off"} />
+   421→                            <span className="flex-1 truncate text-[12.5px] font-semibold">فصل {chapter.order}: {chapter.title}</span>
+   422→                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{fa(selN)}/{fa(ids.length)}</span>
+   423→                          </button>
+   424→                          <ul className="mb-1 ms-7 space-y-0.5 border-s border-dashed border-border ps-3">
+   425→                            {lessons.map((l) => {
+   426→                              const on = picked.has(l.id);
+   427→                              return (
+   428→                                <li key={l.id}>
+   429→                                  <button
+   430→                                    onClick={() => toggleLesson(l.id)}
+   431→                                    aria-pressed={on}
+   432→                                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start transition-colors ${on ? "bg-bronze/[0.07]" : "hover:bg-muted/40"}`}
+   433→                                  >
+   434→                                    <Tick state={on ? "on" : "off"} small />
+   435→                                    <span className={`flex-1 truncate text-[12px] ${on ? "font-medium text-foreground" : "text-muted-foreground"}`}>{l.title}</span>
+   436→                                    <span className="shrink-0 text-[10px] font-bold text-bronze/80">{fa(l.quiz.length)} سؤال</span>
+   437→                                  </button>
+   438→                                </li>
+   439→                              );
+   440→                            })}
+   441→                          </ul>
+   442→                        </li>
+   443→                      );
+   444→                    })}
+   445→                  </ul>
+   446→                </details>
+   447→              ))}
+   448→            </div>
+   449→            <p className="text-[11px] text-muted-foreground">خلاصهٔ دامنه: {fa(hubStats.lessons)} جلسه از {fa(hubStats.courses)} کتاب — {fa(basePool.length)} سؤال پایه</p>
+   450→          </section>
+   451→        )}
+   452→
+   453→        {/* ── تنظیمات برگزاری — همهٔ گزینه‌ها یکجا؛ گزینهٔ بی‌اثری وجود ندارد ── */}
+   454→        <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+   455→          <p className="mb-4 text-sm font-bold">تنظیمات برگزاری</p>
+   456→
+   457→          <div className="space-y-5">
+   458→            {/* حالت پاسخ‌دهی */}
+   459→            <div>
+   460→              <p className="mb-2 text-[11.5px] font-semibold text-muted-foreground">حالت پاسخ‌دهی</p>
+   461→              <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background p-1">
+   462→                {([
+   463→                  { k: "train", Icon: GraduationCap, t: "آموزشی", d: "تشریح فوری بعد از هر پاسخ" },
+   464→                  { k: "exam", Icon: ClipboardList, t: "آزمونی", d: "نتیجه فقط در پایان؛ مثل جلسهٔ آزمون" },
+   465→                ] as const).map(({ k, Icon, t, d }) => (
+   466→                  <button
+   467→                    key={k}
+   468→                    onClick={() => setMode(k)}
+   469→                    aria-pressed={mode === k}
+   470→                    className={`relative rounded-lg px-3 py-2.5 text-start transition-all ${mode === k ? "bg-bronze/15 shadow-card ring-1 ring-bronze/60" : "hover:bg-muted"}`}
+   471→                  >
+   472→                    <span className="mb-0.5 flex items-center gap-1.5 text-[13px] font-bold">
+   473→                      <Icon className={`h-4 w-4 ${mode === k ? "text-bronze" : "text-muted-foreground"}`} /> {t}
+   474→                    </span>
+   475→                    <span className="block text-[10.5px] leading-relaxed text-muted-foreground">{d}</span>
+   476→                  </button>
+   477→                ))}
+   478→              </div>
+   479→            </div>
+   480→
+   481→            {/* تعداد سؤال */}
+   482→            <div>
+   483→              <p className="mb-2 text-[11.5px] font-semibold text-muted-foreground">تعداد سؤال</p>
+   484→              <div className="flex flex-wrap gap-2">
+   485→                {countOptions.map((v) => (
+   486→                  <button
+   487→                    key={v}
+   488→                    onClick={() => setCount(v)}
+   489→                    aria-pressed={count === v}
+   490→                    className={`rounded-full border px-4 py-1.5 font-display text-[13px] font-bold transition-colors ${count === v ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"}`}
+   491→                  >
+   492→                    {v === pool.length && pool.length !== 5 && pool.length !== 10 && pool.length !== 20 ? `همه (${fa(v)})` : fa(v)}
+   493→                  </button>
+   494→                ))}
+   495→              </div>
+   496→            </div>
+   497→
+   498→            {/* دو کلید واقعی: بُر زدن + تمرکز روی مباحث ضعیف (فقط مرکز آزمون) */}
+   499→            <div className={`grid gap-2 ${hubActive ? "sm:grid-cols-2" : ""}`}>
+   500→              <button onClick={() => setShuffleOn((v) => !v)} aria-pressed={shuffleOn} className="flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 transition-colors hover:border-bronze/50">
+   501→                <span className="flex items-center gap-2 text-[13px] font-medium"><Shuffle className="h-4 w-4 shrink-0 text-bronze" /> بُر زدن ترتیب</span>
+   502→                <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${shuffleOn ? "bg-primary" : "bg-border"}`}>
+   503→                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${shuffleOn ? "start-[22px]" : "start-0.5"}`} />
+   504→                </span>
+   505→              </button>
+   506→              {hubActive && (
+   507→                <button
+   508→                  onClick={() => {
+   509→                    if (!weakOnly && hubStats.weakQuestions === 0) { pickWeakScope(); return; }
+   510→                    setWeakOnly((v) => !v);
+   511→                  }}
+   512→                  aria-pressed={weakOnly}
+   513→                  title="سؤال‌هایی از مبحث‌هایی که جایشان را اشتباه زده‌ای"
+   514→                  className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${weakOnly ? "border-bronze bg-bronze/[0.06]" : "border-border bg-background hover:border-bronze/50"}`}
+   515→                >
+   516→                  <span className="flex min-w-0 flex-col items-start pe-2 text-start">
+   517→                    <span className="flex items-center gap-2 whitespace-nowrap text-[13px] font-medium">
+   518→                      <Target className={`h-4 w-4 shrink-0 ${weakOnly ? "text-bronze" : "text-bronze/70"}`} /> تمرکز روی ضعیف‌ها
+   519→                    </span>
+   520→                    <span className="truncate text-[10.5px] leading-relaxed text-muted-foreground">
+   521→                      {hubStats.weakQuestions > 0 ? `${fa(hubStats.weakQuestions)} سؤالِ مباحثی که در خطا رفته‌ای` : "کلیک کن؛ دامنه با ضعیف‌هایت پر می‌شود"}
+   522→                    </span>
+   523→                  </span>
+   524→                  <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${weakOnly ? "bg-primary" : "bg-border"}`}>
+   525→                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${weakOnly ? "start-[22px]" : "start-0.5"}`} />
+   526→                  </span>
+   527→                </button>
+   528→              )}
+   529→            </div>
+   530→          </div>
+   531→        </section>
+   532→
+   533→        {/* شروع */}
+   534→        <button
+   535→          onClick={() => startQuiz()}
+   536→          disabled={pool.length === 0}
+   537→          className="w-full rounded-2xl bg-primary px-6 py-4 font-display text-base font-bold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.99] disabled:opacity-50"
+   538→        >
+   539→          شروع آزمون — {fa(Math.min(count, pool.length))} سؤال
+   540→        </button>
+   541→
+   542→        {/* تولید سؤال تازه با هوش مصنوعی */}
+   543→        <div className="text-center">
+   544→          {genBusy ? <AIThinking label="استاد مشغول طراحی سؤال جدید است" /> : (
+   545→            <button onClick={generateMore} disabled={!ctx && hubStats.lessons === 0} className="inline-flex items-center gap-2 text-xs text-bronze underline-offset-4 hover:underline disabled:opacity-40">
+   546→              <Sparkles className="h-3.5 w-3.5" /> استاد چند سؤال جدید از دامنهٔ انتخابی بسازد
+   547→            </button>
+   548→          )}
+   549→          {genErr && <p className="mt-2 text-xs text-destructive">{genErr}</p>}
+   550→        </div>
+   551→      </div>
+   552→    );
+   553→  }
+   554→
+   555→  /* ═══ صفحهٔ نتیجه ═══ */
+   556→  if (phase === "result") {
+   557→    const wrongIdx = questions.map((qq, i) => ({ qq, i })).filter(({ qq, i }) => answers[i] !== qq.answer);
+   558→    const correctCount = questions.length - wrongIdx.length;
+   559→    return (
+   560→      <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+   561→        <motion.section initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 text-center shadow-card">
+   562→          <div aria-hidden className="pattern-quilt absolute inset-x-0 top-0 h-24 opacity-40 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+   563→          <div className="relative mx-auto w-fit"><Donut value={finalScore} size={128} stroke={11} label="امتیاز آزمون" /></div>
+   564→          <h1 className="mt-4 text-xl font-bold">
+   565→            {wrongIdx.length === 0 ? "عالی! همه پاسخ‌ها درست بود" : `${fa(wrongIdx.length)} سؤال نیاز به مرور دارد`}
+   566→          </h1>
+   567→
+   568→          {/* آمار آزمون */}
+   569→          <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-2.5">
+   570→            {[
+   571→              { t: "صحیح", v: fa(correctCount), cls: "text-success border-success/30 bg-success/[0.06]" },
+   572→              { t: "نادرست", v: fa(wrongIdx.filter((w) => answers[w.i]).length), cls: "text-danger border-danger/30 bg-danger/[0.06]" },
+   573→              { t: "زمان", v: fmtTime(elapsed), cls: "text-primary border-primary/25 bg-primary/[0.06]" },
+   574→            ].map((s) => (
+   575→              <div key={s.t} className={`rounded-xl border px-2 py-3 ${s.cls}`}>
+   576→                <p className="font-display text-lg font-bold">{s.v}</p>
+   577→                <p className="mt-0.5 text-[11px] text-muted-foreground">{s.t}</p>
+   578→              </div>
+   579→            ))}
+   580→          </div>
+   581→
+   582→          {wrongTopics.length > 0 && (
+   583→            <ul className="mx-auto mt-5 max-w-sm space-y-2 text-start">
+   584→              {wrongTopics.map((t) => (
+   585→                <li key={t} className="flex items-center justify-between rounded-xl border border-warn/40 bg-warn/[0.07] px-4 py-2.5 text-sm">
+   586→                  <span className="font-body">{t}</span>
+   587→                  <button onClick={() => navigate({ view: "cards" })} className="font-display font-semibold text-bronze hover:underline">مرور کن</button>
+   588→                </li>
+   589→              ))}
+   590→            </ul>
+   591→          )}
+   592→
+   593→          <div className="mt-6 flex flex-wrap justify-center gap-3">
+   594→            {wrongIdx.length > 0 && (
+   595→              <button
+   596→                onClick={() => startQuiz(wrongIdx.map((w) => w.qq))}
+   597→                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-transform active:scale-[.98]"
+   598→              >
+   599→                <RefreshCcw className="h-4 w-4" /> تمرین سؤال‌های غلط
+   600→              </button>
+   601→            )}
+   602→            <button onClick={() => setPhase("setup")} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+   603→              آزمون مجدد
+   604→            </button>
+   605→            {!hubActive && ctx ? (
+   606→              <button onClick={() => navigate({ view: "learn", id: ctx.lesson.id })} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+   607→                بازگشت به تدریس
+   608→              </button>
+   609→            ) : (
+   610→              <button onClick={() => navigate({ view: "home" })} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold hover:border-bronze">
+   611→                <House className="h-4 w-4" /> خانه
+   612→              </button>
+   613→            )}
+   614→          </div>
+   615→        </motion.section>
+   616→
+   617→        {/* پاسخ‌نامهٔ تشریحی */}
+   618→        <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+   619→          <p className="mb-4 flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> پاسخ‌نامهٔ تشریحی</p>
+   620→          <div className="space-y-3">
+   621→            {questions.map((qq, i) => {
+   622→              const mine = answers[i];
+   623→              const ok = mine === qq.answer;
+   624→              return (
+   625→                <details key={i} className={`group rounded-xl border px-4 py-3 ${ok ? "border-border" : "border-warn/40 bg-warn/[0.04]"}`} open={!ok}>
+   626→                  <summary className="flex cursor-pointer list-none items-start gap-2.5 text-sm leading-relaxed">
+   627→                    <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md font-display text-[11px] font-bold ${ok ? "bg-success/15 text-success" : mine ? "bg-danger/15 text-danger" : "bg-muted text-muted-foreground"}`}>
+   628→                      {ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : mine ? <XCircle className="h-3.5 w-3.5" /> : fa(i + 1)}
+   629→                    </span>
+   630→                    <span className="font-body flex-1">{qq.q}</span>
+   631→                    <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:-rotate-180" />
+   632→                  </summary>
+   633→                  <div className="mt-3 space-y-2 border-t border-dashed border-border pt-3 text-[13.5px] leading-relaxed">
+   634→                    <p><span className="font-display font-bold text-success">پاسخ صحیح:</span> <span className="font-body">{FA_LETTER[qq.answer]}) {qq.options.find((o) => o.key === qq.answer)?.text}</span></p>
+   635→                    {mine && !ok && <p><span className="font-display font-bold text-danger">پاسخ شما:</span> <span className="font-body">{FA_LETTER[mine]}) {qq.options.find((o) => o.key === mine)?.text}</span></p>}
+   636→                    {!mine && <p className="text-warn">بدون پاسخ</p>}
+   637→                    {qq.topic && <p className="text-[11px] text-muted-foreground">مبحث: {qq.topic}</p>}
+   638→                    <p className="rounded-lg bg-muted/50 px-3 py-2.5 font-body text-muted-foreground">{qq.explanation}</p>
+   639→                  </div>
+   640→                </details>
+   641→              );
+   642→            })}
+   643→          </div>
+   644→        </section>
+   645→      </div>
+   646→    );
+   647→  }
+   648→
+   649→  /* ═══ صفحهٔ اجرای آزمون ═══ */
+   650→  const pickedKey = answers[idx];
+   651→  return (
+   652→    <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+   653→      <header className="rounded-2xl border border-border bg-card p-5 shadow-card">
+   654→        <div className="flex flex-wrap items-center justify-between gap-2">
+   655→          <p className="min-w-0 truncate text-xs font-medium text-bronze">{scopeLine()}{aiPool ? " · ساختهٔ استاد" : ""}</p>
+   656→          <div className="flex items-center gap-2">
+   657→            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground" dir="ltr"><Timer className="h-3 w-3" /> {fmtTime(elapsed)}</span>
+   658→            <span className="rounded-full bg-primary/10 px-3 py-0.5 text-xs font-bold text-primary">سؤال {fa(idx + 1)} از {fa(questions.length)}</span>
+   659→          </div>
+   660→        </div>
+   661→        <ProgressBar value={(answeredCount / questions.length) * 100} className="mt-3" />
+   662→
+   663→        {/* ناوبر سؤال‌ها */}
+   664→        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+   665→          {questions.map((_, i) => {
+   666→            const answered = !!answers[i];
+   667→            const isCurrent = i === idx;
+   668→            const flagged = flags.includes(i);
+   669→            return (
+   670→              <button
+   671→                key={i}
+   672→                onClick={() => goto(i)}
+   673→                disabled={i > furthest}
+   674→                aria-label={`رفتن به سؤال ${fa(i + 1)}`}
+   675→                className={`relative grid h-8 w-8 place-items-center rounded-lg border font-display text-[11.5px] font-bold transition-all ${
+   676→                  isCurrent ? "border-bronze bg-bronze/15 text-bronze shadow-card"
+   677→                  : answered ? "border-primary/30 bg-primary/10 text-primary"
+   678→                  : i <= furthest ? "border-border bg-background text-muted-foreground hover:border-bronze/50"
+   679→                  : "border-border/60 bg-muted/40 text-muted-foreground/40"
+   680→                }`}
+   681→              >
+   682→                {fa(i + 1)}
+   683→                {flagged && <span className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-bronze" />}
+   684→              </button>
+   685→            );
+   686→          })}
+   687→        </div>
+   688→        {mode === "exam" && <p className="mt-2.5 text-[11px] text-muted-foreground">حالت آزمونی — پاسخ‌ها تا پایان نمایش داده نمی‌شوند؛ با ناوبر بالا می‌توانی برگردی و جواب را عوض کنی.</p>}
+   689→      </header>
+   690→
+   691→      <AnimatePresence mode="wait">
+   692→        {q && (
+   693→          <motion.section key={idx} initial={{ opacity: 0, x: -18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 18 }} transition={{ duration: 0.22 }} className="scroll-mt-24 rounded-2xl border border-border bg-card p-6 shadow-card">
+   694→            <div className="flex items-start justify-between gap-3">
+   695→              <h1 className="font-body flex-1 text-[17px] font-semibold leading-[2]">{q.q}</h1>
+   696→              <button
+   697→                onClick={() => toggleFlag(idx)}
+   698→                title={flags.includes(idx) ? "برداشتن پرچم" : "علامت‌گذاری برای مرور"}
+   699→                className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors ${flags.includes(idx) ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50 hover:text-bronze"}`}
+   700→              >
+   701→                <Flag className={`h-4 w-4 ${flags.includes(idx) ? "fill-bronze/30" : ""}`} />
+   702→              </button>
+   703→            </div>
+   704→            <div className="mt-5 grid gap-3">
+   705→              {KEYS.map((k) => {
+   706→                const opt = q.options.find((o) => o.key === k);
+   707→                if (!opt) return null;
+   708→                const isRight = k === q.answer;
+   709→                const isPicked = k === pickedKey;
+   710→                const reveal = mode === "train" && pickedKey;
+   711→                let cls = "border-border bg-background hover:-translate-y-px hover:border-bronze/60 hover:bg-bronze/5 hover:shadow-card";
+   712→                if (reveal) {
+   713→                  if (isRight) cls = "border-success bg-success/[0.08]";
+   714→                  else if (isPicked) cls = "border-danger bg-danger/[0.08]";
+   715→                  else cls = "border-border opacity-45";
+   716→                } else if (mode === "exam" && isPicked) {
+   717→                  cls = "border-primary bg-primary/[0.08] shadow-card";
+   718→                }
+   719→                return (
+   720→                  <button key={k} onClick={() => pick(k)} disabled={!!(mode === "train" && pickedKey)} aria-label={`گزینه ${FA_LETTER[k]}`} className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-start transition-all duration-200 ${cls}`}>
+   721→                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg font-display text-xs font-bold ${
+   722→                      reveal && isRight ? "bg-success text-white" : reveal && isPicked ? "bg-danger text-white" : isPicked ? "border border-primary/50 bg-primary/15 text-primary" : "border border-bronze/30 bg-bronze/10 text-bronze"
+   723→                    }`}>
+   724→                      {reveal && isRight ? <CheckCircle2 className="h-[18px] w-[18px]" /> : reveal && isPicked ? <XCircle className="h-[18px] w-[18px]" /> : FA_LETTER[k]}
+   725→                    </span>
+   726→                    <span className={`flex-1 pt-1 font-body leading-relaxed ${reveal && (isRight || isPicked) ? (isRight ? "text-success" : isPicked ? "text-danger" : "") : ""}`}>{opt.text}</span>
+   727→                  </button>
+   728→                );
+   729→              })}
+   730→            </div>
+   731→
+   732→            {/* بازخورد فوری — فقط حالت آموزشی */}
+   733→            <AnimatePresence>
+   734→              {mode === "train" && pickedKey && (
+   735→                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+   736→                  <button onClick={() => setExplainOpen(!explainOpen)} className="mt-5 flex w-full items-center justify-between rounded-t-xl border-s-4 border-bronze bg-accent px-4 py-3 text-sm font-display font-semibold">
+   737→                    <span className="flex items-center gap-2"><Scale className="h-4 w-4 text-bronze" /> تشریح پاسخ</span>
+   738→                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${explainOpen ? "" : "-rotate-180"}`} />
+   739→                  </button>
+   740→                  {explainOpen && (
+   741→                    <p className="font-body rounded-b-xl rounded-se-none border-x border-b border-accent bg-background px-4 py-3.5 text-sm leading-loose text-muted-foreground">
+   742→                      {q.explanation}
+   743→                    </p>
+   744→                  )}
+   745→                  <div className="mt-4 flex items-center justify-between gap-3">
+   746→                    <span className="text-sm font-bold">{pickedKey === q.answer ? "درست بود؛ آفرین!" : "جواب درست: گزینهٔ " + FA_LETTER[q.answer]}</span>
+   747→                    <NextBtn label={idx + 1 < questions.length ? "سؤال بعدی" : "دیدن نتیجه"} onClick={next} />
+   748→                  </div>
+   749→                </motion.div>
+   750→              )}
+   751→            </AnimatePresence>
+   752→
+   753→            {/* ناوبری حالت آزمونی */}
+   754→            {mode === "exam" && (
+   755→              <div className="mt-5 flex items-center justify-between gap-3 border-t border-dashed border-border pt-4">
+   756→                <button
+   757→                  onClick={() => goto(idx - 1)}
+   758→                  disabled={idx === 0}
+   759→                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-medium transition-colors hover:border-bronze/60 disabled:opacity-40"
+   760→                >
+   761→                  <ArrowRight className="h-4 w-4" /> قبلی
+   762→                </button>
+   763→                {answeredCount < questions.length && idx === questions.length - 1 ? (
+   764→                  <span className="text-xs text-muted-foreground">{fa(questions.length - answeredCount)} سؤال بدون پاسخ مانده</span>
+   765→                ) : null}
+   766→                {idx + 1 < questions.length ? (
+   767→                  <NextBtn label="سؤال بعدی" onClick={next} />
+   768→                ) : (
+   769→                  <button
+   770→                    onClick={finish}
+   771→                    className="inline-flex items-center gap-2 rounded-xl bg-success px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-transform active:scale-[.98]"
+   772→                  >
+   773→                    <CheckCircle2 className="h-4 w-4" /> پایان و دیدن نتیجه
+   774→                  </button>
+   775→                )}
+   776→              </div>
+   777→            )}
+   778→          </motion.section>
+   779→        )}
+   780→      </AnimatePresence>
+   781→    </div>
+   782→  );
+   783→}
+   784→
+   785→/* ── ابزارهای کمکی مرکز آزمون ───────────────────────────────────────────── */
+   786→
+   787→/** گروه‌بندی درس‌های یک دامنه به شکل { دوره ← [فصل ← جلسات] } */
+   788→function groupChapters(items: { course: Course; chapter: Chapter; lesson: Lesson }[]) {
+   789→  const byCourse = new Map<Course, Map<Chapter, Lesson[]>>();
+   790→  for (const f of items) {
+   791→    if (!byCourse.has(f.course)) byCourse.set(f.course, new Map());
+   792→    const ch = byCourse.get(f.course)!;
+   793→    if (!ch.has(f.chapter)) ch.set(f.chapter, []);
+   794→    ch.get(f.chapter)!.push(f.lesson);
+   795→  }
+   796→  return [...byCourse.entries()].map(([course, chMap]) => ({
+   797→    course,
+   798→    groups: [...chMap.entries()].map(([chapter, lessons]) => ({ chapter, lessons })),
+   799→  }));
+   800→}
+   801→
+   802→/** چک‌باکس سه‌حالته با لوزی طلایی */
+   803→function Tick({ state, small }: { state: "on" | "off" | "some"; small?: boolean }) {
+   804→  const size = small ? "h-4.5 w-4.5" : "h-5 w-5";
+   805→  if (state === "on")
+   806→    return (
+   807→      <span aria-hidden className={`${size} grid shrink-0 place-items-center rounded-md border border-bronze bg-bronze text-white`}>
+   808→        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="m4 12.5 5 5L20 6.5" /></svg>
+   809→      </span>
+   810→    );
+   811→  if (state === "some")
+   812→    return (
+   813→      <span aria-hidden className={`${size} grid shrink-0 place-items-center rounded-md border border-bronze bg-bronze/15 text-bronze`}>
+   814→        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round"><path d="M6 12h12" /></svg>
+   815→      </span>
+   816→    );
+   817→  return <span aria-hidden className={`${size} shrink-0 rounded-md border border-border bg-background`} />;
+   818→}
+   819→
+   820→function NextBtn({ label, onClick }: { label: string; onClick: () => void }) {
+   821→  return (
+   822→    <button onClick={onClick} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all hover:-translate-y-px active:scale-[.98]">
+   823→      {label} <ArrowLeft className="h-4 w-4" />
+   824→    </button>
+   825→  );
+   826→}
+   827→
+   828→function shuffle<T>(arr: T[]): T[] {
+   829→  const a = [...arr];
+   830→  for (let i = a.length - 1; i > 0; i--) {
+   831→    const j = Math.floor(Math.random() * (i + 1));
+   832→    [a[i], a[j]] = [a[j], a[i]];
+   833→  }
+   834→  return a;
+   835→}
+   836→
+   837→/** فاصلهٔ امن برای eslint — هیچ استفادهٔ مستقیمی ندارد */
+   838→export function _weakTopicReader() { return weakTopics(); }
+   839→

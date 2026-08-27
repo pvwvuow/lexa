@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       summary: p.summary,
       tags: p.tags,
       category: p.category,
+      thumbnail: p.thumbnail,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
       commentsCount: p._count.comments,

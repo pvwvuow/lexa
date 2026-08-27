@@ -16,6 +16,11 @@ import { CATEGORIES } from "@/lib/social-shared";
 import { SectionBody } from "./common";
 import { useAuth } from "@/lib/auth-client";
 import { useTCourses } from "@/lib/social-client";
+import {
+  QuizEditor, ThumbnailPicker,
+  draftToQuizPayload, quizPayloadToDraft, emptyQuestion,
+  type QuizDraft,
+} from "./studio-widgets";
 
 /* ─── ابزار فرم ── */
 const inputCls =
@@ -243,8 +248,8 @@ function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () =
 }
 
 /* ═══ ویرایشگر مطلب ══════════════════════════════════════════════════════════ */
-interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; categories: string[]; blocks: LessonSection[] }
-const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", categories: [], blocks: [] };
+interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; categories: string[]; blocks: LessonSection[]; thumbnail: string; quiz: QuizDraft[] }
+const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", categories: [], blocks: [], thumbnail: "", quiz: [] };
 
 /** چیپ‌های انتخاب چندشاخه — استاد می‌تواند هر چند گزینه که خواست انتخاب کند */
 function CategoryChips({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
@@ -286,7 +291,7 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
       const res = await fetch(d.id ? `/api/posts/${d.id}` : "/api/posts", {
         method: d.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(d),
+        body: JSON.stringify({ ...d, quiz: draftToQuizPayload(d.quiz) }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "ذخیره ناموفق بود.");
@@ -348,14 +353,14 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
 }
 
 /* ═══ ویرایشگر دورهٔ آنلاین ══════════════════════════════════════════════════ */
-interface TLesson { key: string; title: string; minutes?: number; sections: LessonSection[] }
-interface TChapter { key: string; title: string; lessons: TLesson[] }
+interface TLesson { key: string; title: string; minutes?: number; sections: LessonSection[]; quiz: QuizDraft[] }
+interface TChapter { key: string; title: string; lessons: TLesson[]; quiz: QuizDraft[] }
 interface CourseDraft {
   id?: string; title: string; tagline: string; description: string;
   icon: string; accent: string; category: string; categories: string[]; status: string; chapters: TChapter[];
 }
 
-const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", chapters: [] };
+const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", thumbnail: "", chapters: [] };
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 /** سه حالت انتشار دوره */
@@ -382,7 +387,11 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
     setBusy(true); setErr("");
     try {
       // اعتبارسنجی سرهٔ کلاینت: فصل خالی حذف نمی‌شود ولی جلسهٔ خالی رد می‌شود
-      const chapters = d.chapters.map((c) => ({ title: c.title, lessons: c.lessons.map((l) => ({ title: l.title, minutes: l.minutes, sections: l.sections })) }));
+      const chapters = d.chapters.map((c) => ({
+        title: c.title,
+        quiz: draftToQuizPayload(c.quiz),
+        lessons: c.lessons.map((l) => ({ title: l.title, minutes: l.minutes, sections: l.sections, quiz: draftToQuizPayload(l.quiz) })),
+      }));
       const res = await fetch("/api/tcourses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -431,6 +440,9 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
             <textarea value={d.description} onChange={(e) => mutate(() => ({ ...d, description: e.target.value }))} rows={2} maxLength={2000} className={`${inputCls} resize-y`} />
           </div>
         </div>
+
+        {/* تصویر شاخص دلخواه دوره */}
+        <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))} />
 
         {/* شاخه و وضعیت انتشار */}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -481,7 +493,7 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
             <button
               type="button"
               onClick={() => {
-                const ch: TChapter = { key: uid(), title: "", lessons: [] };
+                const ch: TChapter = { key: uid(), title: "", lessons: [], quiz: [] };
                 setOpenCh(ch.key);
                 mutate((x) => ({ ...x, chapters: [...x.chapters, ch] }));
               }}
@@ -537,15 +549,35 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
                           chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: c.lessons.map((l) => (l.key === ls.key ? { ...l, sections } : l)) } : c)),
                         }))}
                       />
+                      {/* آزمون این جلسه — دلخواه؛ با همان موتور تست اپ اجرا می‌شود */}
+                      <div className="mt-2.5">
+                        <QuizEditor
+                          label="آزمون این جلسه"
+                          questions={ls.quiz}
+                          onChange={(quiz) => mutate((x) => ({
+                            ...x,
+                            chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: c.lessons.map((l) => (l.key === ls.key ? { ...l, quiz } : l)) } : c)),
+                          }))}
+                        />
+                      </div>
                     </div>
                   ))}
                   <button
                     type="button"
-                    onClick={() => mutate((x) => ({ ...x, chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: [...c.lessons, { key: uid(), title: "", sections: [] }] } : c)) }))}
+                    onClick={() => mutate((x) => ({ ...x, chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: [...c.lessons, { key: uid(), title: "", sections: [], quiz: [] }] } : c)) }))}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-[11.5px] font-bold text-success"
                   >
                     <Plus className="h-3.5 w-3.5" /> جلسهٔ جدید در این فصل
                   </button>
+                  {/* آزمون پایان فصل — جمع‌بندی کل فصل با تست */}
+                  <QuizEditor
+                    label="آزمون پایان این فصل"
+                    questions={ch.quiz}
+                    onChange={(quiz) => mutate((x) => ({
+                      ...x,
+                      chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, quiz } : c)),
+                    }))}
+                  />
                 </div>
               )}
             </div>

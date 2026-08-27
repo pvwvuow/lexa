@@ -66,6 +66,8 @@ export interface Chapter {
   title: string;
   subtitle?: string;
   lessons: Lesson[];
+  /** آزمون پایان فصل — برای دوره‌های اساتید که استاد ساخته باشد (دلخواه) */
+  quiz?: QuizQuestion[];
 }
 
 export interface Course {

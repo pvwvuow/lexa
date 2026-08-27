@@ -64,7 +64,51 @@ const LIMITS = {
   chapters: 24,
   lessonsPerChapter: 40,
   sectionsPerLesson: 60,
+  questionsPerQuiz: 30,
 };
+
+const QUIZ_KEYS = ["a", "b", "c", "d"] as const;
+
+/**
+ * پالایش آرایهٔ سؤالات تستی ورودی از کلاینت (آزمون فصل/جلسه/مبحث) —
+ * هر سؤال باید دست‌کم دو گزینهٔ پر و پاسخِ معتبر داشته باشد.
+ */
+export function sanitizeQuiz(raw: unknown): QuizQuestion[] {
+  const out: QuizQuestion[] = [];
+  for (const item of arr(raw).slice(0, LIMITS.questionsPerQuiz)) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const q = s(o.q, 600).trim();
+    if (!q) continue;
+    const opts = arr(o.options)
+      .slice(0, 4)
+      .map((x) => s((x as { text?: unknown })?.text ?? x, 300).trim())
+      .filter(Boolean);
+    if (opts.length < 2) continue;
+    const ansIdx = QUIZ_KEYS.indexOf(String(o.answer ?? "").trim().toLowerCase() as "a");
+    if (ansIdx < 0 || ansIdx >= opts.length) continue;
+    out.push({
+      q,
+      options: opts.map((text, i) => ({ key: QUIZ_KEYS[i], text })),
+      answer: QUIZ_KEYS[ansIdx],
+      explanation: s(o.explanation, 1000),
+      topic: s(o.topic, 80) || undefined,
+    });
+  }
+  return out;
+}
+
+/**
+ * اعتبارسنجی تصویر شاخص — فقط مسیر نسبی امن یا آدرس http(s)؛
+ * خروجی خالی یعنی بدون تصویر (دلخواه است).
+ */
+export function safeThumbnail(v: unknown): string {
+  const url = s(v, 600).trim();
+  if (!url) return "";
+  if (url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) return url;
+  if (/^https:\/\/[\w.-]+/i.test(url) || /^http:\/\/[\w.-]+/i.test(url)) return url;
+  return "";
+}
 
 function s(v: unknown, max = 6000): string {
   return typeof v === "string" ? v.slice(0, max) : "";
@@ -145,7 +189,8 @@ function withIds(courseId: string, rawChapters: unknown): Chapter[] {
             status: "ready" as const,
             minutes: Number(ls.minutes) > 0 ? Math.min(180, Math.floor(Number(ls.minutes))) : undefined,
             sections: sanitizeSections(ls.sections),
-            quiz: [],
+            // آزمون ساختهٔ استاد برای همین جلسه — با همان موتور تست اپ اجرا می‌شود
+            quiz: sanitizeQuiz(ls.quiz),
           };
         });
       return {
@@ -154,6 +199,8 @@ function withIds(courseId: string, rawChapters: unknown): Chapter[] {
         title: s(ch.title, 140) || `فصل ${ci + 1}`,
         subtitle: s(ch.subtitle, 160) || undefined,
         lessons,
+        // آزمون پایان فصل — اگر استاد ساخته باشد
+        quiz: sanitizeQuiz(ch.quiz),
       };
     })
     .map((ch, ci) => ({ ...ch, order: ci + 1, id: `${courseId}-c${ci}` }));
@@ -163,10 +210,10 @@ export function teacherCourseToCourse(
   row: {
     id: string; title: string; tagline: string; description: string;
     icon: string; accent: string; chaptersJson: string;
-    category?: string; categories?: string; status?: string;
+    category?: string; categories?: string; status?: string; thumbnail?: string;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -184,6 +231,7 @@ export function teacherCourseToCourse(
     _category: safeCategory(row.category),
     _categories: parseCategories(row.categories, row.category),
     _status: row.status === "draft" || row.status === "prep" ? row.status : "published",
+    _thumbnail: safeThumbnail(row.thumbnail),
   };
 }
 
