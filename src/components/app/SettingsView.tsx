@@ -522,6 +522,7 @@ function OfflineSettings() {
   }
 
   async function updateRow(m: OfflineItemMeta) {
+    if (m.kind === "builtin") return; // دورهٔ آماده در باندل است — به‌روزرسانی سروری ندارد
     setRowBusy(`${m.kind}:${m.id}`);
     setListMsg("");
     const ok =
@@ -538,6 +539,7 @@ function OfflineSettings() {
     setListMsg("");
     let n = 0;
     for (const m of stale) {
+      if (m.kind === "builtin") continue;
       setRowBusy(`${m.kind}:${m.id}`);
       const ok =
         m.kind === "post"
@@ -691,7 +693,7 @@ function OfflineSettings() {
                       )}
                     </span>
                     <span className="mt-0.5 block text-[10.5px] text-muted-foreground">
-                      {m.kind === "post" ? "مطلب" : "دورهٔ آنلاین"} · ذخیره در {faDateTime(m.savedAt)}
+                      {m.kind === "post" ? "مطلب" : m.kind === "builtin" ? "دورهٔ آمادهٔ همیار حقوق" : "دورهٔ آنلاین استاد"} · ذخیره در {faDateTime(m.savedAt)}
                     </span>
                   </span>
                   {outdated && online && (

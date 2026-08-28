@@ -10,7 +10,7 @@ import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
 import { useAuth } from "@/lib/auth-client";
 import { useTargetRating } from "@/lib/social-client";
-import { getOfflineItem, useOfflineItem, isServerNewer, faDateTime, type OfflineCardCourse } from "@/lib/offline";
+import { getOfflineItem, useOfflineItem, isServerNewer, faDateTime, type OfflineCardCourse, type OfflineKind } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { QuizRunnerDialog } from "./QuizRunnerDialog";
 
@@ -32,18 +32,16 @@ export function CourseView({ id }: { id: string }) {
   const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
   const [remoteLoading, setRemoteLoading] = React.useState(false);
   const [remoteFailed, setRemoteFailed] = React.useState(false);
-  /** اگر دوره از نسخهٔ ذخیره‌شدهٔ آفلاین خوانده شد — زمان ذخیره */
-  const [fromOffline, setFromOffline] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (local || remoteCourse || remoteFailed) return;
     let alive = true;
     /** نمایش نسخهٔ ذخیره‌شدهٔ آفلاین — وقتی شبکه در دسترس نیست */
     async function showOfflineCourse() {
-      const item = await getOfflineItem("tcourse", id);
+      // دورهٔ استاد یا دورهٔ آمادهٔ اپ — هرکدام که ذخیره شده باشد
+      const item = (await getOfflineItem("tcourse", id)) ?? (await getOfflineItem("builtin", id));
       if (!item?.course || !alive) return false;
       setRemoteCourse(item.course as Course);
-      setFromOffline(item.savedAt);
       return true;
     }
     setRemoteLoading(true);
@@ -88,7 +86,6 @@ export function CourseView({ id }: { id: string }) {
       openCh={openCh}
       setOpenCh={setOpenCh}
       openLesson={openLesson}
-      offlineSavedAt={fromOffline}
     />
   );
 }
@@ -96,7 +93,7 @@ export function CourseView({ id }: { id: string }) {
 /* ─── بدنهٔ صفحهٔ دوره — مشترک بین دورهٔ محلی و پیش‌نمایش سروری ─────────── */
 
 function CourseBody({
-  course, isRemote, inLibrary, progress, openCh, setOpenCh, openLesson, offlineSavedAt,
+  course, isRemote, inLibrary, progress, openCh, setOpenCh, openLesson,
 }: {
   course: Course;
   isRemote?: boolean;
@@ -105,8 +102,6 @@ function CourseBody({
   openCh: string | null;
   setOpenCh: (v: string | null) => void;
   openLesson: (id: string) => void;
-  /** دوره از نسخهٔ ذخیره‌شدهٔ آفلاین خوانده شده؟ */
-  offlineSavedAt?: number | null;
 }) {
   const auth = useAuth();
   const [quizChapter, setQuizChapter] = React.useState<{ title: string; questions: import("@/lib/law/types").QuizQuestion[] } | null>(null);
@@ -120,12 +115,13 @@ function CourseBody({
   const allLessons = course.chapters.flatMap((c) => c.lessons);
   const doneCount = allLessons.filter((l) => progress[l.id]?.status === "completed").length;
 
-  // ── وضعیت آفلاین دوره‌های استاد (دوره‌های دارای صاحب = استاد) ──
+  // ── وضعیت آفلاین — دورهٔ استاد (tcourse) یا دورهٔ آمادهٔ اپ (builtin) ──
   const isTeacherCourse = !!owner;
-  const saved = useOfflineItem("tcourse", course.id);
+  const offlineKind: OfflineKind = isTeacherCourse ? "tcourse" : "builtin";
+  const saved = useOfflineItem(offlineKind, course.id);
   const tcUpdatedAt = (course as Course & { _updatedAt?: string })._updatedAt;
   const courseOutdated = saved.status === "saved" && isServerNewer(tcUpdatedAt, saved.savedUpdatedAt);
-  const tcCard: OfflineCardCourse = {
+  const teacherCard: OfflineCardCourse = {
     id: course.id,
     title: course.title,
     tagline: course.tagline,
@@ -141,11 +137,33 @@ function CourseBody({
     },
     _updatedAt: tcUpdatedAt,
   };
+  /** کارت دورهٔ آمادهٔ اپ — محتوا در باندل است؛ ذخیره فقط آن را در فهرست آفلاین ثبت می‌کند */
+  const builtinCard: OfflineCardCourse = {
+    id: course.id,
+    title: course.title,
+    tagline: course.tagline,
+    description: course.description,
+    icon: course.icon,
+    lessonsCount: allLessons.length,
+    teacher: { id: "", username: "hamyar", displayName: "همیار حقوق", avatarUrl: null },
+  };
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-16 pt-6 sm:px-6">
       {/* سربرگ درس */}
       <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
+        {/* دانلود برای مطالعهٔ آفلاین — گوشهٔ بالا-چپ سربرگ (درخواست کاربر) */}
+        <div className="absolute top-3 end-3 z-10 flex flex-col items-stretch gap-1.5">
+          <OfflineDownloadButton
+            kind={offlineKind}
+            id={course.id}
+            serverUpdatedAt={isTeacherCourse ? tcUpdatedAt : undefined}
+            card={isTeacherCourse ? teacherCard : builtinCard}
+            labeled
+            courseObj={isTeacherCourse ? undefined : course}
+          />
+        </div>
+
         {/* تصویر شاخص دلخواه استاد — اگر گذاشته باشد */}
         {(course as Course & { _thumbnail?: string })._thumbnail && (
           <img src={(course as Course & { _thumbnail?: string })._thumbnail} alt={course.title} className="mb-5 max-h-[260px] w-full rounded-xl object-cover" referrerPolicy="no-referrer" loading="lazy" />
@@ -206,27 +224,24 @@ function CourseBody({
           </div>
         )}
 
-        {/* دانلود تکی دوره برای مطالعهٔ آفلاین + وضعیت به‌روزرسانی */}
-        {isTeacherCourse && (
-          <>
-            <div className="relative mt-3 flex flex-wrap items-center gap-2">
-              <OfflineDownloadButton kind="tcourse" id={course.id} serverUpdatedAt={tcUpdatedAt} card={tcCard} labeled />
-              <OfflineUpdatedPill kind="tcourse" id={course.id} serverUpdatedAt={tcUpdatedAt} />
-              {offlineSavedAt && !courseOutdated && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300">
-                  <CloudOff className="h-3.5 w-3.5" /> نسخهٔ آفلاین — ذخیره‌شده در {faDateTime(offlineSavedAt)}
-                </span>
-              )}
-            </div>
-            {courseOutdated && (
-              <p className="relative mt-2 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
-                <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  این دوره در سایت به‌روز شده است؛ اگر می‌خواهید این دوره در نسخهٔ آفلاین شما هم به‌روز و آپدیت باشد، مجدداً آن را دانلود یا آپدیت کنید.
-                </span>
-              </p>
+        {/* وضعیت آفلاین — نشان به‌روز شدن / ذخیره‌شده + هشدار به‌روزرسانی */}
+        {(saved.status === "saved" || courseOutdated) && (
+          <div className="relative mt-4 flex flex-wrap items-center gap-2">
+            <OfflineUpdatedPill kind={offlineKind} id={course.id} serverUpdatedAt={isTeacherCourse ? tcUpdatedAt : undefined} />
+            {saved.status === "saved" && !courseOutdated && saved.savedAt && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300">
+                <CloudOff className="h-3.5 w-3.5" /> نسخهٔ آفلاین — ذخیره‌شده در {faDateTime(saved.savedAt)}
+              </span>
             )}
-          </>
+          </div>
+        )}
+        {courseOutdated && (
+          <p className="relative mt-2 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              این دوره در سایت به‌روز شده است؛ اگر می‌خواهید این دوره در نسخهٔ آفلاین شما هم به‌روز و آپدیت باشد، مجدداً آن را دانلود یا آپدیت کنید.
+            </span>
+          </p>
         )}
 
         {!inLibrary && (

@@ -14,7 +14,9 @@ import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { usePublicLibrary, toggleBuiltinHidden, type TCourseCard, type FeedPost } from "@/lib/social-client";
+import type { OfflineCardCourse } from "@/lib/offline";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
+import { OfflineDownloadButton } from "./offline-ui";
 
 /** افزودن/حذف یک دوره از کتابخانهٔ من؛ true یعنی اضافه شد */
 async function toggleInLibrary(courseId: string): Promise<boolean> {
@@ -270,6 +272,22 @@ function BuiltinCourseCard({ c }: { c: Course }) {
             <><BookPlus className="h-4 w-4" /> افزودن به عنوان کتاب</>
           )}
         </button>
+        {/* دانلود برای مطالعهٔ آفلاین — دورهٔ آماده در باندل است و بی‌درنگ ذخیره می‌شود */}
+        <OfflineDownloadButton
+          kind="builtin"
+          id={c.id}
+          card={{
+            id: c.id,
+            title: c.title,
+            tagline: c.tagline,
+            description: c.description,
+            icon: c.icon,
+            lessonsCount: lessonsN,
+            teacher: { id: "", username: "hamyar", displayName: "همیار حقوق", avatarUrl: null },
+          }}
+          courseObj={c}
+          labeled
+        />
         {inLib && (
           <button
             onClick={act}

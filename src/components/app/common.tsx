@@ -10,10 +10,10 @@ import { fa } from "@/lib/fa";
 import { goBack } from "@/lib/router";
 
 /** دکمهٔ بازگشت به صفحهٔ قبل — در سرصفحهٔ همهٔ زیرصفحه‌ها یکدست استفاده می‌شود */
-export function BackButton({ label = "بازگشت" }: { label?: string }) {
+export function BackButton({ label = "بازگشت", onClick }: { label?: string; onClick?: () => void }) {
   return (
     <button
-      onClick={goBack}
+      onClick={onClick ?? goBack}
       className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-card transition-colors hover:border-bronze/50 hover:text-bronze"
       aria-label="بازگشت به صفحهٔ قبل"
     >
@@ -748,14 +748,14 @@ export function SectionBody({ s, decorativeHeadless }: { s: LessonSection; decor
   );
 }
 
-/* ═══ آواتار مربع گرددار — تصویر آپلودشدهٔ کاربر یا حرف اول نام ══════════════ */
+/* ═══ آواتار دایره‌ای — تصویر آپلودشدهٔ کاربر یا حرف اول نام ══════════════ */
 
 const AVATAR_SIZE = {
-  xs: { box: "h-7 w-7 text-[11px] rounded-[8px]" },
-  sm: { box: "h-9 w-9 text-[13px] rounded-[10px]" },
-  md: { box: "h-11 w-11 text-[15px] rounded-xl" },
-  lg: { box: "h-16 w-16 text-[22px] rounded-2xl" },
-  xl: { box: "h-28 w-28 text-[36px] rounded-3xl" },
+  xs: { box: "h-7 w-7 text-[11px] rounded-full" },
+  sm: { box: "h-9 w-9 text-[13px] rounded-full" },
+  md: { box: "h-11 w-11 text-[15px] rounded-full" },
+  lg: { box: "h-16 w-16 text-[22px] rounded-full" },
+  xl: { box: "h-28 w-28 text-[36px] rounded-full" },
 } as const;
 
 export function UserAvatar({

@@ -408,9 +408,9 @@ function LatestPosts() {
           ) : (
             <button
               onClick={() => navigate({ view: "teachers" })}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-white/25 bg-white/[0.05] px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
+              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-amber-300/40 bg-gradient-to-l from-amber-100 to-sky-100 px-4 py-6 text-xs font-semibold leading-relaxed text-[#1f2c25] transition-colors hover:border-amber-400/70"
             >
-              <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
+              <GraduationCap className="h-5 w-5 shrink-0 text-amber-600" />
               هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
             </button>
           )}
@@ -461,12 +461,13 @@ function FeedCard({
 
   return (
     // div با نقش لینک — چون دکمهٔ دانلود آفلاین داخلش است (button تودرتو ممنوع)
+    // ظاهر هم‌سبک دکمهٔ روز/شب — گرادیان ملایم کهربایی → آسمانی
     <div
       role="link"
       tabIndex={0}
       onClick={() => navigate({ view: "post", id: p.id })}
       onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
-      className="group w-[240px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
+      className="group w-[240px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-2xl border border-amber-300/40 bg-gradient-to-bl from-amber-100 to-sky-100 text-start text-[#1f2c25] shadow-card transition-all duration-200 hover:border-amber-400/70 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
     >
       {/* جلد — تصویر شاخص استاد اگر باشد، وگرنه جلد رنگی دسته */}
       {p.thumbnail ? (
@@ -494,19 +495,19 @@ function FeedCard({
       )}
 
       <span className="block space-y-2 p-3.5">
-        <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">
+        <span className="block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-amber-700">
           {p.title}
         </span>
         <span className="flex items-center gap-2">
           <UserAvatar src={p.author.avatarUrl} name={p.author.displayName} size="xs" />
           <span className="min-w-0 flex-1 truncate text-[11px] font-bold">{p.author.displayName}</span>
-          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-[#66756b]">{faDate(p.createdAt)}</span>
+          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-[#5c6b60]">{faDate(p.createdAt)}</span>
         </span>
-        <span className="flex items-center gap-2 border-t border-black/10 pt-2 text-[10px] font-semibold text-[#66756b]">
+        <span className="flex items-center gap-2 border-t border-black/[0.08] pt-2 text-[10px] font-semibold text-[#5c6b60]">
           <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
           <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
           {!!p.rating?.count && (
-            <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
+            <span className="inline-flex items-center gap-0.5 font-bold text-amber-600"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
           )}
           <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={p as OfflineCardPost} />
         </span>
@@ -517,12 +518,12 @@ function FeedCard({
 
 function FeedCardSkeleton() {
   return (
-    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] sm:w-[268px]">
-      <span className="block h-[104px] bg-white/10" />
+    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl border border-amber-300/40 bg-gradient-to-bl from-amber-100/70 to-sky-100/70 sm:w-[268px]">
+      <span className="block h-[104px] bg-white/40" />
       <span className="block space-y-2 p-3.5">
-        <span className="block h-3.5 w-4/5 rounded bg-white/15" />
-        <span className="block h-3 w-2/5 rounded bg-white/10" />
-        <span className="block h-2.5 w-3/5 rounded bg-white/[0.08]" />
+        <span className="block h-3.5 w-4/5 rounded bg-black/10" />
+        <span className="block h-3 w-2/5 rounded bg-black/10" />
+        <span className="block h-2.5 w-3/5 rounded bg-black/[0.07]" />
       </span>
     </span>
   );

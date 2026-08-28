@@ -12,7 +12,7 @@
 import * as React from "react";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.1.0";
+export const DESIGN_VERSION = "1.2.0";
 
 const DESIGN_META_KEY = "hh-design-meta-v1";
 /** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */
@@ -57,7 +57,7 @@ export function designPackOutdated(): boolean {
 const DB_NAME = "hamyar-offline-db";
 const STORE = "items";
 
-export type OfflineKind = "post" | "tcourse";
+export type OfflineKind = "post" | "tcourse" | "builtin";
 
 /** کارت نمایشی مطلب — برای فهرست/فید آفلاین (هم‌ساختار FeedPost) */
 export interface OfflineCardPost {
@@ -309,6 +309,30 @@ export async function downloadCourseOffline(card: OfflineCardCourse): Promise<bo
     return settle("tcourse", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
   } catch {
     return settle("tcourse", card.id, prev, false);
+  }
+}
+
+/**
+ * ذخیرهٔ دورهٔ آمادهٔ اپ — محتوا در باندل برنامه است و شبکه نمی‌خواهد؛
+ * ذخیره فقط آن را در فهرست «مطالب آفلاین من» ثبت می‌کند تا کاربر مطمئن شود
+ * بدون اینترنت هم در دسترس است. اگر تامنیل داشته باشد در کش SW هم می‌رود.
+ */
+export async function downloadBuiltinCourseOffline(card: OfflineCardCourse, course: unknown): Promise<boolean> {
+  const prev = setBusy("builtin", card.id);
+  try {
+    const item: OfflineItem = {
+      kind: "builtin",
+      id: card.id,
+      savedAt: Date.now(),
+      savedUpdatedAt: new Date().toISOString(),
+      card,
+      course,
+    };
+    await idbRun("readwrite", (s) => s.put(item, keyOf("builtin", card.id)));
+    void precacheItemImages([card.thumbnail ?? card._thumbnail]);
+    return settle("builtin", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+  } catch {
+    return settle("builtin", card.id, prev, false);
   }
 }
 

@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText, CloudOff,
+  LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree,
 } from "lucide-react";
 import { useOnlineStatus } from "@/lib/offline";
 import { useRoute, navigate, type Route } from "@/lib/router";
@@ -18,6 +18,7 @@ import { ThemeToggle } from "./theme-provider";
 import { DashboardView } from "./DashboardView";
 import { CourseView } from "./CourseView";
 import { LearnView } from "./LearnView";
+import { StudyListView } from "./StudyListView";
 import { QuizView } from "./QuizView";
 import { FlashcardsView } from "./FlashcardsView";
 import { CaseStudyView } from "./CaseStudyView";
@@ -30,6 +31,7 @@ import { AccountArea, SyncHint } from "./AccountArea";
 import { AdminView } from "./AdminView";
 import { TeachersView } from "./TeachersView";
 import { StudioView } from "./StudioView";
+import { StudioWriteView } from "./StudioWriteView";
 import { PostView } from "./PostView";
 import { PublicLibraryView } from "./PublicLibraryView";
 import { TeacherProfileView } from "./TeacherProfileView";
@@ -133,7 +135,7 @@ export function AppShell() {
     } catch {}
   }, []);
 
-  const isSubPage = ["learn", "quiz", "case", "admin", "studio"].includes(route.view) || route.view === "cards";
+  const isSubPage = ["learn", "quiz", "case", "admin", "studio", "write", "study"].includes(route.view) || route.view === "cards";
 
   // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
   React.useEffect(() => {
@@ -191,13 +193,12 @@ export function AppShell() {
     navigate(r);
   }
 
-  /** دکمهٔ «تدریس» داک موبایل: اگر جلسه‌ای جاری بود برو همان؛ والا فهرست درس‌های فعال باز شود */
+  /** دکمهٔ «تدریس» داک موبایل: اگر جلسه‌ای جاری بود برو همان؛ والا فهرست مطالعه */
   function dockTadriss() {
     if (last.lessonId) {
       go({ view: "learn", id: last.lessonId });
     } else {
-      setDrawerStudy(true);
-      setDrawerOpen(true);
+      go({ view: "study" });
     }
   }
 
@@ -216,14 +217,22 @@ export function AppShell() {
           icon={BookOpen}
           label="مطالعه"
           rail={rail}
-          active={["course", "learn", "case", "cards"].includes(current)}
+          active={["course", "learn", "case", "cards", "study"].includes(current)}
           onClick={clickStudy}
           chevron
           open={studyOpen}
         />
         {!rail && studyOpen && (
           <div className="mb-1 space-y-1 border-s border-dashed border-border ps-2.5 pe-1 py-1">
-            <p className="px-2 pb-0.5 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
+            <button
+              onClick={() => go({ view: "study" })}
+              className="flex w-full items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-[11px] font-extrabold text-primary transition-colors hover:bg-primary/15"
+              title="لیست منظم همهٔ دوره‌ها و درس‌ها"
+            >
+              <ListTree className="h-3.5 w-3.5 shrink-0 text-bronze" />
+              <span className="min-w-0 flex-1 truncate text-start">فهرست کامل مطالعه</span>
+            </button>
+            <p className="px-2 pb-0.5 pt-1 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
             {courses.map((c) => {
               const isRecent = recentCourse?.id === c.id;
               return (
@@ -371,19 +380,27 @@ export function AppShell() {
         {!online && (
           <div role="status" className="mx-auto flex w-full max-w-6xl items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-[11.5px] font-bold text-amber-700 shadow-card dark:text-amber-300">
             <CloudOff className="h-3.5 w-3.5" />
-            حالت آفلاین — طرح سایت و درس‌های ذخیره‌شده در دسترس است؛ مطالب سروری فقط از «بستهٔ آفلاین»
+            حالت آفلاین — طرح سایت و مطالب/دوره‌های ذخیره‌شده در دسترس است؛ بقیه با اتصال دوباره بارگذاری می‌شود
           </div>
         )}
 
         {/* محتوا */}
         <main className="flex-1">
           {/* نوار بازگشت — در همهٔ زیرصفحه‌ها یکدست */}
+        {/* جریان مطالعه: بازگشت از درس/دوره ← فهرست مطالعه؛ بازگشت از فهرست ← خانه */}
         {current !== "home" && (
           <div className="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-6">
-            <BackButton />
+            {["course", "learn"].includes(current) ? (
+              <BackButton label="فهرست مطالعه" onClick={() => go({ view: "study" })} />
+            ) : current === "study" ? (
+              <BackButton label="خانه" onClick={() => go({ view: "home" })} />
+            ) : (
+              <BackButton />
+            )}
           </div>
         )}
         {route.view === "home" && <DashboardView />}
+          {route.view === "study" && <StudyListView />}
           {route.view === "course" && <CourseView id={route.id} />}
           {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
           {route.view === "quiz" && <QuizView key={route.id ?? "mixed"} id={route.id} />}
@@ -394,6 +411,7 @@ export function AppShell() {
           {route.view === "import" && <ImportView />}
           {route.view === "teachers" && <TeachersView />}
           {route.view === "studio" && <StudioView />}
+          {route.view === "write" && <StudioWriteView kind={route.kind} id={route.id} />}
           {route.view === "post" && <PostView id={route.id} />}
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
@@ -432,14 +450,21 @@ export function AppShell() {
                 icon={BookOpen}
                 label="مطالعه"
                 rail={false}
-                active={["course", "learn", "case", "cards"].includes(current)}
+                active={["course", "learn", "case", "cards", "study"].includes(current)}
                 onClick={() => setDrawerStudy((v) => !v)}
                 chevron
                 open={drawerStudy}
               />
               {drawerStudy && (
                 <div className="mb-1 space-y-1 border-s border-dashed border-border ps-2.5 pe-1 py-1">
-                  <p className="px-2 pb-0.5 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
+                  <button
+                    onClick={() => go({ view: "study" })}
+                    className="flex w-full items-center gap-2 rounded-lg bg-primary/10 px-2 py-1.5 text-[11px] font-extrabold text-primary transition-colors hover:bg-primary/15"
+                  >
+                    <ListTree className="h-3.5 w-3.5 shrink-0 text-bronze" />
+                    <span className="min-w-0 flex-1 truncate text-start">فهرست کامل مطالعه</span>
+                  </button>
+                  <p className="px-2 pb-0.5 pt-1 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
                   {courses.length === 0 ? (
                     <p className="px-2 text-[11px] leading-relaxed text-muted-foreground/70">هنوز درسی فعال نیست؛ از کتابخانهٔ عمومی یکی را انتخاب کن.</p>
                   ) : (
