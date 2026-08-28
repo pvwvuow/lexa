@@ -1,0 +1,153 @@
+/* ─── بسته‌های آزمون — دفترچه‌های تستی و تشریحی ─────────────────────────────
+ * هر بسته یک «دفترچهٔ نمونه» است: تستی (۳۰-۴۰ سؤال یکجا با تایمر) یا تشریحی
+ * (پرسش + پاسخ نمونه + کلیدواژه‌ها). محتوا در باندل است؛ آفلاین هم هست و
+ * نیازی به سرور ندارد. دفترچه‌های بعدی فقط به همین پوشه اضافه می‌شوند.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+export interface ExamMCQ {
+  q: string;
+  options: string[]; // ۴ گزینه
+  answer: number; // شاخص گزینهٔ صحیح (۰ مبنا)
+  why: string; // توضیح/تشریح پاسخ
+  topic?: string;
+}
+
+export interface ExamDescQ {
+  q: string;
+  keywords?: string[]; // کلیدواژه‌های پاسخ
+  answer: string; // پاسخ نمونه
+  topic?: string;
+}
+
+export type ExamPackKind = "mcq" | "descriptive";
+
+interface ExamPackBase {
+  id: string;
+  title: string;
+  /** نوع آزمون — دسته‌بندی اصلی کتابخانه (وکالت، قضاوت، ارشد، تشریحی و…) */
+  exam: string;
+  examSlug: string;
+  branch: string; // شاخهٔ حقوقی: مدنی / جزا / آیین دادرسی و…
+  description: string;
+  minutes: number; // زمان پیشنهادی برگزاری (دقیقه)
+  /** نمرهٔ قبولی پیشنهادی — ۰ تا ۱۰۰ */
+  passMark?: number;
+}
+
+export interface McqPack extends ExamPackBase {
+  kind: "mcq";
+  questions: ExamMCQ[];
+}
+
+export interface DescPack extends ExamPackBase {
+  kind: "descriptive";
+  questions: ExamDescQ[];
+}
+
+export type ExamPack = McqPack | DescPack;
+
+import { mcqCivil } from "./exam-packs/mcq-civil";
+import { mcqPenal } from "./exam-packs/mcq-penal";
+import { mcqProcedure } from "./exam-packs/mcq-procedure";
+import { descCivil } from "./exam-packs/desc-civil";
+import { descPenal } from "./exam-packs/desc-penal";
+import { descProcedure } from "./exam-packs/desc-procedure";
+
+export const examPacks: ExamPack[] = [
+  {
+    id: "pack-vokalat-madani",
+    title: "دفترچهٔ تستی نمونه — حقوق مدنی",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "حقوق مدنی",
+    description:
+      "دفترچهٔ تستی چهارگزینه‌ای از عقود، بیع، اجاره، خیارات، ضمان، غصب، شفعه، وصیت، ارث و نکاح — به سبک آزمون وکالت با پاسخ‌نامهٔ تشریحی سؤال‌به‌سؤال.",
+    minutes: 25,
+    passMark: 70,
+    kind: "mcq",
+    questions: mcqCivil,
+  },
+  {
+    id: "pack-vokalat-jaza",
+    title: "دفترچهٔ تستی نمونه — حقوق جزا",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "حقوق جزا",
+    description:
+      "دفترچهٔ تستی از مسئولیت کیفری، قتل‌ها، دیه، قواعد فقهی، دفاع مشروع، سرقت، کلاهبرداری، خیانت در امانت، جعل و محاربه — با توضیح هر پاسخ.",
+    minutes: 25,
+    passMark: 70,
+    kind: "mcq",
+    questions: mcqPenal,
+  },
+  {
+    id: "pack-vokalat-dadresi",
+    title: "دفترچهٔ تستی نمونه — آیین دادرسی مدنی",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "آیین دادرسی مدنی",
+    description:
+      "دفترچهٔ تستی از صلاحیت دادگاه‌ها، دادخواست، ابلاغ، وکالت در دعاوی، دلایل، تجدیدنظر، واخواهی، فرجام و اجرای احکام — با پاسخ‌نامهٔ تشریحی.",
+    minutes: 20,
+    passMark: 70,
+    kind: "mcq",
+    questions: mcqProcedure,
+  },
+  {
+    id: "pack-desc-madani",
+    title: "دفترچهٔ تشریحی — حقوق مدنی",
+    exam: "نمونه سوالات تشریحی",
+    examSlug: "tashrihi",
+    branch: "حقوق مدنی",
+    description:
+      "۱۲ پرسش تشریحی از شرایط اعتبار عقد، بیع، خیارات، غبن، غصب، شفعه، وصیت، ارث و مسئولیت مدنی — با پاسخ نمونهٔ مکتوب و کلیدواژه‌های نمره‌آور.",
+    minutes: 60,
+    kind: "descriptive",
+    questions: descCivil,
+  },
+  {
+    id: "pack-desc-jaza",
+    title: "دفترچهٔ تشریحی — حقوق جزا",
+    exam: "نمونه سوالات تشریحی",
+    examSlug: "tashrihi",
+    branch: "حقوق جزا",
+    description:
+      "۱۰ پرسش تشریحی از سن مسئولیت، انواع قتل، دفاع مشروع، شروع به جرم و معاونت، جرایم مالی، حد سرقت، دیه و قواعد فقهی — با پاسخ نمونهٔ منظم.",
+    minutes: 50,
+    kind: "descriptive",
+    questions: descPenal,
+  },
+  {
+    id: "pack-desc-dadresi",
+    title: "دفترچهٔ تشریحی — آیین دادرسی مدنی",
+    exam: "نمونه سوالات تشریحی",
+    examSlug: "tashrihi",
+    branch: "آیین دادرسی مدنی",
+    description:
+      "۱۰ پرسش تشریحی از صلاحیت دادگاه‌ها، دادخواست، دعوای متقابل، ادلهٔ اثبات، تجدیدنظر، واخواهی، فرجام و اجرای احکام — با پاسخ نمونهٔ کامل.",
+    minutes: 50,
+    kind: "descriptive",
+    questions: descProcedure,
+  },
+];
+
+/** یک بسته با شناسه */
+export function getExamPack(id: string): ExamPack | null {
+  return examPacks.find((p) => p.id === id) ?? null;
+}
+
+/** انواع آزمون موجود — به ترتیب بسته‌ها */
+export function examTypes(): { slug: string; label: string; count: number }[] {
+  const map = new Map<string, { slug: string; label: string; count: number }>();
+  for (const p of examPacks) {
+    const cur = map.get(p.examSlug);
+    if (cur) cur.count += 1;
+    else map.set(p.examSlug, { slug: p.examSlug, label: p.exam, count: 1 });
+  }
+  return [...map.values()];
+}
+
+/** تعداد کل سؤال‌های یک بسته */
+export function packQuestionCount(p: ExamPack): number {
+  return p.questions.length;
+}

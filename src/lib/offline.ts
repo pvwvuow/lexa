@@ -12,7 +12,7 @@
 import * as React from "react";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.3.0";
+export const DESIGN_VERSION = "1.4.0";
 
 const DESIGN_META_KEY = "hh-design-meta-v1";
 /** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */
@@ -429,6 +429,104 @@ async function migrateLegacyPack(): Promise<void> {
   }
   emitChange();
 }
+
+/* ═══ به‌روزرسانی خودکار نسخهٔ آفلاین ═══════════════════════════════════════
+ * «سایت آپدیت شد ولی آفلاین آپدیت نمی‌شود» — راه‌حل: وقتی کاربر آنلاین است،
+ * در پس‌زمینه همه چیز خودکار تازه می‌شود:
+ *   ۱) بستهٔ طراحی اگر نسخه‌اش عقب مانده باشد (کش پوسته/فونت/رسانه)
+ *   ۲) دوره‌های آمادهٔ ذخیره‌شده (همگام با باندل تازهٔ اپ)
+ *   ۳) مطالب/دوره‌های اساتیدی که روی سرور تغییر کرده‌اند (یک‌به‌یک)
+ * برای فشار نیاوردن به شبکه، حداکثر هر ۴۵ دقیقه یک‌بار اجرا می‌شود.
+ * ──────────────────────────────────────────────────────────────────────── */
+const AUTOUPDATE_KEY = "hh-autoupdate-v1";
+let autoUpdateStarted = false;
+let autoUpdateRunning = false;
+
+/** برچسب‌های زمانی تازهٔ سرور برای آیتم‌های ذخیره‌شده (پست‌ها + دوره‌های اساتیدی) */
+async function fetchServerStamps(metas: OfflineItemMeta[]): Promise<Record<string, string>> {
+  const stamps: Record<string, string> = {};
+  try {
+    const postIds = metas.filter((it) => it.kind === "post").map((it) => it.id).slice(0, 120);
+    const r = await fetch(`/api/social/feed${postIds.length ? `?ids=${encodeURIComponent(postIds.join(","))}` : ""}`, { cache: "no-store" });
+    if (r.ok) {
+      const j = (await r.json()) as { posts?: { id?: string; updatedAt?: string }[]; items?: { id?: string; updatedAt?: string }[] };
+      for (const p of j.posts ?? j.items ?? []) {
+        if (p?.id && p.updatedAt) stamps[`post:${p.id}`] = p.updatedAt;
+      }
+    }
+  } catch { /* آفلاین */ }
+  try {
+    const r = await fetch("/api/tcourses", { cache: "no-store" });
+    if (r.ok) {
+      const j = (await r.json()) as { courses?: { id?: string; _updatedAt?: string }[] };
+      for (const c of j.courses ?? []) {
+        if (c?.id && c._updatedAt) stamps[`tcourse:${c.id}`] = c._updatedAt;
+      }
+    }
+  } catch { /* آفلاین */ }
+  return stamps;
+}
+
+async function runAutoUpdate(): Promise<void> {
+  if (autoUpdateRunning) return;
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  autoUpdateRunning = true;
+  try {
+    const last = Number(localStorage.getItem(AUTOUPDATE_KEY) || 0);
+    const designOutdated = designPackOutdated();
+    if (!designOutdated && Date.now() - last < 45 * 60 * 1000) return;
+
+    // ۱) بستهٔ طراحی — اگر نسخهٔ اپ عوض شده، پوستهٔ آفلاین را تازه کن
+    if (designOutdated) {
+      const ok = await precacheDesignAssets();
+      if (ok > 0) saveDesignMeta();
+    }
+
+    // ۲) آیتم‌های ذخیره‌شده
+    await ensureOfflineCache();
+    const metas = await listOfflineMetas();
+
+    // دوره‌های آماده: وقتی نسخهٔ اپ عوض شده، با باندل تازه دوباره ثبت می‌شوند (بی‌شبکه)
+    if (designOutdated && metas.length) {
+      try {
+        const { builtinCourses } = await import("@/lib/law/courses");
+        for (const m of metas) {
+          if (m.kind !== "builtin") continue;
+          const c = builtinCourses.find((x) => x.id === m.id);
+          if (c) await downloadBuiltinCourseOffline(m.card as OfflineCardCourse, c);
+        }
+      } catch { /* باندل در دسترس نبود */ }
+    }
+
+    if (!metas.length) return;
+
+    // مطلب/دورهٔ اساتیدی: فقط آن‌هایی که روی سرور تغییر کرده‌اند
+    const stamps = await fetchServerStamps(metas);
+    for (const m of metas) {
+      if (m.kind === "builtin") continue;
+      if (!isServerNewer(stamps[`${m.kind}:${m.id}`], m.savedUpdatedAt)) continue;
+      const ok =
+        m.kind === "post"
+          ? await downloadPostOffline(m.card as OfflineCardPost)
+          : await downloadCourseOffline(m.card as OfflineCardCourse);
+      if (ok) await new Promise((r) => setTimeout(r, 350)); // نرم و پیوسته، نه انفجاری
+    }
+  } catch {
+    /* هر خطایی نباید صفحه را برهم بزند */
+  } finally {
+    try { localStorage.setItem(AUTOUPDATE_KEY, String(Date.now())); } catch {}
+    autoUpdateRunning = false;
+  }
+}
+
+/** شروع موتور به‌روزرسانی خودکار — یک بار در سطح برنامه (SwRegister) */
+export function startOfflineAutoUpdate(): void {
+  if (typeof window === "undefined" || autoUpdateStarted) return;
+  autoUpdateStarted = true;
+  window.setTimeout(() => void runAutoUpdate(), 10_000);
+  window.addEventListener("online", () => void runAutoUpdate());
+}
+
 
 /* ═══ زیرساخت PWA و بستهٔ طراحی ═══════════════════════════════════════════ */
 

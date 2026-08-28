@@ -269,7 +269,7 @@ export function AppShell() {
           </div>
         )}
 
-        <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+        <SideItem icon={ClipboardList} label="آزمون" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
@@ -429,7 +429,7 @@ export function AppShell() {
           <div className="mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />
-            <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+            <DockBtn icon={ClipboardList} label="آزمون" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
             <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
             <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
           </div>
@@ -482,7 +482,7 @@ export function AppShell() {
                   )}
                 </div>
               )}
-              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+              <SideItem icon={ClipboardList} label="آزمون" rail={false} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
               <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
