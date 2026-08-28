@@ -9,7 +9,7 @@ import {
   BookOpen, Scale, ListChecks, Quote, GitCompareArrows, HelpCircle,
   GraduationCap, ChevronDown, Newspaper, Save, X, Lightbulb,
 } from "lucide-react";
-import type { LessonSection, QuizQuestion } from "@/lib/law/types";
+import type { LessonSection } from "@/lib/law/types";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { CATEGORIES } from "@/lib/social-shared";
@@ -336,18 +336,10 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
           />
           <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">اگر شاخه انتخاب کنی، این مطلب در هر یک از آن دسته‌ها هم نمایش داده می‌شود؛ بدون انتخاب فقط در فید دیده می‌شود.</p>
         </div>
-        {/* تصویر شاخص دلخواه — آپلود یا لینک؛ اگر خالی باشد جلد رنگی خودکار می‌آید */}
-        <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => setD({ ...d, thumbnail })} />
         <div>
           <label className={labelCls}>محتوا</label>
           <BlockEditor blocks={d.blocks} onChange={(blocks) => setD({ ...d, blocks })} />
         </div>
-        {/* آزمون پایان مبحث — دلخواه؛ دانشجو بعد از مطالعه آن را می‌بیند */}
-        <QuizEditor
-          label="آزمون پایان این مبحث"
-          questions={d.quiz}
-          onChange={(quiz) => setD({ ...d, quiz })}
-        />
         {err && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>}
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground">انصراف</button>
@@ -674,7 +666,7 @@ export function StudioView() {
         category: j.post.category ?? "",
         categories: Array.isArray(j.post.categories) ? j.post.categories : (j.post.category ? [j.post.category] : []),
         thumbnail: j.post.thumbnail ?? "",
-        quiz: quizPayloadToDraft((j.post.quiz ?? []) as QuizQuestion[]),
+        quiz: quizPayloadToDraft(j.post.quiz ?? []),
         blocks: (j.post.blocks as LessonSection[]) ?? [],
       });
     } catch {}
@@ -692,8 +684,7 @@ export function StudioView() {
         return {
           key: uid(),
           title: chc.title,
-          quiz: quizPayloadToDraft(chc.quiz ?? []),
-          lessons: chc.lessons.map((l) => ({ key: uid(), title: l.title, minutes: l.minutes, sections: (l.sections ?? []) as LessonSection[], quiz: quizPayloadToDraft(l.quiz ?? []) })),
+          lessons: chc.lessons.map((l) => ({ key: uid(), title: l.title, minutes: l.minutes, sections: (l.sections ?? []) as LessonSection[] })),
         };
       });
       setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", category: (c as unknown as { _category?: string })._category ?? "other", categories: ((c as unknown as { _categories?: string[] })._categories) ?? [(c as unknown as { _category?: string })._category ?? "other"], status: (c as unknown as { _status?: string })._status ?? "published", thumbnail: (c as unknown as { _thumbnail?: string })._thumbnail ?? "", chapters });

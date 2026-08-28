@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, ListChecks } from "lucide-react";
+import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
@@ -10,7 +10,6 @@ import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
 import { useAuth } from "@/lib/auth-client";
 import { useTargetRating } from "@/lib/social-client";
-import { QuizRunnerDialog } from "./QuizRunnerDialog";
 
 export function CourseView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
@@ -19,7 +18,6 @@ export function CourseView({ id }: { id: string }) {
   const progress = useApp((s) => s.progress);
   const openLesson = useApp((s) => s.openLesson);
   const [openCh, setOpenCh] = React.useState<string | null>(null);
-  const [quizChapter, setQuizChapter] = React.useState<{ title: string; questions: import("@/lib/law/types").QuizQuestion[] } | null>(null);
 
   const local = React.useMemo(
     () => mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins }).find((c) => c.id === id),
@@ -101,11 +99,6 @@ function CourseBody({
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-16 pt-6 sm:px-6">
       {/* سربرگ درس */}
       <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
-        {/* تصویر شاخص دلخواه استاد — اگر گذاشته باشد */}
-        {(course as Course & { _thumbnail?: string })._thumbnail && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={(course as Course & { _thumbnail?: string })._thumbnail} alt={course.title} className="mb-5 max-h-[260px] w-full rounded-xl object-cover" referrerPolicy="no-referrer" loading="lazy" />
-        )}
         <div aria-hidden className="absolute -end-10 -top-10 h-36 w-36 rounded-full border border-bronze/15" />
         <div aria-hidden className="absolute -end-4 -top-4 h-16 w-16 rounded-full border border-bronze/10" />
         <div className="relative flex items-start gap-4">
@@ -208,15 +201,6 @@ function CourseBody({
                   <span className="block font-bold">{ch.title}</span>
                   <span className="block text-xs text-muted-foreground">{ch.subtitle}</span>
                 </span>
-                {!!ch.quiz?.length && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setQuizChapter({ title: `آزمون فصل ${fa(ch.order)} — ${ch.title}`, questions: ch.quiz }); }}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-bronze/10 px-3 py-1.5 text-[11.5px] font-bold text-bronze transition-colors hover:bg-bronze/20"
-                    title="آزمون پایان این فصل"
-                  >
-                    <ListChecks className="h-3.5 w-3.5" /> آزمون فصل ({fa(ch.quiz.length)})
-                  </button>
-                )}
                 <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
               </button>
 
@@ -264,15 +248,6 @@ function CourseBody({
           );
         })}
       </div>
-
-      {/* اجراکنندهٔ آزمون پایان فصل */}
-      <QuizRunnerDialog
-        open={!!quizChapter}
-        onClose={() => setQuizChapter(null)}
-        title={quizChapter?.title ?? ""}
-        subtitle="دانش خودت را در این فصل بسنج"
-        questions={quizChapter?.questions ?? []}
-      />
     </div>
   );
 }

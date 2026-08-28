@@ -26,7 +26,6 @@ export interface FeedPost {
   tags: string;
   category?: string;
   categories?: string[];
-  thumbnail?: string;
   createdAt: string;
   updatedAt: string;
   commentsCount: number;
@@ -51,7 +50,6 @@ export interface TCourseCard {
   _status?: "draft" | "prep" | "published";
   _ownerUsername?: string;
   _ownerAvatar?: string | null;
-  _thumbnail?: string;
   teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 
