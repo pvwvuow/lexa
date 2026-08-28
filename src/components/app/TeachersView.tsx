@@ -16,7 +16,7 @@ import { TeacherFeedTeasers } from "./DashboardView";
 export function TeachersView() {
   const { user } = useAuth();
   const { teachers, loading, toggleFollow } = useSocial();
-  const { courses: tcourses, toggleLibrary } = useTCourses();
+  const { courses: tcourses, toggleLibrary, offline: tcOffline } = useTCourses();
   const [err, setErr] = React.useState("");
   const [busyId, setBusyId] = React.useState("");
 
@@ -177,7 +177,11 @@ export function TeachersView() {
       {/* همهٔ دوره‌های آنلاین */}
       {tcourses.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-lg font-bold"><BookOpen className="h-5 w-5 text-bronze" /> دوره‌های آنلاین اساتید</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><BookOpen className="h-5 w-5 text-bronze" /> دوره‌های آنلاین اساتید
+            {tcOffline && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">آفلاین</span>
+            )}
+          </h2>
           <div className="grid gap-3 md:grid-cols-2">
             {tcourses.map((c) => (
               <div key={c.id} className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5">
