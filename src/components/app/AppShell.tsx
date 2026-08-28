@@ -122,6 +122,29 @@ export function AppShell() {
 
   // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است
   const [mode, setMode] = React.useState<NavMode>("expanded");
+
+  // ═══ نوارهای بالا و پایین موبایل: اسکرول به پایین → پنهان؛ اسکرول به بالا → نمایان ═══
+  const [barsHidden, setBarsHidden] = React.useState(false);
+  const lastScrollY = React.useRef(0);
+
+  React.useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      const prev = lastScrollY.current;
+      lastScrollY.current = y;
+      const dy = y - prev;
+      if (Math.abs(dy) < 5) return; // لرزش‌های ریز نادیده گرفته می‌شود
+      if (y < 110) {
+        // نزدیک بالای صفحه همیشه نمایان باشد
+        setBarsHidden(false);
+        return;
+      }
+      // پایین رفتن → پنهان؛ بالا رفتن → نمایان
+      setBarsHidden(dy > 0);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   // درخواست کاربر: کلیک روی «مطالعه» فهرست کشویی درس‌ها را باز می‌کند
   const [studyOpen, setStudyOpen] = React.useState(false);
   // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
@@ -141,7 +164,6 @@ export function AppShell() {
   React.useEffect(() => {
     if (!mounted) return;
     setMode((m) => (isSubPage ? "rail" : m === "rail" && window.localStorage.getItem("hh-nav") !== "rail" ? "expanded" : m));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubPage, mounted]);
 
   function expandNav() {
@@ -190,6 +212,7 @@ export function AppShell() {
   function go(r: Route) {
     setDrawerOpen(false);
     setDrawerStudy(false);
+    setBarsHidden(false); // با تغییر صفحه، نوارها دوباره نمایان شوند
     navigate(r);
   }
 
@@ -328,7 +351,12 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
-        <header className="sticky top-0 z-40 bg-background/0 px-2.5 pt-3 sm:px-5">
+        {/* در موبایل با اسکرول به پایین به بالا سُر می‌خورد و با اسکرول به بالا برمی‌گردد */}
+        <header
+          className={`sticky top-0 z-40 bg-background/0 px-2.5 pt-3 transition-transform duration-300 ease-out sm:px-5 ${
+            barsHidden ? "max-lg:-translate-y-[150%]" : "translate-y-0"
+          }`}
+        >
           <div className="mx-auto max-w-7xl">
             <div className="relative flex h-14 items-center gap-2 overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-l from-[#0d211a] via-[#143026] to-[#0d211a] px-2 shadow-card sm:gap-3 sm:px-3.5">
               <div aria-hidden className="pattern-quilt pointer-events-none absolute inset-0 opacity-40" />
@@ -424,8 +452,13 @@ export function AppShell() {
           همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
-        {/* داک شناور موبایل — با دکمهٔ «منو» برای دسترسی کامل به همهٔ بخش‌ها */}
-        <nav aria-label="ناوبری پایین" className="fixed inset-x-3 bottom-2 z-40 rounded-2xl border border-border/80 bg-card/95 shadow-card backdrop-blur-md lg:hidden pb-[env(safe-area-inset-bottom)]">
+        {/* داک شناور موبایل — با اسکرول به پایین به پایین سُر می‌خورد و با اسکرول به بالا برمی‌گردد */}
+        <nav
+          aria-label="ناوبری پایین"
+          className={`fixed inset-x-3 bottom-2 z-40 rounded-2xl border border-border/80 bg-card/95 shadow-card backdrop-blur-md transition-transform duration-300 ease-out lg:hidden pb-[env(safe-area-inset-bottom)] ${
+            barsHidden ? "translate-y-[160%]" : "translate-y-0"
+          }`}
+        >
           <div className="mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />

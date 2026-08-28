@@ -56,8 +56,23 @@ import { mcqJazaGhafoori } from "./exam-packs/mcq-jaza-ghafoori";
 import { descJazaGhafoori } from "./exam-packs/desc-jaza-ghafoori";
 import { mcqJazaGhafoori2 } from "./exam-packs/mcq-jaza-ghafoori-2";
 import { descJazaGhafoori2 } from "./exam-packs/desc-jaza-ghafoori-2";
+import { mcqJazaGhafoori3 } from "./exam-packs/mcq-jaza-ghafoori-3";
+import { descJazaGhafoori3 } from "./exam-packs/desc-jaza-ghafoori-3";
 
 export const examPacks: ExamPack[] = [
+  {
+    id: "pack-tadris-jaza-mcq3",
+    title: "دفترچهٔ تستی — تدریس جزا ۳ (صفحات ۱۰۱ تا ۱۵۰)",
+    exam: "تدریس جزا (غفوری)",
+    examSlug: "tadris-jaza",
+    branch: "حقوق جزا",
+    description:
+      "دفترچهٔ تستی برگرفته از صفحات ۱۰۱ تا ۱۵۰ جزوهٔ تدریس جزا احمد غفوری: احتساب بازداشت و بازداشت بدل از جزای نقدی (مواد ۲۸ و ۲۹ ق.م.ا و ۵۱۵ تا ۵۲۹ ق.آ.د.ک)، محرومیت‌ها و انتشار حکم (مواد ۳۰ تا ۳۶)، تخفیف و معافیت (مواد ۳۷ تا ۳۹ و مادهٔ ۳۲۷ اصلاحی)، تعویق صدور حکم و تعلیق اجرا (مواد ۴۰ تا ۵۵)، نیمه‌آزادی و آزادی مشروط و نظارت الکترونیکی (مواد ۵۶ تا ۶۳) و مجازات‌های جایگزین حبس (مواد ۶۴ تا ۷۵) — با پاسخ‌نامهٔ تشریحی.",
+    minutes: 50,
+    passMark: 70,
+    kind: "mcq",
+    questions: mcqJazaGhafoori3,
+  },
   {
     id: "pack-tadris-jaza-mcq2",
     title: "دفترچهٔ تستی — تدریس جزا ۲ (صفحات ۵۱ تا ۱۰۰)",
@@ -182,6 +197,18 @@ export const examPacks: ExamPack[] = [
     minutes: 80,
     kind: "descriptive",
     questions: descJazaGhafoori2,
+  },
+  {
+    id: "pack-tadris-jaza-desc3",
+    title: "دفترچهٔ تشریحی — تدریس جزا ۳ (صفحات ۱۰۱ تا ۱۵۰)",
+    exam: "نمونه سوالات تشریحی",
+    examSlug: "tashrihi",
+    branch: "حقوق جزا",
+    description:
+      "۲۱ پرسش تشریحی برگرفته از صفحات ۱۰۱ تا ۱۵۰ جزوهٔ تدریس جزا احمد غفوری: احتساب بازداشت و بازداشت بدل از جزای نقدی، محرومیت‌ها و انتشار حکم، تخفیف و معافیت (مادهٔ ۳۲۷ اصلاحی و مادهٔ ۳۹)، تعویق صدور حکم و تعلیق اجرا و مادهٔ ۴۷، نیمه‌آزادی و آزادی مشروط و نظارت الکترونیکی و مجازات‌های جایگزین حبس — با پاسخ نمونهٔ کامل و کلیدواژه‌های نمره‌آور.",
+    minutes: 85,
+    kind: "descriptive",
+    questions: descJazaGhafoori3,
   },
 ];
 

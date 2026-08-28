@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // دکمهٔ شناور «N» ابزار باگ‌یابی Next.js است — برای تجربهٔ تمیز کاربر (مخصوصاً موبایل) کامل غیرفعال می‌شود
+  devIndicators: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
