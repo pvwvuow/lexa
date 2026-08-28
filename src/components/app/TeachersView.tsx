@@ -181,6 +181,10 @@ export function TeachersView() {
           <div className="grid gap-3 md:grid-cols-2">
             {tcourses.map((c) => (
               <div key={c.id} className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5">
+                {/* تصویر شاخص دلخواه استاد — اگر گذاشته باشد */}
+                {c._thumbnail && (
+                  <img src={c._thumbnail} alt={c.title} className="mb-3 h-32 w-full rounded-xl object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                )}
                 <div className="mb-3 flex items-center gap-3">
                   <span className="grid h-11 w-11 place-items-center rounded-xl bg-bronze/10 text-bronze"><CourseIcon icon={c.icon} /></span>
                   <div className="min-w-0 flex-1">
