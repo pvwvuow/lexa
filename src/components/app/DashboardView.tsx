@@ -408,7 +408,7 @@ function LatestPosts() {
           ) : (
             <button
               onClick={() => navigate({ view: "teachers" })}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-amber-300/40 bg-gradient-to-l from-amber-100 to-sky-100 px-4 py-6 text-xs font-semibold leading-relaxed text-[#1f2c25] transition-colors hover:border-amber-400/70"
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-l from-amber-100 to-sky-100 px-4 py-6 text-xs font-semibold leading-relaxed text-[#1f2c25] shadow-card transition-shadow hover:shadow-lg"
             >
               <GraduationCap className="h-5 w-5 shrink-0 text-amber-600" />
               هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
@@ -467,11 +467,12 @@ function FeedCard({
       tabIndex={0}
       onClick={() => navigate({ view: "post", id: p.id })}
       onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
-      className="group w-[240px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-2xl border border-amber-300/40 bg-gradient-to-bl from-amber-100 to-sky-100 text-start text-[#1f2c25] shadow-card transition-all duration-200 hover:border-amber-400/70 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
+      className="group w-[240px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-bl from-amber-100 to-sky-100 text-start text-[#1f2c25] shadow-card transition-all duration-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
     >
-      {/* جلد — تصویر شاخص استاد اگر باشد، وگرنه جلد رنگی دسته */}
+      {/* جلد — تصویر شاخص استاد اگر باشد، وگرنه جلد رنگی دسته — گرد و با فاصله از لبهٔ کارت */}
+      <span className="block p-2.5 pb-0">
       {p.thumbnail ? (
-        <span className="relative block h-[104px]">
+        <span className="relative block h-[104px] overflow-hidden rounded-xl">
           <img src={p.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
           <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} className="absolute top-2 start-2.5" />
           <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
@@ -479,7 +480,7 @@ function FeedCard({
           </span>
         </span>
       ) : (
-      <span className={`relative block h-[104px] bg-gradient-to-bl ${cover.bg}`}>
+      <span className={`relative block h-[104px] overflow-hidden rounded-xl bg-gradient-to-bl ${cover.bg}`}>
         <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
         <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
           {p.title.slice(0, 1)}
@@ -493,8 +494,9 @@ function FeedCard({
         </span>
       </span>
       )}
+      </span>
 
-      <span className="block space-y-2 p-3.5">
+      <span className="block space-y-2 p-3.5 pt-3">
         <span className="block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-amber-700">
           {p.title}
         </span>
@@ -518,9 +520,11 @@ function FeedCard({
 
 function FeedCardSkeleton() {
   return (
-    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl border border-amber-300/40 bg-gradient-to-bl from-amber-100/70 to-sky-100/70 sm:w-[268px]">
-      <span className="block h-[104px] bg-white/40" />
-      <span className="block space-y-2 p-3.5">
+    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl bg-gradient-to-bl from-amber-100/70 to-sky-100/70 sm:w-[268px]">
+      <span className="block p-2.5 pb-0">
+        <span className="block h-[104px] rounded-xl bg-white/40" />
+      </span>
+      <span className="block space-y-2 p-3.5 pt-3">
         <span className="block h-3.5 w-4/5 rounded bg-black/10" />
         <span className="block h-3 w-2/5 rounded bg-black/10" />
         <span className="block h-2.5 w-3/5 rounded bg-black/[0.07]" />
