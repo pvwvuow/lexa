@@ -1,21 +1,27 @@
 /*
- * همیار حقوق — Service Worker (v5)
+ * همیار حقوق — Service Worker (v6)
  * راهبرد: پوستهٔ طراحی (HTML/JS/CSS/فونت/تصاویر) کش می‌شود تا سایت آفلاین هم با همان
  * ظاهر بالا بیاید؛ ولی پاسخ‌های JSON مسیر /api/* هرگز کش نمی‌شوند — مطالبِ سروری فقط
  * با «ذخیرهٔ تک‌تک مطالب/دوره‌ها» در دسترس می‌مانند.
  *
- * v5 — آپدیت خودکار نسخهٔ آفلاین:
- * به‌روزرسانی محتوا حالا در اپ انجام می‌شود (بستهٔ طراحی + آیتم‌های ذخیره‌شده خودکار
- * تازه می‌شوند). این نسخه فقط برای نصب دوبارهٔ SW و پاک‌سازی کش‌های کهنه است.
+ * v6 — رفع «صفحه کار نمی‌کند»:
+ * در v5 درخواست JS/CSS بعد از ۳ ثانیه قطع می‌شد و اگر در کش هم نبود، Response.error()
+ * برمی‌گشت — یعنی صفحهٔ سفید/خراب روی شبکهٔ کند یا کامپایل سرد سرور، در حالی که
+ * سرور کاملاً سالم بود. حالا:
+ * ۱) اسکریپت‌ها دیگر هیچ‌وقت «قطع و خطا» نمی‌شوند: شبکه در پس‌زمینه ادامه می‌یابد؛
+ *    فقط بعد از مهلت گنجایش (۱۰ ثانیه) اگر نسخهٔ کشِ «دقیقاً همین URL» بود، آن
+ *    برگردانده می‌شود وگرنه صبر تا جواب واقعی شبکه.
+ * ۲) پس‌افت اسکریپت فقط با تطابق دقیق URL (بدون ignoreSearch) — هیچ‌وقت نسخهٔ
+ *    جورنشدو با HTML فعلی اجرا نمی‌شود (جلوگیری از کرش ناهم‌خوانی کد).
+ * ۳) مهلت ناوبری ۶→۱۰ ثانیه.
  *
- * v3 — رفع «آفلاین باز نمی‌شود»:
- * ۱) موقع نصب و «بستهٔ طراحی»، علاوه بر فونت/رسانه، همهٔ فایل‌های JS/CSS که HTML پوسته
- *    به آن‌ها ارجاع می‌دهد هم خودکار کش می‌شوند (در dev هر ویو چانک جدا دارد).
- * ۲) درخواست‌های شبکه با timeout رقابت می‌کنند تا در نبود اینترنت سریع به کش برگردیم
- *    (نه گیر کردن روی درخواست‌های معلق).
- * ۳) پس‌افت ناوبری: اول خودِ URL، بعد پوستهٔ "/" — با ignoreSearch برای پارامترهای گیت‌وی.
+ * v5 — آپدیت خودکار نسخهٔ آفلاین: در اپ انجام می‌شود؛ این نسخه فقط برای نصب دوبارهٔ
+ * SW و پاک‌سازی کش‌های کهنه است (فعال‌سازی v6 هم همین کار را برای همه می‌کند).
+ *
+ * v3 — رفع «آفلاین باز نمی‌شود»: کش دارایی‌های ارجاع‌شده در HTML پوسته + timeout race
+ * برای برگشت سریع به کش در نبود اینترنت + پس‌افت ناوبری با ignoreSearch.
  */
-const VERSION = "hh-pwa-v5";
+const VERSION = "hh-pwa-v6";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
@@ -182,6 +188,31 @@ async function networkFirst(req, cacheName, timeoutMs) {
   }
 }
 
+/**
+ * v6 — اسکریپت/استایل: هیچ‌وقت «قطع و خطا» نیست.
+ * شبکه شروع می‌شود و رها می‌شود تا خودش جواب بدهد (کامپایل سرد سرور کند است ولی
+ * سالم)؛ اگر بعد از graceMs جواب نیامد و «دقیقاً همین URL» در کش بود، همان برگردانده
+ * می‌شود؛ وگرنه بی‌نهایت منتظر جواب واقعی شبکه می‌مانیم (تا خود مرورگر خطایش را
+ * بدهد). نتیجه: هیچ‌وقت به‌خاطر کندیِ موقت، صفحهٔ سفید نمی‌سازیم.
+ */
+async function networkFirstNeverAbort(req, cacheName, graceMs) {
+  const cache = await caches.open(cacheName);
+  let networkDone = false;
+  const network = fetch(req)
+    .then(async (res) => {
+      networkDone = true;
+      if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+      return res;
+    });
+  const grace = new Promise((resolve) => setTimeout(() => resolve(null), graceMs));
+  // بعد از graceMs: اگر کشِ دقیق داریم، همان را بده (شبکه در پس‌زمینه ادامه دارد)
+  const cached = await grace.then(() =>
+    networkDone ? null : (cache.match(req) || caches.match(req))
+  );
+  if (cached) return cached;
+  return network; // جواب واقعی شبکه — حتی اگر دیر باشد
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
@@ -230,7 +261,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         try {
-          const res = await fetchWithTimeout(req, 6000);
+          const res = await fetchWithTimeout(req, 10000);
           if (res && res.ok) {
             caches.open(SHELL_CACHE).then((c) => c.put("/", res.clone())).catch(() => {});
           }
@@ -275,12 +306,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // چانک‌ها و CSS/JS — اول شبکه با مهلت ۳ ثانیه؛ پس‌افت کش (v3: مهلت‌دار)
+  // چانک‌ها و CSS/JS — v6: شبکه هرگز قطع نمی‌شود؛ فقط بعد از ۱۰ ثانیه اگر نسخهٔ
+  // دقیقاً همین URL در کش بود، همان زودتر داده می‌شود (تطابق دقیق، بدون ignoreSearch)
   if (url.pathname.startsWith("/_next/") || /\.(css|js|mjs)$/.test(url.pathname)) {
-    event.respondWith(networkFirst(req, ASSET_CACHE, 3000));
+    event.respondWith(networkFirstNeverAbort(req, ASSET_CACHE, 10000));
     return;
   }
 
-  // ── بقیه (مثلاً chunkهای dev/HMR) — اول شبکه با پس‌افت کش ──
-  event.respondWith(networkFirst(req, ASSET_CACHE, 3000));
+  // ── بقیه (مثلاً chunkهای dev/HMR و درخواست‌های ابزار توسعه) — همان راهبرد امن ──
+  event.respondWith(networkFirstNeverAbort(req, ASSET_CACHE, 10000));
 });
