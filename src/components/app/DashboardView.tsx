@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Flame, ArrowLeft,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
-  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel,
+  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel, CloudOff,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -340,7 +340,7 @@ const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ c
 };
 
 function LatestPosts() {
-  const { feed, loading } = useSocial();
+  const { feed, loading, offline } = useSocial();
   const ref = React.useRef<HTMLDivElement>(null);
   const [edge, setEdge] = React.useState({ prev: false, next: false });
 
@@ -386,6 +386,11 @@ function LatestPosts() {
         >
           مشاهده همه
         </button>
+        {offline && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[9.5px] font-bold text-amber-200">
+            <CloudOff className="h-3 w-3" /> نسخهٔ آفلاین بستهٔ ذخیره‌شده
+          </span>
+        )}
         <span className="ms-auto hidden text-[10px] font-medium text-primary-foreground/50 sm:inline">
           تازه‌ترین نوشته‌های اساتید
         </span>

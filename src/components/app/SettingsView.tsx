@@ -1,19 +1,24 @@
 "use client";
 
-// ─── تنظیمات — عمومی (پروفایل، آواتار، رمز) + هوش مصنوعی ──────────────────────
+// ─── تنظیمات — عمومی (پروفایل، آواتار، رمز) + هوش مصنوعی + آفلاین و نصب ────────
 import * as React from "react";
 import {
   KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2,
   UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save,
+  WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
 import { askAi } from "@/lib/aiClient";
 import { useAuth } from "@/lib/auth-client";
-import { fa } from "@/lib/fa";
+import { fa, fa as faNum } from "@/lib/fa";
+import {
+  usePwaInstall, precacheDesignAssets, storageEstimate, formatBytes, faDateTime,
+  buildOfflinePack, getOfflinePack, clearOfflinePack,
+} from "@/lib/offline";
 import { UserAvatar } from "./common";
 
-type Tab = "general" | "ai";
+type Tab = "general" | "ai" | "offline";
 
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("general");
@@ -22,18 +27,18 @@ export function SettingsView() {
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 pb-24 pt-6 sm:px-6">
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-bold"><KeyRound className="h-6 w-6 text-bronze" /> تنظیمات</h1>
-        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودت را مدیریت کن؛ تنظیمات استاد هوشمند هم همین‌جاست.</p>
+        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودت را مدیریت کن؛ تنظیمات استاد هوشمند و حالت آفلاین هم همین‌جاست.</p>
       </header>
 
       {/* زبانه‌ها */}
-      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1">
-        {([["general", "تنظیمات عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot]] as const).map(([k, t, Ico]) => (
+      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted/50 p-1">
+        {([["general", "عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot], ["offline", "آفلاین و نصب", WifiOff]] as const).map(([k, t, Ico]) => (
           <button
             key={k}
             role="tab"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all ${
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-[13px] font-bold transition-all sm:text-sm ${
               tab === k ? "bg-card text-bronze shadow-card" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -42,7 +47,7 @@ export function SettingsView() {
         ))}
       </div>
 
-      {tab === "general" ? <GeneralSettings /> : <AiSettings />}
+      {tab === "general" ? <GeneralSettings /> : tab === "ai" ? <AiSettings /> : <OfflineSettings />}
     </div>
   );
 }
@@ -436,3 +441,168 @@ function Field({
 
 // جلوگیری از هشدار unused برای Upload در پیکربندی‌های مختلف eslint
 void Upload;
+
+/* ═══ زبانهٔ آفلاین و نصب ═══════════════════════════════════════════════════ */
+
+function OfflineSettings() {
+  const auth = useAuth();
+  const { canInstall, installed, install } = usePwaInstall();
+  const [installMsg, setInstallMsg] = React.useState("");
+  const [preBusy, setPreBusy] = React.useState(false);
+  const [preDone, setPreDone] = React.useState(false);
+  const [usage, setUsage] = React.useState<{ usage: number; quota: number } | null>(null);
+
+  const [packBusy, setPackBusy] = React.useState(false);
+  const [packMsg, setPackMsg] = React.useState("");
+  const [pack, setPack] = React.useState<ReturnType<typeof getOfflinePack>>(null);
+
+  const refreshEstimate = React.useCallback(() => {
+    void storageEstimate().then(setUsage);
+  }, []);
+
+  React.useEffect(() => {
+    setPack(getOfflinePack());
+    refreshEstimate();
+  }, [refreshEstimate]);
+
+  async function precache() {
+    setPreBusy(true);
+    setPreDone(false);
+    const res = await precacheDesignAssets();
+    setPreBusy(false);
+    setPreDone(res > 0);
+    refreshEstimate();
+  }
+
+  async function downloadPack() {
+    setPackBusy(true);
+    setPackMsg("");
+    try {
+      const r = await buildOfflinePack();
+      setPack(getOfflinePack());
+      setPackMsg(`✓ ${faNum(r.posts)} مطلب و ${faNum(r.courses)} دوره ذخیره شد`);
+      refreshEstimate();
+    } catch {
+      setPackMsg("ذخیره ناموفق بود — اتصال را بررسی کن.");
+    } finally {
+      setPackBusy(false);
+    }
+  }
+
+  const ios = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  return (
+    <div className="space-y-4">
+      {/* ── نصب برنامه (PWA) ── */}
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <MonitorSmartphone className="h-4.5 w-4.5 text-bronze" /> نصب برنامه روی گوشی یا رایانه
+        </h2>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+          نسخهٔ نصب‌شده مثل یک اپ واقعی تمام‌صفحه باز می‌شود و آیکونش کنار بقیهٔ برنامه‌هاست؛ طرح و رنگ‌ها هم بدون اینترنت بالا می‌آیند.
+        </p>
+
+        {installed ? (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-success/10 px-3.5 py-2 text-[12px] font-bold text-success">
+            <CheckCircle2 className="h-4 w-4" /> روی این دستگاه نصب شده است
+          </p>
+        ) : canInstall ? (
+          <button
+            onClick={() => void install()}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-[12.5px] font-bold text-primary-foreground transition-all hover:brightness-110"
+          >
+            <DownloadCloud className="h-4 w-4" /> نصب برنامه (PWA)
+          </button>
+        ) : (
+          <div className="mt-3 rounded-xl border border-dashed border-border px-3.5 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
+            {ios ? (
+              <>در سافاری دکمهٔ «هم‌رسانی» را بزن و «افزودن به صفحهٔ اصلی» را انتخاب کن تا برنامه نصب شود.</>
+            ) : (
+              <>دکمهٔ نصب معمولاً داخل نوار آدرس مرورگر (آیکن ⊕ یا «نصب برنامه») ظاهر می‌شود؛ پس از یک بازدید کامل فعال می‌شود.</>
+            )}
+          </div>
+        )}
+        {installMsg && <p className="mt-2 text-[11.5px] font-semibold text-success">{installMsg}</p>}
+      </section>
+
+      {/* ── بستهٔ طراحی ── */}
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <HardDriveDownload className="h-4.5 w-4.5 text-bronze" /> بستهٔ طراحی و المان‌ها
+        </h2>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+          با این کار پوستهٔ کامل سایت — رنگ‌ها، فونت‌ها، صفحه‌ها و آیکون‌ها — روی دستگاهت ذخیره می‌شود تا دفعهٔ بعد حتی بدون اینترنت،
+          سایت با همان ظاهر بالا بیاید. مطالب بدون «بستهٔ مطالب» در دسترس نخواهد بود.
+        </p>
+        <button
+          onClick={() => void precache()}
+          disabled={preBusy}
+          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-bronze/10 px-4 py-2.5 text-[12.5px] font-bold text-bronze transition-colors hover:bg-bronze/20 disabled:opacity-50"
+        >
+          {preBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {preBusy ? "در حال ذخیره…" : "دانلود بستهٔ طراحی"}
+        </button>
+        {preDone && (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-success">
+            <CheckCircle2 className="h-3.5 w-3.5" /> بستهٔ طراحی ذخیره شد — از این پس آفلاین هم با همین ظاهر باز می‌شود.
+          </p>
+        )}
+      </section>
+
+      {/* ── بستهٔ مطالب آفلاین ── */}
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <CloudOff className="h-4.5 w-4.5 text-bronze" /> بستهٔ مطالب برای مطالعهٔ آفلاین
+        </h2>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+          تازه‌ترین مطلب‌های اساتیدی که دنبال می‌کنی و دوره‌های کتابخانهٔ خودت را ذخیره می‌کند؛ بعد از آن، آفلاین هم فهرستشان را
+          می‌بینی (متن کامل جلسه‌های کتاب‌ها از قبل روی دستگاهت است). هر وقت آنلاین شدی، دوباره «به‌روزرسانی» بزن.
+        </p>
+
+        {auth.user ? (
+          <>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => void downloadPack()}
+                disabled={packBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-[12.5px] font-bold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {packBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {pack ? "به‌روزرسانی بستهٔ مطالب" : "دانلود بستهٔ مطالب"}
+              </button>
+              {pack && (
+                <button
+                  onClick={() => { clearOfflinePack(); setPack(null); setPackMsg(""); refreshEstimate(); }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 px-3.5 py-2.5 text-[12px] font-bold text-destructive transition-colors hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> حذف بسته
+                </button>
+              )}
+            </div>
+
+            {pack && (
+              <div className="mt-3 rounded-xl bg-muted/60 px-3.5 py-3 text-[11.5px] leading-relaxed">
+                <p className="font-bold text-foreground">
+                  بستهٔ فعال — {faNum(pack.posts.length)} مطلب · {faNum(pack.courses.length)} دوره
+                </p>
+                <p className="mt-0.5 text-muted-foreground">آخرین به‌روزرسانی: {faDateTime(pack.savedAt)}</p>
+              </div>
+            )}
+            {packMsg && <p className={`mt-2 text-[11.5px] font-semibold ${packMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{packMsg}</p>}
+          </>
+        ) : (
+          <p className="mt-3 rounded-xl border border-dashed border-border px-3.5 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
+            برای ذخیرهٔ بستهٔ مطالب، ابتدا از منوی حساب وارد شو — بستهٔ طراحی و نصب برنامه بدون حساب هم کار می‌کند.
+          </p>
+        )}
+      </section>
+
+      {/* ── فضای مصرفی ── */}
+      {usage && (
+        <p className="px-1 text-[11px] leading-relaxed text-muted-foreground/80">
+          فضای مصرفی این برنامه روی دستگاه: {formatBytes(usage.usage)} از {formatBytes(usage.quota)} — پاک‌سازی دادهٔ مرورگر این را خالی می‌کند.
+        </p>
+      )}
+    </div>
+  );
+}

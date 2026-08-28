@@ -4,8 +4,9 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText,
+  LibraryBig, Landmark, Menu, ScrollText, CloudOff,
 } from "lucide-react";
+import { useOnlineStatus } from "@/lib/offline";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
@@ -104,6 +105,7 @@ function lessonPctOf(course: Course, progress: Record<string, { status?: string 
 export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
+  const online = useOnlineStatus();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
   const customCourses = useApp((s) => s.customCourses);
@@ -349,7 +351,7 @@ export function AppShell() {
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
                 </span>
-                <span className="hidden sm:inline">
+                <span className="hidden items-center sm:inline-flex">
                   <ThemeToggle />
                 </span>
                 <button
@@ -364,6 +366,14 @@ export function AppShell() {
             </div>
           </div>
         </header>
+
+        {/* نوار حالت آفلاین — وقتی اینترنت قطع است */}
+        {!online && (
+          <div role="status" className="mx-auto flex w-full max-w-6xl items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-[11.5px] font-bold text-amber-700 shadow-card dark:text-amber-300">
+            <CloudOff className="h-3.5 w-3.5" />
+            حالت آفلاین — طرح سایت و درس‌های ذخیره‌شده در دسترس است؛ مطالب سروری فقط از «بستهٔ آفلاین»
+          </div>
+        )}
 
         {/* محتوا */}
         <main className="flex-1">

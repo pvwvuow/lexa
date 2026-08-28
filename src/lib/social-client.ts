@@ -4,6 +4,7 @@
 import * as React from "react";
 import { useApp } from "@/lib/store";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
+import { getOfflinePack } from "@/lib/offline";
 
 export interface SuggestionItem {
   id: string;
@@ -97,6 +98,7 @@ export function useSocial() {
   const [feed, setFeed] = React.useState<FeedPost[]>([]);
   const [showingAll, setShowingAll] = React.useState(true);
   const [loading, setLoading] = React.useState(true);
+  const [offline, setOffline] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -106,8 +108,14 @@ export function useSocial() {
       const f = await jf<{ posts: FeedPost[]; showingAll?: boolean }>("/api/social/feed");
       setFeed(f.posts);
       setShowingAll(!!f.showingAll);
+      setOffline(false);
     } catch {
-      /* در محیط آفلاین بی‌صدا */
+      // آفلاین — اگر «بستهٔ مطالب» ذخیره شده باشد، همان نشان بده
+      const pack = getOfflinePack();
+      if (pack?.posts?.length) {
+        setFeed(pack.posts as unknown as FeedPost[]);
+        setOffline(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -141,21 +149,28 @@ export function useSocial() {
     [user, load],
   );
 
-  return { teachers, feed, showingAll, loading, reload: load, toggleFollow };
+  return { teachers, feed, showingAll, loading, offline, reload: load, toggleFollow };
 }
 
 /** فهرست دوره‌های اساتید (+ mine فقط دوره‌های خودم) */
 export function useTCourses(mine = false) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [offline, setOffline] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       const d = await jf<{ courses: TCourseCard[] }>(`/api/tcourses${mine ? "?mine=1" : ""}`);
       setCourses(d.courses);
+      setOffline(false);
     } catch {
-      /* ignore */
+      // آفلاین — دوره‌های ذخیره‌شده در بستهٔ مطالب
+      const pack = getOfflinePack();
+      if (pack?.courses?.length) {
+        setCourses(pack.courses as unknown as TCourseCard[]);
+        setOffline(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -180,7 +195,7 @@ export function useTCourses(mine = false) {
     [],
   );
 
-  return { courses, loading, reload: load, toggleLibrary, setCourses };
+  return { courses, loading, offline, reload: load, toggleLibrary, setCourses };
 }
 
 /** وضعیت امتیاز یک هدف (مطلب یا دوره) + ثبت رأی ستاره‌ای */
