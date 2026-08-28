@@ -4,16 +4,15 @@
 import * as React from "react";
 import {
   Loader2, MessageCircle, Send, Trash2, Scale, Quote, ListChecks, Lightbulb,
-  GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft, ClipboardList,
+  GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft,
 } from "lucide-react";
-import type { LessonSection, QuizQuestion } from "@/lib/law/types";
+import type { LessonSection } from "@/lib/law/types";
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { categoryLabel } from "@/lib/social-shared";
 import { useTargetRating } from "@/lib/social-client";
 import { SectionBody, StarRating, UserAvatar } from "./common";
-import { QuizRunnerDialog } from "./QuizRunnerDialog";
 
 interface PostData {
   id: string;
@@ -21,8 +20,6 @@ interface PostData {
   summary: string;
   tags: string;
   category?: string;
-  thumbnail?: string;
-  quiz?: QuizQuestion[];
   blocks: LessonSection[];
   createdAt: string;
   updatedAt: string;
@@ -62,7 +59,6 @@ export function PostView({ id }: { id: string }) {
   const [replyTo, setReplyTo] = React.useState<CommentItem | null>(null);
   const [sending, setSending] = React.useState(false);
   const [cErr, setCErr] = React.useState("");
-  const [quizOpen, setQuizOpen] = React.useState(false);
   const { user } = useAuth();
 
   // امتیاز مطلب
@@ -236,14 +232,6 @@ export function PostView({ id }: { id: string }) {
         <h1 className="mt-4 text-2xl font-extrabold leading-relaxed">{data.title}</h1>
         {data.summary && <p className="mt-2 leading-loose text-muted-foreground">{data.summary}</p>}
 
-        {/* تصویر شاخص دلخواه استاد — اگر گذاشته باشد */}
-        {data.thumbnail && (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-border shadow-card">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={data.thumbnail} alt={data.title} className="max-h-[340px] w-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
-          </div>
-        )}
-
         {/* امتیاز به این مطلب */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border/70 bg-card px-4 py-2.5 shadow-card">
           <span className="flex items-center gap-1.5 text-xs font-bold"><StarIco /> امتیاز تو به این مطلب</span>
@@ -298,29 +286,6 @@ export function PostView({ id }: { id: string }) {
           );
         })}
       </article>
-
-      {/* آزمون پایان مبحث — اگر استاد ساخته باشد */}
-      {!!data.quiz?.length && (
-        <section className="overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-bl from-bronze/[0.08] to-transparent shadow-card">
-          <div className="flex flex-wrap items-center gap-3 p-5 sm:p-6">
-            <span aria-hidden className="grid h-11 w-11 shrink-0 rotate-45 place-items-center rounded-[12px] border border-bronze/40 bg-card shadow-card">
-              <ClipboardList className="h-5 w-5 -rotate-45 text-bronze" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-display text-base font-bold">آزمون پایان این مبحث</h2>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {fa(data.quiz.length)} سؤال چهارگزینه‌ای ساختهٔ استاد — با پاسخ تشریحی؛ نتیجه فقط برای خودت ثبت می‌شود.
-              </p>
-            </div>
-            <button
-              onClick={() => setQuizOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-white shadow-card transition-all hover:brightness-110"
-            >
-              <ListChecks className="h-4 w-4" /> شروع آزمون
-            </button>
-          </div>
-        </section>
-      )}
 
       {/* کامنت‌ها */}
       <section className="space-y-4">
@@ -378,17 +343,6 @@ export function PostView({ id }: { id: string }) {
           })}
         </ul>
       </section>
-
-      {/* اجراکنندهٔ آزمون پایان مبحث */}
-      {data && !!data.quiz?.length && (
-        <QuizRunnerDialog
-          open={quizOpen}
-          onClose={() => setQuizOpen(false)}
-          title="آزمون پایان مبحث"
-          subtitle={data.title}
-          questions={data.quiz}
-        />
-      )}
     </div>
   );
 }
