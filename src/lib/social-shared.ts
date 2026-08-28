@@ -139,10 +139,12 @@ export function sanitizeSections(raw: unknown): LessonSection[] {
       type: type as LessonSection["type"],
       title: s(o.title, 120) || undefined,
       body: o.body ? s(o.body, 9000) || undefined : undefined,
-      bullets:
-        o.bullets && Array.isArray(o.bullets)
+      bullets: (() => {
+        const arrB = o.bullets && Array.isArray(o.bullets)
           ? o.bullets.slice(0, 30).map((b) => s(b, 500)).filter(Boolean)
-          : undefined,
+          : undefined;
+        return arrB?.length ? arrB : undefined;
+      })(),
       questionText: o.questionText ? s(o.questionText, 2000) : undefined,
       suggestedAnswer: o.suggestedAnswer ? s(o.suggestedAnswer, 3000) : undefined,
       table: undefined,

@@ -7,7 +7,7 @@ import * as React from "react";
 import {
   PenSquare, Loader2, BookOpen, GraduationCap, Newspaper,
   Plus, Trash2, ListChecks, Quote, GitCompareArrows, HelpCircle, Lightbulb,
-  Scale, FileText, Flag, X, ArrowUp, ArrowDown,
+  Scale, FileText, Flag, X, ArrowUp, ArrowDown, Wand2,
 } from "lucide-react";
 import type { LessonSection } from "@/lib/law/types";
 import { navigate } from "@/lib/router";
@@ -67,6 +67,24 @@ export const LABEL_OF: Record<string, string> = {
   summary: "جمع‌بندی",
 };
 
+/**
+ * قالب آمادهٔ درس — دقیقاً همان چیدمان ۸بخشیِ درس‌ها و مطالب نمونهٔ اپ
+ * (چون مطلب «حقوق قراردادها در یک ساعت»): با یک کلیک، ساختار کامل ساخته
+ * می‌شود و استاد فقط متن‌ها را پر می‌کند.
+ */
+export function standardLessonTemplate(): LessonSection[] {
+  return [
+    { id: newBlock("intro").id, type: "intro", title: "چرا این موضوع مهم است؟", body: "" },
+    { id: newBlock("concept").id, type: "concept", title: "تعریف و ارکان", body: "" },
+    { id: newBlock("law").id, type: "law", title: "مستند اصلی", law: [{ no: "", source: "قانون مدنی", text: "" }] },
+    { id: newBlock("notes").id, type: "notes", title: "ریزه‌کاری‌هایی که سؤال آزمونی می‌شوند", bullets: [""] },
+    { id: newBlock("example").id, type: "example", title: "از پرونده‌های روزمره", body: "" },
+    { id: newBlock("compare").id, type: "compare", title: "مقایسه با نهاد مشابه", table: { headers: ["وجه تمایز", "نهاد اول", "نهاد دوم"], rows: [["", "", ""]] } },
+    { id: newBlock("question").id, type: "question", title: "برای فکر کردن", questionText: "", suggestedAnswer: "" },
+    { id: newBlock("summary").id, type: "summary", title: "یک خط برای همیشه", body: "" },
+  ];
+}
+
 /* ═══ ویرایشگر بلوکی مشترک مطلب/جلسهٔ دوره ══════════════════════════════════ */
 export function BlockEditor({ blocks, onChange }: {
   blocks: LessonSection[];
@@ -102,8 +120,19 @@ export function BlockEditor({ blocks, onChange }: {
         ))}
         <button
           type="button"
+          onClick={() => {
+            if (blocks.length > 0 && !confirm("قالب آماده، ۸ بلوک استاندارد درس (مثل مطالب نمونهٔ اپ) را به انتهای بلوک‌های فعلی اضافه می‌کند. ادامه؟")) return;
+            onChange([...blocks, ...standardLessonTemplate()]);
+          }}
+          title="ساخت یک‌کلیکهٔ چیدمان کامل درس‌های نمونه: درآمد تا جمع‌بندی"
+          className="ms-auto inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-[11.5px] font-bold text-primary transition-colors hover:bg-primary/20"
+        >
+          <Wand2 className="h-3.5 w-3.5" /> قالب آمادهٔ درس
+        </button>
+        <button
+          type="button"
           onClick={() => setPreview((v) => !v)}
-          className={`ms-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11.5px] font-bold transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11.5px] font-bold transition-colors ${
             preview ? "bg-bronze text-bronze-foreground" : "border border-bronze/50 bg-bronze/10 text-bronze hover:bg-bronze/20"
           }`}
         >
@@ -139,11 +168,21 @@ export function BlockEditor({ blocks, onChange }: {
                 className={`${inputCls} resize-y leading-relaxed`}
                 aria-label="متن بلوک"
               />
+              {/* کارت نکته‌ها — همان المانی که درس‌های نمونه زیر مفهوم دارند */}
+              <textarea
+                value={(b.bullets ?? []).join("\n")}
+                onChange={(e) => patch(i, { bullets: e.target.value.split("\n") })}
+                rows={Math.max(2, (b.bullets ?? []).length)}
+                placeholder={"نکته‌های کوتاه این بخش (اختیاری) — هر خط یک کارت؛ شکل «کلیدواژه: توضیح» مثل درس‌های نمونه"}
+                className={`${inputCls} mt-2 resize-y leading-relaxed`}
+                aria-label="نکته‌های کوتاه"
+              />
             </>
           )}
 
           {b.type === "law" && b.law && (
             <div className="space-y-2.5">
+              <input value={b.title ?? ""} onChange={(e) => patch(i, { title: e.target.value })} placeholder="عنوان اختیاری (مثل: مستند اصلی)…" className={inputCls} aria-label="عنوان بلوک قانونی" />
               {b.law.map((l, li) => (
                 <div key={li} className="grid gap-2 sm:grid-cols-[130px_150px_1fr_auto]">
                   <input value={l.no} onChange={(e) => patch(i, { law: b.law!.map((x, k) => (k === li ? { ...x, no: e.target.value } : x)) })} placeholder="شماره ماده" className={inputCls} aria-label="شماره ماده" />
@@ -174,6 +213,7 @@ export function BlockEditor({ blocks, onChange }: {
 
           {b.type === "compare" && b.table && (
             <div className="space-y-2.5">
+              <input value={b.title ?? ""} onChange={(e) => patch(i, { title: e.target.value })} placeholder="عنوان اختیاری (مثل: بیع یا اجاره؟)…" className={inputCls} aria-label="عنوان جدول" />
               <input
                 value={b.table.headers.join("، ")}
                 onChange={(e) =>
@@ -200,6 +240,7 @@ export function BlockEditor({ blocks, onChange }: {
 
           {b.type === "question" && (
             <div className="space-y-2">
+              <input value={b.title ?? ""} onChange={(e) => patch(i, { title: e.target.value })} placeholder="عنوان اختیاری (مثل: برای فکر کردن)…" className={inputCls} aria-label="عنوان سؤال" />
               <textarea value={b.questionText ?? ""} onChange={(e) => patch(i, { questionText: e.target.value })} rows={2} placeholder="متن سؤال…" className={`${inputCls} resize-y`} aria-label="متن سؤال" />
               <textarea value={b.suggestedAnswer ?? ""} onChange={(e) => patch(i, { suggestedAnswer: e.target.value })} rows={3} placeholder="پاسخ پیشنهادی (با کلیک دانشجو باز می‌شود)…" className={`${inputCls} resize-y`} aria-label="پاسخ پیشنهادی" />
             </div>
