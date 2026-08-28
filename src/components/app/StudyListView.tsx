@@ -107,54 +107,55 @@ export function StudyListView() {
         </div>
       )}
 
-      <div className="space-y-3">
+      {/* فهرست مطالعه — ساده و منظم مثل فهرست کتاب: هر دوره یک ردیف با جداکننده، بدون جعبه */}
+      <div className="divide-y divide-border/80">
         {courses.map((c) => {
           const st = courseStats(c, progress);
           const isOpen = openId === c.id;
           const owner = (c as Course & { _ownerUsername?: string })._ownerUsername;
           const isPrep = (c as Course & { _status?: string })._status === "prep";
           return (
-            <section key={c.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-colors hover:border-bronze/30">
-              {/* سربرگ دوره — div با نقش دکمه (داخلش دکمهٔ «صفحهٔ دوره» داریم) */}
+            <section key={c.id} className="py-1">
+              {/* ردیف دوره — div با نقش دکمه (داخلش دکمهٔ «صفحهٔ دوره» داریم) */}
               <div
                 role="button"
                 tabIndex={0}
                 aria-expanded={isOpen}
                 onClick={() => setOpenId(isOpen ? null : c.id)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenId(isOpen ? null : c.id); } }}
-                className={`flex w-full cursor-pointer items-center gap-3.5 p-4 text-start transition-colors sm:p-5 ${isOpen ? "bg-accent/50" : ""}`}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-3 text-start transition-colors hover:bg-accent/40"
               >
-                <span className="grid h-11 w-11 shrink-0 rotate-45 place-items-center rounded-[11px] border border-border bg-primary/5 shadow-card">
-                  <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-bronze" />
+                <span className="grid h-8 w-8 shrink-0 place-items-center">
+                  <CourseIcon icon={c.icon} className="h-5 w-5 text-bronze" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="truncate text-[14.5px] font-extrabold">{c.title}</span>
+                    <span className="truncate text-[15px] font-extrabold">{c.title}</span>
                     {owner && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-muted-foreground"><GraduationCap className="h-3 w-3 text-bronze" />استاد {owner}</span>}
                     {isPrep && <span className="shrink-0 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
                     {st.doneAll && <span className="shrink-0 rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-extrabold text-success">تکمیل شد</span>}
                   </span>
-                  <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground">{c.tagline || c.description}</span>
-                  <span className="mt-1 block text-[10.5px] font-semibold text-muted-foreground/80">
+                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{c.tagline || c.description}</span>
+                  <span className="mt-0.5 block text-[10.5px] font-semibold text-muted-foreground/80">
                     {fa(c.chapters.length)} فصل · {fa(st.lessons)} جلسه · پیشرفت {fa(st.percent)}٪
                   </span>
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); navigate({ view: "course", id: c.id }); }}
                   title={`صفحهٔ دوره «${c.title}»`}
-                  className="hidden shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[10.5px] font-bold text-muted-foreground transition-colors hover:border-bronze hover:text-bronze sm:block"
+                  className="hidden shrink-0 rounded-lg px-2 py-1.5 text-[10.5px] font-bold text-muted-foreground transition-colors hover:bg-bronze/10 hover:text-bronze sm:block"
                 >
                   صفحهٔ دوره
                 </button>
-                <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180 text-bronze" : ""}`} />
               </div>
 
-              {/* درس‌ها به تفکیک فصل */}
+              {/* درس‌ها به تفکیک فصل — تورفتگی درختی مثل فهرست مطالب */}
               {isOpen && (
-                <div className="divide-y divide-border border-t border-border">
+                <div className="space-y-4 pb-4 pe-2 ps-[3.25rem] pt-1">
                   {c.chapters.map((ch) => (
-                    <div key={ch.id} className="px-4 py-3 sm:px-5">
-                      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-extrabold text-bronze">
+                    <div key={ch.id} className="border-s-2 border-border/70 ps-4">
+                      <p className="mb-1 flex items-center gap-1.5 text-[11.5px] font-extrabold text-bronze">
                         <BookOpen className="h-3.5 w-3.5" /> {ch.title}
                         <span className="font-semibold text-muted-foreground/70">({fa(ch.lessons.length)} جلسه)</span>
                       </p>
