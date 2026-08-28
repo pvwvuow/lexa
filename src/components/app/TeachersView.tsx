@@ -11,6 +11,7 @@ import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { useSocial, useTCourses } from "@/lib/social-client";
 import { CourseIcon, UserAvatar } from "./common";
+import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { TeacherFeedTeasers } from "./DashboardView";
 
 export function TeachersView() {
@@ -143,9 +144,13 @@ export function TeachersView() {
                     <li key={c.id} className="flex items-center gap-2.5 rounded-xl bg-muted/40 px-3 py-2">
                       <CourseIcon icon={c.icon} className="h-4 w-4 shrink-0 text-bronze" />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12.5px] font-bold">{c.title}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="block truncate text-[12.5px] font-bold">{c.title}</span>
+                          <OfflineUpdatedPill kind="tcourse" id={c.id} serverUpdatedAt={c._updatedAt} />
+                        </span>
                         <span className="block text-[10px] text-muted-foreground">{fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو</span>
                       </span>
+                      <OfflineDownloadButton kind="tcourse" id={c.id} serverUpdatedAt={c._updatedAt} card={c} />
                       <button
                         onClick={() => onAddLibrary(c.id)}
                         disabled={!user || busyId === c.id}
@@ -192,7 +197,10 @@ export function TeachersView() {
                 <div className="mb-3 flex items-center gap-3">
                   <span className="grid h-11 w-11 place-items-center rounded-xl bg-bronze/10 text-bronze"><CourseIcon icon={c.icon} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-bold">{c.title}</p>
+                    <p className="flex items-center gap-1.5 truncate font-bold">
+                      <span className="truncate">{c.title}</span>
+                      <OfflineUpdatedPill kind="tcourse" id={c.id} serverUpdatedAt={c._updatedAt} />
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">استاد {c.teacher.displayName} · {fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو</p>
                   </div>
                 </div>
@@ -215,6 +223,10 @@ export function TeachersView() {
                   )}
                   {c.inLibrary ? "در کتابخانهٔ مطالعهٔ توست" : "افزودن به عنوان کتاب در بخش مطالعه"}
                 </button>
+                {/* دانلود تکی دوره برای مطالعهٔ آفلاین */}
+                <div className="mt-2.5 flex items-center gap-2">
+                  <OfflineDownloadButton kind="tcourse" id={c.id} serverUpdatedAt={c._updatedAt} card={c} labeled className="flex-1" />
+                </div>
               </div>
             ))}
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, ListChecks } from "lucide-react";
+import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, ListChecks, RefreshCw, CloudOff } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
@@ -10,6 +10,8 @@ import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
 import { useAuth } from "@/lib/auth-client";
 import { useTargetRating } from "@/lib/social-client";
+import { getOfflineItem, useOfflineItem, isServerNewer, faDateTime, type OfflineCardCourse } from "@/lib/offline";
+import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { QuizRunnerDialog } from "./QuizRunnerDialog";
 
 export function CourseView({ id }: { id: string }) {
@@ -30,18 +32,36 @@ export function CourseView({ id }: { id: string }) {
   const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
   const [remoteLoading, setRemoteLoading] = React.useState(false);
   const [remoteFailed, setRemoteFailed] = React.useState(false);
+  /** اگر دوره از نسخهٔ ذخیره‌شدهٔ آفلاین خوانده شد — زمان ذخیره */
+  const [fromOffline, setFromOffline] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (local || remoteCourse || remoteFailed) return;
     let alive = true;
+    /** نمایش نسخهٔ ذخیره‌شدهٔ آفلاین — وقتی شبکه در دسترس نیست */
+    async function showOfflineCourse() {
+      const item = await getOfflineItem("tcourse", id);
+      if (!item?.course || !alive) return false;
+      setRemoteCourse(item.course as Course);
+      setFromOffline(item.savedAt);
+      return true;
+    }
     setRemoteLoading(true);
     fetch(`/api/tcourses/${encodeURIComponent(id)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { course?: Course } | null) => {
+      .then(async (d: { course?: Course } | null) => {
         if (alive && d?.course) setRemoteCourse(d.course);
-        else if (alive) setRemoteFailed(true);
+        else if (alive) {
+          // سرور پاسخ نداد (حذف شده یا بدون اینترنت) — نسخهٔ ذخیره‌شدهٔ آفلاین
+          const ok = await showOfflineCourse();
+          if (alive && !ok) setRemoteFailed(true);
+        }
       })
-      .catch(() => { if (alive) setRemoteFailed(true); })
+      .catch(async () => {
+        if (!alive) return;
+        const ok = await showOfflineCourse();
+        if (alive && !ok) setRemoteFailed(true);
+      })
       .finally(() => { if (alive) setRemoteLoading(false); });
     return () => { alive = false; };
   }, [local, remoteCourse, remoteFailed, id]);
@@ -68,6 +88,7 @@ export function CourseView({ id }: { id: string }) {
       openCh={openCh}
       setOpenCh={setOpenCh}
       openLesson={openLesson}
+      offlineSavedAt={fromOffline}
     />
   );
 }
@@ -75,7 +96,7 @@ export function CourseView({ id }: { id: string }) {
 /* ─── بدنهٔ صفحهٔ دوره — مشترک بین دورهٔ محلی و پیش‌نمایش سروری ─────────── */
 
 function CourseBody({
-  course, isRemote, inLibrary, progress, openCh, setOpenCh, openLesson,
+  course, isRemote, inLibrary, progress, openCh, setOpenCh, openLesson, offlineSavedAt,
 }: {
   course: Course;
   isRemote?: boolean;
@@ -84,6 +105,8 @@ function CourseBody({
   openCh: string | null;
   setOpenCh: (v: string | null) => void;
   openLesson: (id: string) => void;
+  /** دوره از نسخهٔ ذخیره‌شدهٔ آفلاین خوانده شده؟ */
+  offlineSavedAt?: number | null;
 }) {
   const auth = useAuth();
   const [quizChapter, setQuizChapter] = React.useState<{ title: string; questions: import("@/lib/law/types").QuizQuestion[] } | null>(null);
@@ -96,6 +119,28 @@ function CourseBody({
 
   const allLessons = course.chapters.flatMap((c) => c.lessons);
   const doneCount = allLessons.filter((l) => progress[l.id]?.status === "completed").length;
+
+  // ── وضعیت آفلاین دوره‌های استاد (دوره‌های دارای صاحب = استاد) ──
+  const isTeacherCourse = !!owner;
+  const saved = useOfflineItem("tcourse", course.id);
+  const tcUpdatedAt = (course as Course & { _updatedAt?: string })._updatedAt;
+  const courseOutdated = saved.status === "saved" && isServerNewer(tcUpdatedAt, saved.savedUpdatedAt);
+  const tcCard: OfflineCardCourse = {
+    id: course.id,
+    title: course.title,
+    tagline: course.tagline,
+    description: course.description,
+    icon: course.icon,
+    thumbnail: (course as Course & { _thumbnail?: string })._thumbnail,
+    lessonsCount: allLessons.length,
+    teacher: {
+      id: (course as Course & { _teacherId?: string })._teacherId ?? "",
+      username: owner ?? "",
+      displayName: owner ?? "استاد",
+      avatarUrl: ownerAvatar ?? null,
+    },
+    _updatedAt: tcUpdatedAt,
+  };
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-16 pt-6 sm:px-6">
@@ -159,6 +204,29 @@ function CourseBody({
               </span>
             )}
           </div>
+        )}
+
+        {/* دانلود تکی دوره برای مطالعهٔ آفلاین + وضعیت به‌روزرسانی */}
+        {isTeacherCourse && (
+          <>
+            <div className="relative mt-3 flex flex-wrap items-center gap-2">
+              <OfflineDownloadButton kind="tcourse" id={course.id} serverUpdatedAt={tcUpdatedAt} card={tcCard} labeled />
+              <OfflineUpdatedPill kind="tcourse" id={course.id} serverUpdatedAt={tcUpdatedAt} />
+              {offlineSavedAt && !courseOutdated && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300">
+                  <CloudOff className="h-3.5 w-3.5" /> نسخهٔ آفلاین — ذخیره‌شده در {faDateTime(offlineSavedAt)}
+                </span>
+              )}
+            </div>
+            {courseOutdated && (
+              <p className="relative mt-2 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
+                <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  این دوره در سایت به‌روز شده است؛ اگر می‌خواهید این دوره در نسخهٔ آفلاین شما هم به‌روز و آپدیت باشد، مجدداً آن را دانلود یا آپدیت کنید.
+                </span>
+              </p>
+            )}
+          </>
         )}
 
         {!inLibrary && (

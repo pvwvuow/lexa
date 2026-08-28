@@ -6,6 +6,7 @@ import {
   KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2,
   UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save,
   WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
+  RefreshCw, TriangleAlert, FileText, BookOpen,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
@@ -14,8 +15,12 @@ import { useAuth } from "@/lib/auth-client";
 import { fa, fa as faNum } from "@/lib/fa";
 import {
   usePwaInstall, precacheDesignAssets, storageEstimate, formatBytes, faDateTime,
-  buildOfflinePack, getOfflinePack, clearOfflinePack,
+  DESIGN_VERSION, getDesignMeta, saveDesignMeta, designPackOutdated,
+  listOfflineMetas, removeOfflineItem, clearOfflineItems, downloadPostOffline, downloadCourseOffline,
+  isServerNewer, ensureOfflineCache,
+  type DesignMeta, type OfflineItemMeta, type OfflineCardPost, type OfflineCardCourse,
 } from "@/lib/offline";
+import { useOnlineStatus } from "@/lib/offline";
 import { UserAvatar } from "./common";
 
 type Tab = "general" | "ai" | "offline";
@@ -442,53 +447,116 @@ function Field({
 // جلوگیری از هشدار unused برای Upload در پیکربندی‌های مختلف eslint
 void Upload;
 
-/* ═══ زبانهٔ آفلاین و نصب ═══════════════════════════════════════════════════ */
-
 function OfflineSettings() {
   const auth = useAuth();
   const { canInstall, installed, install } = usePwaInstall();
+  const online = useOnlineStatus();
   const [installMsg, setInstallMsg] = React.useState("");
   const [preBusy, setPreBusy] = React.useState(false);
-  const [preDone, setPreDone] = React.useState(false);
+  const [preMsg, setPreMsg] = React.useState("");
   const [usage, setUsage] = React.useState<{ usage: number; quota: number } | null>(null);
 
-  const [packBusy, setPackBusy] = React.useState(false);
-  const [packMsg, setPackMsg] = React.useState("");
-  const [pack, setPack] = React.useState<ReturnType<typeof getOfflinePack>>(null);
+  // بستهٔ طراحی + آیتم‌های ذخیره‌شدهٔ تک‌تک
+  const [dmeta, setDmeta] = React.useState<DesignMeta | null>(null);
+  const [dOutdated, setDOutdated] = React.useState(false);
+  const [items, setItems] = React.useState<OfflineItemMeta[]>([]);
+  /** آخرین updatedAt سرور برای هر آیتم — مبنای نشان «به‌روز شده» (فقط وقتی آنلاینیم) */
+  const [serverStamps, setServerStamps] = React.useState<Record<string, string>>({});
+  const [rowBusy, setRowBusy] = React.useState("");
+  const [listMsg, setListMsg] = React.useState("");
 
   const refreshEstimate = React.useCallback(() => {
     void storageEstimate().then(setUsage);
   }, []);
 
-  React.useEffect(() => {
-    setPack(getOfflinePack());
+  const refresh = React.useCallback(async () => {
+    setDmeta(getDesignMeta());
+    setDOutdated(designPackOutdated());
+    await ensureOfflineCache();
+    setItems(await listOfflineMetas());
+    if (navigator.onLine) {
+      const stamps: Record<string, string> = {};
+      try {
+        const r = await fetch("/api/social/feed", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          for (const p of (j.posts ?? j.items ?? []) as { id?: string; updatedAt?: string }[]) {
+            if (p?.id && p.updatedAt) stamps[`post:${p.id}`] = p.updatedAt;
+          }
+        }
+      } catch { /* آفلاین */ }
+      try {
+        const r = await fetch("/api/tcourses", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          for (const c of (j.courses ?? []) as { id?: string; _updatedAt?: string }[]) {
+            if (c?.id && c._updatedAt) stamps[`tcourse:${c.id}`] = c._updatedAt;
+          }
+        }
+      } catch { /* آفلاین */ }
+      setServerStamps(stamps);
+    } else {
+      setServerStamps({});
+    }
     refreshEstimate();
   }, [refreshEstimate]);
 
+  React.useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
   async function precache() {
     setPreBusy(true);
-    setPreDone(false);
+    setPreMsg("");
     const res = await precacheDesignAssets();
     setPreBusy(false);
-    setPreDone(res > 0);
+    if (res > 0) {
+      saveDesignMeta();
+      setPreMsg("✓ بستهٔ طراحی ذخیره شد — از این پس آفلاین هم با همین ظاهر باز می‌شود.");
+      setDmeta(getDesignMeta());
+      setDOutdated(false);
+    } else {
+      setPreMsg("ذخیره ناموفق بود — مرورگرت Service Worker را پشتیبانی نمی‌کند.");
+    }
     refreshEstimate();
   }
 
-  async function downloadPack() {
-    setPackBusy(true);
-    setPackMsg("");
-    try {
-      const r = await buildOfflinePack();
-      setPack(getOfflinePack());
-      setPackMsg(`✓ ${faNum(r.posts)} مطلب و ${faNum(r.courses)} دوره ذخیره شد`);
-      refreshEstimate();
-    } catch {
-      setPackMsg("ذخیره ناموفق بود — اتصال را بررسی کن.");
-    } finally {
-      setPackBusy(false);
-    }
+  async function updateRow(m: OfflineItemMeta) {
+    setRowBusy(`${m.kind}:${m.id}`);
+    setListMsg("");
+    const ok =
+      m.kind === "post"
+        ? await downloadPostOffline(m.card as OfflineCardPost)
+        : await downloadCourseOffline(m.card as OfflineCardCourse);
+    setRowBusy("");
+    setListMsg(ok ? "✓ نسخهٔ آفلاین به‌روزرسانی شد" : "به‌روزرسانی ناموفق بود — اتصال را بررسی کن.");
+    void refresh();
   }
 
+  async function updateAllOutdated() {
+    const stale = items.filter((m) => isServerNewer(serverStamps[`${m.kind}:${m.id}`], m.savedUpdatedAt));
+    setListMsg("");
+    let n = 0;
+    for (const m of stale) {
+      setRowBusy(`${m.kind}:${m.id}`);
+      const ok =
+        m.kind === "post"
+          ? await downloadPostOffline(m.card as OfflineCardPost)
+          : await downloadCourseOffline(m.card as OfflineCardCourse);
+      if (ok) n += 1;
+    }
+    setRowBusy("");
+    setListMsg(`✓ ${faNum(n)} مورد به‌روزرسانی شد`);
+    void refresh();
+  }
+
+  async function removeRow(m: OfflineItemMeta) {
+    setListMsg("");
+    await removeOfflineItem(m.kind, m.id);
+    void refresh();
+  }
+
+  const outdatedCount = items.filter((m) => isServerNewer(serverStamps[`${m.kind}:${m.id}`], m.savedUpdatedAt)).length;
   const ios = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
   return (
@@ -525,74 +593,153 @@ function OfflineSettings() {
         {installMsg && <p className="mt-2 text-[11.5px] font-semibold text-success">{installMsg}</p>}
       </section>
 
-      {/* ── بستهٔ طراحی ── */}
+      {/* ── بستهٔ طراحی + هشدار به‌روز نبودن ── */}
       <section className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold">
           <HardDriveDownload className="h-4.5 w-4.5 text-bronze" /> بستهٔ طراحی و المان‌ها
         </h2>
         <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
           با این کار پوستهٔ کامل سایت — رنگ‌ها، فونت‌ها، صفحه‌ها و آیکون‌ها — روی دستگاهت ذخیره می‌شود تا دفعهٔ بعد حتی بدون اینترنت،
-          سایت با همان ظاهر بالا بیاید. مطالب بدون «بستهٔ مطالب» در دسترس نخواهد بود.
+          سایت با همان ظاهر بالا بیاید. مطالب جداگانه و تک‌تک دانلود می‌شوند (بخش بعدی).
         </p>
-        <button
-          onClick={() => void precache()}
-          disabled={preBusy}
-          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-bronze/10 px-4 py-2.5 text-[12.5px] font-bold text-bronze transition-colors hover:bg-bronze/20 disabled:opacity-50"
-        >
-          {preBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {preBusy ? "در حال ذخیره…" : "دانلود بستهٔ طراحی"}
-        </button>
-        {preDone && (
-          <p className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-success">
-            <CheckCircle2 className="h-3.5 w-3.5" /> بستهٔ طراحی ذخیره شد — از این پس آفلاین هم با همین ظاهر باز می‌شود.
-          </p>
+
+        {dOutdated && (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/50 bg-amber-400/10 px-3.5 py-3 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <b>نسخهٔ آفلاین شما به‌روز نیست — لطفاً آپدیت کنید.</b>
+              <br />
+              طراحی و المان‌های سایت از زمان آخرین ذخیره تغییر کرده است؛ برای اینکه بعداً به مشکل نخوری، بستهٔ طراحی را دوباره دانلود کن.
+            </span>
+          </div>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <button
+            onClick={() => void precache()}
+            disabled={preBusy}
+            className="inline-flex items-center gap-2 rounded-xl bg-bronze/10 px-4 py-2.5 text-[12.5px] font-bold text-bronze transition-colors hover:bg-bronze/20 disabled:opacity-50"
+          >
+            {preBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {preBusy ? "در حال ذخیره…" : dOutdated ? "به‌روزرسانی بستهٔ طراحی" : dmeta ? "بارگذاری مجدد بستهٔ طراحی" : "دانلود بستهٔ طراحی"}
+          </button>
+          {dmeta && !dOutdated && (
+            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-success">
+              <CheckCircle2 className="h-3.5 w-3.5" /> بستهٔ طراحی به‌روز است — نسخهٔ {faNum(DESIGN_VERSION)} · {faDateTime(dmeta.savedAt)}
+            </span>
+          )}
+          {dmeta && dOutdated && (
+            <span className="text-[11px] text-muted-foreground">
+              نسخهٔ ذخیره‌شده روی دستگاه: {faNum(dmeta.version)} — نسخهٔ فعلی سایت: {faNum(DESIGN_VERSION)}
+            </span>
+          )}
+        </div>
+        {preMsg && (
+          <p className={`mt-2 text-[11.5px] font-semibold ${preMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{preMsg}</p>
         )}
       </section>
 
-      {/* ── بستهٔ مطالب آفلاین ── */}
+      {/* ── مطالب ذخیره‌شدهٔ من — دانلود تکی هر مطلب/دوره ── */}
       <section className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <CloudOff className="h-4.5 w-4.5 text-bronze" /> بستهٔ مطالب برای مطالعهٔ آفلاین
+          <CloudOff className="h-4.5 w-4.5 text-bronze" /> مطالب ذخیره‌شده برای مطالعهٔ آفلاین
         </h2>
         <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-          تازه‌ترین مطلب‌های اساتیدی که دنبال می‌کنی و دوره‌های کتابخانهٔ خودت را ذخیره می‌کند؛ بعد از آن، آفلاین هم فهرستشان را
-          می‌بینی (متن کامل جلسه‌های کتاب‌ها از قبل روی دستگاهت است). هر وقت آنلاین شدی، دوباره «به‌روزرسانی» بزن.
+          کنار هر مطلب یا دوره دکمهٔ دانلود آفلاین هست و هر کدام را جداگانه ذخیره می‌کنی — نه همهٔ سایت یک‌جا.
+          اگر موردی در سایت تغییر کند، همین‌جا و کنار خود مطلب نشان «به‌روز شده» می‌آید تا با یک دانلود مجدد آپدیتش کنی.
         </p>
 
-        {auth.user ? (
-          <>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => void downloadPack()}
-                disabled={packBusy}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-[12.5px] font-bold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {packBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                {pack ? "به‌روزرسانی بستهٔ مطالب" : "دانلود بستهٔ مطالب"}
-              </button>
-              {pack && (
-                <button
-                  onClick={() => { clearOfflinePack(); setPack(null); setPackMsg(""); refreshEstimate(); }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 px-3.5 py-2.5 text-[12px] font-bold text-destructive transition-colors hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> حذف بسته
-                </button>
-              )}
-            </div>
+        {items.length > 0 && outdatedCount > 0 && online && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <RefreshCw className="h-4 w-4 shrink-0" />
+            <span className="min-w-40 flex-1">
+              {faNum(outdatedCount)} مورد در سایت به‌روز شده است؛ اگر می‌خواهی نسخهٔ آفلاینشان هم آپدیت باشد، دوباره دانلودشان کن.
+            </span>
+            <button
+              onClick={() => void updateAllOutdated()}
+              disabled={!!rowBusy}
+              className="rounded-lg bg-amber-500/90 px-3 py-1.5 text-[11px] font-extrabold text-amber-950 transition-colors hover:bg-amber-400 disabled:opacity-50"
+            >
+              به‌روزرسانی همه
+            </button>
+          </div>
+        )}
 
-            {pack && (
-              <div className="mt-3 rounded-xl bg-muted/60 px-3.5 py-3 text-[11.5px] leading-relaxed">
-                <p className="font-bold text-foreground">
-                  بستهٔ فعال — {faNum(pack.posts.length)} مطلب · {faNum(pack.courses.length)} دوره
-                </p>
-                <p className="mt-0.5 text-muted-foreground">آخرین به‌روزرسانی: {faDateTime(pack.savedAt)}</p>
-              </div>
-            )}
-            {packMsg && <p className={`mt-2 text-[11.5px] font-semibold ${packMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{packMsg}</p>}
-          </>
+        {items.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {items.map((m) => {
+              const key = `${m.kind}:${m.id}`;
+              const outdated = isServerNewer(serverStamps[key], m.savedUpdatedAt);
+              const card = m.card as OfflineCardPost & OfflineCardCourse;
+              const busy = rowBusy === key;
+              return (
+                <li key={key} className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+                  {m.kind === "post" && card.thumbnail ? (
+                    <img src={card.thumbnail} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                  ) : (
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-bronze/10 text-bronze">
+                      {m.kind === "post" ? <FileText className="h-4.5 w-4.5" /> : <BookOpen className="h-4.5 w-4.5" />}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-[12.5px] font-bold">{card.title}</span>
+                      {outdated && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-500/50 bg-amber-400/15 px-2 py-0.5 text-[9.5px] font-bold text-amber-600 dark:text-amber-400">
+                          به‌روز شده
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block text-[10.5px] text-muted-foreground">
+                      {m.kind === "post" ? "مطلب" : "دورهٔ آنلاین"} · ذخیره در {faDateTime(m.savedAt)}
+                    </span>
+                  </span>
+                  {outdated && online && (
+                    <button
+                      onClick={() => void updateRow(m)}
+                      disabled={busy}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/50 bg-amber-400/10 px-2.5 py-1.5 text-[10.5px] font-bold text-amber-600 transition-colors hover:bg-amber-400/20 disabled:opacity-50 dark:text-amber-400"
+                    >
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} به‌روزرسانی
+                    </button>
+                  )}
+                  <button
+                    onClick={() => void removeRow(m)}
+                    aria-label={`حذف «${card.title}» از مطالب آفلاین`}
+                    className="shrink-0 rounded-lg border border-destructive/30 p-1.5 text-destructive transition-colors hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <p className="mt-3 rounded-xl border border-dashed border-border px-3.5 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
-            برای ذخیرهٔ بستهٔ مطالب، ابتدا از منوی حساب وارد شو — بستهٔ طراحی و نصب برنامه بدون حساب هم کار می‌کند.
+            هنوز چیزی ذخیره نکرده‌ای — در «خانه» و «اساتید»، کنار هر مطلب یا دوره دکمهٔ دانلود آفلاین هست.
+          </p>
+        )}
+
+        {items.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => void (async () => { setListMsg(""); await clearOfflineItems(); await refresh(); })()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 px-3.5 py-2 text-[11.5px] font-bold text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> پاک‌سازی همهٔ مطالب ذخیره‌شده
+            </button>
+            {!online && (
+              <span className="text-[11px] text-muted-foreground">در حالت آفلاین، وضعیت به‌روزرسانی‌ها وقتی آنلاین شدی چک می‌شود.</span>
+            )}
+          </div>
+        )}
+        {listMsg && (
+          <p className={`mt-2 text-[11.5px] font-semibold ${listMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{listMsg}</p>
+        )}
+
+        {!auth.user && (
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/80">
+            نکته: دانلود تک‌تک مطالب بدون حساب هم کار می‌کند؛ با ورود به حساب، فید برای اساتیدی که دنبال می‌کنی شخصی می‌شود.
           </p>
         )}
       </section>

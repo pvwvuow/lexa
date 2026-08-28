@@ -4,7 +4,7 @@
 import * as React from "react";
 import { useApp } from "@/lib/store";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
-import { getOfflinePack } from "@/lib/offline";
+import { listOfflineMetas } from "@/lib/offline";
 
 export interface SuggestionItem {
   id: string;
@@ -53,6 +53,8 @@ export interface TCourseCard {
   _ownerUsername?: string;
   _ownerAvatar?: string | null;
   _thumbnail?: string;
+  /** آخرین به‌روزرسانی دورهٔ سرور — مبنای نشان «به‌روز شده» در نسخهٔ آفلاین */
+  _updatedAt?: string;
   teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 
@@ -110,12 +112,19 @@ export function useSocial() {
       setShowingAll(!!f.showingAll);
       setOffline(false);
     } catch {
-      // آفلاین — اگر «بستهٔ مطالب» ذخیره شده باشد، همان نشان بده
-      const pack = getOfflinePack();
-      if (pack?.posts?.length) {
-        setFeed(pack.posts as unknown as FeedPost[]);
-        setOffline(true);
-      }
+      // آفلاین — مطلب‌هایی که تک‌تک برای مطالعهٔ آفلاین ذخیره شده‌اند
+      try {
+        const metas = await listOfflineMetas();
+        const cards = metas
+          .filter((m) => m.kind === "post")
+          .map((m) => m.card as FeedPost)
+          .filter((c) => c?.id)
+          .sort((a, b) => +new Date(b.createdAt ?? 0) - +new Date(a.createdAt ?? 0));
+        if (cards.length) {
+          setFeed(cards);
+          setOffline(true);
+        }
+      } catch { /* بدون IndexedDB */ }
     } finally {
       setLoading(false);
     }
@@ -165,12 +174,19 @@ export function useTCourses(mine = false) {
       setCourses(d.courses);
       setOffline(false);
     } catch {
-      // آفلاین — دوره‌های ذخیره‌شده در بستهٔ مطالب
-      const pack = getOfflinePack();
-      if (pack?.courses?.length) {
-        setCourses(pack.courses as unknown as TCourseCard[]);
-        setOffline(true);
-      }
+      // آفلاین — دوره‌هایی که تک‌تک برای مطالعهٔ آفلاین ذخیره شده‌اند
+      try {
+        const metas = await listOfflineMetas();
+        const cards = metas
+          .filter((m) => m.kind === "tcourse")
+          .map((m) => m.card as TCourseCard)
+          .filter((c) => c?.id)
+          .map((c) => ({ ...c, inLibrary: c.inLibrary ?? false, canManage: c.canManage ?? false, studentsCount: c.studentsCount ?? 0 }));
+        if (cards.length) {
+          setCourses(cards);
+          setOffline(true);
+        }
+      } catch { /* بدون IndexedDB */ }
     } finally {
       setLoading(false);
     }

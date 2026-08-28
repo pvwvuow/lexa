@@ -211,9 +211,10 @@ export function teacherCourseToCourse(
     id: string; title: string; tagline: string; description: string;
     icon: string; accent: string; chaptersJson: string;
     category?: string; categories?: string; status?: string; thumbnail?: string;
+    updatedAt?: string | Date;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string; _updatedAt?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -232,6 +233,8 @@ export function teacherCourseToCourse(
     _categories: parseCategories(row.categories, row.category),
     _status: row.status === "draft" || row.status === "prep" ? row.status : "published",
     _thumbnail: safeThumbnail(row.thumbnail),
+    // برای تشخیص «این دوره به‌روز شده» در نسخهٔ آفلاین
+    _updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined,
   };
 }
 
