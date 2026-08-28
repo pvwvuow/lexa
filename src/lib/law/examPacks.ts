@@ -54,8 +54,23 @@ import { descPenal } from "./exam-packs/desc-penal";
 import { descProcedure } from "./exam-packs/desc-procedure";
 import { mcqJazaGhafoori } from "./exam-packs/mcq-jaza-ghafoori";
 import { descJazaGhafoori } from "./exam-packs/desc-jaza-ghafoori";
+import { mcqJazaGhafoori2 } from "./exam-packs/mcq-jaza-ghafoori-2";
+import { descJazaGhafoori2 } from "./exam-packs/desc-jaza-ghafoori-2";
 
 export const examPacks: ExamPack[] = [
+  {
+    id: "pack-tadris-jaza-mcq2",
+    title: "دفترچهٔ تستی — تدریس جزا ۲ (صفحات ۵۱ تا ۱۰۰)",
+    exam: "تدریس جزا (غفوری)",
+    examSlug: "tadris-jaza",
+    branch: "حقوق جزا",
+    description:
+      "دفترچهٔ تستی برگرفته از صفحات ۵۱ تا ۱۰۰ جزوهٔ تدریس جزا احمد غفوری: رأی وحدت رویه، قانون حاکم بر رفتار، قانونی بودن اجرا (مواد ۴۸۵ و ۴۸۶)، مسئولیت شخص حقوقی، تفکیک‌های طلایی، درجات مادهٔ ۱۹، مجازات‌های تبعی و تکمیلی و نحوهٔ اجرا — با پاسخ‌نامهٔ تشریحی.",
+    minutes: 35,
+    passMark: 70,
+    kind: "mcq",
+    questions: mcqJazaGhafoori2,
+  },
   {
     id: "pack-tadris-jaza-mcq",
     title: "دفترچهٔ تستی — تدریس جزا (کلیات جزا)",
@@ -155,6 +170,18 @@ export const examPacks: ExamPack[] = [
     minutes: 90,
     kind: "descriptive",
     questions: descJazaGhafoori,
+  },
+  {
+    id: "pack-tadris-jaza-desc2",
+    title: "دفترچهٔ تشریحی — تدریس جزا ۲ (صفحات ۵۱ تا ۱۰۰)",
+    exam: "نمونه سوالات تشریحی",
+    examSlug: "tashrihi",
+    branch: "حقوق جزا",
+    description:
+      "۱۹ پرسش تشریحی برگرفته از صفحات ۵۱ تا ۱۰۰ جزوهٔ تدریس جزا احمد غفوری: رأی وحدت رویه، قانون حاکم بر رفتار، ماده‌های ۴۸۵ و ۴۸۶، شخص حقوقی (مواد ۱۴۳ و ۲۰ تا ۲۲)، درجات مادهٔ ۱۹، مجازات تبعی و محاسبهٔ محرومیت و احتساب بازداشت — با پاسخ نمونهٔ کامل و کلیدواژه‌های نمره‌آور.",
+    minutes: 80,
+    kind: "descriptive",
+    questions: descJazaGhafoori2,
   },
 ];
 

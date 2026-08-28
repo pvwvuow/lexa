@@ -593,12 +593,36 @@ export function useOnlineStatus(): boolean {
 }
 
 /** وضعیت نصب + رویداد نصب (اندروید/دسکتاپ) */
+export type PwaPlatform = "ios" | "android" | "desktop";
+
+/** پلتفرم دستگاه — برای راهنمای نصب مخصوص هر سیستم */
+export function detectPwaPlatform(): PwaPlatform {
+  if (typeof navigator === "undefined") return "desktop";
+  const ua = navigator.userAgent || "";
+  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+  // iPadOS 13+ خودش را Mac معرفی می‌کند؛ با پشتیبانی لمسی تشخیص می‌دهیم
+  if (/Macintosh/i.test(ua) && typeof document !== "undefined" && "ontouchend" in document) return "ios";
+  if (/android/i.test(ua)) return "android";
+  return "desktop";
+}
+
+/** مرورگر درون‌برنامه‌ای (تلگرام، اینستاگرام و…) — نصب PWA در آن‌ها ممکن نیست */
+export function isInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|FBDV|Instagram|Line\/|Snapchat|Telegram|Twitter|TikTok|musical_ly|Bytedance|HiApplication|wv\)/i.test(ua);
+}
+
 export function usePwaInstall() {
   const [prompt, setPrompt] = React.useState<{ prompt: () => Promise<void> } | null>(null);
   const [installed, setInstalled] = React.useState(false);
+  const [platform, setPlatform] = React.useState<PwaPlatform>("desktop");
+  const [inApp, setInApp] = React.useState(false);
 
   React.useEffect(() => {
     setInstalled(isStandalone());
+    setPlatform(detectPwaPlatform());
+    setInApp(isInAppBrowser());
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       setPrompt(e as unknown as { prompt: () => Promise<void> });
@@ -615,16 +639,19 @@ export function usePwaInstall() {
     };
   }, []);
 
-  const install = React.useCallback(async () => {
-    if (!prompt) return false;
+  const install = React.useCallback(async (): Promise<"accepted" | "dismissed" | "unavailable"> => {
+    if (!prompt) return "unavailable";
     await prompt.prompt();
     const choice = await (prompt as unknown as { userChoice: Promise<{ outcome: string }> }).userChoice;
-    if (choice.outcome === "accepted") setInstalled(true);
     setPrompt(null);
-    return choice.outcome === "accepted";
+    if (choice.outcome === "accepted") {
+      setInstalled(true);
+      return "accepted";
+    }
+    return "dismissed";
   }, [prompt]);
 
-  return { canInstall: !!prompt, installed, install };
+  return { canInstall: !!prompt, installed, install, platform, inApp };
 }
 
 /** پیش‌بارگذاری «بستهٔ طراحی» — پیام به سرویس‌ورکر برای کش‌کردن پوسته */
