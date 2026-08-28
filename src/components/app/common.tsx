@@ -3,13 +3,39 @@
 import * as React from "react";
 import {
   Scale, BookOpen, HelpCircle, Lightbulb, ListChecks, GitCompareArrows,
-  GraduationCap, Quote, FileText, Sparkles, BookOpenCheck,
-} from "lucide-react";
-import type { SectionType, LawRef } from "@/lib/law/types";
+  GraduationCap, Quote, FileText, Sparkles, BookOpenCheck, Handshake,
+  AlertTriangle, Zap, Info, Compass, Gavel, Globe, ArrowRight } from "lucide-react";
+import type { SectionType, LawRef, LessonSection } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
+import { goBack } from "@/lib/router";
+
+/** دکمهٔ بازگشت به صفحهٔ قبل — در سرصفحهٔ همهٔ زیرصفحه‌ها یکدست استفاده می‌شود */
+export function BackButton({ label = "بازگشت" }: { label?: string }) {
+  return (
+    <button
+      onClick={goBack}
+      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-card transition-colors hover:border-bronze/50 hover:text-bronze"
+      aria-label="بازگشت به صفحهٔ قبل"
+    >
+      <ArrowRight className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
 
 export function CourseIcon({ icon, className }: { icon?: string; className?: string }) {
-  const Ico = icon === "FileText" ? FileText : icon === "BookOpenCheck" ? BookOpenCheck : Scale;
+  const Ico =
+    icon === "FileText"
+      ? FileText
+      : icon === "BookOpenCheck"
+        ? BookOpenCheck
+        : icon === "Handshake"
+          ? Handshake
+          : icon === "Gavel"
+            ? Gavel
+            : icon === "Globe"
+              ? Globe
+              : Scale;
   return <Ico className={className ?? "h-5 w-5"} />;
 }
 
@@ -124,7 +150,10 @@ export function AIThinking({ label = "در حال تحلیل ماده قانون
  */
 export function Donut({
   value, size = 92, stroke = 9, label, flat,
-}: { value: number; size?: number; stroke?: number; label?: string; flat?: boolean }) {
+  /** برای سطوح تیره (مثل هیرو) — رنگ متن درصد و برچسب */
+  toneClass = "fill-foreground",
+  labelToneClass = "fill-muted-foreground",
+}: { value: number; size?: number; stroke?: number; label?: string; flat?: boolean; toneClass?: string; labelToneClass?: string }) {
   const id = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const r = (size - stroke - 8) / 2;
   const c = 2 * Math.PI * r;
@@ -166,11 +195,11 @@ export function Donut({
         style={{ transition: "stroke-dasharray .7s cubic-bezier(.4,0,.2,1)" }}
       />
 
-      <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-display text-lg font-bold">
+      <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" className={toneClass + " font-display text-lg font-bold"}>
         {fa(v)}٪
       </text>
       {label && (
-        <text x="50%" y="67%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">
+        <text x="50%" y="67%" textAnchor="middle" dominantBaseline="middle" className={labelToneClass + " text-[10px]"}>
           {label}
         </text>
       )}
@@ -457,18 +486,41 @@ function EyeOn({ className }: { className?: string }) {
   );
 }
 
-/** رندر بدنهٔ درس: پاراگراف + کارت اصطلاح + پله‌نما */
+/** رندر بدنهٔ درس: پاراگراف + کارت اصطلاح + پله‌نما (تشخیص خودکار نکتهٔ مهم) */
 export function BodyRich({ text }: { text: string }) {
   const blocks = React.useMemo(() => parseBody(text), [text]);
   return (
     <div className="space-y-4">
       {blocks.map((b, i) => {
         if (b.kind === "p") {
-          return (
-            <p key={i} className="whitespace-pre-line text-[20px] leading-[2.15] text-foreground/95">
-              {b.text}
-            </p>
-          );
+          // تشخیص «نکتهٔ مهم» خط‌به‌خط — پاراگراف‌های معمولی و المان‌های مهم
+          // می‌توانند در یک بلوک کنار هم باشند؛ هر خط جداگانه ارزیابی می‌شود
+          const pieces = b.text.split("\n");
+          const rendered: React.ReactNode[] = [];
+          let buf: string[] = [];
+          const flush = (key: string) => {
+            if (buf.length)
+              rendered.push(
+                <p key={key} className="whitespace-pre-line text-[20px] leading-[2.15] text-foreground/95">
+                  {buf.join("\n")}
+                </p>,
+              );
+            buf = [];
+          };
+          pieces.forEach((ln, k) => {
+            const imp = detectImportant(ln);
+            if (imp) {
+              flush(`p-${i}-${k}`);
+              rendered.push(
+                <ImportantNote key={`i-${i}-${k}`} variant={imp.variant} label={imp.label}>
+                  {imp.rest}
+                </ImportantNote>,
+              );
+            } else buf.push(ln);
+          });
+          flush(`p-${i}-end`);
+          if (rendered.length === 1 && React.isValidElement(rendered[0])) return rendered[0];
+          return <React.Fragment key={i}>{rendered}</React.Fragment>;
         }
         if (b.kind === "steps") return <StepList key={i} items={b.items} />;
         const withTerm = b.items.filter((x) => x.term || x.subs).length >= Math.ceil(b.items.length / 2);
@@ -483,20 +535,304 @@ export function BodyRich({ text }: { text: string }) {
   );
 }
 
-/** رندر آرایهٔ bullets (بخش نکات/جمع‌بندی) با تشخیص خودکار اصطلاح یا شماره */
+/** رندر آرایهٔ bullets (بخش نکات/جمع‌بندی) با برگهٔ لوزی‌نشان بدون کارت مستطیلی */
 export function BulletRich({ items }: { items: string[] }) {
-  const parsed = items.map(parseTermLine);
-  const termCount = parsed.filter((x) => x.term || x.subs).length;
-  const numCount = items.filter((x) => NUM_RE.test(x.trim())).length;
-  if (termCount >= Math.ceil(parsed.length / 2)) {
-    return (
-      <div className="grid items-start gap-3 md:grid-cols-2">
-        {parsed.map((x, j) => <TermCard key={j} item={x} index={parsed.length > 1 && (x.term || x.subs) ? j + 1 : undefined} />)}
+  return <KeyNotesSheet items={items} />;
+}
+
+/* ── برگهٔ نکات کلیدی — جایگزین شبکهٔ کارت‌های مستطیلی ════════════════════════
+ * زبان طراحی اپ: نشان لوزیِ چرخان، خط مویی جداکننده و رنگ‌بندی چرخشی
+ * برنز/یشمی/کهربایی؛ هرگز قاب مستطیلی تکراری. */
+
+const KEY_ACCENTS = [
+  { dot: "bg-bronze", term: "text-bronze", glow: "shadow-[0_0_0_3px_color-mix(in_srgb,var(--bronze)_12%,transparent)]" },
+  { dot: "bg-success", term: "text-success", glow: "" },
+  { dot: "bg-warn", term: "text-warn", glow: "" },
+] as const;
+
+export function KeyNotesSheet({ items }: { items: string[] }) {
+  const parsed = React.useMemo(() => items.map(parseTermLine), [items]);
+  if (!parsed.length) return null;
+
+  return (
+    <div className="relative">
+      {/* نقش پس‌زمینه: مهِ نرمِ رنگی، نه قاب */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-2 inset-x-[-14px] opacity-[0.05]"
+        style={{ background: "radial-gradient(420px 180px at 85% 0%, var(--bronze), transparent 70%)" }}
+      />
+      <ListChecks aria-hidden className="pointer-events-none absolute -bottom-5 start-1 h-16 w-16 -rotate-6 text-bronze/[0.06]" />
+
+      <ul className="relative">
+        {parsed.map((it, i) => {
+          const acc = KEY_ACCENTS[i % KEY_ACCENTS.length];
+          return (
+            <li key={i} className="group relative py-3.5 first:pt-0 last:pb-1">
+              {i > 0 && (
+                <span aria-hidden className="absolute inset-x-2 top-0 h-px bg-gradient-to-l from-transparent via-border to-transparent" />
+              )}
+              <div className="flex gap-3.5">
+                <span aria-hidden className={`mt-[11px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] ${acc.dot}`} />
+                <div className="min-w-0 flex-1">
+                  {it.term && (
+                    <p className={`font-display mb-0.5 text-[15.5px] font-bold tracking-wide ${acc.term}`}>{it.term}</p>
+                  )}
+                  <p className="whitespace-pre-line font-body text-[18px] leading-[1.95] text-foreground/95">{it.text}</p>
+                  {it.subs?.map((sub, k) => (
+                    <p key={k} className="mt-1 flex gap-2 ps-4 text-[17px] leading-[1.9] text-muted-foreground">
+                      <span aria-hidden className={`mt-[13px] h-1.5 w-1.5 shrink-0 rotate-45 rounded-[1.5px] ${acc.dot} opacity-70`} />
+                      <span>
+                        {sub.term && <strong className="font-display text-[15px]">{sub.term}: </strong>}
+                        {sub.text}
+                      </span>
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* چکیدهٔ پایانی برگه */}
+      <div aria-hidden className="mx-auto mt-3 h-px w-20 bg-gradient-to-l from-transparent via-bronze/50 to-transparent" />
+    </div>
+  );
+}
+
+/* ── المان «نکتهٔ مهم» در دل متن ══════════════════════════════════════════════
+ * باند تمام‌عرض بدون قاب مستطیلی: میلهٔ گردِ رنگی + لوزی آیکون + پس‌زمینهٔ
+ * محو رنگی متناسب با شدت پیام (هشدار سرخ، مهم کهربا، ترفند یشمی، یادآوری سرمه‌ای). */
+
+type ImpVariant = "warn" | "danger" | "success" | "info";
+
+type ImpIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+const IMP_STYLE: Record<ImpVariant, { colorVar: string; icon: ImpIcon; fallbackLabel: string }> = {
+  warn: { colorVar: "--warn", icon: AlertTriangle, fallbackLabel: "نکتهٔ مهم" },
+  danger: { colorVar: "--destructive", icon: AlertTriangle, fallbackLabel: "هشدار" },
+  success: { colorVar: "--success", icon: Zap, fallbackLabel: "ترفند" },
+  info: { colorVar: "--primary", icon: Info, fallbackLabel: "یادآوری" },
+};
+
+/** تشخیص پاراگراف‌های «نکتهٔ مهم» از سرنخ متن — برای reuse در رندررها.
+ *  هم «هشدار: …» و هم برچسب‌های بلندتر مثل «هشدار اهلیت در عاریه: …» را می‌گیرد. */
+export function detectImportant(text: string): { variant: ImpVariant; label: string; rest: string } | null {
+  const m = text.match(
+    /^\s*(⚠️|❗|📌|🚨)?\s*\[?\s*((هشدار|توجه مهم|توجه|مهم|نکتهٔ مهم|نکته مهم|یادآوری|ترفند)[^:：\n]{0,42}?)\s*\]?\s*[:：]\s*/,
+  );
+  if (!m) return null;
+  const kw = m[3];
+  const fullLabel = m[2].trim();
+  let variant: ImpVariant = "warn";
+  if (/هشدار/.test(kw)) variant = "danger";
+  else if (/ترفند/.test(kw)) variant = "success";
+  else if (/یادآوری/.test(kw)) variant = "info";
+  else variant = "warn";
+  return { variant, label: fullLabel, rest: text.slice(m[0].length).trim() };
+}
+
+export function ImportantNote({ variant = "warn", label, children }: {
+  variant?: ImpVariant;
+  label?: string;
+  children: React.ReactNode;
+}) {
+  const st = IMP_STYLE[variant];
+  const Icon = st.icon;
+  const cvar = `var(${st.colorVar})`;
+  return (
+    <aside role="note" className="relative my-2 overflow-hidden rounded-s-full bg-transparent py-1">
+      {/* مه رنگی از سمت شروع — بدون قاب */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(to left, transparent 55%, color-mix(in srgb, " + cvar + " 10%, transparent) 88%)" }}
+      />
+      <span
+        aria-hidden
+        className="absolute inset-y-1 start-0 w-[3.5px] rounded-full"
+        style={{ background: "linear-gradient(to bottom, " + cvar + ", color-mix(in srgb, " + cvar + " 35%, transparent))" }}
+      />
+      <div className="relative flex gap-3.5 py-2 pe-2 ps-4 sm:ps-5">
+        <span
+          aria-hidden
+          className="mt-1 grid h-9 w-9 shrink-0 rotate-45 place-items-center rounded-[9px] shadow-card"
+          style={{ border: "1px solid color-mix(in srgb, " + cvar + " 45%, transparent)", background: "color-mix(in srgb, " + cvar + " 12%, transparent)" }}
+        >
+          <Icon className="-rotate-45 h-4 w-4" style={{ color: cvar }} />
+        </span>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="font-display mb-0.5 text-[12px] font-extrabold tracking-wide" style={{ color: cvar }}>
+            {label ?? st.fallbackLabel}
+          </p>
+          <div className="whitespace-pre-line font-body text-[18px] leading-[1.95] text-foreground/95">{children}</div>
+        </div>
       </div>
-    );
-  }
-  if (numCount >= Math.ceil(items.length / 2)) {
-    return <StepList items={items.map((x) => x.replace(NUM_RE, "").trim())} />;
-  }
-  return <PlainList items={items} />;
+    </aside>
+  );
+}
+
+/* ── رندرر مشترک بخش‌های تدریس ════════════════════════════════════════════════
+ * همان موتور صفحهٔ تدریس؛ مطالب اساتید هم دقیقاً با همین المان‌ها رندر می‌شوند
+ * تا «موقع نوشتن» استاد از طراحی اصلی اپ استفاده کند. */
+
+/** بخش type=notes → برگهٔ نکات؛ بقیهٔ bullets هم با همان سبک جمع‌وجورتر */
+function BulletsZone({ section }: { section: LessonSection }) {
+  const isSummary = section.type === "summary";
+  const isNotes = section.type === "notes";
+  return (
+    <div className="pt-2">
+      {(isNotes || isSummary) ? (
+        isSummary ? (
+          <>
+            {section.body && <BlockDivider label="چکیدهٔ نهایی" Icon={ListChecks} />}
+            <SummarySheet items={section.bullets!} />
+          </>
+        ) : (
+          <KeyNotesSheet items={section.bullets!} />
+        )
+      ) : (
+        <>
+          {section.body && <BlockDivider label="نکته‌های کلیدی این بخش" Icon={Compass} />}
+          <KeyNotesSheet items={section.bullets!} />
+        </>
+      )}
+    </div>
+  );
+}
+
+export function SectionBody({ s, decorativeHeadless }: { s: LessonSection; decorativeHeadless?: boolean }) {
+  return (
+    <>
+      {s.body && (
+        <div className="teach-body text-foreground/95">
+          <BodyRich text={s.body} />
+        </div>
+      )}
+
+      {s.law && s.law.length > 0 && (
+        <div className="pt-2">
+          {(s.body || s.bullets) && !decorativeHeadless && <BlockDivider label="مستند قانونی این بخش" Icon={Scale} />}
+          <LawBox laws={s.law} />
+        </div>
+      )}
+
+      {s.bullets && s.bullets.length > 0 && <BulletsZone section={s} />}
+
+      {s.table && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
+            <tbody>
+              {s.table.rows.map((r, k) => (
+                <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {s.questionText && (
+        <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
+          <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
+          <p className="font-body relative z-10 text-[18px] font-semibold leading-loose">{s.questionText}</p>
+          {s.suggestedAnswer && (
+            <details className="relative z-10 mt-3 text-sm">
+              <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی</summary>
+              <p className="mt-2 rounded-lg bg-background/60 p-3 text-[15.5px] leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
+            </details>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ═══ آواتار لوزی — تصویر آپلودشدهٔ استاد یا حرف اول نام ═════════════════════ */
+
+const AVATAR_SIZE = {
+  xs: { box: "h-7 w-7 text-[11px] rounded-[7px]" },
+  sm: { box: "h-9 w-9 text-[13px] rounded-[8px]" },
+  md: { box: "h-11 w-11 text-[15px] rounded-[10px]" },
+  lg: { box: "h-16 w-16 text-[22px] rounded-[14px]" },
+  xl: { box: "h-28 w-28 text-[36px] rounded-[22px]" },
+} as const;
+
+export function UserAvatar({
+  src, name, size = "md", className = "",
+}: {
+  src?: string | null;
+  name: string;
+  size?: keyof typeof AVATAR_SIZE;
+  className?: string;
+}) {
+  const s = AVATAR_SIZE[size];
+  return (
+    <span
+      aria-hidden={!src}
+      className={`relative grid ${s.box} shrink-0 rotate-45 place-items-center overflow-hidden bg-gradient-to-bl from-primary/90 to-bronze shadow-card ${className}`}
+    >
+      {src ? (
+        // چرخش معکوس + مقیاس √۲ تا تصویر مربعی کامل در لوزی بپوشاند
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 m-auto h-full w-full -rotate-45 scale-[1.415] object-cover"
+          loading="lazy"
+        />
+      ) : (
+        <span className="-rotate-45 font-display font-bold leading-none text-primary-foreground">
+          {(name || "؟").slice(0, 1)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/* ═══ ستاره‌های امتیاز — نمایشی یا تعاملی (ثبت رأی) ══════════════════════════ */
+
+export function StarRating({
+  value, count, onChange, disabled, size = 16,
+}: {
+  value: number;                       // میانگین برای نمایش یا رأی انتخابی کاربر
+  count?: number;                      // تعداد رأی‌ها (اختیاری)
+  onChange?: (stars: number) => void;  // اگر داده شود تعاملی است
+  disabled?: boolean;
+  size?: number;
+}) {
+    const [hover, setHover] = React.useState(0);
+  const interactive = !disabled && !!onChange;
+  const shown = hover || Math.round(value);
+
+  return (
+    <span className="inline-flex items-center gap-1.5" dir="ltr" role={interactive ? "radiogroup" : undefined} aria-label={`امتیاز ${fa(value)} از ۵`}>
+      <span className="inline-flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const filled = n <= shown;
+          const half = !filled && n - 0.5 <= value && value > 0 && shown !== n;
+          return (
+            <button
+              key={n}
+              type="button"
+              tabIndex={interactive ? 0 : -1}
+              aria-label={`${n} ستاره`}
+              disabled={!interactive}
+              onClick={interactive ? () => onChange?.(n) : undefined}
+              onMouseEnter={interactive ? () => setHover(n) : undefined}
+              onMouseLeave={interactive ? () => setHover(0) : undefined}
+              className={interactive ? "cursor-pointer transition-transform hover:scale-110 active:scale-95" : "cursor-default"}
+            >
+              <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" style={half ? { clipPath: "inset(0 50% 0 0)", fillOpacity: 0.45 } : undefined} />
+              </svg>
+            </button>
+          );
+        })}
+      </span>
+      <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+        {value > 0 ? fa(Math.round(value * 10) / 10) : "—"}
+        {count != null && count > 0 ? ` (${fa(count)})` : ""}
+      </span>
+    </span>
+  );
 }

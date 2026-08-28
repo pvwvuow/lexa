@@ -1,0 +1,671 @@
+     1→"use client";
+     2→
+     3→// ─── اتاق استاد: انتشار مطلب وبلاگی + ساخت دورهٔ آنلاین ────────────────────────
+     4→// استاد موقع نوشتن از همان المان‌های تدریس اپ استفاده می‌کند (پاراگراف، مستند
+     5→// قانونی، نکات کلیدی، مثال، جدول مقایسه‌ای، سؤال تعاملی) — پیش‌نمایش زنده دارد.
+     6→import * as React from "react";
+     7→import {
+     8→  PenSquare, Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Loader2,
+     9→  BookOpen, Scale, ListChecks, Quote, GitCompareArrows, HelpCircle,
+    10→  GraduationCap, ChevronDown, Newspaper, Save, X, Lightbulb,
+    11→} from "lucide-react";
+    12→import type { LessonSection } from "@/lib/law/types";
+    13→import { navigate } from "@/lib/router";
+    14→import { fa } from "@/lib/fa";
+    15→import { SectionBody } from "./common";
+    16→import { useAuth } from "@/lib/auth-client";
+    17→import { useTCourses } from "@/lib/social-client";
+    18→
+    19→/* ─── ابزار فرم ── */
+    20→const inputCls =
+    21→  "w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-bronze placeholder:text-muted-foreground/50";
+    22→const labelCls = "mb-1 block text-[11.5px] font-bold text-muted-foreground";
+    23→
+    24→function newBlock(type: string): LessonSection {
+    25→  const id = `b-${Math.random().toString(36).slice(2, 9)}`;
+    26→  switch (type) {
+    27→    case "law":
+    28→      return { id, type: "law", law: [{ no: "", source: "", text: "" }] };
+    29→    case "notes":
+    30→      return { id, type: "notes", bullets: [""] };
+    31→    case "compare":
+    32→      return { id, type: "compare", table: { headers: ["", ""], rows: [["", ""]] } };
+    33→    case "question":
+    34→      return { id, type: "question", questionText: "", suggestedAnswer: "" };
+    35→    case "example":
+    36→      return { id, type: "example", body: "" };
+    37→    case "intro":
+    38→      return { id, type: "intro", body: "" };
+    39→    default:
+    40→      return { id, type: "concept", body: "" };
+    41→  }
+    42→}
+    43→
+    44→const PALETTE = [
+    45→  { type: "concept", label: "پاراگراف / مفهوم", Icon: Lightbulb },
+    46→  { type: "law", label: "مستند قانونی", Icon: Scale },
+    47→  { type: "notes", label: "نکات کلیدی", Icon: ListChecks },
+    48→  { type: "example", label: "مثال کاربردی", Icon: Quote },
+    49→  { type: "compare", label: "جدول مقایسه", Icon: GitCompareArrows },
+    50→  { type: "question", label: "سؤال تعاملی", Icon: HelpCircle },
+    51→] as const;
+    52→
+    53→const LABEL_OF: Record<string, string> = {
+    54→  intro: "درآمد",
+    55→  concept: "پاراگراف / مفهوم",
+    56→  law: "مستند قانونی",
+    57→  notes: "نکات کلیدی",
+    58→  example: "مثال کاربردی",
+    59→  compare: "جدول مقایسه",
+    60→  question: "سؤال تعاملی",
+    61→  summary: "جمع‌بندی",
+    62→};
+    63→
+    64→/* ═══ ویرایشگر بلوکی مشترک مطلب/جلسهٔ دوره ══════════════════════════════════ */
+    65→export function BlockEditor({ blocks, onChange }: {
+    66→  blocks: LessonSection[];
+    67→  onChange: (b: LessonSection[]) => void;
+    68→}) {
+    69→  const [preview, setPreview] = React.useState(false);
+    70→
+    71→  const patch = (i: number, p: Partial<LessonSection>) =>
+    72→    onChange(blocks.map((b, k) => (k === i ? { ...b, ...p } : b)));
+    73→
+    74→  const move = (i: number, dir: -1 | 1) => {
+    75→    const j = i + dir;
+    76→    if (j < 0 || j >= blocks.length) return;
+    77→    const n = [...blocks];
+    78→    [n[i], n[j]] = [n[j], n[i]];
+    79→    onChange(n);
+    80→  };
+    81→
+    82→  return (
+    83→    <div className="space-y-3">
+    84→      {/* جعبه‌ابزار المان‌ها */}
+    85→      <div className="flex flex-wrap items-center gap-2">
+    86→        <span className="text-[11px] font-bold text-muted-foreground">افزودن:</span>
+    87→        {PALETTE.map((p) => (
+    88→          <button
+    89→            key={p.type}
+    90→            type="button"
+    91→            onClick={() => onChange([...blocks, newBlock(p.type)])}
+    92→            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[11.5px] font-semibold text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze"
+    93→          >
+    94→            <p.Icon className="h-3.5 w-3.5 text-bronze" /> {p.label}
+    95→          </button>
+    96→        ))}
+    97→        <button
+    98→          type="button"
+    99→          onClick={() => setPreview((v) => !v)}
+   100→          className={`ms-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11.5px] font-bold transition-colors ${
+   101→            preview ? "bg-bronze text-bronze-foreground" : "border border-bronze/50 bg-bronze/10 text-bronze hover:bg-bronze/20"
+   102→          }`}
+   103→        >
+   104→          {preview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+   105→          {preview ? "بستن پیش‌نمایش" : "پیش‌نمایش زنده"}
+   106→        </button>
+   107→      </div>
+   108→
+   109→      {/* بلوک‌ها */}
+   110→      {blocks.length === 0 && (
+   111→        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+   112→          هنوز بلوکی نداری؛ از جعبه‌ابزار بالا یکی از المان‌ها را اضافه کن.
+   113→        </p>
+   114→      )}
+   115→
+   116→      {blocks.map((b, i) => (
+   117→        <div key={b.id} className="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-card">
+   118→          <div className="mb-3 flex items-center gap-2">
+   119→            <span className="rounded-full bg-bronze/10 px-2.5 py-0.5 text-[10.5px] font-bold text-bronze">{LABEL_OF[b.type]}</span>
+   120→            <span className="flex-1" />
+   121→            <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="انتقال به بالا" className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
+   122→            <button type="button" onClick={() => move(i, 1)} disabled={i === blocks.length - 1} aria-label="انتقال به پایین" className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
+   123→            <button type="button" onClick={() => onChange(blocks.filter((_, k) => k !== i))} aria-label="حذف بلوک" className="rounded-md p-1 text-destructive hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></button>
+   124→          </div>
+   125→
+   126→          {["concept", "intro", "example"].includes(b.type) && (
+   127→            <>
+   128→              <input value={b.title ?? ""} onChange={(e) => patch(i, { title: e.target.value })} placeholder="عنوان اختیاری…" className={`${inputCls} mb-2`} aria-label="عنوان بلوک" />
+   129→              <textarea
+   130→                value={b.body ?? ""}
+   131→                onChange={(e) => patch(i, { body: e.target.value })}
+   132→                rows={5}
+   133→                placeholder={"متن را بنویس…\nنکته: هر خط با «-» شروع شود لیست می‌شود؛ «عنوان: توضیح» کارت اصطلاح می‌شود."}
+   134→                className={`${inputCls} resize-y leading-relaxed`}
+   135→                aria-label="متن بلوک"
+   136→              />
+   137→            </>
+   138→          )}
+   139→
+   140→          {b.type === "law" && b.law && (
+   141→            <div className="space-y-2.5">
+   142→              {b.law.map((l, li) => (
+   143→                <div key={li} className="grid gap-2 sm:grid-cols-[130px_150px_1fr_auto]">
+   144→                  <input value={l.no} onChange={(e) => patch(i, { law: b.law!.map((x, k) => (k === li ? { ...x, no: e.target.value } : x)) })} placeholder="شماره ماده" className={inputCls} aria-label="شماره ماده" />
+   145→                  <input value={l.source ?? ""} onChange={(e) => patch(i, { law: b.law!.map((x, k) => (k === li ? { ...x, source: e.target.value } : x)) })} placeholder="منبع (اختیاری)" className={inputCls} aria-label="منبع قانون" />
+   146→                  <textarea value={l.text} onChange={(e) => patch(i, { law: b.law!.map((x, k) => (k === li ? { ...x, text: e.target.value } : x)) })} rows={2} placeholder="نص متن ماده…" className={`${inputCls} resize-y`} aria-label="متن ماده" />
+   147→                  <button type="button" onClick={() => patch(i, { law: b.law!.filter((_, k) => k !== li) })} aria-label="حذف ماده" className="self-start rounded-lg p-2 text-destructive hover:bg-destructive/10"><X className="h-4 w-4" /></button>
+   148→                </div>
+   149→              ))}
+   150→              <button type="button" onClick={() => patch(i, { law: [...b.law!, { no: "", source: "", text: "" }] })} className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary">
+   151→                <Plus className="h-3 w-3" /> افزودن مادهٔ دیگر
+   152→              </button>
+   153→            </div>
+   154→          )}
+   155→
+   156→          {b.type === "notes" && (
+   157→            <>
+   158→              <input value={b.title ?? ""} onChange={(e) => patch(i, { title: e.target.value })} placeholder="عنوان اختیاری این گروه نکته…" className={`${inputCls} mb-2`} aria-label="عنوان نکات" />
+   159→              <textarea
+   160→                value={(b.bullets ?? []).join("\n")}
+   161→                onChange={(e) => patch(i, { bullets: e.target.value.split("\n") })}
+   162→                rows={Math.max(3, (b.bullets ?? []).length + 1)}
+   163→                placeholder={"هر خط = یک نکته\nشکل «کلیدواژه: توضیح» هم پشتیبانی می‌شود"}
+   164→                className={`${inputCls} resize-y leading-relaxed`}
+   165→                aria-label="نکات کلیدی"
+   166→              />
+   167→            </>
+   168→          )}
+   169→
+   170→          {b.type === "compare" && b.table && (
+   171→            <div className="space-y-2.5">
+   172→              <input
+   173→                value={b.table.headers.join("، ")}
+   174→                onChange={(e) =>
+   175→                  patch(i, { table: { ...b.table!, headers: e.target.value.split(/[،,]/).map((s) => s.trim()) } })
+   176→                }
+   177→                placeholder="سرستون‌ها را با «،» جدا کن…"
+   178→                className={inputCls}
+   179→                aria-label="سرستون‌های جدول"
+   180→              />
+   181→              <textarea
+   182→                value={b.table.rows.map((r) => r.join(" | ")).join("\n")}
+   183→                onChange={(e) =>
+   184→                  patch(i, { table: { ...b.table!, rows: e.target.value.split("\n").map((ln) => ln.split("|").map((c) => c.trim())) } })
+   185→                }
+   186→                rows={4}
+   187→                placeholder={"هر خط = یک ردیف؛ سلول‌ها را با | جدا کن\nمثال: صغیر محجور است | محجوریت منوط به حکم دادگاه نیست"}
+   188→                className={`${inputCls} resize-y leading-relaxed`}
+   189→                dir="rtl"
+   190→                aria-label="ردیف‌های جدول"
+   191→              />
+   192→              <p className="text-[10px] text-muted-foreground">ستون اول (راست) پررنگ نمایش داده می‌شود.</p>
+   193→            </div>
+   194→          )}
+   195→
+   196→          {b.type === "question" && (
+   197→            <div className="space-y-2">
+   198→              <textarea value={b.questionText ?? ""} onChange={(e) => patch(i, { questionText: e.target.value })} rows={2} placeholder="متن سؤال…" className={`${inputCls} resize-y`} aria-label="متن سؤال" />
+   199→              <textarea value={b.suggestedAnswer ?? ""} onChange={(e) => patch(i, { suggestedAnswer: e.target.value })} rows={3} placeholder="پاسخ پیشنهادی (با کلیک دانشجو باز می‌شود)…" className={`${inputCls} resize-y`} aria-label="پاسخ پیشنهادی" />
+   200→            </div>
+   201→          )}
+   202→        </div>
+   203→      ))}
+   204→
+   205→      {/* پیش‌نمایش زنده */}
+   206→      {preview && blocks.length > 0 && (
+   207→        <div className="mt-4 space-y-5 rounded-2xl border border-dashed border-bronze/40 bg-gradient-to-b from-background to-card p-5">
+   208→          <p className="flex items-center gap-2 text-[11.5px] font-extrabold tracking-wide text-bronze">
+   209→            <SparklesIcon /> پیش‌نمایش زنده — دقیقاً همین شکل در صفحهٔ مطلب دیده می‌شود
+   210→          </p>
+   211→          {blocks.map((s, i) => (
+   212→            <section key={s.id}>
+   213→              <p className="mb-2 font-display text-[12.5px] font-bold text-bronze">{fa(i + 1)}. {LABEL_OF[s.type]}{s.title ? ` — ${s.title}` : ""}</p>
+   214→              <div className="rounded-xl border border-border bg-card p-4">
+   215→                <SectionBody s={s} decorativeHeadless />
+   216→              </div>
+   217→            </section>
+   218→          ))}
+   219→        </div>
+   220→      )}
+   221→    </div>
+   222→  );
+   223→}
+   224→
+   225→function SparklesIcon() {
+   226→  return <Newspaper className="h-3.5 w-3.5" />;
+   227→}
+   228→
+   229→/* ═══ دیالوگ عمومی ═══════════════════════════════════════════════════════════ */
+   230→function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+   231→  if (!open) return null;
+   232→  return (
+   233→    <div className="fixed inset-0 z-[70] grid place-items-start justify-items-center overflow-y-auto bg-black/45 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" onClick={onClose}>
+   234→      <div
+   235→        onClick={(e) => e.stopPropagation()}
+   236→        className={`w-full ${wide ? "max-w-3xl" : "max-w-xl"} rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6 my-4 max-h-none`}
+   237→      >
+   238→        {children}
+   239→      </div>
+   240→    </div>
+   241→  );
+   242→}
+   243→
+   244→/* ═══ ویرایشگر مطلب ══════════════════════════════════════════════════════════ */
+   245→interface PostDraft { id?: string; title: string; summary: string; tags: string; blocks: LessonSection[] }
+   246→const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", blocks: [] };
+   247→
+   248→export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | null; onClose: () => void; onSaved: () => void }) {
+   249→  const [d, setD] = React.useState<PostDraft>(draft ?? EMPTY_POST);
+   250→  const [busy, setBusy] = React.useState(false);
+   251→  const [err, setErr] = React.useState("");
+   252→
+   253→  React.useEffect(() => setD(draft ?? EMPTY_POST), [draft]);
+   254→
+   255→  async function save() {
+   256→    setBusy(true); setErr("");
+   257→    try {
+   258→      const res = await fetch(d.id ? `/api/posts/${d.id}` : "/api/posts", {
+   259→        method: d.id ? "PUT" : "POST",
+   260→        headers: { "Content-Type": "application/json" },
+   261→        body: JSON.stringify(d),
+   262→      });
+   263→      const j = await res.json();
+   264→      if (!res.ok) throw new Error(j.error ?? "ذخیره ناموفق بود.");
+   265→      onSaved();
+   266→      onClose();
+   267→    } catch (e) {
+   268→      setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+   269→    } finally {
+   270→      setBusy(false);
+   271→    }
+   272→  }
+   273→
+   274→  return (
+   275→    <Modal open={!!draft} onClose={onClose} wide>
+   276→      <div className="mb-4 flex items-center gap-2.5">
+   277→        <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary"><PenSquare className="h-5 w-5" /></span>
+   278→        <h2 className="font-display text-lg font-bold">{d.id ? "ویرایش مطلب" : "مطلب جدید"}</h2>
+   279→        <button onClick={onClose} aria-label="بستن" className="ms-auto rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><X className="h-5 w-5" /></button>
+   280→      </div>
+   281→
+   282→      <div className="space-y-3">
+   283→        <div>
+   284→          <label className={labelCls}>عنوان مطلب *</label>
+   285→          <input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} placeholder="مثلاً: سه اشتباه رایج در قرارداد بیع" className={inputCls} />
+   286→        </div>
+   287→        <div className="grid gap-3 sm:grid-cols-2">
+   288→          <div>
+   289→            <label className={labelCls}>خلاصه (برای فید خانه)</label>
+   290→            <input value={d.summary} onChange={(e) => setD({ ...d, summary: e.target.value })} maxLength={280} className={inputCls} />
+   291→          </div>
+   292→          <div>
+   293→            <label className={labelCls}>برچسب‌ها (با کاما)</label>
+   294→            <input value={d.tags} onChange={(e) => setD({ ...d, tags: e.target.value })} placeholder="قراردادها، بیع، نکته امتحانی" className={inputCls} />
+   295→          </div>
+   296→        </div>
+   297→        <div>
+   298→          <label className={labelCls}>محتوا</label>
+   299→          <BlockEditor blocks={d.blocks} onChange={(blocks) => setD({ ...d, blocks })} />
+   300→        </div>
+   301→        {err && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>}
+   302→        <div className="flex justify-end gap-2 pt-1">
+   303→          <button onClick={onClose} className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground">انصراف</button>
+   304→          <button onClick={save} disabled={busy || !d.title.trim()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-45">
+   305→            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} انتشار / ذخیره
+   306→          </button>
+   307→        </div>
+   308→      </div>
+   309→    </Modal>
+   310→  );
+   311→}
+   312→
+   313→/* ═══ ویرایشگر دورهٔ آنلاین ══════════════════════════════════════════════════ */
+   314→interface TLesson { key: string; title: string; minutes?: number; sections: LessonSection[] }
+   315→interface TChapter { key: string; title: string; lessons: TLesson[] }
+   316→interface CourseDraft { id?: string; title: string; tagline: string; description: string; icon: string; accent: string; chapters: TChapter[] }
+   317→
+   318→const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", chapters: [] };
+   319→const uid = () => Math.random().toString(36).slice(2, 9);
+   320→
+   321→export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft | null; onClose: () => void; onSaved: () => void }) {
+   322→  const [d, setD] = React.useState<CourseDraft>(draft ?? EMPTY_COURSE);
+   323→  const [busy, setBusy] = React.useState(false);
+   324→  const [err, setErr] = React.useState("");
+   325→  const [openCh, setOpenCh] = React.useState<string>("");
+   326→
+   327→  React.useEffect(() => {
+   328→    setD(draft ?? EMPTY_COURSE);
+   329→    setOpenCh((draft?.chapters ?? [])[0]?.key ?? "");
+   330→  }, [draft]);
+   331→
+   332→  function mutate(fn: (x: CourseDraft) => CourseDraft) { setD(fn(d)); }
+   333→
+   334→  async function save() {
+   335→    setBusy(true); setErr("");
+   336→    try {
+   337→      // اعتبارسنجی سرهٔ کلاینت: فصل خالی حذف نمی‌شود ولی جلسهٔ خالی رد می‌شود
+   338→      const chapters = d.chapters.map((c) => ({ title: c.title, lessons: c.lessons.map((l) => ({ title: l.title, minutes: l.minutes, sections: l.sections })) }));
+   339→      const res = await fetch("/api/tcourses", {
+   340→        method: "POST",
+   341→        headers: { "Content-Type": "application/json" },
+   342→        body: JSON.stringify({ ...d, chapters }),
+   343→      });
+   344→      const j = await res.json();
+   345→      if (!res.ok) throw new Error(j.error ?? "ذخیره ناموفق بود.");
+   346→      onSaved();
+   347→      onClose();
+   348→    } catch (e) {
+   349→      setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+   350→    } finally {
+   351→      setBusy(false);
+   352→    }
+   353→  }
+   354→
+   355→  return (
+   356→    <Modal open={!!draft} onClose={onClose} wide>
+   357→      <div className="mb-4 flex items-center gap-2.5">
+   358→        <span className="grid h-10 w-10 place-items-center rounded-xl bg-bronze/15 text-bronze"><GraduationCap className="h-5 w-5" /></span>
+   359→        <h2 className="font-display text-lg font-bold">{d.id ? "ویرایش دوره" : "دورهٔ جدید"}</h2>
+   360→        <button onClick={onClose} aria-label="بستن" className="ms-auto rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><X className="h-5 w-5" /></button>
+   361→      </div>
+   362→
+   363→      <div className="space-y-3">
+   364→        <div className="grid gap-3 sm:grid-cols-2">
+   365→          <div className="sm:col-span-2">
+   366→            <label className={labelCls}>عنوان دوره *</label>
+   367→            <input value={d.title} onChange={(e) => mutate(() => ({ ...d, title: e.target.value }))} placeholder="مثلاً: مسئولیت مدنی در ده جلسه" className={inputCls} />
+   368→          </div>
+   369→          <div>
+   370→            <label className={labelCls}>شعار کوتاه</label>
+   371→            <input value={d.tagline} onChange={(e) => mutate(() => ({ ...d, tagline: e.target.value }))} maxLength={160} className={inputCls} />
+   372→          </div>
+   373→          <div>
+   374→            <label className={labelCls}>آیکون</label>
+   375→            <select value={d.icon} onChange={(e) => mutate(() => ({ ...d, icon: e.target.value }))} className={inputCls}>
+   376→              <option value="">ترازویی (پیش‌فرض)</option>
+   377→              <option value="FileText">سند</option>
+   378→              <option value="BookOpenCheck">کتاب تیک‌دار</option>
+   379→              <option value="Handshake">توافق</option>
+   380→            </select>
+   381→          </div>
+   382→          <div className="sm:col-span-2">
+   383→            <label className={labelCls}>توضیح دوره</label>
+   384→            <textarea value={d.description} onChange={(e) => mutate(() => ({ ...d, description: e.target.value }))} rows={2} maxLength={2000} className={`${inputCls} resize-y`} />
+   385→          </div>
+   386→        </div>
+   387→
+   388→        {/* فصل‌ها */}
+   389→        <div className="space-y-3">
+   390→          <div className="flex items-center justify-between">
+   391→            <label className={`${labelCls} mb-0`}>فصل‌ها و جلسات دوره</label>
+   392→            <button
+   393→              type="button"
+   394→              onClick={() => {
+   395→                const ch: TChapter = { key: uid(), title: "", lessons: [] };
+   396→                setOpenCh(ch.key);
+   397→                mutate((x) => ({ ...x, chapters: [...x.chapters, ch] }));
+   398→              }}
+   399→              className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-[11.5px] font-bold text-primary"
+   400→            >
+   401→              <Plus className="h-3.5 w-3.5" /> فصل جدید
+   402→            </button>
+   403→          </div>
+   404→
+   405→          {d.chapters.map((ch, ci) => (
+   406→            <div key={ch.key} className="overflow-hidden rounded-xl border border-border">
+   407→              <div className="flex items-center gap-2 bg-muted/50 px-3 py-2">
+   408→                <span className="font-display text-[11.5px] font-bold text-bronze">فصل {fa(ci + 1)}</span>
+   409→                <input
+   410→                  value={ch.title}
+   411→                  onChange={(e) => mutate((x) => ({ ...x, chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, title: e.target.value } : c)) }))}
+   412→                  placeholder="عنوان فصل…"
+   413→                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+   414→                  aria-label="عنوان فصل"
+   415→                />
+   416→                <button type="button" onClick={() => setOpenCh(openCh === ch.key ? "" : ch.key)} aria-label="باز و بسته کردن فصل">
+   417→                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${openCh === ch.key ? "rotate-180" : ""}`} />
+   418→                </button>
+   419→                <button type="button" aria-label="حذف فصل" onClick={() => mutate((x) => ({ ...x, chapters: x.chapters.filter((c) => c.key !== ch.key) }))} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+   420→                  <Trash2 className="h-3.5 w-3.5" />
+   421→                </button>
+   422→              </div>
+   423→
+   424→              {openCh === ch.key && (
+   425→                <div className="space-y-3 p-3">
+   426→                  {ch.lessons.map((ls, li) => (
+   427→                    <div key={ls.key} className="rounded-lg border border-dashed border-border p-3">
+   428→                      <div className="mb-2 flex items-center gap-2">
+   429→                        <span className="text-[11px] font-bold text-muted-foreground">جلسهٔ {fa(li + 1)}</span>
+   430→                        <input
+   431→                          value={ls.title}
+   432→                          onChange={(e) => mutate((x) => ({
+   433→                            ...x,
+   434→                            chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: c.lessons.map((l) => (l.key === ls.key ? { ...l, title: e.target.value } : l)) } : c)),
+   435→                          }))}
+   436→                          placeholder="عنوان جلسه *"
+   437→                          className="min-w-0 flex-1 rounded-lg border border-input bg-background px-2.5 py-1.5 text-[13px] outline-none focus:border-bronze"
+   438→                          aria-label="عنوان جلسه"
+   439→                        />
+   440→                        <button type="button" aria-label="حذف جلسه" onClick={() => mutate((x) => ({ ...x, chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: c.lessons.filter((l) => l.key !== ls.key) } : c)) }))} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
+   441→                          <Trash2 className="h-3.5 w-3.5" />
+   442→                        </button>
+   443→                      </div>
+   444→                      <BlockEditor
+   445→                        blocks={ls.sections}
+   446→                        onChange={(sections) => mutate((x) => ({
+   447→                          ...x,
+   448→                          chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: c.lessons.map((l) => (l.key === ls.key ? { ...l, sections } : l)) } : c)),
+   449→                        }))}
+   450→                      />
+   451→                    </div>
+   452→                  ))}
+   453→                  <button
+   454→                    type="button"
+   455→                    onClick={() => mutate((x) => ({ ...x, chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: [...c.lessons, { key: uid(), title: "", sections: [] }] } : c)) }))}
+   456→                    className="inline-flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-[11.5px] font-bold text-success"
+   457→                  >
+   458→                    <Plus className="h-3.5 w-3.5" /> جلسهٔ جدید در این فصل
+   459→                  </button>
+   460→                </div>
+   461→              )}
+   462→            </div>
+   463→          ))}
+   464→        </div>
+   465→
+   466→        {err && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>}
+   467→        <div className="flex justify-end gap-2 pt-1">
+   468→          <button onClick={onClose} className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground">انصراف</button>
+   469→          <button onClick={save} disabled={busy || !d.title.trim()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-45">
+   470→            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} ذخیرهٔ دوره
+   471→          </button>
+   472→        </div>
+   473→      </div>
+   474→    </Modal>
+   475→  );
+   476→}
+   477→
+   478→/* ═══ ویوی اصلی اتاق استاد ═══════════════════════════════════════════════════ */
+   479→interface MyPost { id: string; title: string; summary: string; createdAt: string; commentsCount: number }
+   480→
+   481→export function StudioView() {
+   482→  const { user, status } = useAuth();
+   483→  const { courses: myCourses, reload: reloadCourses } = useTCourses(true);
+   484→  const [posts, setPosts] = React.useState<MyPost[]>([]);
+   485→  const [tab, setTab] = React.useState<"posts" | "courses">("posts");
+   486→  const [postDraft, setPostDraft] = React.useState<PostDraft | null>(null);
+   487→  const [courseDraft, setCourseDraft] = React.useState<CourseDraft | null>(null);
+   488→  const [busyId, setBusyId] = React.useState("");
+   489→
+   490→  const loadPosts = React.useCallback(async () => {
+   491→    try {
+   492→      const res = await fetch("/api/posts");
+   493→      const j = await res.json();
+   494→      if (res.ok) setPosts(j.posts ?? []);
+   495→    } catch {}
+   496→  }, []);
+   497→
+   498→  React.useEffect(() => {
+   499→    if (user && (user.role === "teacher" || user.role === "admin")) void loadPosts();
+   500→  }, [user, loadPosts]);
+   501→
+   502→  if (status === "loading") {
+   503→    return <div className="flex justify-center py-24 text-bronze"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+   504→  }
+   505→
+   506→  if (!user || (user.role !== "teacher" && user.role !== "admin")) {
+   507→    return (
+   508→      <div className="mx-auto max-w-md pt-20">
+   509→        <div className="rounded-2xl border border-dashed border-destructive/50 bg-card p-8 text-center shadow-card">
+   510→          <GraduationCap className="mx-auto mb-4 h-10 w-10 text-bronze" />
+   511→          <h2 className="font-display text-lg font-bold">اتاق استاد</h2>
+   512→          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+   513→            این فضا مخصوص حساب‌های استادی است. مدیر سامانه از «پنل مدیریت» برای شما حساب استاد می‌سازد؛
+   514→            سپس با همان یوزر و پسورد وارد شوید تا مطالب و دوره بسازید.
+   515→          </p>
+   516→        </div>
+   517→      </div>
+   518→    );
+   519→  }
+   520→
+   521→  async function deletePost(id: string) {
+   522→    if (!confirm("این مطلب حذف شود؟ کامنت‌هایش هم پاک می‌شود.")) return;
+   523→    setBusyId(id);
+   524→    await fetch(`/api/posts/${id}`, { method: "DELETE" });
+   525→    await loadPosts();
+   526→    setBusyId("");
+   527→  }
+   528→
+   529→  async function deleteCourse(id: string) {
+   530→    if (!confirm("این دوره حذف شود؟ نوشته‌هایی که آن را به کتابخانه گرفته‌اند دیگر دسترسی نخواهند داشت.")) return;
+   531→    setBusyId(id);
+   532→    await fetch(`/api/tcourses/${id}`, { method: "DELETE" });
+   533→    await reloadCourses();
+   534→    setBusyId("");
+   535→  }
+   536→
+   537→  /** بارگذاری مطلب برای ویرایش */
+   538→  async function editPost(id: string) {
+   539→    try {
+   540→      const res = await fetch(`/api/posts/${id}`);
+   541→      const j = await res.json();
+   542→      if (!res.ok) throw new Error(j.error);
+   543→      setPostDraft({
+   544→        id: j.post.id, title: j.post.title, summary: j.post.summary, tags: j.post.tags,
+   545→        blocks: (j.post.blocks as LessonSection[]) ?? [],
+   546→      });
+   547→    } catch {}
+   548→  }
+   549→
+   550→  /** بارگذاری دوره برای ویرایش — بازسازی جلوهٔ بلاک‌ها از Course */
+   551→  async function editCourse(id: string) {
+   552→    try {
+   553→      const res = await fetch(`/api/tcourses/${id}`);
+   554→      const j = await res.json();
+   555→      if (!res.ok) throw new Error(j.error);
+   556→      const c = j.course;
+   557→      const chapters: TChapter[] = (c.chapters ?? []).map((ch: never) => {
+   558→        const chc = ch as unknown as import("@/lib/law/types").Chapter;
+   559→        return {
+   560→          key: uid(),
+   561→          title: chc.title,
+   562→          lessons: chc.lessons.map((l) => ({ key: uid(), title: l.title, minutes: l.minutes, sections: (l.sections ?? []) as LessonSection[] })),
+   563→        };
+   564→      });
+   565→      setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", chapters });
+   566→    } catch {}
+   567→  }
+   568→
+   569→  return (
+   570→    <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-28 pt-6 sm:px-6">
+   571→      <header className="flex flex-wrap items-center justify-between gap-3">
+   572→        <div>
+   573→          <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight">
+   574→            <span className="grid h-11 w-11 place-items-center rounded-xl bg-bronze text-bronze-foreground shadow-card"><PenSquare className="h-6 w-6" /></span>
+   575→            اتاق استاد — {user.username}
+   576→          </h1>
+   577→          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+   578→            مثل یک وبلاگ بنویس؛ اما با المان‌های حرفه‌ای تدریس همین اپ — و دورهٔ خودت را به‌عنوان کتاب به دانشجوها بده.
+   579→          </p>
+   580→        </div>
+   581→        <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">صفحهٔ اساتید ←</button>
+   582→      </header>
+   583→
+   584→      {/* تب‌ها */}
+   585→      <div className="flex gap-2">
+   586→        {([["posts", "مطالب من"], ["courses", "دوره‌های من"]] as const).map(([k, t]) => (
+   587→          <button
+   588→            key={k}
+   589→            onClick={() => setTab(k)}
+   590→            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+   591→              tab === k ? "bg-primary text-primary-foreground shadow-card" : "border border-border bg-card text-muted-foreground hover:text-foreground"
+   592→            }`}
+   593→          >
+   594→            {k === "posts" ? <Newspaper className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+   595→            {t}
+   596→          </button>
+   597→        ))}
+   598→        <span className="flex-1" />
+   599→        <button
+   600→          onClick={() => setPostDraft({ ...EMPTY_POST })}
+   601→          className="inline-flex items-center gap-2 rounded-xl bg-bronze px-4 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
+   602→        >
+   603→          <Plus className="h-4 w-4" /> مطلب جدید
+   604→        </button>
+   605→        <button
+   606→          onClick={() => setCourseDraft({ ...EMPTY_COURSE, chapters: [] })}
+   607→          className="inline-flex items-center gap-2 rounded-xl border border-bronze/50 bg-bronze/10 px-4 py-2.5 text-sm font-bold text-bronze transition-colors hover:bg-bronze/20"
+   608→        >
+   609→          <Plus className="h-4 w-4" /> دورهٔ جدید
+   610→        </button>
+   611→      </div>
+   612→
+   613→      {/* مطالب من */}
+   614→      {tab === "posts" && (
+   615→        <section className="space-y-2.5">
+   616→          {posts.length === 0 && (
+   617→            <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
+   618→              هنوز مطلبی منتشر نکرده‌ای — با «مطلب جدید» شروع کن.
+   619→            </p>
+   620→          )}
+   621→          {posts.map((p) => (
+   622→            <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50">
+   623→              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Newspaper className="h-5 w-5" /></span>
+   624→              <div className="min-w-0 flex-1">
+   625→                <p className="truncate text-sm font-bold">{p.title}</p>
+   626→                <p className="text-[10.5px] text-muted-foreground">
+   627→                  {new Date(p.createdAt).toLocaleDateString("fa-IR", { month: "long", day: "numeric" })}
+   628→                  {" · "}
+   629→                  {fa(p.commentsCount)} نظر
+   630→                </p>
+   631→              </div>
+   632→              <button onClick={() => navigate({ view: "post", id: p.id })} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:border-bronze hover:text-bronze">مشاهده</button>
+   633→              <button onClick={() => editPost(p.id)} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
+   634→              <button onClick={() => deletePost(p.id)} disabled={busyId === p.id} aria-label="حذف مطلب" className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40">
+   635→                {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+   636→              </button>
+   637→            </div>
+   638→          ))}
+   639→        </section>
+   640→      )}
+   641→
+   642→      {/* دوره‌های من */}
+   643→      {tab === "courses" && (
+   644→        <section className="space-y-2.5">
+   645→          {myCourses.length === 0 && (
+   646→            <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
+   647→              هنوز دوره‌ای نساخته‌ای — «دورهٔ جدید» را بزن و جلساتت را با المان‌های تدریس آماده کن.
+   648→            </p>
+   649→          )}
+   650→          {myCourses.map((c) => (
+   651→            <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50">
+   652→              <BookOpen className="h-8 w-8 shrink-0 text-bronze" />
+   653→              <div className="min-w-0 flex-1">
+   654→                <p className="truncate text-sm font-bold">{c.title}</p>
+   655→                <p className="text-[10.5px] text-muted-foreground">{fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو کتابخانه کرده</p>
+   656→              </div>
+   657→              <button onClick={() => editCourse(c.id)} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
+   658→              <button onClick={() => deleteCourse(c.id)} disabled={busyId === c.id} aria-label="حذف دوره" className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40">
+   659→                {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+   660→              </button>
+   661→            </div>
+   662→          ))}
+   663→        </section>
+   664→      )}
+   665→
+   666→      <PostEditor draft={postDraft} onClose={() => setPostDraft(null)} onSaved={() => void loadPosts()} />
+   667→      <CourseEditor draft={courseDraft} onClose={() => setCourseDraft(null)} onSaved={() => void reloadCourses()} />
+   668→    </div>
+   669→  );
+   670→}
+   671→

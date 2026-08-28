@@ -1,10 +1,317 @@
 "use client";
 
+// ─── تنظیمات — عمومی (پروفایل، آواتار، رمز) + هوش مصنوعی ──────────────────────
 import * as React from "react";
-import { KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
+import {
+  KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2,
+  UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
 import { askAi } from "@/lib/aiClient";
+import { useAuth } from "@/lib/auth-client";
+import { fa } from "@/lib/fa";
+import { UserAvatar } from "./common";
+
+type Tab = "general" | "ai";
+
+export function SettingsView() {
+  const [tab, setTab] = React.useState<Tab>("general");
+
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-6 px-4 pb-24 pt-6 sm:px-6">
+      <header>
+        <h1 className="flex items-center gap-2 text-2xl font-bold"><KeyRound className="h-6 w-6 text-bronze" /> تنظیمات</h1>
+        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودت را مدیریت کن؛ تنظیمات استاد هوشمند هم همین‌جاست.</p>
+      </header>
+
+      {/* زبانه‌ها */}
+      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1">
+        {([["general", "تنظیمات عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot]] as const).map(([k, t, Ico]) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all ${
+              tab === k ? "bg-card text-bronze shadow-card" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Ico className="h-4 w-4" /> {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "general" ? <GeneralSettings /> : <AiSettings />}
+    </div>
+  );
+}
+
+/* ═══ زبانهٔ عمومی ══════════════════════════════════════════════════════════ */
+
+function GeneralSettings() {
+  const auth = useAuth();
+  const u = auth.user;
+
+  const [name, setName] = React.useState("");
+  const [bio, setBio] = React.useState("");
+  const [savedMsg, setSavedMsg] = React.useState("");
+  const [pErr, setPErr] = React.useState("");
+  const [savingProfile, setSavingProfile] = React.useState(false);
+
+  // آواتار
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = React.useState(false);
+  const [aErr, setAErr] = React.useState("");
+
+  // رمز
+  const [curPw, setCurPw] = React.useState("");
+  const [newPw, setNewPw] = React.useState("");
+  const [confPw, setConfPw] = React.useState("");
+  const [pwErr, setPwErr] = React.useState("");
+  const [pwOk, setPwOk] = React.useState("");
+  const [pwBusy, setPwBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    if (u) {
+      setName(u.displayName ?? "");
+      setBio(u.bio ?? "");
+    }
+  }, [u?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!u) {
+    return (
+      <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+        برای داشتن پروفایل، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو یا حساب بساز.
+      </p>
+    );
+  }
+
+  const canAvatar = u.role === "teacher" || u.role === "admin";
+  const canBio = canAvatar;
+  const faJoin = new Date(u.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
+
+  function flash(msg: string) {
+    setSavedMsg(msg);
+    setPErr("");
+    setTimeout(() => setSavedMsg(""), 5000);
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true); setPErr(""); setSavedMsg("");
+    try {
+      const patch: { displayName?: string; bio?: string } = { displayName: name.trim() };
+      if (canBio) patch.bio = bio.trim();
+      const res = await auth.updateProfile(patch);
+      if (!res.ok) throw new Error(res.error ?? "ذخیره نشد.");
+      flash("پروفایل ذخیره شد.");
+    } catch (e) {
+      setPErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function uploadAvatar(file: File) {
+    setAErr(""); setAvatarBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: fd });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? "آپلود ناموفق بود.");
+      await auth.refreshMe();
+    } catch (e) {
+      setAErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setAErr(""); setAvatarBusy(true);
+    try {
+      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      if (!res.ok) throw new Error("حذف ناموفق بود.");
+      await auth.refreshMe();
+    } catch (e) {
+      setAErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function changePassword(e?: React.FormEvent) {
+    e?.preventDefault();
+    setPwErr(""); setPwOk("");
+    if (newPw !== confPw) {
+      setPwErr("تکرار رمز با رمز تازه یکسان نیست.");
+      return;
+    }
+    if (newPw.length < 8) {
+      setPwErr("رمز تازه باید دست‌کم ۸ نویسه باشد.");
+      return;
+    }
+    setPwBusy(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current: curPw, next: newPw }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? "تغییر رمز ناموفق بود.");
+      setPwOk("رمز عبور عوض شد.");
+      setCurPw(""); setNewPw(""); setConfPw("");
+    } catch (err) {
+      setPwErr(err instanceof Error ? err.message : "خطایی رخ داد.");
+    } finally {
+      setPwBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* کارت پروفایل */}
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <h2 className="mb-4 flex items-center gap-2 font-bold"><UserCog className="h-5 w-5 text-bronze" /> پروفایل شخصی</h2>
+
+        {/* آواتار */}
+        <div className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-border/70 bg-background/60 p-4">
+          <span className="relative inline-block p-3">
+            <UserAvatar src={u.avatarUrl} name={u.displayName || u.username} size="lg" />
+            {avatarBusy && (
+              <span className="absolute inset-0 grid place-items-center"><Loader2 className="h-6 w-6 animate-spin text-bronze" /></span>
+            )}
+          </span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-sm font-bold">آواتار</p>
+            {canAvatar ? (
+              <>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={avatarBusy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-bold transition-colors hover:border-bronze hover:text-bronze disabled:opacity-45"
+                  >
+                    <Camera className="h-3.5 w-3.5" /> انتخاب تصویر…
+                  </button>
+                  {u.avatarUrl && (
+                    <button
+                      onClick={removeAvatar}
+                      disabled={avatarBusy}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-45"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> برداشتن
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10.5px] leading-relaxed text-muted-foreground">PNG یا JPG تا ۲ مگابایت — مربع بهترین حالت است.</p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  aria-hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void uploadAvatar(f);
+                    e.target.value = "";
+                  }}
+                />
+              </>
+            ) : (
+              <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
+                آپلود آواتار ویژهٔ اساتید است؛ آواتار تو خودکار با حرف اول حساب ساخته می‌شود.
+              </p>
+            )}
+            {aErr && <p className="text-xs text-destructive">{aErr}</p>}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <Field label="نام نمایشی" value={name} onChange={setName} placeholder={u.username} hint={`اگر خالی بگذاری، «${u.username}» نمایش داده می‌شود.`} />
+          {canBio && (
+            <div>
+              <label className="mb-1 block text-sm font-semibold">معرفی کوتاه</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                maxLength={320}
+                placeholder="مثلاً: مدرس حقوق مدنی و تجارت — دانشجویان را در سفر فتح آزمون وکالت همراهی می‌کنم."
+                className="w-full resize-y rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-bronze"
+              />
+              <p className="mt-1 text-[10.5px] text-muted-foreground">این متن روی پروفایل استاد و پیشنهادهای خانه نشان داده می‌شود.</p>
+            </div>
+          )}
+
+          {/* شناسنامهٔ حساب */}
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-xl border border-dashed border-border px-4 py-3 text-xs sm:grid-cols-[110px_1fr]">
+            <dt className="font-semibold text-muted-foreground">نام کاربری</dt>
+            <dd dir="ltr" className="text-start font-bold">{u.username}</dd>
+            <dt className="font-semibold text-muted-foreground">نقش</dt>
+            <dd className="inline-flex items-center gap-1.5 font-bold">
+              {u.role === "admin" ? (
+                <><ShieldCheck className="h-3.5 w-3.5 text-bronze" /> مدیر سامانه</>
+              ) : u.role === "teacher" ? (
+                <><GraduationCap className="h-3.5 w-3.5 text-bronze" /> استاد همیار</>
+              ) : (
+                <>دانشجو</>
+              )}
+            </dd>
+            <dt className="font-semibold text-muted-foreground">عضویت از</dt>
+            <dd>{faJoin}</dd>
+          </dl>
+
+          {(savedMsg || pErr) && (
+            <p className={`rounded-xl px-3 py-2 text-sm ${savedMsg ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+              {savedMsg && <CheckCircle2 className="me-1 inline h-4 w-4 align-text-bottom" />}{savedMsg || pErr}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <button
+              onClick={saveProfile}
+              disabled={savingProfile}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-45"
+            >
+              {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} ذخیرهٔ پروفایل
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* تغییر رمز */}
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <h2 className="mb-4 flex items-center gap-2 font-bold"><KeyRound className="h-5 w-5 text-bronze" /> تغییر رمز عبور</h2>
+        <form onSubmit={changePassword} className="space-y-3">
+          <Field label="رمز فعلی" value={curPw} onChange={setCurPw} type="password" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="رمز تازه" value={newPw} onChange={setNewPw} type="password" hint="دست‌کم ۸ نویسه" />
+            <Field label="تکرار رمز تازه" value={confPw} onChange={setConfPw} type="password" />
+          </div>
+          {(pwOk || pwErr) && (
+            <p className={`rounded-xl px-3 py-2 text-sm ${pwOk ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+              {pwOk && <CheckCircle2 className="me-1 inline h-4 w-4 align-text-bottom" />}{pwOk || pwErr}
+            </p>
+          )}
+          <div className="flex justify-end">
+            <button type="submit" disabled={pwBusy || !curPw || !newPw} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-45">
+              {pwBusy && <Loader2 className="h-4 w-4 animate-spin" />} تغییر رمز
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <p className="flex items-start gap-2 rounded-2xl bg-accent p-4 text-xs leading-relaxed text-muted-foreground">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+        همهٔ داده‌های شما فقط با همین حساب گره خورده‌اند؛ پس از تغییر رمز، پیشرفت و کتابخانه بدون هیچ تغییری می‌ماند.
+      </p>
+    </div>
+  );
+}
+
+/* ═══ زبانهٔ هوش مصنوعی (همان تنظیمات قبلی) ═════════════════════════════════ */
 
 const PROVIDERS: { key: AiProvider; title: string; desc: string; hint: string }[] = [
   { key: "builtin", title: "استاد داخلی (پیشفرض)", desc: "بدون نیاز به هیچ کلیدی؛ آمادهٔ استفاده", hint: "" },
@@ -12,7 +319,7 @@ const PROVIDERS: { key: AiProvider; title: string; desc: string; hint: string }[
   { key: "openai", title: "سازگار با OpenAI", desc: "هر سرویس با آدرس /v1/chat/completions (OpenAI، GPT، DeepSeek، القلب و…)", hint: "آدرس پایه مثل https://api.openai.com/v1" },
 ];
 
-export function SettingsView() {
+function AiSettings() {
   const ai = useApp((s) => s.ai);
   const update = useApp((s) => s.updateAi);
   const [testing, setTesting] = React.useState(false);
@@ -31,13 +338,11 @@ export function SettingsView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6 px-4 pb-24 pt-6 sm:px-6">
-      <header>
-        <h1 className="flex items-center gap-2 text-2xl font-bold"><KeyRound className="h-6 w-6 text-bronze" /> تنظیمات هوش مصنوعی</h1>
-        <p className="mt-1 text-sm text-muted-foreground">موتور «استاد حقوقی هوشمند» را انتخاب کن. کلید API فقط در مرورگر خودت ذخیره میشود و به هیچ سروری ارسال نمیشود جز مستقیم برای همان ارائهدهنده.</p>
-      </header>
+    <div className="space-y-6">
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        موتور «استاد حقوقی هوشمند» را انتخاب کن. کلید API فقط در مرورگر خودت ذخیره میشود و به هیچ سروری ارسال نمیشود جز مستقیم برای همان ارائهدهنده.
+      </p>
 
-      {/* انتخاب پروایدر */}
       <section className="space-y-3">
         {PROVIDERS.map((p) => (
           <button
@@ -58,12 +363,11 @@ export function SettingsView() {
         ))}
       </section>
 
-      {/* فیلدهای اختصاصی */}
       {ai.provider !== "builtin" && (
         <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <Field label={ai.provider === "gemini" ? "مدل Gemini" : "نام مدل"} value={ai.model} onChange={(m) => update({ model: m })} placeholder={ai.provider === "gemini" ? "gemini-2.0-flash" : "gpt-4o-mini"} />
           {ai.provider === "openai" && (
-            <Field label="آدرس پایه (Base URL)" value={ai.baseUrl} onChange={(b) => update({ baseUrl: b })} placeholder="https://api.openai.com/v1" dirAuto />
+            <Field label="آدرس پایه (Base URL)" value={ai.baseUrl} onChange={(b) => update({ baseUrl: b })} placeholder="https://api.openai.com/v1" />
           )}
           <div>
             <label className="mb-1 block text-sm font-semibold">کلید API <span className="text-danger">*</span></label>
@@ -79,7 +383,6 @@ export function SettingsView() {
         </section>
       )}
 
-      {/* شدت خلاقیت */}
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <label className="mb-2 block text-sm font-semibold" htmlFor="temp">سطح پیروی از متن (دمای مدل): {ai.temperature}</label>
         <input id="temp" type="range" min={0} max={1} step={0.05} value={ai.temperature}
@@ -87,7 +390,6 @@ export function SettingsView() {
         <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>دقیق و قانون‌محور</span><span>خلاق و آزاد</span></div>
       </section>
 
-      {/* تست اتصال */}
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <p className="mb-3 text-sm font-semibold">بررسی سلامت استاد</p>
         <button onClick={testConnection} disabled={testing} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
@@ -109,17 +411,28 @@ export function SettingsView() {
   );
 }
 
-function Field({ label, value, onChange, placeholder, dirAuto }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; dirAuto?: boolean }) {
+/* ─── ابزار فرم مشترک ── */
+function Field({
+  label, value, onChange, placeholder, hint, type = "text", dirAuto,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; hint?: string; type?: string; dirAuto?: boolean;
+}) {
   return (
     <div>
       <label className="mb-1 block text-sm font-semibold">{label}</label>
       <input
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         dir={dirAuto ? undefined : "auto"}
-        className="h-11 w-full rounded-xl border border-input bg-background px-3 text-left outline-none transition-colors focus:border-bronze"
+        className="h-11 w-full rounded-xl border border-input bg-background px-3 outline-none transition-colors focus:border-bronze"
       />
+      {hint && <p className="mt-1 text-[10.5px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
+
+// جلوگیری از هشدار unused برای Upload در پیکربندی‌های مختلف eslint
+void Upload;

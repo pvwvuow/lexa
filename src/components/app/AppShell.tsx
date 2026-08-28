@@ -3,10 +3,13 @@
 import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
-  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle,
+  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
+  LibraryBig, Landmark, Menu, ScrollText,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
+import { mergeVisible } from "@/lib/books";
+import { useAuth } from "@/lib/auth-client";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
 import { fa, pct } from "@/lib/fa";
@@ -21,6 +24,18 @@ import { ProgressView } from "./ProgressView";
 import { SettingsView } from "./SettingsView";
 import { ImportView } from "./ImportView";
 import { CourseIcon } from "./common";
+import { GlobalSearch } from "./GlobalSearch";
+import { AccountArea, SyncHint } from "./AccountArea";
+import { AdminView } from "./AdminView";
+import { TeachersView } from "./TeachersView";
+import { StudioView } from "./StudioView";
+import { PostView } from "./PostView";
+import { PublicLibraryView } from "./PublicLibraryView";
+import { TeacherProfileView } from "./TeacherProfileView";
+import { LawLibraryView } from "./LawLibraryView";
+import { BackButton } from "./common";
+import { FeedBell } from "./FeedBell";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type NavMode = "expanded" | "rail";
 
@@ -88,16 +103,26 @@ function lessonPctOf(course: Course, progress: Record<string, { status?: string 
 
 export function AppShell() {
   const route = useRoute();
+  const auth = useAuth();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
   const customCourses = useApp((s) => s.customCourses);
-  const courses = [...builtinCourses, ...customCourses];
+  const tBooks = useApp((s) => s.tBooks);
+  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
+  // دوره‌هایی که کاربر از «کتابخانهٔ من» برداشته، از همهٔ سطح‌های نمایشی کنار می‌روند
+  const courses = React.useMemo(
+    () => mergeVisible({ customCourses, tBooks, hiddenBuiltins }),
+    [customCourses, tBooks, hiddenBuiltins],
+  );
   const [mounted, setMounted] = React.useState(false);
 
   // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است
   const [mode, setMode] = React.useState<NavMode>("expanded");
   // درخواست کاربر: کلیک روی «مطالعه» فهرست کشویی درس‌ها را باز می‌کند
   const [studyOpen, setStudyOpen] = React.useState(false);
+  // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [drawerStudy, setDrawerStudy] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
@@ -106,7 +131,7 @@ export function AppShell() {
     } catch {}
   }, []);
 
-  const isSubPage = ["learn", "quiz", "case"].includes(route.view);
+  const isSubPage = ["learn", "quiz", "case", "admin", "studio"].includes(route.view) || route.view === "cards";
 
   // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
   React.useEffect(() => {
@@ -159,7 +184,19 @@ export function AppShell() {
   const rail = mode === "rail";
 
   function go(r: Route) {
+    setDrawerOpen(false);
+    setDrawerStudy(false);
     navigate(r);
+  }
+
+  /** دکمهٔ «تدریس» داک موبایل: اگر جلسه‌ای جاری بود برو همان؛ والا فهرست درس‌های فعال باز شود */
+  function dockTadriss() {
+    if (last.lessonId) {
+      go({ view: "learn", id: last.lessonId });
+    } else {
+      setDrawerStudy(true);
+      setDrawerOpen(true);
+    }
   }
 
   // ─── سایدبار ستونی سمت راست (دسکتاپ) ───
@@ -223,11 +260,33 @@ export function AppShell() {
 
         <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
-        <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
+        {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
+        <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+        {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
+        <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
+        {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
+        <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+        {/* افزودن کتاب فقط برای مدیر */}
+        {auth.user?.role === "admin" && (
+          <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
+        )}
+        {auth.user?.role === "teacher" && (
+          <SideItem icon={PenSquare} label="اتاق استاد" rail={rail} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+        )}
+        {auth.user?.role === "admin" && (
+          <SideItem
+            icon={ShieldCheck}
+            label="پنل مدیریت"
+            rail={rail}
+            active={current === "admin"}
+            onClick={() => go({ view: "admin" })}
+          />
+        )}
       </nav>
 
       {/* یک دکمه واحد: جمع کردن / باز کردن */}
       <div className="border-t border-border/70 p-3">
+        <SyncHint collapsed={rail} />
         {rail ? (
           <button
             onClick={expandNav}
@@ -256,38 +315,72 @@ export function AppShell() {
       {Sidebar}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* هدر — لوگو راست، ابزارها چپ */}
-        <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
-          <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-[-1px] h-px bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
-          <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6">
-            <button onClick={() => go({ view: "home" })} className="group flex items-center gap-2.5">
-              <span className="relative grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-card transition-transform duration-200 group-hover:scale-[1.04]">
-                <Scale className="h-5 w-5" />
-                <span aria-hidden className="absolute -bottom-1 -end-1 grid h-3.5 w-3.5 place-items-center rounded-full border-2 border-background bg-bronze" />
-              </span>
-              <span className="leading-tight">
-                <span className="block text-base font-bold tracking-tight">همیار حقوق</span>
-                <span className="block text-[10px] font-medium text-bronze">استاد حقوقی هوشمند</span>
-              </span>
-            </button>
+        {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
+        <header className="sticky top-0 z-40 bg-background/0 px-2.5 pt-3 sm:px-5">
+          <div className="mx-auto max-w-7xl">
+            <div className="relative flex h-14 items-center gap-2 overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-l from-[#0d211a] via-[#143026] to-[#0d211a] px-2 shadow-card sm:gap-3 sm:px-3.5">
+              <div aria-hidden className="pattern-quilt pointer-events-none absolute inset-0 opacity-40" />
+              <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-l from-transparent via-bronze/70 to-transparent" />
+              <div aria-hidden className="pointer-events-none absolute -top-16 start-1/3 h-32 w-64 rounded-full bg-bronze/15 blur-3xl" />
 
-            <div className="flex items-center gap-1.5 ms-auto">
-              <ThemeToggle />
-              <button
-                onClick={() => go({ view: "settings" })}
-                aria-label="تنظیمات هوش مصنوعی"
-                title="تنظیمات هوش مصنوعی"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:text-bronze"
-              >
-                <Settings className="h-[18px] w-[18px]" />
+              {/* برند — ترازوی طلایی + نام + زیرعنوان */}
+              <button onClick={() => go({ view: "home" })} className="group relative flex shrink-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#d9b877] via-bronze to-[#8a6a30] text-[#132018] shadow-card transition-transform duration-200 group-hover:scale-105">
+                  <Scale className="h-4.5 w-4.5" />
+                </span>
+                <span className="hidden leading-tight sm:block">
+                  <span className="block text-[15px] font-extrabold tracking-tight text-white">همیار حقوق</span>
+                  <span className="block text-[9.5px] font-semibold text-bronze">استاد حقوقی هوشمند</span>
+                </span>
               </button>
+
+              {/* جستجوی میانی — قرص جستجو با میانبر Ctrl / */}
+              <div className="relative hidden min-w-0 flex-1 justify-center md:flex">
+                <GlobalSearch courses={courses} variant="bar" />
+              </div>
+
+              {/* ابزارها — حساب، تم، تنظیمات، منوی موبایل */}
+              <div className="relative ms-auto flex items-center gap-1.5">
+                <div className="md:hidden">
+                  <GlobalSearch courses={courses} variant="icon" />
+                </div>
+                <FeedBell />
+                <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
+                  <AccountArea />
+                </span>
+                <span className="hidden [&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white sm:inline">
+                  <ThemeToggle />
+                </span>
+                <button
+                  onClick={() => go({ view: "settings" })}
+                  aria-label="تنظیمات و پروفایل"
+                  title="تنظیمات و پروفایل"
+                  className="hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/85 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze sm:inline-flex"
+                >
+                  <Settings className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="باز کردن منو"
+                  title="منو"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/90 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze lg:hidden"
+                >
+                  <Menu className="h-[18px] w-[18px]" />
+                </button>
+              </div>
             </div>
           </div>
         </header>
 
         {/* محتوا */}
         <main className="flex-1">
-          {route.view === "home" && <DashboardView />}
+          {/* نوار بازگشت — در همهٔ زیرصفحه‌ها یکدست */}
+        {current !== "home" && (
+          <div className="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-6">
+            <BackButton />
+          </div>
+        )}
+        {route.view === "home" && <DashboardView />}
           {route.view === "course" && <CourseView id={route.id} />}
           {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
           {route.view === "quiz" && <QuizView key={route.id ?? "mixed"} id={route.id} />}
@@ -296,6 +389,13 @@ export function AppShell() {
           {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && <ImportView />}
+          {route.view === "teachers" && <TeachersView />}
+          {route.view === "studio" && <StudioView />}
+          {route.view === "post" && <PostView id={route.id} />}
+          {route.view === "library" && <PublicLibraryView />}
+          {route.view === "law" && <LawLibraryView id={route.id} />}
+          {route.view === "teacher" && <TeacherProfileView id={route.id} />}
+          {route.view === "admin" && <AdminView />}
         </main>
 
         {/* فوتر دسکتاپ */}
@@ -303,15 +403,82 @@ export function AppShell() {
           همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
-        {/* داک شناور موبایل */}
+        {/* داک شناور موبایل — با دکمهٔ «منو» برای دسترسی کامل به همهٔ بخش‌ها */}
         <nav aria-label="ناوبری پایین" className="fixed inset-x-3 bottom-2 z-40 rounded-2xl border border-border/80 bg-card/95 shadow-card backdrop-blur-md lg:hidden pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto grid max-w-md grid-cols-4 p-1">
+          <div className="mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
-            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={() => go(last.lessonId ? { view: "learn", id: last.lessonId } : { view: "course", id: "madani-1" })} />
+            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />
             <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
-            <DockBtn icon={TrendingUp} label="پیشرفت" active={current === "progress"} onClick={() => go({ view: "progress" })} />
+            <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
+            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
           </div>
         </nav>
+
+        {/* ═══ منوی کشویی موبایل — کامل معادل سایدبار دسکتاپ ═══ */}
+        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <SheetContent side="right" className="flex w-[290px] flex-col gap-0 overflow-y-auto p-4 sm:w-[320px]">
+            <SheetHeader className="p-0 pb-3 text-start">
+              <SheetTitle className="flex items-center gap-2.5 text-base">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
+                منوی همیار حقوق
+              </SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-1 flex-col gap-1">
+              <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
+              <SideItem
+                icon={BookOpen}
+                label="مطالعه"
+                rail={false}
+                active={["course", "learn", "case", "cards"].includes(current)}
+                onClick={() => setDrawerStudy((v) => !v)}
+                chevron
+                open={drawerStudy}
+              />
+              {drawerStudy && (
+                <div className="mb-1 space-y-1 border-s border-dashed border-border ps-2.5 pe-1 py-1">
+                  <p className="px-2 pb-0.5 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
+                  {courses.length === 0 ? (
+                    <p className="px-2 text-[11px] leading-relaxed text-muted-foreground/70">هنوز درسی فعال نیست؛ از کتابخانهٔ عمومی یکی را انتخاب کن.</p>
+                  ) : (
+                    courses.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => go({ view: "course", id: c.id })}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <CourseIcon icon={c.icon} className="h-3.5 w-3.5 shrink-0 text-bronze" />
+                        <span className="min-w-0 flex-1 truncate text-start">{c.title}</span>
+                        <span dir="ltr" className="shrink-0 text-[10px] tabular-nums opacity-70">{fa(lessonPctOf(c, progress))}%</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+              <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
+              <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+              <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
+              <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+              {auth.user?.role === "teacher" && (
+                <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+              )}
+              {auth.user?.role === "admin" && (
+                <>
+                  <SideItem icon={Upload} label="افزودن کتاب" rail={false} active={current === "import"} onClick={() => go({ view: "import" })} />
+                  <SideItem icon={ShieldCheck} label="پنل مدیریت" rail={false} active={current === "admin"} onClick={() => go({ view: "admin" })} />
+                </>
+              )}
+              <SideItem icon={Settings} label="تنظیمات و پروفایل" rail={false} active={current === "settings"} onClick={() => go({ view: "settings" })} />
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-border/70 pt-3">
+              <span className="text-[11px] text-muted-foreground">همیار حقوق</span>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <SyncHint collapsed />
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

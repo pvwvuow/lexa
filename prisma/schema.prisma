@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,20 +7,266 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── حساب کاربری ─────────────────────────────────────────────────────────────
+// سیاست حریم داده: پس از ثبت‌نام، هیچ دادهٔ کاربری هرگز حذف نمی‌شود.
+// تمام نوشتن‌ها «ادغامی» هستند (حداکثرها حفظ می‌شوند) و هیچ مسیر حذفی وجود ندارد.
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  role         String    @default("user") // "user" | "admin" | "teacher"
+  displayName  String? // نام نمایشی استاد (برای وبلاگ و پیشنهادها)
+  bio          String?   // معرفی کوتاه استاد
+  avatarUrl    String?   // آدرس نسبی آواتار آپلودشده (فقط استاد/مدیر) مثل /api/media/…
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastSeenAt   DateTime?
+
+  sessions     Session[]
+  lessonStates LessonState[]
+  quizAttempts QuizAttempt[]
+  activityDays ActivityDay[]
+  notes        Note[]
+  blob         UserBlob?
+  feedbacks    LessonFeedback[]
+  posts        Post[]
+  comments     Comment[]
+  ratings      Rating[]
+  following    Follow[]  @relation("FollowStudent")
+  followers    Follow[]  @relation("FollowTeacher")
+  teacherCourses TeacherCourse[]
+  library      LibraryEntry[]
+  builtinHidden BuiltinHidden[]
 }
 
-model Post {
+// ─── بازخورد و انتقاد از تدریس هر جلسه ────────────────────────────────────────
+// گفت‌وگوی کاربر با استاد دربارهٔ کیفیت تدریس جلسه؛ تحلیل AI نسبت به جزوه،
+// درصد تطابق گفتهٔ کاربر با جزوه و پیشنهاد اصلاح — مدیر تایید/رد می‌کند.
+// فقط افزودنی: هیچ مسیر حذفی وجود ندارد؛ وضعیت تنها تغییر می‌کند.
+model LessonFeedback {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId     String // شناسهٔ دوره (m4 / t3 / md7 / …)
+  chapterTitle String
+  lessonId     String
+  lessonTitle  String
+  conversation Json // آرایهٔ کامل پیام‌ها [{role, content, ts}]
+  matchPercent Int       @default(0) // درصد تطابق حرف کاربر با جزوه (۰–۱۰۰)
+  needsChange  Boolean   @default(false)
+  severity     String    @default("minor") // minor | moderate | major
+  analysis     String // تحلیل هوش مصنوعی دربارهٔ انتقادها
+  suggestion   String // پیشنهاد مشخص برای مدیر
+  status       String    @default("pending") // pending | approved | rejected
+  adminNote    String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([lessonId])
+}
+
+// نشست‌های فعال (توکن هش‌شده) — تنها این جدول قابلیت پاکسازی منقضی‌ها دارد
+model Session {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+// وضعیت پیشرفت هر جلسه برای هر کاربر — ادغام حداکثری
+model LessonState {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId     String
+  status       String // in-progress | completed
+  sectionsSeen Int      @default(1)
+  quizBest     Int? // بهترین نمره از ۱۰۰
+  markedReview Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+}
+
+// تاریخچهٔ کامل همهٔ آزمون‌ها — فقط افزودنی (append-only)
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  date      String // ISO روز مطالعه (مبنای تحلیل)
+  score     Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([lessonId])
+}
+
+// روزهای دارای مطالعه (هیتمپ و استریک)
+model ActivityDay {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day    String // YYYY-MM-DD
+
+  @@unique([userId, day])
+}
+
+// یادداشت‌های هر کاربر روی دروس — فقط افزودنی، سرور هیچ‌گاه حذف نمی‌کند
+model Note {
+  id        String   @id @default(cuid()) // شناسهٔ تولیدشده در کلاینت
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  text      String
+  quote     String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, id])
+  @@index([userId, lessonId])
+}
+
+// داده‌های سنگین/JSON مانند کتاب‌های واردشدهٔ اختصاصی کاربر و آخرین مکان مطالعه
+model UserBlob {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customCoursesJson  String   @default("[]")
+  lastLocationJson   String   @default("{}")
+  streakJson         String   @default("{}")
+  // سیاست جدید: حساب تازه با کتابخانهٔ خالی شروع می‌کند (همهٔ دوره‌های آماده در BuiltinHidden ثبت
+  // می‌شوند و کاربر خودش از «دوره‌های آماده» اضافه می‌کند). حساب‌های قدیمی seeded=false می‌مانند
+  // و همان رفتار قبلی (همه‌پیش‌فرض) دارند.
+  builtinSeeded      Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+}
+
+// ─── شبکهٔ اجتماعی اساتید و دانشجویان ─────────────────────────────────────────
+// مطالب وبلاگی استاد از همان المان‌های تدریس (LessonSection) ساخته می‌شود تا
+// «موقع نوشتن» هم بتواند از طراحی اپ استفاده کند. دانشجوها فالو می‌کنند،
+// کامنت می‌گذارند و دورهٔ استاد را به‌عنوان کتاب به بخش مطالعه می‌افزایند.
+
+model Post {
+  id        String    @id @default(cuid())
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title     String
+  summary   String    @default("") // خلاصهٔ کوتاه برای فید
+  tags      String    @default("")
+  category  String    @default("") // شاخهٔ اصلی (سازگاری با نسخه‌های قبل)
+  categories String   @default("[]") // شاخه‌های چندگانهٔ کتابخانهٔ عمومی — JSON آرایه‌ای از slug
+  thumbnail String    @default("") // تصویر شاخص دلخواه مطلب (آپلودی یا لینک)
+  quizJson  String    @default("[]") // آزمون پایان مبحث — JSON آرایهٔ QuizQuestion
+  blocks    Json // آرایهٔ LessonSection — همان المان‌های صفحهٔ تدریس
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  comments  Comment[]
+
+  @@index([authorId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String
+  replyToId String?
+  replyTo   Comment?  @relation("CommentThread", fields: [replyToId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentThread")
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model Follow {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation("FollowStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User     @relation("FollowTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, teacherId])
+  @@index([teacherId])
+}
+
+// دورهٔ خودساختهٔ استاد؛ ساختار chapters دقیقاً مثل Course داخلی است تا موتور
+// مطالعه بدون تغییر کار کند (شناسه جلسه‌ها tc-{courseId}-{n})
+model TeacherCourse {
+  id           String   @id @default(cuid())
+  teacherId    String
+  teacher      User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  title        String
+  tagline      String   @default("")
+  description  String   @default("")
+  icon         String   @default("")
+  accent       String   @default("bronze")
+  category     String   @default("other") // شاخهٔ اصلی (سازگاری با نسخه‌های قبل)
+  categories   String   @default("[]") // شاخه‌های چندگانه — استاد می‌تواند چند شاخه انتخاب کند
+  status       String   @default("published") // draft فقط استاد | prep در حال آماده‌سازی | published منتشر شده
+  thumbnail    String   @default("") // تصویر شاخص دلخواه دوره (آپلودی یا لینک)
+  chaptersJson String   @default("[]") // آزمون هر فصل/جلسه داخل همین JSON ذخیره می‌شود
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  libraryEntries LibraryEntry[]
+
+  @@index([teacherId])
+}
+
+// کتابخانهٔ هر دانشجو: دوره‌های اساتیدی که به عنوان کتاب افزوده است
+// حذف، ردیف را پاک می‌کند ولی پیشرفت/تست‌ها مستقل در LessonState می‌مانند؛
+// افزودن دوباره همه را برمی‌گرداند.
+model LibraryEntry {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    TeacherCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  addedAt   DateTime      @default(now())
+
+  @@unique([userId, courseId])
+}
+
+// دوره‌های داخلی اپ (مدنی ۱/۴/۷ و تجارت ۳) به‌صورت پیش‌فرض در «کتابخانهٔ من» همه هستند؛
+// اگر کاربر آن را از کتابخانه حذف کند اینجا ثبت می‌شود تا در هیچ دستگاهی دوباره
+// پیدا نیاید — ولی پیشرفت، تست‌ها و یادداشت‌های همان جلسات کاملاً سر جایش می‌ماند
+// و افزودن دوباره از «کتابخانهٔ عمومی ← دوره‌های آماده» همه را برمی‌گرداند.
+model BuiltinHidden {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String // مثل "madani-1"
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
+
+// امتیاز ستاره‌ای کاربر به مطلب یا دوره — قابل تغییر ولی بدون حذف تاریخچه;
+// میانگین امتیاز بالاتر، در فیدها و کتابخانهٔ عمومی جلوتر دیده می‌شود.
+model Rating {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType String // "post" | "tcourse"
+  targetId   String
+  stars      Int // ۱ تا ۵
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
 }
