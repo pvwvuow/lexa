@@ -135,7 +135,7 @@ export const useApp = create<AppState>()(
         if (scorePct < 60 && topic) rev.add(topic);
         else rev.delete(topic ?? '');
         rev.delete('');
-        localStorage.setItem('hoh_weak_topics', JSON.stringify([...rev]));
+        try { localStorage.setItem('hoh_weak_topics', JSON.stringify([...rev])); } catch { /* حالت ناشناس/پر بودن حافظه */ }
         set({
           progress: { ...get().progress, [lessonId]: { ...cur, quizBest: best, quizAttempts: attempts } },
         });
@@ -347,7 +347,7 @@ export function weakTopics(): string[] {
 export function clearWeakTopic(t: string) {
   const list = new Set(weakTopics());
   list.delete(t);
-  localStorage.setItem('hoh_weak_topics', JSON.stringify([...list]));
+  try { localStorage.setItem('hoh_weak_topics', JSON.stringify([...list])); } catch { /* حالت ناشناس/پر بودن حافظه */ }
 }
 
 /** تبدیل وضعیت فعلی استور به بستهٔ همگام‌سازی برای ارسال به سرور */

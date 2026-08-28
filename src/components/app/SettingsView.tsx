@@ -473,11 +473,14 @@ function OfflineSettings() {
     setDmeta(getDesignMeta());
     setDOutdated(designPackOutdated());
     await ensureOfflineCache();
-    setItems(await listOfflineMetas());
+    const metas = await listOfflineMetas();
+    setItems(metas);
     if (navigator.onLine) {
       const stamps: Record<string, string> = {};
+      // مهرهای زمانی مطالب — دقیقاً برای همان آیتم‌های ذخیره‌شده (نه فقط ۱۲ تای بالای فید)
+      const postIds = metas.filter((it) => it.kind === "post").map((it) => it.id).slice(0, 120);
       try {
-        const r = await fetch("/api/social/feed", { cache: "no-store" });
+        const r = await fetch(`/api/social/feed${postIds.length ? `?ids=${encodeURIComponent(postIds.join(","))}` : ""}`, { cache: "no-store" });
         if (r.ok) {
           const j = await r.json();
           for (const p of (j.posts ?? j.items ?? []) as { id?: string; updatedAt?: string }[]) {

@@ -4,7 +4,7 @@ import * as React from "react";
 import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, ListChecks, RefreshCw, CloudOff } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
-import { mergeVisible } from "@/lib/books";
+import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
@@ -22,9 +22,11 @@ export function CourseView({ id }: { id: string }) {
   const openLesson = useApp((s) => s.openLesson);
   const [openCh, setOpenCh] = React.useState<string | null>(null);
 
+  // بازشدن مستقیم با شناسه حتی برای دورهٔ آمادهٔ «حذف‌شده از کتابخانه» باید کار کند
+  // (تا پیشرفت کاربر هرگز دست‌نیافتنی نشود) — به همین دلیل mergeAll نه mergeVisible
   const local = React.useMemo(
-    () => mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins }).find((c) => c.id === id),
-    [custom, tBooks, hiddenBuiltins, id],
+    () => mergeAll({ customCourses: custom, tBooks }).find((c) => c.id === id),
+    [custom, tBooks, id],
   );
 
   // ── دورهٔ استاد که هنوز در کتابخانهٔ من نیست: واکشی فقط‌خواندنی از سرور ──
@@ -184,7 +186,7 @@ function CourseBody({
             {owner && (
               <button
                 onClick={() => navigate({ view: "teacher", id: (course as Course & { _teacherId?: string })._teacherId ?? "" })}
-                disabled={!course.id.startsWith("tc-")}
+                disabled={!(course as Course & { _teacherId?: string })._teacherId}
                 title="پروفایل استاد"
                 className="mt-1 inline-flex w-fit items-center gap-2 rounded-xl px-1 py-0.5 transition-colors hover:bg-muted/60"
               >

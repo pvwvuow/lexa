@@ -15,6 +15,19 @@ export async function GET(req: NextRequest) {
   const me = await getSessionUser();
   const scope = req.nextUrl.searchParams.get("scope") ?? "auto";
 
+  // حالت سبک «مهر زمانی»: فقط id + updatedAt شناسه‌های خواسته‌شده —
+  // برای تشخیص «به‌روز شده» نسخه‌های آفلاین در تنظیمات (بدون سقف ۱۲تایی فید)
+  const idsParam = req.nextUrl.searchParams.get("ids");
+  if (idsParam !== null) {
+    const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 120);
+    const rows = ids.length
+      ? await db.post.findMany({ where: { id: { in: ids } }, select: { id: true, updatedAt: true } })
+      : [];
+    return NextResponse.json({
+      posts: rows.map((p) => ({ id: p.id, updatedAt: p.updatedAt.toISOString() })),
+    });
+  }
+
   let authorIds: string[] | null = null;
   let followingCount = 0;
   if (me && scope !== "all") {

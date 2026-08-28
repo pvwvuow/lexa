@@ -16,8 +16,21 @@ export async function GET(req: NextRequest) {
   const catParam = req.nextUrl.searchParams.get("cat") ?? "";
   const cat = CATEGORY_SLUGS.includes(catParam) ? catParam : "";
 
+  // فیلتر شاخه در خود SQL — تا سقف take رکوردهای هم‌شاخه را بیرون نگذارد
+  // (ستون categories رشتهٔ JSON آرایه‌ای است؛ ستون category سازگاری قدیمی)
+  const catWhere = cat
+    ? {
+        OR: [
+          { categories: { contains: `"${cat}"` } },
+          ...(cat === "other"
+            ? [{ category: "" }, { category: "other" }, { category: { notIn: CATEGORY_SLUGS } }]
+            : [{ category: cat }]),
+        ],
+      }
+    : {};
+
   const rows = await db.teacherCourse.findMany({
-    where: { status: { not: "draft" } },
+    where: { status: { not: "draft" }, ...catWhere },
     orderBy: { updatedAt: "desc" },
     take: 120,
     include: {
@@ -63,7 +76,7 @@ export async function GET(req: NextRequest) {
 
   // مطالب همان شاخه — با سازگاری شاخهٔ چندگانه و ستون قدیمی
   const postRows = (await db.post.findMany({
-    where: {},
+    where: catWhere,
     orderBy: { createdAt: "desc" },
     take: 80,
     include: {
