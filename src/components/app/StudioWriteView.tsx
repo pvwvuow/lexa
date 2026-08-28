@@ -8,7 +8,7 @@
 import * as React from "react";
 import {
   Loader2, Save, ArrowRight, Newspaper, GraduationCap, BookOpen, Plus, Trash2,
-  ChevronDown, Sparkles, ListTree, Clock3, PenSquare, Eye,
+  ChevronDown, ChevronUp, History, Sparkles, ListTree, Clock3, PenSquare, Eye,
 } from "lucide-react";
 import type { LessonSection } from "@/lib/law/types";
 import { navigate } from "@/lib/router";
@@ -45,6 +45,103 @@ function TeacherOnly({ children }: { children: React.ReactNode }) {
     );
   }
   return <>{children}</>;
+}
+
+/* ── محافظ پیش‌نویس: ذخیرهٔ خودکار روی همین دستگاه ─────────────────────────
+ * هر تغییر با تأخیر کوتاه در localStorage ذخیره می‌شود؛ اگر مرورگر بسته شد یا
+ * مرورگر رفرش شد، دفعهٔ بعد بنر «بازیابی پیش‌نویس» محتوا را برمی‌گرداند.
+ * بعد از انتشار موفق، پیش‌نویس محلی پاک می‌شود. */
+interface DraftEnvelope { savedAt: string; data: unknown }
+function draftKeyOf(kind: "post" | "course", id?: string) {
+  return `studio-draft:${kind}:${id || "new"}`;
+}
+function readDraft(key: string): DraftEnvelope | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const j = JSON.parse(raw) as DraftEnvelope;
+    return j && typeof j.savedAt === "string" && j.data != null ? j : null;
+  } catch { return null; }
+}
+function writeDraft(key: string, data: unknown) {
+  try { localStorage.setItem(key, JSON.stringify({ savedAt: new Date().toISOString(), data })); } catch {}
+}
+function clearDraft(key: string) {
+  try { localStorage.removeItem(key); } catch {}
+}
+function faDraftTime(iso: string) {
+  return new Date(iso).toLocaleString("fa-IR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/** بنر بازیابی پیش‌نویس ذخیره‌نشده */
+function RestoreBanner({ savedAt, onRestore, onDiscard }: {
+  savedAt: string; onRestore: () => void; onDiscard: () => void;
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/50 bg-amber-400/10 px-4 py-3">
+      <History className="h-4.5 w-4.5 shrink-0 text-amber-600 dark:text-amber-400" />
+      <p className="min-w-0 flex-1 text-[12px] font-semibold leading-relaxed text-amber-700 dark:text-amber-300">
+        پیش‌نویس ذخیره‌نشده‌ای از {faDraftTime(savedAt)} روی همین دستگاه پیدا شد — بازیابی شود؟
+      </p>
+      <button type="button" onClick={onRestore} className="rounded-xl bg-amber-500 px-3.5 py-2 text-[11.5px] font-bold text-amber-950 shadow-card transition-colors hover:brightness-105">بازیابی</button>
+      <button type="button" onClick={onDiscard} className="rounded-xl border border-border bg-card px-3 py-2 text-[11.5px] font-bold text-muted-foreground transition-colors hover:text-foreground">رد کردن</button>
+    </div>
+  );
+}
+
+/** هوک مشترک: خواندن پیش‌نویس محلی پس از لود، ذخیرهٔ خودکار با تأخیر، هشدار بستن صفحه */
+function useDraftGuard(key: string, d: unknown, ready: boolean) {
+  const baselineRef = React.useRef("");
+  const [restore, setRestore] = React.useState<DraftEnvelope | null>(null);
+  const [checked, setChecked] = React.useState(false);
+  const [dirty, setDirty] = React.useState(false);
+
+  // رشتهٔ وضعیت فعلی برای مقایسه
+  const json = React.useMemo(() => (ready ? JSON.stringify(d) : ""), [d, ready]);
+
+  // پس از اولین لود: اگر پیش‌نویس محلیِ متفاوت هست، بنر بده
+  React.useEffect(() => {
+    if (!ready || checked) return;
+    setChecked(true);
+    baselineRef.current = json;
+    const local = readDraft(key);
+    if (local && JSON.stringify(local.data) !== json) setRestore(local);
+  }, [ready, checked, json, key]);
+
+  // ذخیرهٔ خودکار با تأخیر — فقط وقتی تغییری نسبت به مبدأ هست
+  React.useEffect(() => {
+    if (!checked || !json || json === baselineRef.current) return;
+    setDirty(true);
+    const t = setTimeout(() => {
+      writeDraft(key, JSON.parse(json));
+      baselineRef.current = json;
+      setDirty(false);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [json, checked, key]);
+
+  // هشدار بستن/رفرش وقتی ذخیره‌نشده است
+  React.useEffect(() => {
+    if (!dirty) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [dirty]);
+
+  return {
+    restore,
+    dropRestore: () => { clearDraft(key); setRestore(null); },
+    applyRestore: () => {
+      if (!restore) return;
+      const next = restore.data;
+      clearDraft(key);
+      setRestore(null);
+      return next;
+    },
+    markSaved: () => { clearDraft(key); baselineRef.current = ""; setDirty(false); setChecked(false); },
+    /** نشان کوچک «ذخیرهٔ خودکار» برای ستون کناری */
+    savedHint: dirty ? "در حال ذخیرهٔ محلی…" : "پیش‌نویس روی همین دستگاه ذخیره می‌شود",
+  };
 }
 
 /* ── نوار عملیات چسبان بالای صفحهٔ نوشتن ── */
@@ -96,11 +193,17 @@ function wordCountOf(blocks: LessonSection[]): number {
 }
 
 /* ═══ صفحهٔ نوشتن مطلب ══════════════════════════════════════════════════════ */
+function validatePost(d: PostDraft): string {
+  if (!d.blocks.length) return "قبل از انتشار، دست‌کم یک بلوک محتوا اضافه کن — از جعبه‌ابزار «محتوا» یا «قالب آمادهٔ درس».";
+  return "";
+}
+
 function WritePostPage({ id }: { id?: string }) {
   const isNew = !id || id === "new";
   const [d, setD] = React.useState<PostDraft | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
+  const draft = useDraftGuard(draftKeyOf("post", id), d, !!d);
 
   React.useEffect(() => {
     let alive = true;
@@ -128,6 +231,12 @@ function WritePostPage({ id }: { id?: string }) {
 
   async function save() {
     if (!d) return;
+    const vErr = validatePost(d);
+    if (vErr) {
+      setErr(vErr);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setBusy(true); setErr("");
     try {
       const res = await fetch(d.id ? `/api/posts/${d.id}` : "/api/posts", {
@@ -137,6 +246,7 @@ function WritePostPage({ id }: { id?: string }) {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "ذخیره ناموفق بود.");
+      draft.markSaved();
       navigate({ view: "studio" });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
@@ -159,6 +269,17 @@ function WritePostPage({ id }: { id?: string }) {
         onSave={() => void save()}
         saveLabel={isNew ? "انتشار مطلب" : "ذخیرهٔ تغییرات"}
       />
+
+      {draft.restore && (
+        <RestoreBanner
+          savedAt={draft.restore.savedAt}
+          onRestore={() => {
+            const next = draft.applyRestore() as PostDraft | undefined;
+            if (next && typeof next === "object" && "blocks" in next) setD({ ...EMPTY_POST, ...next });
+          }}
+          onDiscard={draft.dropRestore}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
         {/* ── ستون نوشتن ── */}
@@ -219,6 +340,7 @@ function WritePostPage({ id }: { id?: string }) {
                 <span className="rounded-full bg-muted px-2.5 py-1">{fa(words)} واژه</span>
                 <span className="rounded-full bg-muted px-2.5 py-1">{fa(d.quiz.length)} سؤال آزمون</span>
               </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">{draft.savedHint}</p>
             </div>
             <div className="max-h-[calc(100vh-300px)] space-y-4 overflow-y-auto rounded-2xl border border-dashed border-bronze/40 bg-gradient-to-b from-background to-card p-4">
               {d.blocks.length === 0 && (
@@ -247,12 +369,21 @@ const COURSE_STATUS: { key: string; label: string; desc: string }[] = [
   { key: "draft", label: "پیش‌نویس — فقط من", desc: "فقط خودت در اتاق استاد می‌بینی" },
 ];
 
+function validateCourse(d: CourseDraft): string {
+  if (!d.chapters.length) return "قبل از انتشار، دست‌کم یک فصل بساز — دورهٔ بدون فصل ذخیره نمی‌شود.";
+  if (!d.chapters.some((c) => c.lessons.length > 0)) return "دست‌کم یک فصل باید یک جلسه داشته باشد — با «جلسهٔ جدید در این فصل» شروع کن.";
+  const ci = d.chapters.findIndex((c) => c.lessons.some((l) => !l.title.trim()));
+  if (ci >= 0) return `در «فصل ${fa(ci + 1)}» یکی از جلسه‌ها بدون عنوان است — عنوان جلسه لازم است.`;
+  return "";
+}
+
 function WriteCoursePage({ id }: { id?: string }) {
   const isNew = !id || id === "new";
   const [d, setD] = React.useState<CourseDraft | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
   const [openCh, setOpenCh] = React.useState<string>("");
+  const draft = useDraftGuard(draftKeyOf("course", id), d, !!d);
 
   React.useEffect(() => {
     let alive = true;
@@ -299,8 +430,37 @@ function WriteCoursePage({ id }: { id?: string }) {
 
   function mutate(fn: (x: CourseDraft) => CourseDraft) { setD((prev) => (prev ? fn(prev) : prev)); }
 
+  function moveChapter(ci: number, dir: -1 | 1) {
+    mutate((x) => {
+      const j = ci + dir;
+      if (j < 0 || j >= x.chapters.length) return x;
+      const ch = [...x.chapters];
+      [ch[ci], ch[j]] = [ch[j], ch[ci]];
+      return { ...x, chapters: ch };
+    });
+  }
+  function moveLesson(chKey: string, li: number, dir: -1 | 1) {
+    mutate((x) => ({
+      ...x,
+      chapters: x.chapters.map((c) => {
+        if (c.key !== chKey) return c;
+        const j = li + dir;
+        if (j < 0 || j >= c.lessons.length) return c;
+        const ls = [...c.lessons];
+        [ls[li], ls[j]] = [ls[j], ls[li]];
+        return { ...c, lessons: ls };
+      }),
+    }));
+  }
+
   async function save() {
     if (!d) return;
+    const vErr = validateCourse(d);
+    if (vErr) {
+      setErr(vErr);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setBusy(true); setErr("");
     try {
       const chapters = d.chapters.map((c) => ({
@@ -315,6 +475,7 @@ function WriteCoursePage({ id }: { id?: string }) {
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "ذخیره ناموفق بود.");
+      draft.markSaved();
       navigate({ view: "studio" });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
@@ -338,6 +499,20 @@ function WriteCoursePage({ id }: { id?: string }) {
         onSave={() => void save()}
         saveLabel={isNew ? "انتشار دوره" : "ذخیرهٔ دوره"}
       />
+
+      {draft.restore && (
+        <RestoreBanner
+          savedAt={draft.restore.savedAt}
+          onRestore={() => {
+            const next = draft.applyRestore() as CourseDraft | undefined;
+            if (next && typeof next === "object" && "chapters" in next) {
+              setD({ ...EMPTY_COURSE, ...next });
+              setOpenCh(next.chapters?.[0]?.key ?? "");
+            }
+          }}
+          onDiscard={draft.dropRestore}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
         {/* ── ستون نوشتن ── */}
@@ -440,6 +615,8 @@ function WriteCoursePage({ id }: { id?: string }) {
                       className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
                       aria-label="عنوان فصل"
                     />
+                    <button type="button" onClick={() => moveChapter(ci, -1)} disabled={ci === 0} aria-label="انتقال فصل به بالا" title="انتقال فصل به بالا" className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => moveChapter(ci, 1)} disabled={ci === d.chapters.length - 1} aria-label="انتقال فصل به پایین" title="انتقال فصل به پایین" className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setOpenCh(openCh === ch.key ? "" : ch.key)} aria-label="باز و بسته کردن فصل">
                       <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${openCh === ch.key ? "rotate-180" : ""}`} />
                     </button>
@@ -480,6 +657,8 @@ function WriteCoursePage({ id }: { id?: string }) {
                               />
                               <span className="text-[10px] text-muted-foreground">دقیقه</span>
                             </span>
+                            <button type="button" onClick={() => moveLesson(ch.key, li, -1)} disabled={li === 0} aria-label="انتقال جلسه به بالا" title="انتقال جلسه به بالا" className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
+                            <button type="button" onClick={() => moveLesson(ch.key, li, 1)} disabled={li === ch.lessons.length - 1} aria-label="انتقال جلسه به پایین" title="انتقال جلسه به پایین" className="rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
                             <button type="button" aria-label="حذف جلسه" onClick={() => mutate((x) => ({ ...x, chapters: x.chapters.map((c) => (c.key === ch.key ? { ...c, lessons: c.lessons.filter((l) => l.key !== ls.key) } : c)) }))} className="rounded-md p-1 text-destructive hover:bg-destructive/10">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -540,6 +719,7 @@ function WriteCoursePage({ id }: { id?: string }) {
                 <span className="rounded-full bg-muted px-2.5 py-1">{fa(lessonsN)} جلسه</span>
                 <span className="rounded-full bg-muted px-2.5 py-1">{fa(quizN)} سؤال آزمون</span>
               </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground/70">{draft.savedHint}</p>
               <p className="mt-3 text-[10.5px] leading-relaxed text-muted-foreground">
                 الگوی پیشنهادی هر جلسه مثل درس‌های آمادهٔ اپ: «درآمد» → دو سه «مفهوم» → «مستند قانونی» → «نکات کلیدی» → «مثال» یا «جدول مقایسه» → «سؤال تعاملی» → «جمع‌بندی» + آزمون.
               </p>

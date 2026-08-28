@@ -309,7 +309,18 @@ export const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: 
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
 /* ═══ ویوی اصلی اتاق استاد — فهرست مطالب و دوره‌ها ═══════════════════════════ */
-interface MyPost { id: string; title: string; summary: string; createdAt: string; commentsCount: number }
+interface MyPost { id: string; title: string; summary: string; createdAt: string; updatedAt?: string; commentsCount: number; quizCount: number }
+
+/** نشان وضعیت دوره در فهرست اتاق استاد */
+const COURSE_BADGE: Record<string, { label: string; cls: string }> = {
+  published: { label: "منتشر شده", cls: "bg-success/15 text-success" },
+  prep: { label: "در حال آماده‌سازی", cls: "bg-amber-400/20 text-amber-600 dark:text-amber-400" },
+  draft: { label: "پیش‌نویس", cls: "bg-muted text-muted-foreground" },
+};
+
+function faDay(iso: string) {
+  return new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
+}
 
 export function StudioView() {
   const { user, status } = useAuth();
@@ -371,7 +382,7 @@ export function StudioView() {
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-bronze text-bronze-foreground shadow-card"><PenSquare className="h-6 w-6" /></span>
-            اتاق استاد — {user.username}
+            اتاق استاد — {user.displayName || user.username}
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             صفحهٔ نوشتن تخصصی با تمام المان‌های تدریس اپ، پیش‌نمایش زنده و آزمون — مثل همان درس‌های آماده.
@@ -422,10 +433,13 @@ export function StudioView() {
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Newspaper className="h-5 w-5" /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold">{p.title}</p>
-                <p className="text-[10.5px] text-muted-foreground">
-                  {new Date(p.createdAt).toLocaleDateString("fa-IR", { month: "long", day: "numeric" })}
-                  {" · "}
-                  {fa(p.commentsCount)} نظر
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10.5px] text-muted-foreground">
+                  <span>{faDay(p.createdAt)}</span>
+                  {p.updatedAt && p.updatedAt !== p.createdAt && <span className="font-bold text-bronze/80">· به‌روزشدهٔ {faDay(p.updatedAt)}</span>}
+                  <span>· {fa(p.commentsCount)} نظر</span>
+                  {p.quizCount > 0 && (
+                    <span className="rounded-full bg-bronze/10 px-2 py-0.5 font-bold text-bronze">{fa(p.quizCount)} سؤال</span>
+                  )}
                 </p>
               </div>
               <button onClick={() => navigate({ view: "post", id: p.id })} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:border-bronze hover:text-bronze">مشاهده</button>
@@ -446,19 +460,29 @@ export function StudioView() {
               هنوز دوره‌ای نساخته‌ای — «دورهٔ جدید» را بزن و جلساتت را با المان‌های تدریس آماده کن.
             </p>
           )}
-          {myCourses.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50">
-              <BookOpen className="h-8 w-8 shrink-0 text-bronze" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold">{c.title}</p>
-                <p className="text-[10.5px] text-muted-foreground">{fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو کتابخانه کرده</p>
+          {myCourses.map((c) => {
+            const badge = COURSE_BADGE[c._status ?? "published"] ?? COURSE_BADGE.published;
+            const rating = c.rating;
+            return (
+              <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50">
+                <BookOpen className="h-8 w-8 shrink-0 text-bronze" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{c.title}</p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10.5px] text-muted-foreground">
+                    <span className={`rounded-full px-2 py-0.5 font-bold ${badge.cls}`}>{badge.label}</span>
+                    <span>· {fa(c.lessonsCount)} جلسه</span>
+                    <span>· {fa(c.studentsCount)} دانشجو</span>
+                    {rating && rating.count > 0 && <span>· ★ {new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(rating.avg)} ({fa(rating.count)})</span>}
+                  </p>
+                </div>
+                <button onClick={() => navigate({ view: "course", id: c.id })} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:border-bronze hover:text-bronze">مشاهده</button>
+                <button onClick={() => navigate({ view: "write", kind: "course", id: c.id })} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
+                <button onClick={() => deleteCourse(c.id)} disabled={busyId === c.id} aria-label="حذف دوره" className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40">
+                  {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </button>
               </div>
-              <button onClick={() => navigate({ view: "write", kind: "course", id: c.id })} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
-              <button onClick={() => deleteCourse(c.id)} disabled={busyId === c.id} aria-label="حذف دوره" className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40">
-                {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </section>
       )}
     </div>
