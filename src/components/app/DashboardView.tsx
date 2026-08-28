@@ -441,6 +441,7 @@ function FeedCard({
     rating?: { avg: number; count: number };
     categories?: string[];
     category?: string;
+    thumbnail?: string;
     author: { id: string; displayName: string; avatarUrl?: string | null };
   };
 }) {
@@ -456,7 +457,15 @@ function FeedCard({
       onClick={() => navigate({ view: "post", id: p.id })}
       className="group w-[240px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
     >
-      {/* جلد دسته‌بندی */}
+      {/* جلد — تصویر شاخص استاد اگر باشد، وگرنه جلد رنگی دسته */}
+      {p.thumbnail ? (
+        <span className="relative block h-[104px]">
+          <img src={p.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+          <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+            {catLabel}
+          </span>
+        </span>
+      ) : (
       <span className={`relative block h-[104px] bg-gradient-to-bl ${cover.bg}`}>
         <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
         <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
@@ -469,6 +478,7 @@ function FeedCard({
           {catLabel}
         </span>
       </span>
+      )}
 
       <span className="block space-y-2 p-3.5">
         <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">

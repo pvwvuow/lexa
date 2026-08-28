@@ -282,6 +282,7 @@ export function AppShell() {
             onClick={() => go({ view: "admin" })}
           />
         )}
+        <SideItem icon={Settings} label="تنظیمات و پروفایل" rail={rail} active={current === "settings"} onClick={() => go({ view: "settings" })} />
       </nav>
 
       {/* یک دکمه واحد: جمع کردن / باز کردن */}
@@ -339,7 +340,7 @@ export function AppShell() {
                 <GlobalSearch courses={courses} variant="bar" />
               </div>
 
-              {/* ابزارها — حساب، تم، تنظیمات، منوی موبایل */}
+              {/* ابزارها — حساب (با تنظیمات داخل منو)، تم، منوی موبایل */}
               <div className="relative ms-auto flex items-center gap-1.5">
                 <div className="md:hidden">
                   <GlobalSearch courses={courses} variant="icon" />
@@ -348,17 +349,9 @@ export function AppShell() {
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
                 </span>
-                <span className="hidden [&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white sm:inline">
+                <span className="hidden sm:inline">
                   <ThemeToggle />
                 </span>
-                <button
-                  onClick={() => go({ view: "settings" })}
-                  aria-label="تنظیمات و پروفایل"
-                  title="تنظیمات و پروفایل"
-                  className="hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/85 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze sm:inline-flex"
-                >
-                  <Settings className="h-[18px] w-[18px]" />
-                </button>
                 <button
                   onClick={() => setDrawerOpen(true)}
                   aria-label="باز کردن منو"

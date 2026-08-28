@@ -336,10 +336,18 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
           />
           <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">اگر شاخه انتخاب کنی، این مطلب در هر یک از آن دسته‌ها هم نمایش داده می‌شود؛ بدون انتخاب فقط در فید دیده می‌شود.</p>
         </div>
+        {/* تصویر شاخص دلخواه — آپلود یا لینک؛ اگر خالی باشد جلد رنگی خودکار می‌آید */}
+        <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => setD({ ...d, thumbnail })} />
         <div>
           <label className={labelCls}>محتوا</label>
           <BlockEditor blocks={d.blocks} onChange={(blocks) => setD({ ...d, blocks })} />
         </div>
+        {/* آزمون پایان مبحث — دلخواه؛ دانشجو بعد از مطالعه آن را می‌بیند */}
+        <QuizEditor
+          label="آزمون پایان این مبحث"
+          questions={d.quiz}
+          onChange={(quiz) => setD({ ...d, quiz })}
+        />
         {err && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>}
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground">انصراف</button>

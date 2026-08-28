@@ -59,7 +59,7 @@ export function AuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[420px] gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:rounded-2xl">
+      <DialogContent aria-describedby={undefined} className="max-w-[420px] gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:rounded-2xl">
         {/* نوار سرمه‌ای با نشان ترازو */}
         <div className="relative bg-gradient-to-l from-primary to-primary/80 px-6 py-5 text-primary-foreground">
           <span aria-hidden className="pointer-events-none absolute inset-0 opacity-10">
