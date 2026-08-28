@@ -1,10 +1,17 @@
 /*
- * همیار حقوق — Service Worker
+ * همیار حقوق — Service Worker (v3)
  * راهبرد: پوستهٔ طراحی (HTML/JS/CSS/فونت/تصاویر) کش می‌شود تا سایت آفلاین هم با همان
  * ظاهر بالا بیاید؛ ولی پاسخ‌های JSON مسیر /api/* هرگز کش نمی‌شوند — مطالبِ سروری فقط
- * با «بستهٔ آفلاین مطالب» (ذخیرهٔ دستی در تنظیمات) در دسترس می‌ماند.
+ * با «ذخیرهٔ تک‌تک مطالب/دوره‌ها» در دسترس می‌مانند.
+ *
+ * v3 — رفع «آفلاین باز نمی‌شود»:
+ * ۱) موقع نصب و «بستهٔ طراحی»، علاوه بر فونت/رسانه، همهٔ فایل‌های JS/CSS که HTML پوسته
+ *    به آن‌ها ارجاع می‌دهد هم خودکار کش می‌شوند (در dev هر ویو چانک جدا دارد).
+ * ۲) درخواست‌های شبکه با timeout رقابت می‌کنند تا در نبود اینترنت سریع به کش برگردیم
+ *    (نه گیر کردن روی درخواست‌های معلق).
+ * ۳) پس‌افت ناوبری: اول خودِ URL، بعد پوستهٔ "/" — با ignoreSearch برای پارامترهای گیت‌وی.
  */
-const VERSION = "hh-pwa-v2";
+const VERSION = "hh-pwa-v3";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
@@ -19,12 +26,79 @@ const CORE_URLS = [
   "/icons/pwa-maskable-512.png",
 ];
 
+/* ── ابزار: fetch با مهلت — تا آفلاین سریع به کش بیفتیم ── */
+function fetchWithTimeout(req, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    fetch(req).then(
+      (res) => { clearTimeout(t); resolve(res); },
+      (err) => { clearTimeout(t); reject(err); },
+    );
+  });
+}
+
+/** کش کردن فهرست URL — هر آیتم مستقل؛ شکست یکی بقیه را نمی‌کُشد */
+async function cacheUrlList(cache, urls) {
+  let ok = 0;
+  await Promise.allSettled(
+    urls.map(async (u) => {
+      try {
+        const cross = new URL(u, self.location.origin).origin !== self.location.origin;
+        const res = await fetch(u, cross ? { mode: "no-cors", cache: "no-cache" } : { cache: "no-cache" });
+        if (res && (res.ok || res.type === "opaque")) {
+          await cache.put(u, res);
+          ok += 1;
+        }
+      } catch {
+        /* آیتم ناموفق نباید بقیه را خراب کند */
+      }
+    })
+  );
+  return ok;
+}
+
+/**
+ * پوستهٔ کامل: "/" را می‌گیرد، در کش می‌گذارد و از متن HTML همهٔ دارایی‌های
+ * هم‌مبدا (چانک‌های JS/CSS/فونت/رسانه) را استخراج و کش می‌کند — تا آفلاینِ
+ * کامل، حتی برای ویوهایی که کاربر هنوز ندیده، تضمین شود.
+ */
+async function precacheShellHtml(cache) {
+  try {
+    const res = await fetch("/", { cache: "no-cache" });
+    if (!res || !res.ok) return 0;
+    await cache.put("/", res.clone());
+    const html = await res.text();
+    const urls = new Set();
+    const re = /(?:src|href)=["']([^"']+)["']/g;
+    let m;
+    while ((m = re.exec(html))) {
+      const u = m[1];
+      if (!u || u.startsWith("data:") || u.startsWith("blob:")) continue;
+      try {
+        const abs = new URL(u, self.location.origin);
+        if (abs.origin !== self.location.origin) continue;
+        const p = abs.pathname;
+        const hit =
+          p.startsWith("/_next/") || p.startsWith("/fonts/") || p.startsWith("/media/") ||
+          p.startsWith("/icons/") || p === "/favicon.svg" || p === "/manifest.webmanifest" ||
+          /\.(css|js|mjs|woff2?|png|svg|jpg|webp|ico)$/.test(p);
+        if (hit) urls.add(p + abs.search);
+      } catch { /* URL نامعتبر */ }
+    }
+    return cacheUrlList(cache, [...urls]);
+  } catch {
+    return 0;
+  }
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(SHELL_CACHE)
-      .then((c) => c.addAll(CORE_URLS))
-      .then(() => self.skipWaiting())
+    (async () => {
+      const shell = await caches.open(SHELL_CACHE);
+      await cacheUrlList(shell, CORE_URLS);
+      await precacheShellHtml(shell);
+      await self.skipWaiting();
+    })()
   );
 });
 
@@ -49,27 +123,28 @@ self.addEventListener("message", (event) => {
     });
     return;
   }
-  if (type === "PRECACHE_SHELL" || type === "PRECACHE_IMAGES") {
+  if (type === "PRECACHE_IMAGES") {
     const urls = Array.isArray(event.data.urls) ? event.data.urls : [];
     const port = event.ports && event.ports[0];
     event.waitUntil(
       (async () => {
-        const cache = await caches.open(type === "PRECACHE_IMAGES" ? IMG_CACHE : ASSET_CACHE);
-        let ok = 0;
-        await Promise.allSettled(
-          (type === "PRECACHE_IMAGES" ? urls : ["/", ...urls]).map(async (u) => {
-            try {
-              const cross = new URL(u, self.location.origin).origin !== self.location.origin;
-              const res = await fetch(u, cross ? { mode: "no-cors", cache: "no-cache" } : { cache: "no-cache" });
-              if (res && (res.ok || res.type === "opaque")) {
-                await cache.put(u, res);
-                ok += 1;
-              }
-            } catch {
-              /* یک آیتم ناموفق نباید بقیه را خراب کند */
-            }
-          })
-        );
+        const cache = await caches.open(IMG_CACHE);
+        const ok = await cacheUrlList(cache, urls);
+        if (port) port.postMessage({ type: "PRECACHE_DONE", count: ok });
+      })()
+    );
+    return;
+  }
+  if (type === "PRECACHE_SHELL") {
+    const urls = Array.isArray(event.data.urls) ? event.data.urls : [];
+    const port = event.ports && event.ports[0];
+    event.waitUntil(
+      (async () => {
+        const cache = await caches.open(ASSET_CACHE);
+        let ok = await cacheUrlList(cache, urls);
+        // پوسته و همهٔ دارایی‌های ارجاع‌شده در HTML — قلب آفلاینِ کامل
+        const shell = await caches.open(SHELL_CACHE);
+        ok += await precacheShellHtml(shell);
         if (port) port.postMessage({ type: "PRECACHE_DONE", count: ok });
         else {
           const clients = await self.clients.matchAll();
@@ -85,6 +160,22 @@ function isSameOriginGet(req) {
   return req.method === "GET" && new URL(req.url).origin === self.location.origin;
 }
 
+/** اول شبکه با مهلت؛ در شکست از کش (با و بدون search) */
+async function networkFirst(req, cacheName, timeoutMs) {
+  const cache = await caches.open(cacheName);
+  try {
+    const res = await fetchWithTimeout(req, timeoutMs);
+    if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+    return res;
+  } catch {
+    return (
+      (await cache.match(req, { ignoreSearch: true })) ||
+      (await caches.match(req, { ignoreSearch: true })) ||
+      Response.error()
+    );
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
@@ -92,7 +183,7 @@ self.addEventListener("fetch", (event) => {
   if (req.method === "GET" && req.destination === "image") {
     event.respondWith(
       caches.open(IMG_CACHE).then(async (cache) => {
-        const cached = await cache.match(req);
+        const cached = await cache.match(req, { ignoreSearch: true });
         const fresh = fetch(req)
           .then((res) => {
             if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone());
@@ -114,7 +205,7 @@ self.addEventListener("fetch", (event) => {
       // stale-while-revalidate — پس از یک بار دیدن، آفلاین هم در دسترس است
       event.respondWith(
         caches.open(ASSET_CACHE).then(async (cache) => {
-          const cached = await cache.match(req);
+          const cached = await cache.match(req, { ignoreSearch: true });
           const fresh = fetch(req)
             .then((res) => {
               if (res && res.ok) cache.put(req, res.clone());
@@ -125,25 +216,35 @@ self.addEventListener("fetch", (event) => {
         })
       );
     }
-    return; // بقیهٔ APIها — شبکهٔ خالص؛ آفلاین از «بستهٔ مطالب» خوانده می‌شود
+    return; // بقیهٔ APIها — شبکهٔ خالص؛ آفلاین از «مطالب ذخیره‌شده» خوانده می‌شود
   }
 
-  // ── ناوبری (HTML) — اول شبکه، در نبود اینترنت از کش ──
+  // ── ناوبری (HTML) — اول شبکه (با مهلت)، در نبود اینترنت از کش پوسته ──
   if (req.mode === "navigate") {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          caches.open(SHELL_CACHE).then((c) => c.put("/", res.clone())).catch(() => {});
+      (async () => {
+        try {
+          const res = await fetchWithTimeout(req, 6000);
+          if (res && res.ok) {
+            caches.open(SHELL_CACHE).then((c) => c.put("/", res.clone())).catch(() => {});
+          }
           return res;
-        })
-        .catch(async () => (await caches.match(req)) || (await caches.match("/")) || Response.error())
+        } catch {
+          const shell = await caches.open(SHELL_CACHE);
+          return (
+            (await shell.match(req, { ignoreSearch: true })) ||
+            (await shell.match("/")) ||
+            (await caches.match(req, { ignoreSearch: true })) ||
+            Response.error()
+          );
+        }
+      })()
     );
     return;
   }
 
   // ── دارایی‌ها ──
   // فونت/رسانه/آیکن: پایدارند → کش اول.
-  // چانک‌های _next (مخصوصاً در حالت dev) تغییر می‌کنند → اول شبکه با پس‌افت کش.
   const isStableAsset =
     url.pathname.startsWith("/fonts/") ||
     url.pathname.startsWith("/media/") ||
@@ -154,7 +255,7 @@ self.addEventListener("fetch", (event) => {
   if (isStableAsset) {
     event.respondWith(
       caches.open(ASSET_CACHE).then(async (cache) => {
-        const cached = await cache.match(req);
+        const cached = await cache.match(req, { ignoreSearch: true });
         if (cached) return cached;
         try {
           const res = await fetch(req);
@@ -168,29 +269,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res && res.ok) {
-            caches.open(ASSET_CACHE).then((c) => c.put(req, res.clone())).catch(() => {});
-          }
-          return res;
-        })
-        .catch(async () => (await caches.match(req)) || Response.error())
-    );
+  // چانک‌ها و CSS/JS — اول شبکه با مهلت ۳ ثانیه؛ پس‌افت کش (v3: مهلت‌دار)
+  if (url.pathname.startsWith("/_next/") || /\.(css|js|mjs)$/.test(url.pathname)) {
+    event.respondWith(networkFirst(req, ASSET_CACHE, 3000));
     return;
   }
 
   // ── بقیه (مثلاً chunkهای dev/HMR) — اول شبکه با پس‌افت کش ──
-  event.respondWith(
-    fetch(req)
-      .then((res) => {
-        if (res && res.ok && req.url.startsWith(self.location.origin)) {
-          caches.open(ASSET_CACHE).then((c) => c.put(req, res.clone())).catch(() => {});
-        }
-        return res;
-      })
-      .catch(async () => (await caches.match(req)) || Response.error())
-  );
+  event.respondWith(networkFirst(req, ASSET_CACHE, 3000));
 });

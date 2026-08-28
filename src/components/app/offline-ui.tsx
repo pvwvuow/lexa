@@ -6,6 +6,7 @@ import * as React from "react";
 import { Download, CheckCircle2, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 import {
   useOfflineItem, useOnlineStatus, downloadPostOffline, downloadCourseOffline,
+  downloadBuiltinCourseOffline,
   isServerNewer, type OfflineKind, type OfflineCardPost, type OfflineCardCourse,
 } from "@/lib/offline";
 
@@ -13,7 +14,7 @@ export type OfflineCardInput = OfflineCardPost | OfflineCardCourse;
 
 /** دکمهٔ دانلود/به‌روزرسانی آفلاین — حالت‌ها: دانلود / در حال ذخیره / ذخیره شد / به‌روزرسانی */
 export function OfflineDownloadButton({
-  kind, id, card, serverUpdatedAt, labeled = false, className = "",
+  kind, id, card, serverUpdatedAt, labeled = false, className = "", courseObj,
 }: {
   kind: OfflineKind;
   id: string;
@@ -22,6 +23,8 @@ export function OfflineDownloadButton({
   serverUpdatedAt?: string;
   labeled?: boolean;
   className?: string;
+  /** برای دوره‌های آمادهٔ اپ (kind=builtin) — ساختار کامل دوره که در باندل است */
+  courseObj?: unknown;
 }) {
   const online = useOnlineStatus();
   const item = useOfflineItem(kind, id);
@@ -47,7 +50,9 @@ export function OfflineDownloadButton({
     const ok =
       kind === "post"
         ? await downloadPostOffline(card as OfflineCardPost)
-        : await downloadCourseOffline(card as OfflineCardCourse);
+        : kind === "builtin"
+          ? await downloadBuiltinCourseOffline(card as OfflineCardCourse, courseObj)
+          : await downloadCourseOffline(card as OfflineCardCourse);
     if (!ok) {
       setFail(true);
       setTimeout(() => setFail(false), 3500);

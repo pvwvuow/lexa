@@ -4,6 +4,7 @@ import * as React from "react";
 
 export type Route =
   | { view: "home" }
+  | { view: "study" }
   | { view: "course"; id: string }
   | { view: "learn"; id: string }
   | { view: "quiz"; id?: string }
@@ -15,6 +16,7 @@ export type Route =
   | { view: "admin" }
   | { view: "teachers" }
   | { view: "studio" }
+  | { view: "write"; kind: "post" | "course"; id?: string }
   | { view: "post"; id: string }
   | { view: "library" }
   | { view: "law"; id?: string }
@@ -23,6 +25,8 @@ export type Route =
 export function routeToHash(r: Route): string {
   switch (r.view) {
     case "home": return "#/";
+    case "study": return "#/study";
+    case "write": return `#/write/${r.kind}/${r.id ?? "new"}`;
     case "course": return `#/course/${r.id}`;
     case "learn": return `#/learn/${r.id}`;
     case "quiz": return r.id ? `#/quiz/${r.id}` : "#/quiz";
@@ -36,8 +40,10 @@ export function routeToHash(r: Route): string {
 
 export function parseHash(h: string): Route {
   const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
-  const [head, id] = parts;
+  const [head, id, sub] = parts;
   if (!head) return { view: "home" };
+  if (head === "study") return { view: "study" };
+  if (head === "write" && (id === "post" || id === "course")) return { view: "write", kind: id, id: sub };
   if (head === "course" && id) return { view: "course", id };
   if (head === "learn" && id) return { view: "learn", id };
   if (head === "quiz") return { view: "quiz", id };
