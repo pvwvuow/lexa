@@ -7,9 +7,10 @@ const scryptAsync = promisify(scrypt);
 const db = new PrismaClient();
 
 async function hashPassword(password) {
+  // فرمت s1 — دقیقاً مثل src/lib/auth.ts (پیشوند نسخه الزامی است)
   const salt = randomBytes(16).toString("hex");
   const derived = (await scryptAsync(password.normalize("NFKC"), salt, 64));
-  return `${salt}:${derived.toString("hex")}`;
+  return `s1:${salt}:${derived.toString("hex")}`;
 }
 
 async function main() {

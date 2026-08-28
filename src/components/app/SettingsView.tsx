@@ -6,7 +6,7 @@ import {
   KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2,
   UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save,
   WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
-  RefreshCw, TriangleAlert, FileText, BookOpen,
+  RefreshCw, TriangleAlert, FileText, BookOpen, Wrench,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
@@ -17,7 +17,7 @@ import {
   usePwaInstall, precacheDesignAssets, storageEstimate, formatBytes, faDateTime,
   DESIGN_VERSION, getDesignMeta, saveDesignMeta, designPackOutdated,
   listOfflineMetas, removeOfflineItem, clearOfflineItems, downloadPostOffline, downloadCourseOffline,
-  isServerNewer, ensureOfflineCache,
+  isServerNewer, ensureOfflineCache, purgeBrowserCache,
   type DesignMeta, type OfflineItemMeta, type OfflineCardPost, type OfflineCardCourse,
 } from "@/lib/offline";
 import { useOnlineStatus } from "@/lib/offline";
@@ -454,6 +454,7 @@ function OfflineSettings() {
   const [installMsg, setInstallMsg] = React.useState("");
   const [preBusy, setPreBusy] = React.useState(false);
   const [preMsg, setPreMsg] = React.useState("");
+  const [fixBusy, setFixBusy] = React.useState(false);
   const [usage, setUsage] = React.useState<{ usage: number; quota: number } | null>(null);
 
   // بستهٔ طراحی + آیتم‌های ذخیره‌شدهٔ تک‌تک
@@ -643,6 +644,27 @@ function OfflineSettings() {
         {preMsg && (
           <p className={`mt-2 text-[11.5px] font-semibold ${preMsg.startsWith("✓") ? "text-success" : "text-destructive"}`}>{preMsg}</p>
         )}
+
+        {/* مسیر نجات: اگر صفحه‌ای بالا نیامد یا رفتار عجیب دید */}
+        <div className="mt-4 border-t border-border/70 pt-3">
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            اگر روزی صفحه سفید شد، چیزی باز نشد یا رفتار عجیب دیدی، این دکمه حافظهٔ موقت مرورگر
+            (نسخهٔ کش‌شدهٔ آفلاین) را یک‌جا پاک می‌کند و سایت با نسخهٔ تازهٔ سرور دوباره بالا می‌آید؛
+            حساب، پروفایل و داده‌های تو پاک نمی‌شود.
+          </p>
+          <button
+            onClick={() => {
+              if (fixBusy) return;
+              setFixBusy(true);
+              void purgeBrowserCache();
+            }}
+            disabled={fixBusy}
+            className="mt-2 inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-[12px] font-bold text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
+          >
+            {fixBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wrench className="h-4 w-4" />}
+            {fixBusy ? "در حال پاک‌سازی و رفرش…" : "رفع خرابی بارگذاری — پاک‌سازی حافظهٔ موقت"}
+          </button>
+        </div>
       </section>
 
       {/* ── مطالب ذخیره‌شدهٔ من — دانلود تکی هر مطلب/دوره ── */}

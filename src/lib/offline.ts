@@ -12,7 +12,7 @@
 import * as React from "react";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.4.0";
+export const DESIGN_VERSION = "1.4.1";
 
 const DESIGN_META_KEY = "hh-design-meta-v1";
 /** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */
@@ -541,6 +541,28 @@ export function useServiceWorkerRegistration() {
       /* بی‌صدا — محیط بدون SW (مثل file://) نباید خطا بدهد */
     });
   }, []);
+}
+
+/**
+ * «دکتر مهربان» — پاک‌سازی کامل حافظهٔ موقت مرورگر (SW + همهٔ Cacheها) و رفرش.
+ * اگر صفحه‌ای به‌هر دلیل بالا نیامد یا رفتار عجیب دید، این مسیر نجات است:
+ * سرویس‌ورکر لغو ثبت می‌شود، همهٔ کش‌های PWA حذف می‌شوند و صفحه با نسخهٔ
+ * تازهٔ سرور از نو بالا می‌آید. داده‌های کاربر (localStorage) دست‌نخورده می‌ماند.
+ */
+export async function purgeBrowserCache(): Promise<void> {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+    }
+    if (typeof caches !== "undefined") {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+    }
+  } catch {
+    /* حتی اگر بخشی شکست، رفرش را ادامه بده */
+  }
+  window.location.replace(window.location.pathname);
 }
 
 /** آیا برنامه به‌صورت PWA نصب‌شده اجرا می‌شود؟ */
