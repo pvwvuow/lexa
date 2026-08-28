@@ -39,16 +39,42 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-/* پیام از صفحه: «بستهٔ طراحی» را پیش‌بارگذاری کن */
+/* پیام از صفحه: «بستهٔ طراحی» (ASSET_CACHE) یا تصاویر آیتم‌های ذخیره‌شده (IMG_CACHE) */
 self.addEventListener("message", (event) => {
-  if (event.data?.type === "PRECACHE_SHELL") {
+  const type = event.data?.type;
+  if (type === "PING") {
+    caches.open(IMG_CACHE).then((c) => c.put("/__ping-marker", new Response("pong:" + VERSION)));
+    self.clients.matchAll({ includeUncontrolled: true, type: "window" }).then((cs) => {
+      cs.forEach((c) => c.postMessage({ type: "PONG", version: VERSION, clients: cs.length }));
+    });
+    return;
+  }
+  if (type === "PRECACHE_SHELL" || type === "PRECACHE_IMAGES") {
     const urls = Array.isArray(event.data.urls) ? event.data.urls : [];
+    const port = event.ports && event.ports[0];
     event.waitUntil(
       (async () => {
-        const cache = await caches.open(ASSET_CACHE);
-        await cache.addAll(["/", ...urls]);
-        const clients = await self.clients.matchAll();
-        clients.forEach((c) => c.postMessage({ type: "PRECACHE_DONE", count: urls.length + 1 }));
+        const cache = await caches.open(type === "PRECACHE_IMAGES" ? IMG_CACHE : ASSET_CACHE);
+        let ok = 0;
+        await Promise.allSettled(
+          (type === "PRECACHE_IMAGES" ? urls : ["/", ...urls]).map(async (u) => {
+            try {
+              const cross = new URL(u, self.location.origin).origin !== self.location.origin;
+              const res = await fetch(u, cross ? { mode: "no-cors", cache: "no-cache" } : { cache: "no-cache" });
+              if (res && (res.ok || res.type === "opaque")) {
+                await cache.put(u, res);
+                ok += 1;
+              }
+            } catch {
+              /* یک آیتم ناموفق نباید بقیه را خراب کند */
+            }
+          })
+        );
+        if (port) port.postMessage({ type: "PRECACHE_DONE", count: ok });
+        else {
+          const clients = await self.clients.matchAll();
+          clients.forEach((c) => c.postMessage({ type: "PRECACHE_DONE", count: ok }));
+        }
       })()
     );
   }
@@ -61,6 +87,24 @@ function isSameOriginGet(req) {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+
+  // ── تصاویر (حتی بیرونی مثل تامنیل مطالب ذخیره‌شده) — کش با تازه‌سازی پس‌زمینه ──
+  if (req.method === "GET" && req.destination === "image") {
+    event.respondWith(
+      caches.open(IMG_CACHE).then(async (cache) => {
+        const cached = await cache.match(req);
+        const fresh = fetch(req)
+          .then((res) => {
+            if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone());
+            return res;
+          })
+          .catch(() => cached);
+        return cached || fresh;
+      })
+    );
+    return;
+  }
+
   if (!isSameOriginGet(req)) return;
   const url = new URL(req.url);
 

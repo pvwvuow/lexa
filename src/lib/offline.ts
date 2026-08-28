@@ -1,37 +1,412 @@
 "use client";
 
-/* ─── مدیریت حالت آفلاین — ثبت Service Worker، بستهٔ مطالب، وضعیت نصب ────────── */
+/* ─── مدیریت حالت آفلاین ─────────────────────────────────────────────────────────
+ * ۱) «بستهٔ طراحی» — پوسته/فونت/رسانه با Service Worker کش می‌شود؛ نسخهٔ آن با
+ *    DESIGN_VERSION کنترل می‌شود تا اگر طراحی سایت تغییر کرد، تنظیمات هشدار
+ *    «نسخهٔ آفلاین شما به‌روز نیست» بدهد.
+ * ۲) «مطالب ذخیره‌شدهٔ من» — کاربر کنار هر مطلب یا دوره دکمهٔ دانلود دارد و
+ *    آن‌ها را تک‌تک برای مطالعهٔ آفلاین ذخیره می‌کند (IndexedDB). اگر همان
+ *    مطلب/دوره بعداً در سایت تغییر کند، کنارش نشان «به‌روز شده» می‌آید تا
+ *    کاربر با یک دانلود مجدد، نسخهٔ آفلاینش را آپدیت کند.
+ * ──────────────────────────────────────────────────────────────────────────── */
 import * as React from "react";
 
-const PACK_KEY = "hh-offline-pack-v1";
+/* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
+export const DESIGN_VERSION = "1.1.0";
 
-export interface OfflinePackPost {
+const DESIGN_META_KEY = "hh-design-meta-v1";
+/** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */
+const LEGACY_PACK_KEY = "hh-offline-pack-v1";
+
+export interface DesignMeta {
+  savedAt: number;
+  version: string;
+}
+
+export function getDesignMeta(): DesignMeta | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(DESIGN_META_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DesignMeta;
+  } catch {
+    return null;
+  }
+}
+
+export function saveDesignMeta(): void {
+  try {
+    localStorage.setItem(DESIGN_META_KEY, JSON.stringify({ savedAt: Date.now(), version: DESIGN_VERSION }));
+  } catch {}
+}
+
+export function clearDesignMeta(): void {
+  try {
+    localStorage.removeItem(DESIGN_META_KEY);
+  } catch {}
+}
+
+/** آیا «بستهٔ طراحی» ذخیره‌شده با نسخهٔ فعلی سایت فرق دارد؟ */
+export function designPackOutdated(): boolean {
+  const m = getDesignMeta();
+  return !!m && m.version !== DESIGN_VERSION;
+}
+
+/* ═══ انبار آیتمی مطالب/دوره‌های ذخیره‌شده — IndexedDB ══════════════════════ */
+
+const DB_NAME = "hamyar-offline-db";
+const STORE = "items";
+
+export type OfflineKind = "post" | "tcourse";
+
+/** کارت نمایشی مطلب — برای فهرست/فید آفلاین (هم‌ساختار FeedPost) */
+export interface OfflineCardPost {
   id: string;
   title: string;
   summary: string;
+  tags?: string;
   category?: string;
   categories?: string[];
   thumbnail?: string;
   createdAt: string;
+  updatedAt?: string;
   commentsCount: number;
+  rating?: { avg: number; count: number };
   author: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 
-export interface OfflinePackCourse {
+/** کارت نمایشی دورهٔ استاد — هم‌ساختار TCourseCard */
+export interface OfflineCardCourse {
   id: string;
   title: string;
   tagline: string;
   description: string;
   icon?: string;
+  thumbnail?: string;
+  _thumbnail?: string;
   lessonsCount: number;
-  teacher: { id: string; username: string; displayName: string };
+  studentsCount?: number;
+  inLibrary?: boolean;
+  canManage?: boolean;
+  rating?: { avg: number; count: number };
+  _category?: string;
+  _categories?: string[];
+  _status?: string;
+  _updatedAt?: string;
+  teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 
-export interface OfflinePack {
+/** یک آیتم ذخیره‌شدهٔ کامل — متن/ساختار کامل + متادیتای دانلود */
+export interface OfflineItem {
+  kind: OfflineKind;
+  id: string;
+  /** زمان دانلود روی دستگاه */
   savedAt: number;
-  posts: OfflinePackPost[];
-  courses: OfflinePackCourse[];
+  /** updatedAt نسخهٔ سرور در لحظهٔ دانلود — مبنای تشخیص «به‌روز شده» */
+  savedUpdatedAt: string;
+  card: OfflineCardPost | OfflineCardCourse;
+  /** متن کامل مطلب (PostData سرور) */
+  post?: unknown;
+  /** نظرات مطلب در لحظهٔ دانلود */
+  comments?: unknown[];
+  /** ساختار کامل دوره (Course موتور مطالعه) */
+  course?: unknown;
 }
+
+/** فقط متادیتا و کارت — بدون بدنهٔ سنگین (برای فهرست‌ها) */
+export type OfflineItemMeta = Omit<OfflineItem, "post" | "comments" | "course">;
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error("IndexedDB نامرتب است"));
+  });
+}
+
+function idbRun<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest): Promise<T> {
+  return openDb().then(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(STORE, mode);
+        const req = fn(tx.objectStore(STORE));
+        req.onsuccess = () => resolve(req.result as T);
+        req.onerror = () => reject(req.error ?? new Error("خطای IndexedDB"));
+        tx.oncomplete = () => db.close();
+        tx.onabort = () => {
+          db.close();
+          reject(tx.error ?? new Error("تراکنش IndexedDB ناتمام ماند"));
+        };
+      }),
+  );
+}
+
+function keyOf(kind: OfflineKind, id: string): string {
+  return `${kind}:${id}`;
+}
+
+/* ── کش سبک وضعیت‌ها + اعلان تغییر بین کامپوننت‌ها ── */
+
+type ItemStatus = "none" | "busy" | "saved";
+interface CacheEntry {
+  status: ItemStatus;
+  savedAt?: number;
+  savedUpdatedAt?: string;
+}
+
+const metaCache = new Map<string, CacheEntry>();
+const listeners = new Set<() => void>();
+let hydrated = false;
+let hydrating: Promise<void> | null = null;
+
+function emitChange(): void {
+  listeners.forEach((l) => l());
+}
+
+export function subscribeOffline(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+/** بارگذاری اولیهٔ وضعیت‌ها از IndexedDB (+ مهاجرت یک‌بارهٔ بستهٔ قدیمی) */
+export async function ensureOfflineCache(): Promise<void> {
+  if (hydrated) return;
+  if (!hydrating) {
+    hydrating = (async () => {
+      try {
+        const all = await idbRun<OfflineItem[]>("readonly", (s) => s.getAll());
+        metaCache.clear();
+        for (const it of all ?? []) {
+          if (!it?.kind || !it?.id) continue;
+          metaCache.set(keyOf(it.kind, it.id), { status: "saved", savedAt: it.savedAt, savedUpdatedAt: it.savedUpdatedAt });
+        }
+      } catch {
+        /* بدون IndexedDB (حالت خصوصی مرورگر) — فقط حالت حافظه */
+      }
+      hydrated = true;
+      emitChange();
+      void migrateLegacyPack();
+    })();
+  }
+  return hydrating;
+}
+
+/** آیا نسخهٔ سرور از نسخهٔ ذخیره‌شدهٔ روی دستگاه جدیدتر است؟ */
+export function isServerNewer(serverUpdatedAt?: string, savedUpdatedAt?: string): boolean {
+  if (!serverUpdatedAt || !savedUpdatedAt) return false;
+  const a = +new Date(serverUpdatedAt);
+  const b = +new Date(savedUpdatedAt);
+  if (!isFinite(a) || !isFinite(b)) return false;
+  return a > b + 1000; // اختلاف‌های زیرثانیه‌ای را نادیده بگیر
+}
+
+/** هوک وضعیت آفلاین یک آیتم — همگام بین همهٔ دکمه‌ها و نشان‌ها */
+export function useOfflineItem(kind: OfflineKind, id: string): CacheEntry {
+  const none = React.useMemo<CacheEntry>(() => ({ status: "none" as const }), []);
+  const read = React.useCallback((): CacheEntry => metaCache.get(keyOf(kind, id)) ?? none, [kind, id, none]);
+  const [entry, setEntry] = React.useState<CacheEntry>(read);
+
+  React.useEffect(() => {
+    let alive = true;
+    setEntry(read());
+    void ensureOfflineCache().then(() => alive && setEntry(read()));
+    const un = subscribeOffline(() => alive && setEntry(read()));
+    return () => {
+      alive = false;
+      un();
+    };
+  }, [kind, id, read]);
+
+  return entry;
+}
+
+/** کل آیتم‌های ذخیره‌شده — فقط متادیتا و کارت (بدون بدنهٔ سنگین) */
+export async function listOfflineMetas(): Promise<OfflineItemMeta[]> {
+  await ensureOfflineCache();
+  try {
+    const all = await idbRun<OfflineItem[]>("readonly", (s) => s.getAll());
+    return (all ?? [])
+      .filter((it) => it?.kind && it?.id)
+      .map(({ post: _p, comments: _c, course: _co, ...meta }) => meta);
+  } catch {
+    return [];
+  }
+}
+
+/** یک آیتم کامل ذخیره‌شده (متن/ساختار کامل) */
+export async function getOfflineItem(kind: OfflineKind, id: string): Promise<OfflineItem | null> {
+  try {
+    const it = await idbRun<OfflineItem | undefined>("readonly", (s) => s.get(keyOf(kind, id)));
+    return it ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function setBusy(kind: OfflineKind, id: string): CacheEntry | undefined {
+  const prev = metaCache.get(keyOf(kind, id));
+  metaCache.set(keyOf(kind, id), { status: "busy" });
+  emitChange();
+  return prev;
+}
+
+function settle(kind: OfflineKind, id: string, prev: CacheEntry | undefined, ok: boolean, item?: { savedAt: number; savedUpdatedAt: string }): boolean {
+  if (ok && item) metaCache.set(keyOf(kind, id), { status: "saved", savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+  else if (prev) metaCache.set(keyOf(kind, id), prev);
+  else metaCache.delete(keyOf(kind, id));
+  emitChange();
+  return ok;
+}
+
+/** دانلود/به‌روزرسانی یک مطلب برای مطالعهٔ آفلاین */
+export async function downloadPostOffline(card: OfflineCardPost): Promise<boolean> {
+  const prev = setBusy("post", card.id);
+  try {
+    const r = await fetch(`/api/posts/${encodeURIComponent(card.id)}`);
+    const d = (await r.json().catch(() => ({}))) as { post?: unknown; comments?: unknown[] };
+    if (!r.ok || !d.post) throw new Error("سرور پاسخ نداد");
+    const post = d.post as { updatedAt?: string };
+    const item: OfflineItem = {
+      kind: "post",
+      id: card.id,
+      savedAt: Date.now(),
+      savedUpdatedAt: String(post.updatedAt ?? card.updatedAt ?? new Date().toISOString()),
+      card: { ...card, commentsCount: Array.isArray(d.comments) ? d.comments.length : card.commentsCount },
+      post: d.post,
+      comments: Array.isArray(d.comments) ? d.comments : [],
+    };
+    await idbRun("readwrite", (s) => s.put(item, keyOf("post", card.id)));
+    void precacheItemImages([card.thumbnail]);
+    return settle("post", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+  } catch {
+    return settle("post", card.id, prev, false);
+  }
+}
+
+/** دانلود/به‌روزرسانی یک دورهٔ استاد برای مطالعهٔ آفلاین */
+export async function downloadCourseOffline(card: OfflineCardCourse): Promise<boolean> {
+  const prev = setBusy("tcourse", card.id);
+  try {
+    const r = await fetch(`/api/tcourses/${encodeURIComponent(card.id)}`);
+    const d = (await r.json().catch(() => ({}))) as { course?: unknown };
+    if (!r.ok || !d.course) throw new Error("سرور پاسخ نداد");
+    const course = d.course as { _updatedAt?: string };
+    const item: OfflineItem = {
+      kind: "tcourse",
+      id: card.id,
+      savedAt: Date.now(),
+      savedUpdatedAt: String(course._updatedAt ?? card._updatedAt ?? new Date().toISOString()),
+      card,
+      course: d.course,
+    };
+    await idbRun("readwrite", (s) => s.put(item, keyOf("tcourse", card.id)));
+    void precacheItemImages([card.thumbnail ?? card._thumbnail]);
+    return settle("tcourse", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+  } catch {
+    return settle("tcourse", card.id, prev, false);
+  }
+}
+
+/** حذف یک آیتم ذخیره‌شده */
+export async function removeOfflineItem(kind: OfflineKind, id: string): Promise<void> {
+  try {
+    await idbRun("readwrite", (s) => s.delete(keyOf(kind, id)));
+  } catch {}
+  metaCache.delete(keyOf(kind, id));
+  emitChange();
+}
+
+/** پاک‌سازی همهٔ مطالب/دوره‌های ذخیره‌شده */
+export async function clearOfflineItems(): Promise<void> {
+  try {
+    await idbRun("readwrite", (s) => s.clear());
+  } catch {}
+  for (const k of [...metaCache.keys()]) metaCache.delete(k);
+  emitChange();
+}
+
+/** کش‌کردن تصویر شاخص آیتم در کش Service Worker — تا آفلاین هم دیده شود */
+function precacheItemImages(urls: (string | undefined)[]): void {
+  const list = (urls.filter(Boolean) as string[]).slice(0, 3);
+  if (!list.length || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.ready
+    .then((reg) => reg.active?.postMessage({ type: "PRECACHE_IMAGES", urls: list }))
+    .catch(() => {});
+}
+
+/* ── مهاجرت یک‌بارهٔ «بستهٔ مطالب» قدیمی به انبار آیتمی ── */
+async function migrateLegacyPack(): Promise<void> {
+  if (typeof window === "undefined" || !localStorage.getItem(LEGACY_PACK_KEY)) return;
+  let pack: { savedAt?: number; posts?: OfflineCardPost[]; courses?: OfflineCardCourse[] } | null = null;
+  try {
+    pack = JSON.parse(localStorage.getItem(LEGACY_PACK_KEY) ?? "null");
+  } catch {}
+  localStorage.removeItem(LEGACY_PACK_KEY);
+  if (!pack) return;
+
+  for (const p of pack.posts ?? []) {
+    if (!p?.id || metaCache.has(keyOf("post", p.id))) continue;
+    const savedAt = pack.savedAt ?? Date.now();
+    try {
+      // اگر آنلاینیم، متن کامل را هم بگیر تا مهاجرت بی‌نقص باشد
+      const r = await fetch(`/api/posts/${encodeURIComponent(p.id)}`);
+      const d = (await r.json().catch(() => ({}))) as { post?: unknown; comments?: unknown[] };
+      if (r.ok && d.post) {
+        const post = d.post as { updatedAt?: string };
+        const item: OfflineItem = {
+          kind: "post", id: p.id, savedAt, savedUpdatedAt: String(post.updatedAt ?? p.createdAt ?? ""),
+          card: { ...p, commentsCount: Array.isArray(d.comments) ? d.comments.length : p.commentsCount },
+          post: d.post, comments: Array.isArray(d.comments) ? d.comments : [],
+        };
+        await idbRun("readwrite", (s) => s.put(item, keyOf("post", p.id)));
+        metaCache.set(keyOf("post", p.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+        continue;
+      }
+    } catch {}
+    // آفلاین: فقط کارت — بعد از آنلاین شدن با دکمهٔ «به‌روزرسانی» متن کامل می‌آید
+    const item: OfflineItem = {
+      kind: "post", id: p.id, savedAt, savedUpdatedAt: String(p.updatedAt ?? p.createdAt ?? ""),
+      card: p, post: { id: p.id, title: p.title, summary: p.summary, blocks: [], tags: p.tags ?? "", createdAt: p.createdAt, author: p.author, canManage: false },
+      comments: [],
+    };
+    try {
+      await idbRun("readwrite", (s) => s.put(item, keyOf("post", p.id)));
+      metaCache.set(keyOf("post", p.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+    } catch {}
+  }
+
+  for (const c of pack.courses ?? []) {
+    if (!c?.id || metaCache.has(keyOf("tcourse", c.id))) continue;
+    const savedAt = pack.savedAt ?? Date.now();
+    try {
+      const r = await fetch(`/api/tcourses/${encodeURIComponent(c.id)}`);
+      const d = (await r.json().catch(() => ({}))) as { course?: unknown };
+      if (r.ok && d.course) {
+        const course = d.course as { _updatedAt?: string };
+        const item: OfflineItem = {
+          kind: "tcourse", id: c.id, savedAt, savedUpdatedAt: String(course._updatedAt ?? ""),
+          card: { ...c }, course: d.course,
+        };
+        await idbRun("readwrite", (s) => s.put(item, keyOf("tcourse", c.id)));
+        metaCache.set(keyOf("tcourse", c.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+        continue;
+      }
+    } catch {}
+    const item: OfflineItem = { kind: "tcourse", id: c.id, savedAt, savedUpdatedAt: String(c._updatedAt ?? ""), card: { ...c }, course: { ...c, chapters: [] } };
+    try {
+      await idbRun("readwrite", (s) => s.put(item, keyOf("tcourse", c.id)));
+      metaCache.set(keyOf("tcourse", c.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+    } catch {}
+  }
+  emitChange();
+}
+
+/* ═══ زیرساخت PWA و بستهٔ طراحی ═══════════════════════════════════════════ */
 
 /** ثبت سرویس‌ورکر — یک بار در سطح برنامه */
 export function useServiceWorkerRegistration() {
@@ -138,87 +513,6 @@ export function precacheDesignAssets(): Promise<number> {
 export function storageEstimate(): Promise<{ usage: number; quota: number } | null> {
   if (typeof navigator === "undefined" || !navigator.storage?.estimate) return Promise.resolve(null);
   return navigator.storage.estimate().then((e) => ({ usage: e.usage ?? 0, quota: e.quota ?? 0 }));
-}
-
-/** ── بستهٔ مطالب آفلاین ── */
-export function getOfflinePack(): OfflinePack | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(PACK_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as OfflinePack;
-  } catch {
-    return null;
-  }
-}
-
-export function saveOfflinePack(pack: OfflinePack): boolean {
-  try {
-    localStorage.setItem(PACK_KEY, JSON.stringify(pack));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function clearOfflinePack(): void {
-  try {
-    localStorage.removeItem(PACK_KEY);
-  } catch {}
-}
-
-/** دانلود و ساخت بستهٔ مطالب: فید اساتید دنبال‌شده + دوره‌های کتابخانهٔ من */
-export async function buildOfflinePack(): Promise<{ posts: number; courses: number }> {
-  const posts: OfflinePackPost[] = [];
-  const courses: OfflinePackCourse[] = [];
-
-  try {
-    const r = await fetch("/api/social/feed", { cache: "no-store" });
-    if (r.ok) {
-      const j = await r.json();
-      for (const p of (j.items ?? j.posts ?? []) as Record<string, unknown>[]) {
-        posts.push({
-          id: String(p.id),
-          title: String(p.title ?? ""),
-          summary: String(p.summary ?? ""),
-          category: p.category as string | undefined,
-          categories: p.categories as string[] | undefined,
-          thumbnail: p.thumbnail as string | undefined,
-          createdAt: String(p.createdAt ?? ""),
-          commentsCount: Number(p.commentsCount ?? 0),
-          author: p.author as OfflinePackPost["author"],
-        });
-      }
-    }
-  } catch {}
-
-  try {
-    const r = await fetch("/api/tcourses", { cache: "no-store" });
-    if (r.ok) {
-      const j = await r.json();
-      for (const c of (j.courses ?? []) as Record<string, unknown>[]) {
-        if (c.inLibrary === false) continue; // فقط دوره‌های کتابخانهٔ من
-        courses.push({
-          id: String(c.id),
-          title: String(c.title ?? ""),
-          tagline: String(c.tagline ?? ""),
-          description: String(c.description ?? ""),
-          icon: c.icon as string | undefined,
-          lessonsCount: Number(c.lessonsCount ?? 0),
-          teacher: c.teacher as OfflinePackCourse["teacher"],
-        });
-      }
-    }
-  } catch {}
-
-  // اگر هیچ داده‌ای گرفته نشد (مثلاً آفلاین بودیم) و بستهٔ قبلی داریم، همان را نگه دار
-  if (posts.length === 0 && courses.length === 0) {
-    const old = getOfflinePack();
-    if (old) return { posts: old.posts.length, courses: old.courses.length };
-  }
-
-  saveOfflinePack({ savedAt: Date.now(), posts, courses });
-  return { posts: posts.length, courses: courses.length };
 }
 
 export function formatBytes(n: number): string {

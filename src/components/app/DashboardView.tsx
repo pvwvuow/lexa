@@ -15,6 +15,8 @@ import { navigate } from "@/lib/router";
 import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
+import type { OfflineCardPost } from "@/lib/offline";
+import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 
 export const faDate = (iso: string) =>
   new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
@@ -442,7 +444,7 @@ function FeedCard({
   p,
 }: {
   p: {
-    id: string; title: string; summary?: string; createdAt: string; commentsCount: number;
+    id: string; title: string; summary?: string; createdAt: string; updatedAt?: string; commentsCount: number;
     rating?: { avg: number; count: number };
     categories?: string[];
     category?: string;
@@ -458,14 +460,19 @@ function FeedCard({
   const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
 
   return (
-    <button
+    // div با نقش لینک — چون دکمهٔ دانلود آفلاین داخلش است (button تودرتو ممنوع)
+    <div
+      role="link"
+      tabIndex={0}
       onClick={() => navigate({ view: "post", id: p.id })}
-      className="group w-[240px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
+      onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
+      className="group w-[240px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
     >
       {/* جلد — تصویر شاخص استاد اگر باشد، وگرنه جلد رنگی دسته */}
       {p.thumbnail ? (
         <span className="relative block h-[104px]">
           <img src={p.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+          <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} className="absolute top-2 start-2.5" />
           <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
             {catLabel}
           </span>
@@ -479,6 +486,7 @@ function FeedCard({
         <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
           <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
         </span>
+        <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} className="absolute top-2 start-2.5" />
         <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
           {catLabel}
         </span>
@@ -500,9 +508,10 @@ function FeedCard({
           {!!p.rating?.count && (
             <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
           )}
+          <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={p as OfflineCardPost} />
         </span>
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -953,6 +962,7 @@ export function TeacherFeedTeasers() {
             <div className="mb-2.5 flex items-center gap-2.5">
               <ToTeacherProfile id={p.author.id} displayName={p.author.displayName} avatarUrl={p.author.avatarUrl} />
               <span className="text-[10px] text-muted-foreground">{faDate(p.createdAt)}</span>
+              <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} />
               <span className="ms-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
               </span>
@@ -961,6 +971,7 @@ export function TeacherFeedTeasers() {
                   <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
                 </span>
               )}
+              <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={p} />
             </div>
             <p className="font-display line-clamp-1 text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
             {p.summary && <p className="line-clamp-2 mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{p.summary}</p>}

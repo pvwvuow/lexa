@@ -5,6 +5,7 @@ import * as React from "react";
 import {
   Loader2, MessageCircle, Send, Trash2, Scale, Quote, ListChecks, Lightbulb,
   GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft, ClipboardList,
+  RefreshCw, CloudOff,
 } from "lucide-react";
 import type { LessonSection, QuizQuestion } from "@/lib/law/types";
 import { useAuth } from "@/lib/auth-client";
@@ -12,7 +13,9 @@ import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { categoryLabel } from "@/lib/social-shared";
 import { useTargetRating } from "@/lib/social-client";
+import { getOfflineItem, useOfflineItem, useOnlineStatus, isServerNewer, downloadPostOffline, faDateTime, type OfflineCardPost } from "@/lib/offline";
 import { SectionBody, StarRating, UserAvatar } from "./common";
+import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { QuizRunnerDialog } from "./QuizRunnerDialog";
 
 interface PostData {
@@ -56,6 +59,8 @@ export function PostView({ id }: { id: string }) {
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
+  /** اگر مطلب از نسخهٔ ذخیره‌شدهٔ آفلاین خوانده شد — زمان ذخیره */
+  const [fromOffline, setFromOffline] = React.useState<number | null>(null);
 
   // فرم کامنت
   const [text, setText] = React.useState("");
@@ -64,23 +69,44 @@ export function PostView({ id }: { id: string }) {
   const [cErr, setCErr] = React.useState("");
   const [quizOpen, setQuizOpen] = React.useState(false);
   const { user } = useAuth();
+  const online = useOnlineStatus();
+  const saved = useOfflineItem("post", id);
 
   // امتیاز مطلب
   const rating = useTargetRating("post", id);
 
+  /** نمایش نسخهٔ ذخیره‌شدهٔ آفلاین — وقتی شبکه در دسترس نیست یا مطلب از سرور برداشته شده */
+  async function showOfflineCopy() {
+    const item = await getOfflineItem("post", id);
+    if (!item?.post) return false;
+    setData(item.post as PostData);
+    setComments((item.comments as CommentItem[]) ?? []);
+    setFromOffline(item.savedAt);
+    return true;
+  }
+
   React.useEffect(() => {
     let alive = true;
     setLoading(true);
+    setFromOffline(null);
     fetch(`/api/posts/${id}`)
-      .then((r) => r.json())
-      .then((d: { post?: PostData; comments?: CommentItem[]; error?: string }) => {
+      .then((r) => r.json().catch(() => ({})))
+      .then(async (d: { post?: PostData; comments?: CommentItem[]; error?: string }) => {
         if (!alive) return;
         if (d.post) {
           setData(d.post);
           setComments(d.comments ?? []);
-        } else setNotFound(true);
+        } else {
+          // سرور پاسخ منطقی نداد (حذف شده یا خطا) — نسخهٔ ذخیره‌شدهٔ آفلاین
+          const ok = await showOfflineCopy();
+          if (alive && !ok) setNotFound(true);
+        }
       })
-      .catch(() => alive && setNotFound(true))
+      .catch(async () => {
+        if (!alive) return;
+        const ok = await showOfflineCopy();
+        if (alive && !ok) setNotFound(true);
+      })
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [id]);
@@ -147,6 +173,15 @@ export function PostView({ id }: { id: string }) {
   }
 
   const faFull = new Date(data.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
+
+  // ── وضعیت آفلاین این مطلب ──
+  const offlineCard: OfflineCardPost = {
+    id: data.id, title: data.title, summary: data.summary, tags: data.tags,
+    category: data.category, thumbnail: data.thumbnail, createdAt: data.createdAt,
+    updatedAt: data.updatedAt, commentsCount: comments.length,
+    author: { id: data.author.id, username: data.author.username, displayName: data.author.displayName, avatarUrl: data.author.avatarUrl },
+  };
+  const offlineOutdated = saved.status === "saved" && isServerNewer(data.updatedAt, saved.savedUpdatedAt);
 
   // ساخت درخت کامنت‌ها — والد + زیرشاخهٔ یک‌سطحی
   const roots = comments.filter((c) => !c.replyToId);
@@ -243,6 +278,25 @@ export function PostView({ id }: { id: string }) {
           </div>
         )}
 
+        {/* وضعیت آفلاین — دانلود تکی این مطلب برای مطالعهٔ بدون اینترنت */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <OfflineDownloadButton kind="post" id={data.id} serverUpdatedAt={data.updatedAt} card={offlineCard} labeled />
+          <OfflineUpdatedPill kind="post" id={data.id} serverUpdatedAt={data.updatedAt} />
+          {fromOffline && !offlineOutdated && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300">
+              <CloudOff className="h-3.5 w-3.5" /> نسخهٔ آفلاین — ذخیره‌شده در {faDateTime(fromOffline)}
+            </span>
+          )}
+        </div>
+        {offlineOutdated && (
+          <p className="mt-2 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              این مطلب در سایت به‌روز شده است؛ اگر می‌خواهید این مطلب در نسخهٔ آفلاین شما هم به‌روز و آپدیت باشد، مجدداً آن را دانلود یا آپدیت کنید.
+            </span>
+          </p>
+        )}
+
         {/* امتیاز به این مطلب */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border/70 bg-card px-4 py-2.5 shadow-card">
           <span className="flex items-center gap-1.5 text-xs font-bold"><StarIco /> امتیاز تو به این مطلب</span>
@@ -327,7 +381,7 @@ export function PostView({ id }: { id: string }) {
           <MessageCircle className="h-5 w-5 text-bronze" /> نظرات دانشجوها ({fa(comments.length)})
         </h2>
 
-        {user ? (
+        {user && online ? (
           <form id="comment-form" onSubmit={submitComment} className="rounded-2xl border border-border bg-card p-4 shadow-card">
             {replyTo && (
               <p className="mb-2 flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
@@ -359,6 +413,10 @@ export function PostView({ id }: { id: string }) {
               </button>
             </div>
           </form>
+        ) : user && !online ? (
+          <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
+            در حالت آفلاین فقط می‌توانی بخوانی — پس از اتصال به اینترنت می‌توانی نظر بگذاری.
+          </p>
         ) : (
           <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
             برای گذاشتن کامنت یا امتیاز دادن، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو.
