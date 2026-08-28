@@ -401,21 +401,21 @@ export function AppShell() {
         )}
         {route.view === "home" && <DashboardView />}
           {route.view === "study" && <StudyListView />}
-          {route.view === "course" && <CourseView id={route.id} />}
+          {route.view === "course" && <CourseView key={route.id} id={route.id} />}
           {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
           {route.view === "quiz" && <QuizView key={route.id ?? "mixed"} id={route.id} />}
-          {route.view === "case" && <CaseStudyView id={route.id} />}
+          {route.view === "case" && <CaseStudyView key={route.id ?? "case"} id={route.id} />}
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && <ImportView />}
           {route.view === "teachers" && <TeachersView />}
           {route.view === "studio" && <StudioView />}
-          {route.view === "write" && <StudioWriteView kind={route.kind} id={route.id} />}
-          {route.view === "post" && <PostView id={route.id} />}
+          {route.view === "write" && <StudioWriteView key={`${route.kind}-${route.id ?? "new"}`} kind={route.kind} id={route.id} />}
+          {route.view === "post" && <PostView key={route.id} id={route.id} />}
           {route.view === "library" && <PublicLibraryView />}
-          {route.view === "law" && <LawLibraryView id={route.id} />}
-          {route.view === "teacher" && <TeacherProfileView id={route.id} />}
+          {route.view === "law" && <LawLibraryView key={route.id ?? "law"} id={route.id} />}
+          {route.view === "teacher" && <TeacherProfileView key={route.id} id={route.id} />}
           {route.view === "admin" && <AdminView />}
         </main>
 

@@ -185,10 +185,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void flush();
       }
     }
+    function onPageHide() {
+      if (userRef.current) void flush();
+    }
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", () => void flush());
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [flush]);
 
@@ -212,9 +216,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (data.snapshot) useApp.getState().replaceFromServer(data.snapshot);
           }
         } catch {}
-        setTimeout(() => {
-          hydratingRef.current = false;
-        }, 500);
+        // پایان محافظت بلافاصله پس از واکشی — replaceFromServer همگام است و
+        // اشتراک‌های ناشی از آن در همان set() اجرا شده‌اند؛ تغییرهای بعدیِ کاربر
+        // واقعی‌اند و باید همگام شوند (رفع مسابقهٔ تایمر ثابت ۵۰۰ms)
+        hydratingRef.current = false;
         void refreshLibrary();
         return;
       }

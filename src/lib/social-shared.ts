@@ -216,7 +216,7 @@ export function teacherCourseToCourse(
     updatedAt?: string | Date;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string; _updatedAt?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _teacherId?: string; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string; _updatedAt?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -231,6 +231,8 @@ export function teacherCourseToCourse(
     chapters: withIds(row.id, parsed),
     _ownerUsername: teacher.username,
     _ownerAvatar: teacher.avatarUrl ?? null,
+    // شناسهٔ کاربری استاد — برای رفتن به پروفایل او از صفحهٔ دوره
+    _teacherId: teacher.id,
     _category: safeCategory(row.category),
     _categories: parseCategories(row.categories, row.category),
     _status: row.status === "draft" || row.status === "prep" ? row.status : "published",

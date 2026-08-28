@@ -11,7 +11,7 @@
  *    (نه گیر کردن روی درخواست‌های معلق).
  * ۳) پس‌افت ناوبری: اول خودِ URL، بعد پوستهٔ "/" — با ignoreSearch برای پارامترهای گیت‌وی.
  */
-const VERSION = "hh-pwa-v3";
+const VERSION = "hh-pwa-v4";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
@@ -160,7 +160,7 @@ function isSameOriginGet(req) {
   return req.method === "GET" && new URL(req.url).origin === self.location.origin;
 }
 
-/** اول شبکه با مهلت؛ در شکست از کش (با و بدون search) */
+/** اول شبکه با مهلت؛ در شکست ابتدا تطابق دقیق کش، بعد تطابق بی‌search (کهنه‌محتمل‌تر) */
 async function networkFirst(req, cacheName, timeoutMs) {
   const cache = await caches.open(cacheName);
   try {
@@ -169,6 +169,8 @@ async function networkFirst(req, cacheName, timeoutMs) {
     return res;
   } catch {
     return (
+      (await cache.match(req)) ||
+      (await caches.match(req)) ||
       (await cache.match(req, { ignoreSearch: true })) ||
       (await caches.match(req, { ignoreSearch: true })) ||
       Response.error()

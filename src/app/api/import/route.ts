@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
+import { getSessionUser } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -50,12 +52,33 @@ function smartSlice(text: string, count: number): string[] {
   return out.filter(Boolean);
 }
 
+/** جلوگیری از سوءاستفاده به‌عنوان پراکسی داخلی (SSRF): فقط نشانی‌های عمومی http(s) */
+function assertPublicHttpUrl(raw: string): URL {
+  let u: URL;
+  try { u = new URL(raw); } catch { throw new Error('نشانی URL نامعتبر است.'); }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('فقط نشانی http/https پذیرفته می‌شود.');
+  const h = u.hostname.toLowerCase().replace(/\.$/, '');
+  const blocked =
+    h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal') ||
+    h === '::1' || h === '[::1]' || h === '0.0.0.0' ||
+    /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(h);
+  if (blocked) throw new Error('دسترسی به نشانی‌های داخلی شبکه مجاز نیست.');
+  return u;
+}
+
 export async function POST(req: Request) {
   try {
+    // سرور دارد صفحهٔ بیرونی را دانلود می‌کند — فقط کاربر واردشده و با سقف نرخ
+    const me = await getSessionUser();
+    if (!me) return NextResponse.json({ error: 'برای واردکردن کتاب ابتدا وارد حسابت شو.' }, { status: 401 });
+    if (!rateLimit(req, `import:${me.id}`, 6, 60_000))
+      return NextResponse.json({ error: 'تعداد درخواست‌ها زیاد است؛ چند لحظه صبر کنید.' }, { status: 429 });
+
     const { url, rawText } = (await req.json()) as { url?: string; rawText?: string };
     let full = '';
     if (rawText && rawText.trim().length > 200) full = rawText.trim();
-    else if (url) full = (await fetchText(url.trim())).text;
+    else if (url) full = (await fetchText(assertPublicHttpUrl(url.trim()).toString())).text;
     else return NextResponse.json({ error: 'آدرس PDF یا متن را وارد کنید.' }, { status: 400 });
 
     // گام دوم: برش به ۲۴ قطعهٔ مساوی؛ کلاینت آن‌ها را بین جلسات انتخاب‌شده تقسیم می‌کند
