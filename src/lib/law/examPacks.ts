@@ -52,8 +52,23 @@ import { mcqProcedure } from "./exam-packs/mcq-procedure";
 import { descCivil } from "./exam-packs/desc-civil";
 import { descPenal } from "./exam-packs/desc-penal";
 import { descProcedure } from "./exam-packs/desc-procedure";
+import { mcqJazaGhafoori } from "./exam-packs/mcq-jaza-ghafoori";
+import { descJazaGhafoori } from "./exam-packs/desc-jaza-ghafoori";
 
 export const examPacks: ExamPack[] = [
+  {
+    id: "pack-tadris-jaza-mcq",
+    title: "دفترچهٔ تستی — تدریس جزا (کلیات جزا)",
+    exam: "تدریس جزا (غفوری)",
+    examSlug: "tadris-jaza",
+    branch: "حقوق جزا",
+    description:
+      "دفترچهٔ تستی جامع برگرفته از جزوهٔ تدریس جزا احمد غفوری (صفحات ۱ تا ۵۰): کلیات قانون مجازات، اصل قانونی بودن، عناصر مادی و روانی جرم، پنج اصل صلاحیت (مواد ۳ تا ۹) و قلمرو زمان (مواد ۱۰ و ۱۱) — با پاسخ‌نامهٔ تشریحی سؤال‌به‌سؤال.",
+    minutes: 40,
+    passMark: 70,
+    kind: "mcq",
+    questions: mcqJazaGhafoori,
+  },
   {
     id: "pack-vokalat-madani",
     title: "دفترچهٔ تستی نمونه — حقوق مدنی",
@@ -128,6 +143,18 @@ export const examPacks: ExamPack[] = [
     minutes: 50,
     kind: "descriptive",
     questions: descProcedure,
+  },
+  {
+    id: "pack-tadris-jaza-desc",
+    title: "دفترچهٔ تشریحی — تدریس جزا (کلیات جزا)",
+    exam: "نمونه سوالات تشریحی",
+    examSlug: "tashrihi",
+    branch: "حقوق جزا",
+    description:
+      "۲۹ پرسش تشریحی برگرفته از جزوهٔ تدریس جزا احمد غفوری (صفحات ۱ تا ۵۰): اصل قانونی بودن و استثناهایش، عناصر مادی و روانی جرم، تقارن و تطابق، چهار قاعده و پنج اصل صلاحیت، جدول قواعد، الگوریتم تشخیص صلاحیت و قلمرو زمان — با پاسخ نمونهٔ کامل و کلیدواژه‌های نمره‌آور.",
+    minutes: 90,
+    kind: "descriptive",
+    questions: descJazaGhafoori,
   },
 ];
 

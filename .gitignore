@@ -55,3 +55,8 @@ server.log
 
 .zscreenshots/
 tool-results/
+
+# OCR artifacts of the Jaza part 3 booklet (large, regenerable via scripts/ocr_jaza.py)
+scripts/extracted/
+scripts/tessdata/
+upload/
