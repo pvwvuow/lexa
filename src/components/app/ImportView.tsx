@@ -6,11 +6,14 @@ import type { Course } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
+import { useAuth } from "@/lib/auth-client";
+import { Lock } from "lucide-react";
 
 interface SliceRes { titleGuess: string; length: number; slices: string[]; preview: string }
 interface Outline { courseTitle: string; chapters: { title: string; sessions: { title: string; keywords: string[] }[] }[] }
 
 export function ImportView() {
+  const auth = useAuth();
   const addCourse = useApp((s) => s.addCourse);
   const [mode, setMode] = React.useState<"url" | "text">("url");
   const [url, setUrl] = React.useState("");
@@ -20,6 +23,21 @@ export function ImportView() {
   const [slices, setSlices] = React.useState<SliceRes | null>(null);
   const [outline, setOutline] = React.useState<Outline | null>(null);
   const [savedId, setSavedId] = React.useState("");
+
+  // افزودن کتاب صرفاً ابزار مدیر است — تضمین سمت کلاینت (بعد از همهٔ هوک‌ها)
+  if (auth.user?.role !== "admin") {
+    return (
+      <div className="mx-auto max-w-md pt-20">
+        <div className="rounded-2xl border border-dashed border-destructive/50 bg-card p-8 text-center shadow-card">
+          <Lock className="mx-auto mb-4 h-10 w-10 text-destructive/70" />
+          <h2 className="font-display text-lg font-bold">افزودن کتاب فقط برای مدیر است</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            تنها حساب مدیریت می‌تواند کتاب جدید وارد کند. اگر استاد هستید، از «اتاق استاد» برای ساخت دورهٔ آنلاین خود استفاده کنید.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   async function extract() {
     setErr(""); setBusyStep("extract");

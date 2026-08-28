@@ -5,22 +5,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
-  ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft,
+  ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
+  MoreHorizontal, CheckCircle2,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
+import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
-import { AIThinking, SECTION_META, LawBox, SectionHead, ActionBtn, BodyRich, BulletRich, BlockDivider, SummarySheet } from "./common";
+import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { FeedbackDialog } from "./FeedbackDialog";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
 
 export function LearnView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
+  const tBooks = useApp((s) => s.tBooks);
   const upsertCourse = useApp((s) => s.upsertCourse);
   const openLesson = useApp((s) => s.openLesson);
   const seen = useApp((s) => s.setSectionSeen);
@@ -33,7 +38,7 @@ export function LearnView({ id }: { id: string }) {
 
   // ── یافتن جلسه و دوره ──
   let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
-  for (const c of [...builtinCourses, ...custom]) {
+  for (const c of mergeAll({ customCourses: custom, tBooks })) {
     for (let ci = 0; ci < c.chapters.length; ci++) {
       const li = c.chapters[ci].lessons.findIndex((l) => l.id === id);
       if (li >= 0) ctx = { lesson: c.chapters[ci].lessons[li], chapter: c.chapters[ci], course: c, index: li, total: 0 };
@@ -46,11 +51,22 @@ export function LearnView({ id }: { id: string }) {
   const [loadingFor, setLoadingFor] = React.useState<string | null>(null); // نوع دکمه فعال
   const [questionInput, setQuestionInput] = React.useState("");
   const [showTocMobile, setShowTocMobile] = React.useState(false);
+  const [askOpen, setAskOpen] = React.useState(false); // فرم شناور پرسش در موبایل
+  // چرخهٔ دکمهٔ «از استاد بپرس»: برچسب یک‌بار کامل دیده می‌شود، بعد زیر دکمه جمع و
+  // خود دکمه کم‌رنگ می‌شود تا حواس کاربر هنگام خواندن پرت نشود (هاور = برمی‌گردد)
+  const [fabDim, setFabDim] = React.useState(false);
+  React.useEffect(() => {
+    if (askOpen) return;
+    setFabDim(false);
+    const t = setTimeout(() => setFabDim(true), 3400);
+    return () => clearTimeout(t);
+  }, [askOpen, id]);
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [id]);
 
   if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
@@ -255,7 +271,7 @@ export function LearnView({ id }: { id: string }) {
     ) : null;
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pb-28 pt-6 sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
+    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[186px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
       {/* ستون اصلی */}
       <main className="min-w-0">
         {/* نوار پیشرفت جلسه */}
@@ -297,60 +313,8 @@ export function LearnView({ id }: { id: string }) {
               >
                 <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
 
-                {s.body && (
-                  <div className="teach-body text-foreground/95">
-                    <BodyRich text={s.body} />
-                  </div>
-                )}
-
-                {/* مرز بصری واضح بین بلوک‌ها — باکس ماده نباید به کارت‌های بدنه بچسبد */}
-                {s.law && s.law.length > 0 && (
-                  <div className="pt-2">
-                    {(s.body || s.bullets) && <BlockDivider label="مستند قانونی این بخش" Icon={Scale} />}
-                    <LawBox laws={s.law} />
-                  </div>
-                )}
-
-                {s.bullets && (
-                  <div className="pt-2">
-                    {s.type === "summary" ? (
-                      /* جمع‌بندی: برگهٔ مرور اختصاصی — نه شبکهٔ کارت مستطیلی */
-                      <>
-                        {s.body && <BlockDivider label="چکیدهٔ نهایی" Icon={ListChecks} />}
-                        <SummarySheet items={s.bullets} />
-                      </>
-                    ) : (
-                      <>
-                        {s.body && <BlockDivider label="نکته‌های کلیدی" Icon={ListChecks} />}
-                        <BulletRich items={s.bullets} />
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {s.table && (
-                  <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
-                    <table className="w-full min-w-[520px] text-sm">
-                      <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
-                      <tbody>
-                        {s.table.rows.map((r, k) => (
-                          <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {s.questionText && (
-                  <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
-                    <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
-                    <p className="font-body relative z-10 text-[18px] font-semibold leading-loose">{s.questionText}</p>
-                    <details className="relative z-10 mt-3 text-sm">
-                      <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی استاد</summary>
-                      <p className="mt-2 rounded-lg bg-background/60 p-3 text-[15.5px] leading-loose text-muted-foreground">{s.suggestedAnswer}</p>
-                    </details>
-                  </div>
-                )}
+                {/* موتور رندر مشترک — همان المان‌هایی که مطالب اساتید هم استفاده می‌کنند */}
+                <SectionBody s={s} />
 
                 {/* پاسخ‌های AI پیوست‌شده — مستندهای 📜 در باکس جدا رندر می‌شوند */}
                 {aiNotes.filter((a) => a.sectionId === s.id).map((a, k) => (
@@ -374,28 +338,20 @@ export function LearnView({ id }: { id: string }) {
 
           {aiErr && <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{aiErr}</p>}
 
-          {/* دکمه‌های تعاملی */}
-          <div className="flex flex-wrap items-center gap-2">
-            {!atEnd && (
-              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]">
+          {/* نوار کنش جلسه — مینیمال: یک کنش اصلی + منوی بیشتر برای بقیه */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {!atEnd ? (
+              <button onClick={revealNext} className="inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3 font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]">
                 <ArrowDownCircle className="h-5 w-5" /> ادامه بده
               </button>
-            )}
-            <ActionBtn onClick={() => handleAction("simple")} disabled={!!loadingFor}>
-              <HelpCircle className="h-4 w-4" /> متوجه نشدم، ساده‌تر توضیح بده
-            </ActionBtn>
-            <ActionBtn onClick={() => handleAction("examples")} disabled={!!loadingFor}>
-              <Lightbulb className="h-4 w-4" /> مثال بیشتر بده
-            </ActionBtn>
-            {atEnd && (
+            ) : (
               <>
                 <button
                   onClick={() => { complete(id); navigate({ view: "quiz", id }); }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-success px-6 py-2.5 text-sm font-semibold text-white shadow-card transition-transform active:scale-[.98]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-success px-6 py-3 font-semibold text-white shadow-card transition-transform active:scale-[.98]"
                 >
-                  <ClipboardList className="h-4 w-4" /> برو به تست
+                  <ClipboardList className="h-5 w-5" /> برو به تست
                 </button>
-                <ActionBtn onClick={() => navigate({ view: "case", id })}>تمرین کیس واقعی</ActionBtn>
                 {nextChapter && nextChapter.lessons[0] && (
                   <button
                     onClick={() => {
@@ -405,46 +361,146 @@ export function LearnView({ id }: { id: string }) {
                       setTimeout(() => navigate({ view: "learn", id: first.id }), 120);
                     }}
                     title={`رفتن به ${nextChapter.title}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.98]"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-bronze/50 bg-bronze/10 px-5 py-3 text-sm font-bold text-bronze transition-colors hover:bg-bronze/20 active:scale-[.99]"
                   >
                     <ArrowLeft className="h-4 w-4 shrink-0" />
-                    <span className="truncate">فصل بعدی</span>
+                    فصل بعدی
+                    <span className="hidden max-w-[140px] truncate opacity-75 md:inline">· {nextChapter.title}</span>
                   </button>
                 )}
-                {atEnd && !nextChapter && <span className="self-center text-xs text-muted-foreground">این آخرین فصل این درس است</span>}
+                {!nextChapter && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-success" /> این آخرین فصل این درس است
+                  </span>
+                )}
               </>
             )}
-            <button onClick={() => navigate({ view: "course", id: course.id })} className="ms-auto text-xs text-muted-foreground underline-offset-4 hover:underline">
-              <RotateCcw className="inline h-3.5 w-3.5" /> برگشت به فصل
-            </button>
+
+            {/* همهٔ کنش‌های فرعی فقط داخل منوی بیشتر — بدون شلوغی پایین صفحه */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  disabled={!!loadingFor}
+                  aria-label="کنش‌های بیشتر"
+                  title="موارد کمکی و تکمیلی"
+                  className="inline-flex h-[46px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-45"
+                >
+                  <MoreHorizontal className="h-5 w-5" /> بیشتر
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={10} className="w-72 rounded-xl p-1.5">
+                <DropdownMenuItem
+                  onClick={() => handleAction("simple")}
+                  disabled={!!loadingFor}
+                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+                >
+                  <HelpCircle className="h-4 w-4 shrink-0 text-bronze" /> متوجه نشدم؛ ساده‌تر توضیح بده
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleAction("examples")}
+                  disabled={!!loadingFor}
+                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+                >
+                  <Lightbulb className="h-4 w-4 shrink-0 text-bronze" /> مثال بیشتر بده
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setFeedbackOpen(true)}
+                  disabled={!!loadingFor}
+                  title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر"
+                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+                >
+                  <MessageSquareWarning className="h-4 w-4 shrink-0 text-bronze" /> نقد تدریس این جلسه…
+                </DropdownMenuItem>
+                {atEnd && (
+                  <DropdownMenuItem onClick={() => navigate({ view: "case", id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
+                    <Scale className="h-4 w-4 shrink-0 text-bronze" /> تمرین کیس واقعی
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate({ view: "course", id: course.id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
+                  <RotateCcw className="h-4 w-4 shrink-0 text-bronze" /> بازگشت به فهرست درس
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </article>
       </main>
 
       {Sidebar}
 
-      {/* ورودی پرسش آزاد — فقط موبایل/تبلت؛ دسکتاپ: کارت سایدبار */}
-      <div className="fixed inset-x-0 bottom-14 z-30 mx-auto max-w-7xl px-3 sm:px-6 lg:hidden">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!questionInput.trim()) return;
-            handleAction("free", questionInput.trim());
-            setQuestionInput("");
-          }}
-          className="mx-auto flex max-w-3xl items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur"
-        >
-          <input
-            value={questionInput}
-            onChange={(e) => setQuestionInput(e.target.value)}
-            placeholder="سوالی از استاد داری؟ بپرس…"
-            className="h-11 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/70"
-            aria-label="سؤال آزاد از استاد"
-          />
-          <button type="submit" disabled={!!loadingFor} className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
-            <Send className="h-4 w-4 -scale-x-100" />
-          </button>
-        </form>
+      {/* گفت‌وگوی بازخورد: انتقاد → تحلیل AI نسبت به جزوه → ثبت پیشنهاد برای مدیر */}
+      <FeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        courseId={course.id}
+        chapterTitle={chapter.title}
+        lessonId={id}
+        lessonTitle={lesson.title}
+        getContext={() => {
+          const ground = lessonToContextText(sections.slice(0, visibleCount));
+          return {
+            courseTitle: course.title,
+            chapterTitle: chapter.title,
+            lessonTitle: lesson.title,
+            seenSections: sections.slice(0, visibleCount).map((s) => s.title ?? ""),
+            extra: ground.text,
+            lawRegistry: ground.lawRegistry,
+          };
+        }}
+      />
+
+      {/* ورودی پرسش آزاد — فقط موبایل/تبلت: دکمهٔ فشرده‌ای چسبیده به داک پایین، نه معلق وسط صفحه */}
+      <div className="fixed inset-x-0 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-30 px-3 sm:px-6 lg:hidden">
+        {askOpen ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!questionInput.trim()) return;
+              handleAction("free", questionInput.trim());
+              setQuestionInput("");
+            }}
+            className="mx-auto flex max-w-3xl items-center gap-1.5 rounded-2xl border border-bronze/40 bg-card/95 p-1.5 shadow-lg backdrop-blur"
+          >
+            <input
+              autoFocus
+              value={questionInput}
+              onChange={(e) => setQuestionInput(e.target.value)}
+              placeholder="سوالی از استاد داری؟ بپرس…"
+              className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/70"
+              aria-label="سؤال آزاد از استاد"
+            />
+            <button type="submit" disabled={!!loadingFor} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
+              <Send className="h-4 w-4 -scale-x-100" />
+            </button>
+            <button type="button" onClick={() => setAskOpen(false)} aria-label="بستن پرسش سریع" className="grid h-10 w-8 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-muted">
+              ×
+            </button>
+          </form>
+        ) : (
+          <div className="flex max-w-7xl">
+            <button
+              onClick={() => setAskOpen(true)}
+              title="سؤال آزاد از استاد هوشمند همین جلسه"
+              aria-label="از استاد بپرس"
+              className={`inline-flex items-center gap-2 rounded-full border border-bronze/45 bg-card/95 p-1.5 pe-4 shadow-lg backdrop-blur transition-all duration-500 hover:border-bronze ${
+                fabDim ? "pe-1.5 opacity-45 hover:pe-4 hover:opacity-100 focus-visible:opacity-100" : ""
+              }`}
+            >
+              <span aria-hidden className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
+                <Send className="h-4 w-4 -scale-x-100" />
+              </span>
+              <span
+                aria-hidden={fabDim}
+                className={`overflow-hidden whitespace-nowrap text-[12.5px] font-bold transition-all duration-500 ${
+                  fabDim ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+                }`}
+              >
+                از استاد بپرس
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
