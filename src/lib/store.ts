@@ -32,6 +32,15 @@ export interface LessonProgress {
   markedReview?: boolean;    // «نیاز به مرور دارم» در فلش‌کارت/تست
 }
 
+/** یک بار شرکت در دفترچهٔ آزمون — محلی (روی دستگاه) ذخیره می‌شود */
+export interface ExamAttempt {
+  date: string;              // ISO
+  score: number;             // ۰ تا ۱۰۰
+  correct: number;
+  total: number;
+  usedSec: number;           // زمان مصرف‌شده
+}
+
 interface AppState {
   progress: Record<string, LessonProgress>;
   streak: { count: number; lastDate: string };
@@ -44,6 +53,8 @@ interface AppState {
   notes: Record<string, { id: string; text: string; quote?: string; createdAt: number }[]>;
   ai: AiSettings;
   lastLocation: { courseId?: string; lessonId?: string };
+  /** تاریخچهٔ دفترچه‌های آزمون (تستی) — بر اساس شناسهٔ بسته */
+  examAttempts: Record<string, ExamAttempt[]>;
 
   touchStreak(): void;
   openLesson(lessonId: string): void;
@@ -59,6 +70,8 @@ interface AppState {
   /** جایگزینی کامل لیست دوره‌های داخلی حذف‌شده (پس از هیدریشن از سرور یا توگل محلی) */
   setHiddenBuiltins(ids: string[]): void;
   updateAi(patch: Partial<AiSettings>): void;
+  /** ثبت نتیجهٔ یک دفترچهٔ آزمون (حداکثر ۵۰ نوبت اخیر هر بسته) */
+  recordExamAttempt(packId: string, a: ExamAttempt): void;
   reset(): void;
   /** ادغام بی‌خلط دادهٔ سرور با دادهٔ محلی — هیچ پیشرفتی از بین نمی‌رود */
   mergeServerSnapshot(snap: SyncSnapshot): void;
@@ -80,6 +93,7 @@ export const useApp = create<AppState>()(
       notes: {},
       ai: DEFAULT_AI,
       lastLocation: {},
+      examAttempts: {},
 
       touchStreak() {
         const s = get().streak;
@@ -183,9 +197,15 @@ export const useApp = create<AppState>()(
         set({ ai: { ...get().ai, ...patch } });
       },
 
+      recordExamAttempt(packId, a) {
+        const cur = get().examAttempts;
+        const list = [...(cur[packId] ?? []), a].slice(-50);
+        set({ examAttempts: { ...cur, [packId]: list } });
+      },
+
       reset() {
         set({
-          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {},
+          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {}, examAttempts: {},
         });
       },
 
@@ -332,10 +352,13 @@ export const useApp = create<AppState>()(
         streak: s.streak,
         activity: s.activity,
         customCourses: s.customCourses,
+        /** tBooks هم ماندگار است تا در حالت آفلاین کتابخانهٔ دوره‌های اساتیدی خالی دیده نشود */
+        tBooks: s.tBooks,
         hiddenBuiltins: s.hiddenBuiltins,
         notes: s.notes,
         ai: s.ai,
         lastLocation: s.lastLocation,
+        examAttempts: s.examAttempts,
       }),
     },
   ),

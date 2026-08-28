@@ -18,6 +18,7 @@ import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { AIThinking, Donut, ProgressBar, EmptyState } from "./common";
+import { ExamPackHub, ExamPackRoute } from "./ExamPacksView";
 
 const KEYS = ["a", "b", "c", "d"] as const;
 type Key = (typeof KEYS)[number];
@@ -59,8 +60,14 @@ export function QuizView({ id }: { id?: string }) {
     return null;
   }, [id, all]);
 
+  /** دفترچهٔ آزمون آماده — اگر مسیر #/quiz/pack-* باشد */
+  const packId = id && id.startsWith("pack-") ? id : undefined;
+
   /** حالت «مرکز آزمون»: انتخاب دامنه از کل کتابخانه */
   const [hubActive, setHubActive] = React.useState<boolean>(() => !id);
+
+  /** تب مرکز آزمون: بسته‌های آماده یا آزمون دلخواه از کتابخانهٔ خودت */
+  const [tab, setTab] = React.useState<"packs" | "library">(() => (id && !id.startsWith("pack-") ? "library" : "packs"));
 
   // ── انتخاب دامنه در مرکز آزمون ──
   const flatAll = React.useMemo(() => flattenAll(all), [all]);
@@ -262,7 +269,10 @@ export function QuizView({ id }: { id?: string }) {
     return `${fa(hubStats.lessons)} جلسه · ${fa(hubStats.chapters)} فصل · ${fa(hubStats.courses)} کتاب`;
   }
 
-  if (!pool.length && phase === "setup" && !genBusy)
+  // دفترچهٔ آزمون آماده — صفحهٔ اجرای اختصاصی خودش را دارد
+  if (packId) return <ExamPackRoute packId={packId} />;
+
+  if (!pool.length && phase === "setup" && !genBusy && tab === "library")
     return (
       <div className="mx-auto max-w-2xl px-4 py-16">
         <EmptyState
@@ -344,6 +354,30 @@ export function QuizView({ id }: { id?: string }) {
     const countOptions = [5, 10, 20, pool.length].filter((v, i, arr) => v > 0 && v <= pool.length && arr.indexOf(v) === i);
     return (
       <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
+        {/* تب‌های مرکز آزمون — دفترچه‌های آماده یا آزمون دلخواه از کتابخانهٔ خودت */}
+        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-card">
+          {([
+            { k: "packs", Icon: ClipboardList, t: "بسته‌های آزمون", d: "دفترچه‌های آمادهٔ تستی و تشریحی" },
+            { k: "library", Icon: Library, t: "آزمون از کتابخانه", d: "انتخاب دامنه از درس‌ها و دوره‌ها" },
+          ] as const).map(({ k, Icon, t, d }) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              aria-pressed={tab === k}
+              className={`relative rounded-xl px-3 py-2.5 text-start transition-all ${tab === k ? "bg-bronze/15 shadow-card ring-1 ring-bronze/60" : "hover:bg-muted"}`}
+            >
+              <span className="mb-0.5 flex items-center gap-1.5 text-[13px] font-bold">
+                <Icon className={`h-4 w-4 ${tab === k ? "text-bronze" : "text-muted-foreground"}`} /> {t}
+              </span>
+              <span className="block text-[10px] leading-relaxed text-muted-foreground">{d}</span>
+            </button>
+          ))}
+        </div>
+
+        {tab === "packs" ? (
+          <ExamPackHub onUseLibrary={() => setTab("library")} />
+        ) : (
+          <>
         <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -548,6 +582,8 @@ export function QuizView({ id }: { id?: string }) {
           )}
           {genErr && <p className="mt-2 text-xs text-destructive">{genErr}</p>}
         </div>
+          </>
+        )}
       </div>
     );
   }
