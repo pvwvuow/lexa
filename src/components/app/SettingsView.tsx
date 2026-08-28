@@ -7,7 +7,9 @@ import {
   UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save,
   WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
   RefreshCw, TriangleAlert, FileText, BookOpen, Wrench,
+  Share, SquarePlus, Copy, Check, Apple, Chrome as ChromeIcon, Monitor, ExternalLink,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
 import { askAi } from "@/lib/aiClient";
@@ -449,9 +451,20 @@ void Upload;
 
 function OfflineSettings() {
   const auth = useAuth();
-  const { canInstall, installed, install } = usePwaInstall();
+  const { canInstall, installed, install, platform, inApp } = usePwaInstall();
   const online = useOnlineStatus();
   const [installMsg, setInstallMsg] = React.useState("");
+  const [guideOpen, setGuideOpen] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* بی‌اثر */ }
+  };
+
   const [preBusy, setPreBusy] = React.useState(false);
   const [preMsg, setPreMsg] = React.useState("");
   const [fixBusy, setFixBusy] = React.useState(false);
@@ -563,7 +576,6 @@ function OfflineSettings() {
   }
 
   const outdatedCount = items.filter((m) => isServerNewer(serverStamps[`${m.kind}:${m.id}`], m.savedUpdatedAt)).length;
-  const ios = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
   return (
     <div className="space-y-4">
@@ -576,27 +588,64 @@ function OfflineSettings() {
           نسخهٔ نصب‌شده مثل یک اپ واقعی تمام‌صفحه باز می‌شود و آیکونش کنار بقیهٔ برنامه‌هاست؛ طرح و رنگ‌ها هم بدون اینترنت بالا می‌آیند.
         </p>
 
-        {installed ? (
-          <p className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-success/10 px-3.5 py-2 text-[12px] font-bold text-success">
-            <CheckCircle2 className="h-4 w-4" /> روی این دستگاه نصب شده است
-          </p>
-        ) : canInstall ? (
-          <button
-            onClick={() => void install()}
-            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-[12.5px] font-bold text-primary-foreground transition-all hover:brightness-110"
-          >
-            <DownloadCloud className="h-4 w-4" /> نصب برنامه (PWA)
-          </button>
-        ) : (
-          <div className="mt-3 rounded-xl border border-dashed border-border px-3.5 py-3 text-[11.5px] leading-relaxed text-muted-foreground">
-            {ios ? (
-              <>در سافاری دکمهٔ «هم‌رسانی» را بزن و «افزودن به صفحهٔ اصلی» را انتخاب کن تا برنامه نصب شود.</>
-            ) : (
-              <>دکمهٔ نصب معمولاً داخل نوار آدرس مرورگر (آیکن ⊕ یا «نصب برنامه») ظاهر می‌شود؛ پس از یک بازدید کامل فعال می‌شود.</>
-            )}
+        {inApp && !installed && (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/50 bg-amber-400/10 px-3.5 py-3 text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              <b>الان داخل مرورگرِ یک اپ دیگر (تلگرام/اینستاگرام و…) هستی.</b>
+              <br />
+              نصب فقط از مرورگر اصلی (کروم یا سافاری) ممکن است؛ لینک را کپی کن و در مرورگر باز کن.
+            </span>
           </div>
         )}
+
+        {installed ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="inline-flex items-center gap-1.5 rounded-xl bg-success/10 px-3.5 py-2 text-[12px] font-bold text-success">
+              <CheckCircle2 className="h-4 w-4" /> روی این دستگاه نصب شده است
+            </p>
+            <button
+              onClick={() => setGuideOpen(true)}
+              className="text-[11.5px] font-bold text-bronze underline-offset-4 hover:underline"
+            >
+              نصب روی دستگاه دیگر
+            </button>
+          </div>
+        ) : (
+          <>
+            <button
+              onClick={() => {
+                if (canInstall) {
+                  void install().then((r) => {
+                    if (r === "accepted") setInstallMsg("✓ نصب شد — آیکون «همیار حقوق» کنار بقیهٔ برنامه‌هاست.");
+                    if (r === "dismissed") setInstallMsg("نصب لغو شد؛ هر وقت خواستی دوباره این‌جا در دسترس است.");
+                  });
+                } else {
+                  setGuideOpen(true);
+                }
+              }}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-[13px] font-bold text-primary-foreground transition-all hover:brightness-110 sm:w-auto"
+            >
+              <DownloadCloud className="h-4.5 w-4.5" /> دانلود نرم‌افزار (نصب روی دستگاه)
+            </button>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              {canInstall
+                ? "آمادهٔ نصب است — با لمس دکمه، پنجرهٔ رسمی نصب مرورگر باز می‌شود."
+                : "مرورگرت پنجرهٔ خودکار ندارد؟ لمس کن — راهنمای گام‌به‌گام مخصوص دستگاه خودت را نشان می‌دهیم؛ روی هر گوشی با همین روش نصب می‌شود."}
+            </p>
+          </>
+        )}
         {installMsg && <p className="mt-2 text-[11.5px] font-semibold text-success">{installMsg}</p>}
+
+        {/* راهنمای نصب مخصوص پلتفرم — برای مرورگرهایی که رویداد نصب ندارند (سافاری iOS، ویوهای درون‌برنامه‌ای و…) */}
+        <InstallGuideDialog
+          open={guideOpen}
+          onOpenChange={setGuideOpen}
+          platform={platform}
+          inApp={inApp}
+          copied={copied}
+          onCopy={copyLink}
+        />
       </section>
 
       {/* ── بستهٔ طراحی + هشدار به‌روز نبودن ── */}
@@ -779,5 +828,124 @@ function OfflineSettings() {
         </p>
       )}
     </div>
+  );
+}
+
+/* ═══ راهنمای نصب — برای مرورگرهایی که رویداد نصب خودکار ندارند ═══════════════
+ * سافاری iOS اصلاً beforeinstallprompt ندارد و مرورگرهای درون‌برنامه‌ای
+ * (تلگرام/اینستاگرام) هم اجازهٔ نصب نمی‌دهند؛ این دیالوگ مسیر رسمی هر پلتفرم را
+ * گام‌به‌گام نشان می‌دهد و دکمهٔ کپی لینک هم برای انتقال به مرورگر اصلی دارد. */
+
+type Step = { icon?: React.ComponentType<{ className?: string }>; text: React.ReactNode };
+
+function InstallSteps({ steps }: { steps: Step[] }) {
+  return (
+    <ol className="space-y-2.5">
+      {steps.map((s, i) => (
+        <li key={i} className="flex items-start gap-2.5">
+          <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-bronze/10 text-[11px] font-extrabold text-bronze">
+            {fa(i + 1)}
+          </span>
+          <span className="flex items-center gap-1.5 text-[12.5px] leading-relaxed">
+            {s.icon && <s.icon className="h-4 w-4 shrink-0 text-bronze" />}
+            {s.text}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function InstallGuideDialog({
+  open, onOpenChange, platform, inApp, copied, onCopy,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  platform: "ios" | "android" | "desktop";
+  inApp: boolean;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const title =
+    platform === "ios" ? "نصب روی آیفون / آیپد" : platform === "android" ? "نصب روی گوشی اندروید" : "نصب روی رایانه";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent aria-describedby={undefined} className="max-w-[430px] gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:rounded-2xl">
+        <DialogHeader className="space-y-1 border-b border-border/70 bg-muted/40 px-5 py-4 text-start">
+          <DialogTitle className="flex items-center gap-2 text-[15px] font-bold">
+            <MonitorSmartphone className="h-4.5 w-4.5 text-bronze" /> راهنمای نصب — {title}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 px-5 py-4">
+          {inApp && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-500/50 bg-amber-400/10 px-3.5 py-3 text-[11.5px] leading-relaxed text-amber-700 dark:text-amber-300">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                <b>الان داخل تلگرام/اینستاگرام هستی.</b> اول لینک را کپی کن و در کروم (اندروید) یا سافاری (آیفون) باز کن؛
+                بعد مراحل زیر را انجام بده — نصب داخل خود تلگرام ممکن نیست.
+              </span>
+            </div>
+          )}
+
+          {platform === "ios" && (
+            <InstallSteps
+              steps={[
+                { icon: ExternalLink, text: <>سایت را در مرورگر <b>Safari</b> باز کن — نه داخل تلگرام یا اینستاگرام.</> },
+                { icon: Share, text: <>از پایینِ صفحه دکمهٔ <b>«هم‌رسانی»</b> (مربع با فلش رو به بالا) را بزن.</> },
+                { icon: SquarePlus, text: <>در فهرست، <b>«افزودن به صفحهٔ اصلی»</b> را انتخاب کن (اگر نبود، ردیف آیکون‌ها را به چپ بکش).</> },
+                { text: <>روی <b>«افزودن»</b> بزن — آیکون «همیار حقوق» کنار بقیهٔ برنامه‌ها می‌نشیند و مثل اپ واقعی تمام‌صفحه باز می‌شود.</> },
+              ]}
+            />
+          )}
+          {platform === "ios" && (
+            <p className="rounded-xl bg-muted/60 px-3.5 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+              در iOS پنجرهٔ نصب خودکار وجود ندارد؛ همین مسیر، روش رسمی اپل برای نصب برنامه‌های وب است و بعد از افزودن،
+              برنامه آفلاین هم کار می‌کند.
+            </p>
+          )}
+
+          {platform === "android" && (
+            <InstallSteps
+              steps={[
+                { icon: ChromeIcon, text: <>لینک را در <b>کروم</b> یا مرورگر سامسونگ باز کن — نه داخل تلگرام یا اینستاگرام.</> },
+                { icon: Share, text: <>سایت یک بار کامل بالا بیاید، بعد <b>منوی سه‌نقطهٔ ‌⋮</b> بالای مرورگر را بزن.</> },
+                { icon: SquarePlus, text: <>گزینهٔ <b>«نصب برنامه»</b> یا <b>«افزودن به صفحهٔ اصلی»</b> را انتخاب کن.</> },
+                { text: <>تأیید کن — آیکون «همیار حقوق» کنار بقیهٔ برنامه‌ها می‌نشیند.</> },
+              ]}
+            />
+          )}
+          {platform === "android" && (
+            <p className="rounded-xl bg-muted/60 px-3.5 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
+              اگر دکمهٔ نصب این صفحه کار نکرد (بعضی مرورگرها پنجرهٔ خودکار ندارند)، همین مسیر منو همیشه جواب می‌دهد.
+            </p>
+          )}
+
+          {platform === "desktop" && (
+            <InstallSteps
+              steps={[
+                { icon: Monitor, text: <>در نوار آدرس مرورگر دنبال آیکون <b>⊕ (نصب)</b> بگرد — معمولاً کنار آدرس سایت است.</> },
+                { text: <>روی آن بزن و <b>«نصب»</b> را تأیید کن؛ اگر آیکون نبود، منوی سه‌نقطهٔ مرورگر ← «نصب همیار حقوق».</> },
+                { text: <>برنامه در پنجرهٔ مستقل باز می‌شود و آیکونش کنار بقیهٔ برنامه‌های رایانه‌ات است.</> },
+              ]}
+            />
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onCopy}
+              className="inline-flex items-center gap-2 rounded-xl bg-bronze/10 px-4 py-2.5 text-[12px] font-bold text-bronze transition-colors hover:bg-bronze/20"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "لینک کپی شد" : "کپی لینک سایت"}
+            </button>
+            <p className="flex items-center text-[11px] text-muted-foreground">
+              لینک را در مرورگر اصلی باز کن و مراحل بالا را انجام بده.
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
