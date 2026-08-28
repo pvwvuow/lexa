@@ -56,6 +56,7 @@ import { lessonM4L72 } from './madani4-l72';
 import { lessonM4L73 } from './madani4-l73';
 import { lessonM4L81 } from './madani4-l81';
 import { lessonM4L82 } from './madani4-l82';
+import { tadrisJaza1 } from './tadris-jaza';
 
 const L = (...l: Lesson[]) => l;
 const CH = (id: string, order: number, title: string, subtitle: string, lessons: Lesson[]): Chapter => ({
@@ -225,6 +226,7 @@ export const madani4: Course = {
 };
 
 export const builtinCourses: Course[] = [
+  tadrisJaza1,
   madani1,
   madani4,
   tejarat3,
