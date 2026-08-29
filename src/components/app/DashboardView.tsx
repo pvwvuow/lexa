@@ -326,7 +326,7 @@ function HeroPanel({
         {/* مرکز آزمون — ورودی مستقیم دفترچه‌های آماده (تستی و تشریحی) */}
         <button
           onClick={() => navigate({ view: "quiz", id: "packs" })}
-          className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.10] px-4 py-3 text-start shadow-card backdrop-blur transition-colors hover:border-bronze/70 hover:bg-white/[0.16]"
+          className="lg-card group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start transition-[border-color,box-shadow] duration-200 hover:border-white/55"
         >
           <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-white/30 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
             <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-white" />
@@ -417,7 +417,7 @@ function LatestPosts() {
           ) : (
             <button
               onClick={() => navigate({ view: "teachers" })}
-              className="flex w-full items-center justify-center gap-3 rounded-[24px] border border-dashed border-white/25 bg-white/[0.07] px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 backdrop-blur-sm transition-colors hover:border-bronze/50"
+              className="lg-skeleton flex w-full items-center justify-center gap-3 rounded-[24px] border-dashed px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
             >
               <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
               هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
@@ -429,7 +429,7 @@ function LatestPosts() {
           <button
             onClick={() => slide(-1)}
             aria-label="مطالب بعدی"
-            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-card backdrop-blur transition-colors hover:border-bronze hover:text-bronze"
+            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -438,7 +438,7 @@ function LatestPosts() {
           <button
             onClick={() => slide(1)}
             aria-label="مطالب قبلی"
-            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-card backdrop-blur transition-colors hover:border-bronze hover:text-bronze"
+            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -499,7 +499,7 @@ function FeedCard({
       {/* جلد — قاب شیشه‌ای داخلی: تامنیل/جلد دسته با گوشهٔ کرو و فاصلهٔ یکسان از بوردر کارت */}
       {hasThumb ? (
         <span className="relative block px-3 pt-3">
-          <span className="relative mx-auto block h-[116px] w-full overflow-hidden rounded-[18px] bg-black/20 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)] transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.6)]">
+          <span className="relative mx-auto block h-[116px] w-full overflow-hidden rounded-[14px] shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)] transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.6)]">
             <img
               src={p.thumbnail}
               alt=""
@@ -507,7 +507,7 @@ function FeedCard({
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
             />
-            <span aria-hidden className="absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/25" />
+            <span aria-hidden className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/30" />
           </span>
           <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
             {catLabel}
@@ -515,7 +515,7 @@ function FeedCard({
         </span>
       ) : (
       <span className="relative block px-3 pt-3">
-        <span className={`relative block h-[116px] w-full overflow-hidden rounded-[18px] bg-gradient-to-bl ${cover.bg}`}>
+        <span className={`relative block h-[116px] w-full overflow-hidden rounded-[14px] bg-gradient-to-bl ${cover.bg}`}>
         <>
           <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
           <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
@@ -561,8 +561,8 @@ function FeedCard({
 
 function FeedCardSkeleton() {
   return (
-    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] border border-white/15 bg-white/[0.07] sm:w-[268px]">
-      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[18px] bg-white/10" /></span>
+    <span className="lg-skeleton block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] sm:w-[268px]">
+      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[14px] bg-white/10" /></span>
       <span className="block space-y-2 p-3.5">
         <span className="block h-3.5 w-4/5 rounded bg-white/15" />
         <span className="block h-3 w-2/5 rounded bg-white/10" />
