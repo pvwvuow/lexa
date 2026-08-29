@@ -83,7 +83,7 @@ function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.Component
     <button
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`relative flex flex-col items-center gap-0.5 rounded-2xl border px-2 py-2 text-[10px] font-semibold transition-all duration-200 ${
+      className={`relative flex flex-col items-center gap-0.5 rounded-[24px] border px-2 py-2 text-[10px] font-semibold transition-all duration-200 ${
         active
           ? "lg-dock-btn-active"
           : "border-transparent text-muted-foreground hover:bg-white/20 hover:text-foreground dark:hover:bg-white/10"
@@ -462,7 +462,7 @@ export function AppShell() {
           <div aria-hidden className="lg-spec" />
           <div className="relative mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
-            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />
+            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage && current !== "quiz"} onClick={dockTadriss} />
             <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
             <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
             <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
