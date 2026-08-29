@@ -83,15 +83,14 @@ function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.Component
     <button
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors duration-200 ${
+      className={`relative flex flex-col items-center gap-0.5 rounded-2xl border px-2 py-2 text-[10px] font-semibold transition-all duration-200 ${
         active
-          ? "bg-foreground/[0.09] text-primary shadow-[inset_0_1px_0.5px_-0.5px_rgba(255,255,255,0.6)] dark:bg-white/[0.16] dark:text-bronze"
-          : "text-muted-foreground hover:text-foreground"
+          ? "lg-dock-btn-active"
+          : "border-transparent text-muted-foreground hover:bg-white/20 hover:text-foreground dark:hover:bg-white/10"
       }`}
     >
       <Icon className="h-5 w-5" />
       {label}
-      {active && <span aria-hidden className="absolute -top-px h-0.5 w-6 rounded-full bg-gradient-to-l from-bronze to-primary" />}
     </button>
   );
 }
@@ -453,20 +452,13 @@ export function AppShell() {
           همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
-        {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass) با شکست نور و حلقهٔ نور */}
-        <svg aria-hidden className="hidden" width="0" height="0" focusable="false">
-          <filter id="lg-displacement" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-            <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves={2} result="turbulence" />
-            <feDisplacementMap in="SourceGraphic" in2="turbulence" scale={200} xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </svg>
+        {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass): بلور/اشباع + برق نور و لبهٔ روشن */}
         <nav
           aria-label="ناوبری پایین"
           className={`lg-dock fixed inset-x-3 bottom-2 z-40 rounded-[28px] transition-all duration-300 ease-out lg:hidden pb-[env(safe-area-inset-bottom)] ${
             chromeHidden ? "max-lg:pointer-events-none max-lg:translate-y-[160%] max-lg:opacity-0" : ""
           }`}
         >
-          <div aria-hidden className="lg-refract" />
           <div aria-hidden className="lg-spec" />
           <div className="relative mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
