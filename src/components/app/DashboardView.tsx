@@ -13,6 +13,7 @@ import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+import { OfflineDownloadButton } from "./offline-ui";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
 
@@ -437,12 +438,12 @@ function FeedCard({
   p,
 }: {
   p: {
-    id: string; title: string; summary?: string; createdAt: string; commentsCount: number;
+    id: string; title: string; summary?: string; createdAt: string; updatedAt?: string; commentsCount: number;
     rating?: { avg: number; count: number };
     categories?: string[];
     category?: string;
     thumbnail?: string;
-    author: { id: string; displayName: string; avatarUrl?: string | null };
+    author: { id: string; displayName: string; avatarUrl?: string | null; username?: string };
   };
 }) {
   const cat = p.categories?.[0] ?? p.category ?? "other";
@@ -453,11 +454,32 @@ function FeedCard({
   const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
   const hasThumb = typeof p.thumbnail === "string" && p.thumbnail.trim() !== "";
 
+  const offlineCard = {
+    id: p.id,
+    title: p.title,
+    summary: p.summary ?? "",
+    tags: "",
+    category: p.category,
+    categories: p.categories,
+    thumbnail: hasThumb ? p.thumbnail : undefined,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    commentsCount: p.commentsCount,
+    rating: p.rating,
+    author: {
+      id: p.author.id,
+      username: p.author.username ?? "",
+      displayName: p.author.displayName,
+      avatarUrl: p.author.avatarUrl,
+    },
+  };
+
   return (
-    <button
-      onClick={() => navigate({ view: "post", id: p.id })}
-      className="group w-[240px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
-    >
+    <div className="relative w-[240px] shrink-0 snap-start sm:w-[268px]">
+      <button
+        onClick={() => navigate({ view: "post", id: p.id })}
+        className="group block w-full overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+      >
       {/* جلد — تصویر شاخص آپلودی یا جلد رنگی دسته‌بندی */}
       <span className={`relative block h-[116px] overflow-hidden ${hasThumb ? "bg-black/10" : `bg-gradient-to-bl ${cover.bg}`}`}>
         {hasThumb ? (
@@ -505,7 +527,13 @@ function FeedCard({
           )}
         </span>
       </span>
-    </button>
+      </button>
+
+      {/* دکمهٔ دانلود آفلاین — لایهٔ شناور گوشهٔ جلد */}
+      <span className="absolute end-2 top-2 z-10">
+        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} className="!h-8 !w-8 shadow-card backdrop-blur" />
+      </span>
+    </div>
   );
 }
 

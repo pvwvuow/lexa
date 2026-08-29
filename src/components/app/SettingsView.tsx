@@ -4,7 +4,7 @@
 import * as React from "react";
 import {
   KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2,
-  UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save,
+  UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save, WifiOff,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
@@ -12,8 +12,9 @@ import { askAi } from "@/lib/aiClient";
 import { useAuth } from "@/lib/auth-client";
 import { fa } from "@/lib/fa";
 import { UserAvatar } from "./common";
+import { OfflineSettings } from "./OfflineSettings";
 
-type Tab = "general" | "ai";
+type Tab = "general" | "ai" | "offline";
 
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("general");
@@ -22,12 +23,12 @@ export function SettingsView() {
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 pb-24 pt-6 sm:px-6">
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-bold"><KeyRound className="h-6 w-6 text-bronze" /> تنظیمات</h1>
-        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودت را مدیریت کن؛ تنظیمات استاد هوشمند هم همین‌جاست.</p>
+        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودت را مدیریت کن؛ نصب آفلاین و استاد هوشمند هم همین‌جاست.</p>
       </header>
 
       {/* زبانه‌ها */}
-      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1">
-        {([["general", "تنظیمات عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot]] as const).map(([k, t, Ico]) => (
+      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted/50 p-1">
+        {([["general", "عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot], ["offline", "آفلاین", WifiOff]] as const).map(([k, t, Ico]) => (
           <button
             key={k}
             role="tab"
@@ -42,7 +43,7 @@ export function SettingsView() {
         ))}
       </div>
 
-      {tab === "general" ? <GeneralSettings /> : <AiSettings />}
+      {tab === "general" ? <GeneralSettings /> : tab === "ai" ? <AiSettings /> : <OfflineSettings />}
     </div>
   );
 }

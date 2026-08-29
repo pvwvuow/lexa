@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star } from "lucide-react";
+import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
@@ -10,6 +10,8 @@ import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
 import { useAuth } from "@/lib/auth-client";
 import { useTargetRating } from "@/lib/social-client";
+import { getOfflineItem } from "@/lib/offline";
+import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 
 export function CourseView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
@@ -26,21 +28,33 @@ export function CourseView({ id }: { id: string }) {
 
   // ── دورهٔ استاد که هنوز در کتابخانهٔ من نیست: واکشی فقط‌خواندنی از سرور ──
   // (همان دورهٔ کارت «پروفایل استاد» که با کلیک اینجا باز می‌شود)
+  // اگر سرور در دسترس نبود، از نسخهٔ ذخیره‌شدهٔ آفلاین (IndexedDB) می‌خوانیم
   const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
   const [remoteLoading, setRemoteLoading] = React.useState(false);
   const [remoteFailed, setRemoteFailed] = React.useState(false);
+  const [offlineUsed, setOfflineUsed] = React.useState(false);
 
   React.useEffect(() => {
     if (local || remoteCourse || remoteFailed) return;
     let alive = true;
     setRemoteLoading(true);
+    const loadOffline = async () => {
+      const it = (await getOfflineItem("tcourse", id)) ?? (await getOfflineItem("builtin", id));
+      if (!alive) return;
+      if (it?.course) {
+        setRemoteCourse(it.course as Course);
+        setOfflineUsed(true);
+      } else {
+        setRemoteFailed(true);
+      }
+    };
     fetch(`/api/tcourses/${encodeURIComponent(id)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { course?: Course } | null) => {
         if (alive && d?.course) setRemoteCourse(d.course);
-        else if (alive) setRemoteFailed(true);
+        else if (alive) void loadOffline();
       })
-      .catch(() => { if (alive) setRemoteFailed(true); })
+      .catch(() => { if (alive) void loadOffline(); })
       .finally(() => { if (alive) setRemoteLoading(false); });
     return () => { alive = false; };
   }, [local, remoteCourse, remoteFailed, id]);
@@ -62,6 +76,7 @@ export function CourseView({ id }: { id: string }) {
     <CourseBody
       course={course}
       isRemote={!!remoteCourse}
+      offlineUsed={offlineUsed}
       inLibrary={!!local && !hiddenBuiltins.includes(course.id)}
       progress={progress}
       openCh={openCh}
@@ -74,10 +89,11 @@ export function CourseView({ id }: { id: string }) {
 /* ─── بدنهٔ صفحهٔ دوره — مشترک بین دورهٔ محلی و پیش‌نمایش سروری ─────────── */
 
 function CourseBody({
-  course, isRemote, inLibrary, progress, openCh, setOpenCh, openLesson,
+  course, isRemote, offlineUsed, inLibrary, progress, openCh, setOpenCh, openLesson,
 }: {
   course: Course;
   isRemote?: boolean;
+  offlineUsed?: boolean;
   inLibrary: boolean;
   progress: Record<string, { status?: string; quizBest?: number }>;
   openCh: string | null;
@@ -97,6 +113,13 @@ function CourseBody({
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-16 pt-6 sm:px-6">
+      {/* نشان نسخهٔ آفلاین */}
+      {offlineUsed && (
+        <p className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+          <WifiOff className="h-3.5 w-3.5 shrink-0" /> در حال دیدن نسخهٔ ذخیره‌شدهٔ آفلاین این دوره هستی.
+        </p>
+      )}
+
       {/* سربرگ درس */}
       <header className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
         <div aria-hidden className="absolute -end-10 -top-10 h-36 w-36 rounded-full border border-bronze/15" />
@@ -132,7 +155,7 @@ function CourseBody({
           </div>
         </div>
 
-        {/* امتیازدهی دورهٔ استاد */}
+        {/* امتیازدهی دورهٔ استاد + دانلود آفلاین */}
         {!!isRemote && (
           <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-bronze/25 bg-bronze/[0.05] px-4 py-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-bronze">
@@ -152,6 +175,30 @@ function CourseBody({
                 <span className="text-[11px] text-muted-foreground">برای ثبت امتیاز وارد شو</span>
               </span>
             )}
+            <span className="ms-auto flex items-center gap-2">
+              <OfflineUpdatedPill kind="tcourse" id={course.id} serverUpdatedAt={(course as Course & { _updatedAt?: string })._updatedAt} />
+              <OfflineDownloadButton
+                kind="tcourse"
+                id={course.id}
+                labeled
+                serverUpdatedAt={(course as Course & { _updatedAt?: string })._updatedAt}
+                card={{
+                  id: course.id,
+                  title: course.title,
+                  tagline: course.tagline ?? "",
+                  description: course.description ?? "",
+                  icon: course.icon,
+                  thumbnail: (course as Course & { thumbnail?: string }).thumbnail,
+                  lessonsCount: course.chapters?.reduce((n, c) => n + c.lessons.length, 0) ?? 0,
+                  teacher: {
+                    id: (course as Course & { _teacherId?: string })._teacherId ?? "",
+                    username: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "",
+                    displayName: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "استاد",
+                    avatarUrl: (course as Course & { _ownerAvatar?: string | null })._ownerAvatar,
+                  },
+                }}
+              />
+            </span>
           </div>
         )}
 
