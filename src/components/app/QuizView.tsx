@@ -18,6 +18,7 @@ import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { AIThinking, Donut, ProgressBar, EmptyState } from "./common";
+import { ExamPackHub } from "./ExamPacksView";
 
 const KEYS = ["a", "b", "c", "d"] as const;
 type Key = (typeof KEYS)[number];
@@ -61,6 +62,8 @@ export function QuizView({ id }: { id?: string }) {
 
   /** حالت «مرکز آزمون»: انتخاب دامنه از کل کتابخانه */
   const [hubActive, setHubActive] = React.useState<boolean>(() => !id);
+  /** تب مرکز آزمون: سؤال از کتابخانهٔ من یا دفترچه‌های آمادهٔ آزمون */
+  const [hubTab, setHubTab] = React.useState<"library" | "packs">("library");
 
   // ── انتخاب دامنه در مرکز آزمون ──
   const flatAll = React.useMemo(() => flattenAll(all), [all]);
@@ -262,7 +265,7 @@ export function QuizView({ id }: { id?: string }) {
     return `${fa(hubStats.lessons)} جلسه · ${fa(hubStats.chapters)} فصل · ${fa(hubStats.courses)} کتاب`;
   }
 
-  if (!pool.length && phase === "setup" && !genBusy)
+  if (!pool.length && phase === "setup" && !genBusy && !(hubActive && hubTab === "packs"))
     return (
       <div className="mx-auto max-w-2xl px-4 py-16">
         <EmptyState
@@ -365,8 +368,32 @@ export function QuizView({ id }: { id?: string }) {
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{fa(pool.length)} سؤال در دامنهٔ «{scopeLine()}» آماده است.</p>
         </motion.header>
 
-        {/* ── دامنهٔ سؤال ── */}
+        {/* ── تب مرکز آزمون: کتابخانهٔ من یا دفترچه‌های آمادهٔ آزمون ── */}
         {hubActive && (
+          <div className="grid grid-cols-2 gap-1 rounded-2xl border border-border bg-card p-1 shadow-card">
+            {([
+              { k: "library", Icon: Library, t: "از کتابخانهٔ من" },
+              { k: "packs", Icon: ClipboardList, t: "بسته‌های آمادهٔ آزمون" },
+            ] as const).map(({ k, Icon, t }) => (
+              <button
+                key={k}
+                onClick={() => setHubTab(k)}
+                aria-pressed={hubTab === k}
+                className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[12.5px] font-bold transition-all ${
+                  hubTab === k ? "bg-bronze/15 text-bronze shadow-card ring-1 ring-bronze/50" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {t}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── بسته‌های آمادهٔ آزمون — دفترچه‌های تستی زمان‌دار و تشریحی ── */}
+        {hubActive && hubTab === "packs" && <ExamPackHub onUseLibrary={() => setHubTab("library")} />}
+
+        {/* ── دامنهٔ سؤال ── */}
+        {hubActive && hubTab === "library" && (
           <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-card">
             <p className="text-sm font-bold">۱) از کجا سؤال بدهم؟</p>
 
@@ -451,6 +478,7 @@ export function QuizView({ id }: { id?: string }) {
         )}
 
         {/* ── تنظیمات برگزاری — همهٔ گزینه‌ها یکجا؛ گزینهٔ بی‌اثری وجود ندارد ── */}
+        {!(hubActive && hubTab === "packs") && (
         <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
           <p className="mb-4 text-sm font-bold">تنظیمات برگزاری</p>
 
@@ -529,8 +557,11 @@ export function QuizView({ id }: { id?: string }) {
             </div>
           </div>
         </section>
+        )}
 
-        {/* شروع */}
+        {/* شروع و تولید AI — فقط در حالت کتابخانه؛ دفترچه‌ها شروع خودشان را دارند */}
+        {!(hubActive && hubTab === "packs") && (
+        <>
         <button
           onClick={() => startQuiz()}
           disabled={pool.length === 0}
@@ -548,6 +579,8 @@ export function QuizView({ id }: { id?: string }) {
           )}
           {genErr && <p className="mt-2 text-xs text-destructive">{genErr}</p>}
         </div>
+        </>
+        )}
       </div>
     );
   }

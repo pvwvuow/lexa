@@ -300,11 +300,14 @@ h1, h2, h3, h4, h5, h6 {
 .lg-dock {
   border: 1px solid rgb(255 255 255 / 0.34);
   background: color-mix(in srgb, var(--card) 52%, transparent);
-  backdrop-filter: blur(15px) saturate(1.65) brightness(1.05);
-  -webkit-backdrop-filter: blur(15px) saturate(1.65) brightness(1.05);
   box-shadow:
     0 14px 34px -12px rgb(12 24 19 / 0.45),
     0 3px 10px -3px rgb(12 24 19 / 0.22);
+}
+/* نکته: فقط اعلان استاندارد backdrop-filter — اگر -webkit- هم نوشته شود
+   Lightning CSS (Tailwind v4) اعلان استاندارد را حذف می‌کند و بلور از بین می‌رود. */
+.lg-dock {
+  backdrop-filter: blur(15px) saturate(1.65) brightness(1.05);
 }
 .dark .lg-dock {
   border-color: rgb(255 255 255 / 0.14);

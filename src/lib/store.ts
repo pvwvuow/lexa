@@ -32,6 +32,15 @@ export interface LessonProgress {
   markedReview?: boolean;    // «نیاز به مرور دارم» در فلش‌کارت/تست
 }
 
+// ─── یک اجرای دفترچهٔ آزمون (بستهٔ تستی) ──────────────────────────────────
+export interface ExamAttempt {
+  date: string;      // ISO
+  score: number;     // درصد ۰..۱۰۰
+  correct: number;   // شمار پاسخ درست
+  total: number;     // شمار کل سؤال‌ها
+  usedSec: number;   // زمان مصرف‌شده (ثانیه)
+}
+
 interface AppState {
   progress: Record<string, LessonProgress>;
   streak: { count: number; lastDate: string };
@@ -44,6 +53,8 @@ interface AppState {
   notes: Record<string, { id: string; text: string; quote?: string; createdAt: number }[]>;
   ai: AiSettings;
   lastLocation: { courseId?: string; lessonId?: string };
+  /** تاریخچهٔ اجرای دفترچه‌های آزمون — کلید = شناسهٔ بسته (pack-*) */
+  examAttempts: Record<string, ExamAttempt[]>;
 
   touchStreak(): void;
   openLesson(lessonId: string): void;
@@ -58,6 +69,7 @@ interface AppState {
   setTBooks(courses: Course[]): void;
   /** جایگزینی کامل لیست دوره‌های داخلی حذف‌شده (پس از هیدریشن از سرور یا توگل محلی) */
   setHiddenBuiltins(ids: string[]): void;
+  recordExamAttempt(packId: string, attempt: ExamAttempt): void;
   updateAi(patch: Partial<AiSettings>): void;
   reset(): void;
   /** ادغام بی‌خلط دادهٔ سرور با دادهٔ محلی — هیچ پیشرفتی از بین نمی‌رود */
@@ -80,6 +92,7 @@ export const useApp = create<AppState>()(
       notes: {},
       ai: DEFAULT_AI,
       lastLocation: {},
+      examAttempts: {},
 
       touchStreak() {
         const s = get().streak;
@@ -146,6 +159,11 @@ export const useApp = create<AppState>()(
 
       toggleReviewFlag(_topicKey) { /* جایگزین با recordQuiz مدیریت می‌شود */ },
 
+      recordExamAttempt(packId, attempt) {
+        const list = get().examAttempts[packId] ?? [];
+        set({ examAttempts: { ...get().examAttempts, [packId]: [...list, attempt].slice(-40) } });
+      },
+
       addNote(lessonId, text, quote) {
         const list = get().notes[lessonId] ?? [];
         set({
@@ -185,7 +203,7 @@ export const useApp = create<AppState>()(
 
       reset() {
         set({
-          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {},
+          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {}, examAttempts: {},
         });
       },
 
@@ -336,6 +354,7 @@ export const useApp = create<AppState>()(
         notes: s.notes,
         ai: s.ai,
         lastLocation: s.lastLocation,
+        examAttempts: s.examAttempts,
       }),
     },
   ),
