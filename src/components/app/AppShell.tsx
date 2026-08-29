@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import {
-  Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
+  Home, BookOpen, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText, ListTree, NotebookTabs, Palette,
+  LibraryBig, Landmark, Menu, ScrollText, ListTree, NotebookTabs,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
@@ -36,7 +36,6 @@ import { LawLibraryView } from "./LawLibraryView";
 import { StudyListView } from "./StudyListView";
 import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
-import { DesignLabView } from "./DesignLabView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -237,8 +236,8 @@ export function AppShell() {
   }
 
   const current = route.view;
-  // فعال‌بودن «مرکز آزمون» — هم هاب دفترچه‌ها (#/quiz/packs) و هم اجرای یک دفترچه (#/quiz/pack-*)
-  const examCenterActive = current === "quiz" && !!route.id && (route.id === "packs" || route.id.startsWith("pack-"));
+  // فعال‌بودن بخش «تست و آزمون» — هر نمای quiz (هاب، دفترچه‌ها، اجرای دفترچه)
+  const examCenterActive = current === "quiz";
   const rail = mode === "rail";
 
   function go(r: Route) {
@@ -319,9 +318,8 @@ export function AppShell() {
           </div>
         )}
 
-        <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz" && !examCenterActive} onClick={() => go({ view: "quiz", id: last.lessonId })} />
-        {/* مرکز آزمون — دفترچه‌های آمادهٔ تستی و تشریحی، مستقیم */}
-        <SideItem icon={NotebookTabs} label="مرکز آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz", id: "packs" })} />
+        {/* تست و آزمون — یک ورود یکتا: تست از کتابخانه + دفترچه‌های آماده در دو تب داخل همان صفحه */}
+        <SideItem icon={NotebookTabs} label="تست و آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
@@ -329,8 +327,6 @@ export function AppShell() {
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
         <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
-        {/* آزمایشگاه طرح خانه — موقت برای انتخاب طراحی جدید بخش خانه */}
-        <SideItem icon={Palette} label="طرح‌های خانه · موقت" rail={rail} active={current === "designs"} onClick={() => go({ view: "designs" })} />
         {/* افزودن کتاب فقط برای مدیر */}
         {auth.user?.role === "admin" && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
@@ -462,7 +458,6 @@ export function AppShell() {
           {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && <TeacherProfileView id={route.id} />}
           {route.view === "admin" && <AdminView />}
-          {route.view === "designs" && <DesignLabView />}
         </main>
 
         {/* فوتر دسکتاپ */}
@@ -481,7 +476,7 @@ export function AppShell() {
           <div className="relative mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage && current !== "quiz"} onClick={dockTadriss} />
-            <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+            <DockBtn icon={NotebookTabs} label="آزمون" active={current === "quiz"} onClick={() => go({ view: "quiz" })} />
             <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
             <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
           </div>
@@ -528,13 +523,11 @@ export function AppShell() {
                   )}
                 </div>
               )}
-              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz" && !examCenterActive} onClick={() => go({ view: "quiz", id: last.lessonId })} />
-              <SideItem icon={NotebookTabs} label="مرکز آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz", id: "packs" })} />
+              <SideItem icon={NotebookTabs} label="تست و آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
               <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
               <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
-              <SideItem icon={Palette} label="طرح‌های خانه · موقت" rail={false} active={current === "designs"} onClick={() => go({ view: "designs" })} />
               {auth.user?.role === "teacher" && (
                 <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}

@@ -357,13 +357,14 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
           role="dialog"
           aria-modal="true"
           aria-label="جستجوی سراسری"
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-background/70 backdrop-blur-sm sm:items-start sm:p-4 sm:pt-[10vh]"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-background/50 backdrop-blur-[6px] dark:bg-black/45 sm:items-start sm:p-4 sm:pt-[10vh]"
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          {/* موبایل/PWA: پنل تمام‌صفحه با احترام به نوار وضعیت و نوار خانه؛ دسکتاپ: دیالوگ شناور مرکزی */}
-          <div className="flex h-dvh w-full max-w-xl flex-col overflow-hidden rounded-none bg-card shadow-card sm:h-auto sm:max-h-[76vh] sm:rounded-2xl sm:border sm:border-border">
+          {/* شیشهٔ مایع — هم‌جنس داک پایین؛ در موبایل تمام‌صفحه با safe-area */}
+          <div className="lg-panel relative flex h-dvh w-full max-w-xl flex-col overflow-hidden rounded-none sm:h-auto sm:max-h-[76vh] sm:rounded-2xl">
+            <span aria-hidden className="lg-spec" />
             {/* ورودی */}
-            <div className="flex items-center gap-2 border-b border-border/70 px-4 pt-[max(env(safe-area-inset-top),12px)] transition-colors focus-within:border-bronze/50 sm:pt-0">
+            <div className="relative flex items-center gap-2 border-b border-white/45 px-4 pt-[max(env(safe-area-inset-top),12px)] transition-colors focus-within:border-bronze/60 dark:border-white/12 sm:pt-0">
               <Search className="h-4 w-4 shrink-0 text-bronze" />
               <input
                 ref={inputRef}
@@ -382,7 +383,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
             </div>
 
             {/* بدنه */}
-            <div ref={listRef} dir="rtl" className="min-h-0 flex-1 overflow-y-auto p-1.5">
+            <div ref={listRef} dir="rtl" className="relative min-h-0 flex-1 overflow-y-auto p-1.5">
               {/* حالت خالی: راهنما + دسترسی سریع به اساتید (چیپ‌های «پیشنهاد شروع» به درخواست کاربر حذف شد) */}
               {!hasQuery ? (
                 <div className="space-y-4 px-2 pb-3 pt-3">
@@ -427,7 +428,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               ) : (
                 <>
                   {/* نوار نتیجه */}
-                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-card/95 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground backdrop-blur-sm">
+                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-white/55 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground ring-1 ring-inset ring-white/40 backdrop-blur-md dark:bg-white/[0.07] dark:ring-white/10">
                     <span>{fa(teacherHits.length)} استاد · {fa(lawHits.length)} ماده · {fa(hits.length)} جلسه</span>
                     <span dir="ltr" className="hidden font-display tabular-nums opacity-70 sm:inline">Esc</span>
                   </div>
@@ -523,7 +524,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
             </div>
 
             {/* پانویس — در موبایل با فاصلهٔ امن نوار خانه */}
-            <div className="flex items-center justify-between gap-2 border-t border-border/70 px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 text-[10.5px] text-muted-foreground sm:pb-2">
+            <div className="relative flex items-center justify-between gap-2 border-t border-white/45 px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 text-[10.5px] text-muted-foreground dark:border-white/12 sm:pb-2">
               <span className="hidden sm:inline">بالا/پایین برای حرکت · Enter برای رفتن</span>
               <span className="sm:hidden">از جلسه‌ها، مواد قانونی و اساتید</span>
               <span className="shrink-0 tabular-nums opacity-80">کلاً {fa(indexReady ? courses.reduce((n, c) => n + c.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) : 0)} جلسه ایندکس شده</span>

@@ -330,13 +330,13 @@ export function TermCard({ item, index }: { item: TermItem; index?: number }) {
           <h4 className="min-w-0 break-words font-display text-[17px] font-bold text-bronze">{item.term}</h4>
         </div>
         <div aria-hidden className="ornament-rule mb-3 opacity-80" />
-        <p className="font-body text-[18px] leading-[2] text-foreground/95">{item.text}</p>
+        <p className="font-body text-[16px] leading-[1.9] text-foreground/95">{item.text}</p>
         {item.subs && item.subs.length > 0 && (
           <ul className="mt-3 space-y-2.5 border-t border-dashed border-bronze/25 pt-3">
             {item.subs.map((sub, k) => (
               <li key={k} className="flex gap-2.5">
                 <span aria-hidden className="mt-[13px] h-1.5 w-1.5 shrink-0 rotate-45 rounded-[1.5px] bg-bronze/70" />
-                <span className="font-body min-w-0 flex-1 text-[17px] leading-[1.95] text-foreground/90">
+                <span className="font-body min-w-0 flex-1 text-[15.5px] leading-[1.85] text-foreground/90">
                   {sub.term && <strong className="font-display text-[15.5px] text-primary">{sub.term}: </strong>}
                   {sub.text}
                 </span>
@@ -363,7 +363,7 @@ export function StepList({ items }: { items: string[] }) {
             <span className="relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-bronze/45 bg-card text-[13.5px] font-bold text-bronze shadow-card">
               {fa(i + 1)}
             </span>
-            <span className="font-body min-w-0 flex-1 rounded-xl border border-border bg-muted/45 px-4 py-3 text-[18px] leading-[1.95] transition-colors duration-150 hover:bg-accent/50">
+            <span className="font-body min-w-0 flex-1 rounded-xl border border-border bg-muted/45 px-4 py-3 text-[16px] leading-[1.85] transition-colors duration-150 hover:bg-accent/50">
               {parsed.term ? (
                 <>
                   <strong className="font-display text-[16px] text-primary">{parsed.term}: </strong>
@@ -383,7 +383,7 @@ function PlainList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-2.5">
       {items.map((b, j) => (
-        <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-2 text-[18px] leading-[1.95] transition-colors hover:border-bronze/50 hover:bg-muted/40">
+        <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-2 text-[16px] leading-[1.85] transition-colors hover:border-bronze/50 hover:bg-muted/40">
           <span aria-hidden className="mt-[15px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] bg-bronze/80" />
           <span className="font-body">{b}</span>
         </li>
@@ -457,7 +457,7 @@ export function SummarySheet({ items }: { items: string[] }) {
                       <span className="text-[13px] font-medium text-bronze">جمله را از حفظ بگو، بعد برای مقایسه بازش کن</span>
                     </button>
                   ) : (
-                    <p className={`font-body whitespace-pre-line text-[18.5px] leading-[2.05] text-foreground/95 transition-opacity duration-300`}>{it.text}</p>
+                    <p className={`font-body whitespace-pre-line text-[16.5px] leading-[1.9] text-foreground/95 transition-opacity duration-300`}>{it.text}</p>
                   )}
                 </div>
               </div>
@@ -578,7 +578,7 @@ export function KeyNotesSheet({ items }: { items: string[] }) {
                   {it.term && (
                     <p className={`font-display mb-0.5 text-[15.5px] font-bold tracking-wide ${acc.term}`}>{it.term}</p>
                   )}
-                  <p className="whitespace-pre-line font-body text-[18px] leading-[1.95] text-foreground/95">{it.text}</p>
+                  <p className="whitespace-pre-line font-body text-[16px] leading-[1.85] text-foreground/95">{it.text}</p>
                   {it.subs?.map((sub, k) => (
                     <p key={k} className="mt-1 flex gap-2 ps-4 text-[17px] leading-[1.9] text-muted-foreground">
                       <span aria-hidden className={`mt-[13px] h-1.5 w-1.5 shrink-0 rotate-45 rounded-[1.5px] ${acc.dot} opacity-70`} />
@@ -665,7 +665,7 @@ export function ImportantNote({ variant = "warn", label, children }: {
           <p className="font-display mb-0.5 text-[12px] font-extrabold tracking-wide" style={{ color: cvar }}>
             {label ?? st.fallbackLabel}
           </p>
-          <div className="whitespace-pre-line font-body text-[18px] leading-[1.95] text-foreground/95">{children}</div>
+          <div className="whitespace-pre-line font-body text-[16px] leading-[1.85] text-foreground/95">{children}</div>
         </div>
       </div>
     </aside>
@@ -735,7 +735,7 @@ export function SectionBody({ s, decorativeHeadless }: { s: LessonSection; decor
       {s.questionText && (
         <div className="relative mt-4 overflow-hidden rounded-xl border border-bronze/30 bg-gradient-to-l from-bronze/[0.09] to-transparent p-4">
           <HelpCircle aria-hidden className="absolute -bottom-3 -start-3 h-16 w-16 text-bronze/10" />
-          <p className="font-body relative z-10 text-[18px] font-semibold leading-loose">{s.questionText}</p>
+          <p className="font-body relative z-10 text-[16px] font-semibold leading-loose">{s.questionText}</p>
           {s.suggestedAnswer && (
             <details className="relative z-10 mt-3 text-sm">
               <summary className="cursor-pointer select-none font-medium text-bronze transition-colors hover:text-primary">نمایش پاسخ پیشنهادی</summary>

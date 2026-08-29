@@ -20,7 +20,6 @@ export type Route =
   | { view: "law"; id?: string }
   | { view: "teacher"; id: string }
   | { view: "study" }
-  | { view: "designs" }
   | { view: "write"; kind: "post" | "course"; id?: string };
 
 export function routeToHash(r: Route): string {
@@ -51,7 +50,7 @@ export function parseHash(h: string): Route {
   if (head === "law") return { view: "law", id: id || undefined };
   if (head === "write" && (parts[1] === "post" || parts[1] === "course"))
     return { view: "write", kind: parts[1], id: parts[2] };
-  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio", "library", "study", "designs"].includes(head)) return { view: head as never };
+  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio", "library", "study"].includes(head)) return { view: head as never };
   return { view: "home" };
 }
 
