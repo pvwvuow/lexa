@@ -521,7 +521,7 @@ function AiAnswerRich({ text }: { text: string }) {
   return (
     <>
       {prose && (
-        <div className="teach-body prose-p:leading-[1.9] text-[17px] [&_p]:my-1 [&_strong]:text-foreground">
+        <div className="teach-body prose-p:leading-[1.85] text-[15.5px] [&_p]:my-1 [&_strong]:text-foreground">
           <ReactMarkdown>{prose}</ReactMarkdown>
         </div>
       )}
