@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import {
-  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Flame, ArrowLeft,
+  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
-  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel, NotebookTabs,
+  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -13,6 +13,7 @@ import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+import { GlobalSearch } from "./GlobalSearch";
 import { OfflineDownloadButton } from "./offline-ui";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
@@ -138,7 +139,6 @@ function SectionSlider({
 export function DashboardView() {
   const progress = useApp((s) => s.progress);
   const last = useApp((s) => s.lastLocation);
-  const streak = useApp((s) => s.streak);
   const customCourses = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
 
@@ -200,11 +200,10 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-9 px-4 pb-28 pt-5 sm:px-6">
-      {/* ═══ هیروی کربنی — سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
+      {/* ═══ هیروی کربنی — جستجو + سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
       <HeroPanel
         greeting={greeting}
-        streak={streak.count}
-        books={shelfCourses.length}
+        courses={shelfCourses}
         resumeTarget={resumeTarget}
       />
 
@@ -283,11 +282,10 @@ type StageItem =
 const STAGE_DELAY = 7000; // هفت ثانیه روی هر آیتم، بعد آیتم تازه
 
 function HeroPanel({
-  greeting, streak, books, resumeTarget,
+  greeting, courses, resumeTarget,
 }: {
   greeting: string;
-  streak: number;
-  books: number;
+  courses: Course[];
   resumeTarget: { courseTitle: string; lesson: Lesson } | null;
 }) {
   return (
@@ -308,7 +306,12 @@ function HeroPanel({
       <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
 
       <div className="relative space-y-6">
-        {/* سطر بالایی: سلام + آمار — بدون هیچ درصد پیشرفتی؛ در دسکتاپ در نیمهٔ راست */}
+        {/* نوار باریک جستجو — بالای المان؛ با اسکرول به نوار اصلی بالا می‌پیوندد */}
+        <div className="flex">
+          <GlobalSearch courses={courses} variant="hero" />
+        </div>
+
+        {/* سطر بالایی: سلام + جلسهٔ بعدی — در دسکتاپ در نیمهٔ راست */}
         <div className="space-y-3 lg:max-w-[55%]">
           <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
           {resumeTarget ? (
@@ -332,26 +335,7 @@ function HeroPanel({
               </GoldCta>
             </>
           )}
-          <div className="flex flex-wrap gap-2 pt-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><BookOpen className="h-3.5 w-3.5 text-bronze" />{fa(books)} درس فعال</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><Flame className="h-3.5 w-3.5 text-bronze" />استریک {fa(streak)} روز</span>
-          </div>
         </div>
-
-        {/* مرکز آزمون — ورودی مستقیم دفترچه‌های آماده (تستی و تشریحی) */}
-        <button
-          onClick={() => navigate({ view: "quiz", id: "packs" })}
-          className="feed-card group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start transition-[border-color,box-shadow] duration-200"
-        >
-          <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-border bg-primary/5 shadow-card transition-transform duration-200 group-hover:scale-110">
-            <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-bronze" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13.5px] font-extrabold text-foreground">مرکز آزمون</span>
-            <span className="block text-[11px] leading-relaxed text-muted-foreground">دفترچه‌های آمادهٔ تستی زمان‌سنج و تشریحی با پاسخ نمونه</span>
-          </span>
-          <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
-        </button>
 
         {/* جدیدترین مطالب — کارت‌های فید مثل طرح مرجع */}
         <LatestPosts />

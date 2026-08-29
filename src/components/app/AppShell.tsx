@@ -151,6 +151,27 @@ export function AppShell() {
   // در موبایل با اسکرول به پایین نوار بالا و داک پایین جمع می‌شوند
   const chromeHidden = useHideOnScroll(route);
 
+  // در خانه نوار بالا همیشه دیده می‌شود تا نوار جستجوی چسبیده جای خود را داشته باشد
+  const headerHidden = route.view === "home" ? false : chromeHidden;
+
+  // پیوند نوار جستجوی هیرو به نوار بالا — پس از خروج جستجو از دید، قرص جستجو در نوار بالا می‌نشیند
+  const [searchDocked, setSearchDocked] = React.useState(false);
+  React.useEffect(() => {
+    if (route.view !== "home") { setSearchDocked(false); return; }
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        setSearchDocked(window.scrollY > 150);
+        ticking = false;
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [route.view]);
+
   // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است
   const [mode, setMode] = React.useState<NavMode>("expanded");
   // درخواست کاربر: کلیک روی «مطالعه» فهرست کشویی درس‌ها را باز می‌کند
@@ -362,7 +383,7 @@ export function AppShell() {
         {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
         <header
           className={`sticky top-0 z-40 bg-background/0 px-2.5 pt-3 transition-all duration-300 ease-out sm:px-5 ${
-            chromeHidden ? "max-lg:pointer-events-none max-lg:-translate-y-[135%] max-lg:opacity-0" : ""
+            headerHidden ? "max-lg:pointer-events-none max-lg:-translate-y-[135%] max-lg:opacity-0" : ""
           }`}
         >
           <div className="mx-auto max-w-7xl">
@@ -382,14 +403,14 @@ export function AppShell() {
                 </span>
               </button>
 
-              {/* جستجوی میانی — قرص جستجو با میانبر Ctrl / */}
-              <div className="relative hidden min-w-0 flex-1 justify-center md:flex">
+              {/* جستجوی میانی — دسکتاپ همیشه؛ موبایل پس از اسکرول (پیوند نوار جستجوی هیرو) */}
+              <div className={`relative min-w-0 flex-1 justify-center ${searchDocked ? "flex search-dock-in" : "hidden md:flex"}`}>
                 <GlobalSearch courses={courses} variant="bar" />
               </div>
 
               {/* ابزارها — حساب، تم، تنظیمات، منوی موبایل */}
               <div className="relative ms-auto flex items-center gap-1.5">
-                <div className="md:hidden">
+                <div className={searchDocked ? "hidden" : "md:hidden"}>
                   <GlobalSearch courses={courses} variant="icon" />
                 </div>
                 <FeedBell />
