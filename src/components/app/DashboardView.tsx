@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import {
-  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Flame, ArrowLeft,
+  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
-  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel, CloudOff,
+  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -13,10 +13,10 @@ import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+import { GlobalSearch } from "./GlobalSearch";
+import { OfflineDownloadButton } from "./offline-ui";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
-import type { OfflineCardPost } from "@/lib/offline";
-import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 
 export const faDate = (iso: string) =>
   new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
@@ -139,7 +139,6 @@ function SectionSlider({
 export function DashboardView() {
   const progress = useApp((s) => s.progress);
   const last = useApp((s) => s.lastLocation);
-  const streak = useApp((s) => s.streak);
   const customCourses = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
 
@@ -201,11 +200,10 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-9 px-4 pb-28 pt-5 sm:px-6">
-      {/* ═══ هیروی کربنی — سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
+      {/* ═══ هیروی کربنی — جستجو + سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
       <HeroPanel
         greeting={greeting}
-        streak={streak.count}
-        books={shelfCourses.length}
+        courses={shelfCourses}
         resumeTarget={resumeTarget}
       />
 
@@ -252,6 +250,29 @@ export function DashboardView() {
   );
 }
 
+/* ─── دکمهٔ طلایی CTA — همان جنس دکمهٔ روز/شب (گرادیان طلایی + برق شیشه‌ای) ── */
+
+function GoldCta({
+  icon: Icon, children, onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group relative mt-1 inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-[#ecd29a] via-[#cda65e] to-[#8a6a30] px-5 py-2.5 text-sm font-bold text-[#1b1408] shadow-[0_3px_12px_-3px_rgba(205,166,94,0.65),inset_0_1px_0_rgba(255,255,255,0.5)] ring-1 ring-[#f6e7c1]/70 transition-all duration-300 hover:shadow-[0_5px_18px_-3px_rgba(205,166,94,0.85),inset_0_1px_0_rgba(255,255,255,0.55)] hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-white/80 active:scale-[.98]"
+    >
+      {/* برق شیشه‌ای روی گرادیان طلایی */}
+      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/5 to-black/15" />
+      <span aria-hidden className="pointer-events-none absolute -top-1/2 start-[-20%] h-[180%] w-2/3 rotate-12 bg-white/25 blur-[6px] transition-transform duration-500 group-hover:translate-x-[120%]" />
+      <Icon className="relative h-[18px] w-[18px]" />
+      <span className="relative">{children}</span>
+    </button>
+  );
+}
+
 /* ═══ هیروی کربنی v3 — بدون حلقهٔ پیشرفت؛ صحنهٔ تئاتری تک‌آیتم تایم‌دار ═══ */
 
 type StageItem =
@@ -261,11 +282,10 @@ type StageItem =
 const STAGE_DELAY = 7000; // هفت ثانیه روی هر آیتم، بعد آیتم تازه
 
 function HeroPanel({
-  greeting, streak, books, resumeTarget,
+  greeting, courses, resumeTarget,
 }: {
   greeting: string;
-  streak: number;
-  books: number;
+  courses: Course[];
   resumeTarget: { courseTitle: string; lesson: Lesson } | null;
 }) {
   return (
@@ -286,7 +306,12 @@ function HeroPanel({
       <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
 
       <div className="relative space-y-6">
-        {/* سطر بالایی: سلام + آمار — بدون هیچ درصد پیشرفتی؛ در دسکتاپ در نیمهٔ راست */}
+        {/* نوار باریک جستجو — وسط‌چین بالای المان؛ با اسکرول به نوار اصلی بالا می‌پیوندد */}
+        <div className="flex justify-center">
+          <GlobalSearch courses={courses} variant="hero" />
+        </div>
+
+        {/* سطر بالایی: سلام + جلسهٔ بعدی — در دسکتاپ در نیمهٔ راست */}
         <div className="space-y-3 lg:max-w-[55%]">
           <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
           {resumeTarget ? (
@@ -295,13 +320,9 @@ function HeroPanel({
               <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
                 <span className="font-semibold text-bronze">{resumeTarget.courseTitle}</span> · {resumeTarget.lesson.title}
               </p>
-              <button
-                onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}
-                className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
-              >
-                <PlayCircle className="h-[18px] w-[18px]" />
+              <GoldCta icon={PlayCircle} onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}>
                 ادامه یادگیری
-              </button>
+              </GoldCta>
             </>
           ) : (
             <>
@@ -309,19 +330,11 @@ function HeroPanel({
               <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
                 یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
               </p>
-              <button
-                onClick={() => navigate({ view: "library" })}
-                className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
-              >
-                <LibraryBig className="h-[18px] w-[18px]" />
+              <GoldCta icon={LibraryBig} onClick={() => navigate({ view: "library" })}>
                 انتخاب درس از کتابخانه
-              </button>
+              </GoldCta>
             </>
           )}
-          <div className="flex flex-wrap gap-2 pt-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><BookOpen className="h-3.5 w-3.5 text-bronze" />{fa(books)} درس فعال</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><Flame className="h-3.5 w-3.5 text-bronze" />استریک {fa(streak)} روز</span>
-          </div>
         </div>
 
         {/* جدیدترین مطالب — کارت‌های فید مثل طرح مرجع */}
@@ -342,7 +355,7 @@ const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ c
 };
 
 function LatestPosts() {
-  const { feed, loading, offline } = useSocial();
+  const { feed, loading } = useSocial();
   const ref = React.useRef<HTMLDivElement>(null);
   const [edge, setEdge] = React.useState({ prev: false, next: false });
 
@@ -388,11 +401,6 @@ function LatestPosts() {
         >
           مشاهده همه
         </button>
-        {offline && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[9.5px] font-bold text-amber-200">
-            <CloudOff className="h-3 w-3" /> نسخهٔ آفلاین بستهٔ ذخیره‌شده
-          </span>
-        )}
         <span className="ms-auto hidden text-[10px] font-medium text-primary-foreground/50 sm:inline">
           تازه‌ترین نوشته‌های اساتید
         </span>
@@ -408,9 +416,9 @@ function LatestPosts() {
           ) : (
             <button
               onClick={() => navigate({ view: "teachers" })}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-l from-amber-100 to-sky-100 px-4 py-6 text-xs font-semibold leading-relaxed text-[#1f2c25] shadow-card transition-shadow hover:shadow-lg"
+              className="lg-skeleton flex w-full items-center justify-center gap-3 rounded-[24px] border-dashed px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
             >
-              <GraduationCap className="h-5 w-5 shrink-0 text-amber-600" />
+              <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
               هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
             </button>
           )}
@@ -420,7 +428,7 @@ function LatestPosts() {
           <button
             onClick={() => slide(-1)}
             aria-label="مطالب بعدی"
-            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-card backdrop-blur transition-colors hover:border-bronze hover:text-bronze"
+            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -429,7 +437,7 @@ function LatestPosts() {
           <button
             onClick={() => slide(1)}
             aria-label="مطالب قبلی"
-            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/25 bg-black/45 text-white shadow-card backdrop-blur transition-colors hover:border-bronze hover:text-bronze"
+            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -439,7 +447,7 @@ function LatestPosts() {
   );
 }
 
-/** کارت مطلب — جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
+/** کارت مطلب — تامنیل آپلودی استاد اگر بود، وگرنه جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
 function FeedCard({
   p,
 }: {
@@ -449,7 +457,7 @@ function FeedCard({
     categories?: string[];
     category?: string;
     thumbnail?: string;
-    author: { id: string; displayName: string; avatarUrl?: string | null };
+    author: { id: string; displayName: string; avatarUrl?: string | null; username?: string };
   };
 }) {
   const cat = p.categories?.[0] ?? p.category ?? "other";
@@ -458,61 +466,92 @@ function FeedCard({
   const catLabel = categoryLabelOf(cat);
   // برآورد زمان مطالعه از حجم خلاصه — تشریفاتی ولی منطقی
   const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
+  const hasThumb = typeof p.thumbnail === "string" && p.thumbnail.trim() !== "";
+
+  const offlineCard = {
+    id: p.id,
+    title: p.title,
+    summary: p.summary ?? "",
+    tags: "",
+    category: p.category,
+    categories: p.categories,
+    thumbnail: hasThumb ? p.thumbnail : undefined,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    commentsCount: p.commentsCount,
+    rating: p.rating,
+    author: {
+      id: p.author.id,
+      username: p.author.username ?? "",
+      displayName: p.author.displayName,
+      avatarUrl: p.author.avatarUrl,
+    },
+  };
 
   return (
-    // div با نقش لینک — چون دکمهٔ دانلود آفلاین داخلش است (button تودرتو ممنوع)
-    // ظاهر هم‌سبک دکمهٔ روز/شب — گرادیان ملایم کهربایی → آسمانی
-    <div
-      role="link"
-      tabIndex={0}
-      onClick={() => navigate({ view: "post", id: p.id })}
-      onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
-      className="group w-[240px] shrink-0 snap-start cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-bl from-amber-100 to-sky-100 text-start text-[#1f2c25] shadow-card transition-all duration-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
-    >
-      {/* جلد — تصویر شاخص استاد اگر باشد، وگرنه جلد رنگی دسته — گرد و با فاصله از لبهٔ کارت */}
-      <span className="block p-2.5 pb-0">
-      {p.thumbnail ? (
-        <span className="relative block h-[104px] overflow-hidden rounded-xl">
-          <img src={p.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
-          <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} className="absolute top-2 start-2.5" />
-          <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+    <div className="relative w-[240px] shrink-0 snap-start sm:w-[268px]">
+      <button
+        onClick={() => navigate({ view: "post", id: p.id })}
+        className="feed-card group relative block w-full overflow-hidden rounded-[24px] text-start text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze/70"
+      >
+      {/* جلد — قاب شیشه‌ای داخلی: تامنیل/جلد دسته با گوشهٔ کرو و فاصلهٔ یکسان از بوردر کارت */}
+      {hasThumb ? (
+        <span className="relative block px-3 pt-3">
+          <span className="relative mx-auto block h-[116px] w-full overflow-hidden rounded-[14px] shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)] transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.6)]">
+            <img
+              src={p.thumbnail}
+              alt=""
+              dir="ltr"
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
+            />
+            <span aria-hidden className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/30" />
+          </span>
+          <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
             {catLabel}
           </span>
         </span>
       ) : (
-      <span className={`relative block h-[104px] overflow-hidden rounded-xl bg-gradient-to-bl ${cover.bg}`}>
-        <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
-        <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
-          {p.title.slice(0, 1)}
-        </span>
-        <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
-          <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
-        </span>
-        <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} className="absolute top-2 start-2.5" />
-        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+      <span className="relative block px-3 pt-3">
+        <span className={`relative block h-[116px] w-full overflow-hidden rounded-[14px] bg-gradient-to-bl ${cover.bg}`}>
+        <>
+          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+          <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
+            {p.title.slice(0, 1)}
+          </span>
+          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+            <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+          </span>
+        </>
+        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
           {catLabel}
+        </span>
         </span>
       </span>
       )}
-      </span>
 
-      <span className="block space-y-2 p-3.5 pt-3">
-        <span className="block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-amber-700">
+      <span className="block space-y-2 p-3.5">
+        <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">
           {p.title}
         </span>
         <span className="flex items-center gap-2">
           <UserAvatar src={p.author.avatarUrl} name={p.author.displayName} size="xs" />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-bold">{p.author.displayName}</span>
-          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-[#5c6b60]">{faDate(p.createdAt)}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-foreground/80">{p.author.displayName}</span>
+          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">{faDate(p.createdAt)}</span>
         </span>
-        <span className="flex items-center gap-2 border-t border-black/[0.08] pt-2 text-[10px] font-semibold text-[#5c6b60]">
+        <span className="flex items-center gap-2 border-t border-border/70 pt-2 text-[10px] font-semibold text-muted-foreground">
           <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
           <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
           {!!p.rating?.count && (
-            <span className="inline-flex items-center gap-0.5 font-bold text-amber-600"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
+            <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
           )}
-          <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={p as OfflineCardPost} />
         </span>
+      </span>
+      </button>
+
+      {/* دکمهٔ دانلود آفلاین — لایهٔ شناور گوشهٔ جلد */}
+      <span className="absolute end-2 top-2 z-10">
+        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} variant="glass" className="!h-8 !w-8 shadow-card backdrop-blur" />
       </span>
     </div>
   );
@@ -520,14 +559,12 @@ function FeedCard({
 
 function FeedCardSkeleton() {
   return (
-    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl bg-gradient-to-bl from-amber-100/70 to-sky-100/70 sm:w-[268px]">
-      <span className="block p-2.5 pb-0">
-        <span className="block h-[104px] rounded-xl bg-white/40" />
-      </span>
-      <span className="block space-y-2 p-3.5 pt-3">
-        <span className="block h-3.5 w-4/5 rounded bg-black/10" />
-        <span className="block h-3 w-2/5 rounded bg-black/10" />
-        <span className="block h-2.5 w-3/5 rounded bg-black/[0.07]" />
+    <span className="feed-card block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] sm:w-[268px]">
+      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[14px] bg-black/[0.06]" /></span>
+      <span className="block space-y-2 p-3.5">
+        <span className="block h-3.5 w-4/5 rounded bg-black/[0.09]" />
+        <span className="block h-3 w-2/5 rounded bg-black/[0.06]" />
+        <span className="block h-2.5 w-3/5 rounded bg-black/[0.05]" />
       </span>
     </span>
   );
@@ -967,7 +1004,6 @@ export function TeacherFeedTeasers() {
             <div className="mb-2.5 flex items-center gap-2.5">
               <ToTeacherProfile id={p.author.id} displayName={p.author.displayName} avatarUrl={p.author.avatarUrl} />
               <span className="text-[10px] text-muted-foreground">{faDate(p.createdAt)}</span>
-              <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} />
               <span className="ms-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                 <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
               </span>
@@ -976,7 +1012,6 @@ export function TeacherFeedTeasers() {
                   <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
                 </span>
               )}
-              <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={p} />
             </div>
             <p className="font-display line-clamp-1 text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
             {p.summary && <p className="line-clamp-2 mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{p.summary}</p>}

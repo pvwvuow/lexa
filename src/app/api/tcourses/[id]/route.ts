@@ -17,17 +17,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!row) return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
 
-  // پیش‌نویس/در حال آماده‌سازی فقط برای خودِ نویسنده یا مدیر دیده می‌شود
-  const isOwner = !!me && (me.id === row.teacherId || me.role === "admin");
-  if (row.status !== "published" && !isOwner)
-    return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
-
-  const course = teacherCourseToCourse(row, {
-    id: row.teacher.id,
-    username: row.teacher.username,
-    displayName: row.teacher.displayName || row.teacher.username,
-    avatarUrl: row.teacher.avatarUrl,
-  });
+  const course = {
+    ...teacherCourseToCourse(row, {
+      id: row.teacher.id,
+      username: row.teacher.username,
+      displayName: row.teacher.displayName || row.teacher.username,
+      avatarUrl: row.teacher.avatarUrl,
+    }),
+    _updatedAt: row.updatedAt.toISOString(),
+  };
 
   return NextResponse.json({
     course,

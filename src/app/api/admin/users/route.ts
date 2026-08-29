@@ -5,11 +5,6 @@ import { ensureAdmin, getSessionUser } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** تاریخ ISO به‌تاریخی محلیِ سرور (نه UTC) — «امروز» باید با ساعت ایران بخواند */
-function localDayISO(d: Date): string {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
-}
-
 /** فهرست همهٔ کاربران + آمار عملکرد — فقط برای مدیر */
 export async function GET() {
   await ensureAdmin();
@@ -71,7 +66,7 @@ export async function GET() {
     let totalQuizzes = 0;
     for (const s of statsByUser.values()) totalQuizzes += s.quizzes;
 
-    const today = localDayISO(new Date());
+    const today = new Date().toISOString().slice(0, 10);
     let completions = 0;
     for (const s of statsByUser.values()) completions += s.completed;
 
@@ -91,7 +86,9 @@ export async function GET() {
           onlineNow:
             !!u.lastSeenAt && Date.now() - u.lastSeenAt.getTime() < 10 * 60_000,
           activeToday:
-            !!u.lastSeenAt && localDayISO(u.lastSeenAt) >= today,
+            !!u.lastSeenAt &&
+            new Date(u.lastSeenAt.getTime()).toISOString().slice(0, 10).slice(0, 10) >=
+              today,
           stats: {
             started: s.started,
             completed: s.completed,

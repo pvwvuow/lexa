@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
-  MoreHorizontal, CheckCircle2, Loader2,
+  MoreHorizontal, CheckCircle2,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -37,32 +37,11 @@ export function LearnView({ id }: { id: string }) {
   const removeNote = useApp((s) => s.removeNote);
 
   // ── یافتن جلسه و دوره ──
-  // دورهٔ استاد که در کتابخانهٔ محلی نیست (مثلاً پیش‌نمایش خود استاد): واکشی دور
-  const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
-  const [remoteTried, setRemoteTried] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!id.startsWith("tc-") || remoteCourse || remoteTried) return;
-    let alive = true;
-    // الگوی شناسهٔ جلسات دورهٔ استاد: tc-{courseId}-{ch}-{li}
-    const courseId = id.replace(/^tc-/, "").split("-").slice(0, -2).join("-");
-    fetch(`/api/tcourses/${encodeURIComponent(courseId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { course?: Course } | null) => { if (alive && d?.course) setRemoteCourse(d.course); })
-      .catch(() => {})
-      .finally(() => { if (alive) setRemoteTried(true); });
-    return () => { alive = false; };
-  }, [id, remoteCourse, remoteTried]);
-
   let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
-  {
-    const localPool = mergeAll({ customCourses: custom, tBooks });
-    const pool = remoteCourse ? [...localPool, remoteCourse] : localPool;
-    for (const c of pool) {
-      for (let ci = 0; ci < c.chapters.length; ci++) {
-        const li = c.chapters[ci].lessons.findIndex((l) => l.id === id);
-        if (li >= 0) ctx = { lesson: c.chapters[ci].lessons[li], chapter: c.chapters[ci], course: c, index: li, total: 0 };
-      }
+  for (const c of mergeAll({ customCourses: custom, tBooks })) {
+    for (let ci = 0; ci < c.chapters.length; ci++) {
+      const li = c.chapters[ci].lessons.findIndex((l) => l.id === id);
+      if (li >= 0) ctx = { lesson: c.chapters[ci].lessons[li], chapter: c.chapters[ci], course: c, index: li, total: 0 };
     }
   }
 
@@ -90,12 +69,7 @@ export function LearnView({ id }: { id: string }) {
      
   }, [id]);
 
-  if (!ctx) {
-    if (id.startsWith("tc-") && !remoteTried) {
-      return <p className="flex items-center justify-center gap-2 p-16 text-sm text-bronze"><Loader2 className="h-5 w-5 animate-spin" /> در حال بارگذاری جلسه…</p>;
-    }
-    return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
-  }
+  if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
 
   const { lesson, chapter, course } = ctx;
   const sections: LessonSection[] = lesson.sections ?? [];
@@ -547,7 +521,7 @@ function AiAnswerRich({ text }: { text: string }) {
   return (
     <>
       {prose && (
-        <div className="teach-body prose-p:leading-[1.9] text-[17px] [&_p]:my-1 [&_strong]:text-foreground">
+        <div className="teach-body prose-p:leading-[1.85] text-[15.5px] [&_p]:my-1 [&_strong]:text-foreground">
           <ReactMarkdown>{prose}</ReactMarkdown>
         </div>
       )}

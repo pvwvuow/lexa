@@ -11,14 +11,11 @@ import { fa } from "@/lib/fa";
 import { CATEGORIES, categoryLabel } from "@/lib/social-shared";
 import { useApp } from "@/lib/store";
 import { builtinCourses } from "@/lib/law/courses";
-import { examPacks, examTypes } from "@/lib/law/examPacks";
 import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { usePublicLibrary, toggleBuiltinHidden, type TCourseCard, type FeedPost } from "@/lib/social-client";
-import type { OfflineCardCourse } from "@/lib/offline";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
 import { OfflineDownloadButton } from "./offline-ui";
-import { ExamPackCard } from "./ExamPacksView";
 
 /** افزودن/حذف یک دوره از کتابخانهٔ من؛ true یعنی اضافه شد */
 async function toggleInLibrary(courseId: string): Promise<boolean> {
@@ -94,6 +91,9 @@ function CourseCardLib({
             </p>
           )}
         </div>
+        <span className="shrink-0">
+          <OfflineDownloadButton kind="tcourse" id={c.id} card={{ ...c }} serverUpdatedAt={c._updatedAt} />
+        </span>
       </div>
 
       {c.description && (
@@ -178,6 +178,32 @@ function PostTeaser({ p }: { p: FeedPost }) {
             <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
           </span>
         )}
+        <span className="shrink-0">
+          <OfflineDownloadButton
+            kind="post"
+            id={p.id}
+            serverUpdatedAt={p.updatedAt}
+            card={{
+              id: p.id,
+              title: p.title,
+              summary: p.summary ?? "",
+              tags: p.tags,
+              category: p.category,
+              categories: p.categories,
+              thumbnail: p.thumbnail,
+              createdAt: p.createdAt,
+              updatedAt: p.updatedAt,
+              commentsCount: p.commentsCount,
+              rating: p.rating,
+              author: {
+                id: p.author.id,
+                username: p.author.username ?? "",
+                displayName: p.author.displayName,
+                avatarUrl: p.author.avatarUrl,
+              },
+            }}
+          />
+        </span>
       </div>
       <p className="line-clamp-1 font-display text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
       {p.summary && <p className="line-clamp-2 mt-1 text-xs leading-relaxed text-muted-foreground">{p.summary}</p>}
@@ -242,6 +268,22 @@ function BuiltinCourseCard({ c }: { c: Course }) {
             <Sparkles className="h-3 w-3" /> دورهٔ آمادهٔ همیار حقوق
           </p>
         </div>
+        <span className="shrink-0">
+          <OfflineDownloadButton
+            kind="builtin"
+            id={c.id}
+            courseObj={c}
+            card={{
+              id: c.id,
+              title: c.title,
+              tagline: c.tagline ?? "",
+              description: c.description ?? "",
+              icon: c.icon,
+              lessonsCount: lessonsN,
+              teacher: { id: "", username: "", displayName: "همیار حقوق" },
+            }}
+          />
+        </span>
       </div>
 
       {c.description && (
@@ -274,22 +316,6 @@ function BuiltinCourseCard({ c }: { c: Course }) {
             <><BookPlus className="h-4 w-4" /> افزودن به عنوان کتاب</>
           )}
         </button>
-        {/* دانلود برای مطالعهٔ آفلاین — دورهٔ آماده در باندل است و بی‌درنگ ذخیره می‌شود */}
-        <OfflineDownloadButton
-          kind="builtin"
-          id={c.id}
-          card={{
-            id: c.id,
-            title: c.title,
-            tagline: c.tagline,
-            description: c.description,
-            icon: c.icon,
-            lessonsCount: lessonsN,
-            teacher: { id: "", username: "hamyar", displayName: "همیار حقوق", avatarUrl: null },
-          }}
-          courseObj={c}
-          labeled
-        />
         {inLib && (
           <button
             onClick={act}
@@ -315,9 +341,8 @@ export function PublicLibraryView() {
   const auth = useAuth();
   // شروع از «دوره‌های آماده» — جایی که جزوات رسمی اپ همیشه اینجاست
   const [cat, setCat] = React.useState("builtin");
-  const isSpecial = cat === "builtin" || cat === "exams";
-  // تب داخلی (آزمون‌ها/دوره‌های آماده) هیچ فراخوانی شبکه‌ای نمی‌زند؛ داده‌اش از خود باندل می‌آید
-  const { courses, posts, loading } = usePublicLibrary(cat, !isSpecial);
+  // تب داخلی هیچ فراخوانی شبکه‌ای نمی‌زند؛ داده‌اش از خود باندل می‌آید
+  const { courses, posts, loading } = usePublicLibrary(cat, cat !== "builtin");
 
   const [busyId, setBusyId] = React.useState("");
   const [err, setErr] = React.useState("");
@@ -332,15 +357,14 @@ export function PublicLibraryView() {
           کتابخانهٔ عمومی
         </h1>
         <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          دوره‌های آمادهٔ خودِ همیار حقوق + آنچه اساتید منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه؛
-          دفترچه‌های آزمون تستی و تشریحی هم برای همهٔ آزمون‌ها اینجاست.
+          دوره‌های آمادهٔ خودِ همیار حقوق + آنچه اساتید منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه.
           هر چیزی را خواستی به بخش مطالعهٔ خودت اضافه یا حذف کن؛ حتی دوره‌هایی که هنوز در حال آماده‌سازی‌اند.
         </p>
       </header>
 
       {/* تب‌های شاخه — «دوره‌های آماده» همیشه اول؛ «قوانین» به کتابخانهٔ جداگانه می‌رود */}
       <nav aria-label="شاخه‌های کتابخانه" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
-        {[{ slug: "builtin", label: "دوره‌های آماده" }, { slug: "exams", label: "آزمون‌ها" }, { slug: "", label: "همه" }, ...CATEGORIES].map((c) => (
+        {[{ slug: "builtin", label: "دوره‌های آماده" }, { slug: "", label: "همه" }, ...CATEGORIES].map((c) => (
           <button
             key={c.slug || "all"}
             onClick={() => setCat(c.slug)}
@@ -387,44 +411,11 @@ export function PublicLibraryView() {
         </section>
       )}
 
-      {/* ═══ بخش آزمون‌ها — دفترچه‌های تستی و تشریحی همهٔ آزمون‌ها ═══ */}
-      {cat === "exams" && (
-        <section className="space-y-5">
-          <div className="space-y-2">
-            <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دفترچه‌های آزمون ({fa(examPacks.length)})</h2>
-            <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-              دفترچه‌های تستی (۳۰-۴۰ سؤال یکجا با زمان‌سنج، مثل جلسهٔ واقعی) و تشریحی (پرسش + پاسخ نمونه و کلیدواژه)
-              برای آزمون‌های وکالت، قضاوت، ارشد و هر آزمون حقوقی دیگر — به‌مرور دفترچه‌های تازه به همین بخش اضافه می‌شود.
-            </p>
-            <button
-              onClick={() => navigate({ view: "quiz" })}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-bronze bg-bronze/10 px-4 py-2 text-xs font-bold text-bronze transition-colors hover:bg-bronze/20"
-            >
-              <GraduationCap className="h-3.5 w-3.5" /> مرکز آزمون — آزمون دلخواه از کتابخانهٔ خودت ←
-            </button>
-          </div>
-          {examTypes().map((t) => (
-            <div key={t.slug} className="space-y-3">
-              <h3 className="flex items-center gap-2 text-base font-bold">
-                <span className="grid h-7 w-7 place-items-center rounded-lg bg-bronze/10 text-bronze"><GraduationCap className="h-4 w-4" /></span>
-                {t.label}
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">{fa(t.count)} دفترچه</span>
-              </h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                {examPacks.filter((p) => p.examSlug === t.slug).map((p) => (
-                  <ExamPackCard key={p.id} pack={p} showExam={false} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-
       {/* ═══ بخش اساتید ═══ */}
-      {!isSpecial && loading && (
+      {cat !== "builtin" && loading && (
         <p className="flex items-center gap-2 py-8 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت کتابخانه…</p>
       )}
-      {!isSpecial && !loading && (
+      {cat !== "builtin" && !loading && (
         <>
           {/* دوره‌ها */}
           <section className="space-y-3">

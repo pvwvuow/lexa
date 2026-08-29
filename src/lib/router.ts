@@ -4,7 +4,6 @@ import * as React from "react";
 
 export type Route =
   | { view: "home" }
-  | { view: "study" }
   | { view: "course"; id: string }
   | { view: "learn"; id: string }
   | { view: "quiz"; id?: string }
@@ -16,17 +15,16 @@ export type Route =
   | { view: "admin" }
   | { view: "teachers" }
   | { view: "studio" }
-  | { view: "write"; kind: "post" | "course"; id?: string }
   | { view: "post"; id: string }
   | { view: "library" }
   | { view: "law"; id?: string }
-  | { view: "teacher"; id: string };
+  | { view: "teacher"; id: string }
+  | { view: "study" }
+  | { view: "write"; kind: "post" | "course"; id?: string };
 
 export function routeToHash(r: Route): string {
   switch (r.view) {
     case "home": return "#/";
-    case "study": return "#/study";
-    case "write": return `#/write/${r.kind}/${r.id ?? "new"}`;
     case "course": return `#/course/${r.id}`;
     case "learn": return `#/learn/${r.id}`;
     case "quiz": return r.id ? `#/quiz/${r.id}` : "#/quiz";
@@ -34,16 +32,15 @@ export function routeToHash(r: Route): string {
     case "post": return `#/post/${r.id}`;
     case "teacher": return `#/teacher/${r.id}`;
     case "law": return r.id ? `#/law/${r.id}` : "#/law";
+    case "write": return `#/write/${r.kind}${r.id ? `/${r.id}` : ""}`;
     default: return `#/${r.view}`;
   }
 }
 
 export function parseHash(h: string): Route {
   const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
-  const [head, id, sub] = parts;
+  const [head, id] = parts;
   if (!head) return { view: "home" };
-  if (head === "study") return { view: "study" };
-  if (head === "write" && (id === "post" || id === "course")) return { view: "write", kind: id, id: sub };
   if (head === "course" && id) return { view: "course", id };
   if (head === "learn" && id) return { view: "learn", id };
   if (head === "quiz") return { view: "quiz", id };
@@ -51,7 +48,9 @@ export function parseHash(h: string): Route {
   if (head === "post" && id) return { view: "post", id };
   if (head === "teacher" && id) return { view: "teacher", id };
   if (head === "law") return { view: "law", id: id || undefined };
-  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio", "library"].includes(head)) return { view: head as never };
+  if (head === "write" && (parts[1] === "post" || parts[1] === "course"))
+    return { view: "write", kind: parts[1], id: parts[2] };
+  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio", "library", "study"].includes(head)) return { view: head as never };
   return { view: "home" };
 }
 
@@ -68,6 +67,16 @@ export function navigate(r: Route) {
 /** یک قدم به عقب؛ اگر تاریخی نبود به خانه می‌رود */
 export function goBack() {
   if (typeof window === "undefined") return;
+  const h = window.location.hash || "#/";
+  // از درس/دوره بازگشت یعنی فهرست مطالعه؛ از فهرست یعنی خانه
+  if (h.startsWith("#/learn/") || h.startsWith("#/course/")) {
+    window.location.hash = "#/study";
+    return;
+  }
+  if (h === "#/study") {
+    window.location.hash = "#/";
+    return;
+  }
   if (navHistory.length > 1) window.history.back();
   else window.location.hash = "#/";
 }

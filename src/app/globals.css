@@ -53,6 +53,32 @@
   unicode-range: U+0000-00FF, U+2000-206F;
 }
 
+/* ─── وزیرمتن — متن مطالعه؛ ساده، خوانا و استاندارد (انتخاب کاربر) ─────────── */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Bold.woff2") format("woff2");
+  font-weight: 700 800;
+  font-display: swap;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -99,9 +125,9 @@
 
 :root {
   --radius: 0.75rem;
-  /* نمایش (تیتر/UI) + خوانش (متن کتابی) */
+  /* نمایش (تیتر/UI) + خوانش (متن کتابی) — وزیرمتن ساده و خوانا برای تدریس */
   --font-display: "Estedad", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "MarkaziText", "NotoNaskh", "Estedad", serif;
+  --font-body: "Vazirmatn", "Estedad", sans-serif;
 
   /* پالت روشن «قفسهٔ کتاب حقوق»: آلاباستر گرم + یشمی عمیق + طلایی عتیق */
   --background: #f5f3ed;
@@ -186,6 +212,79 @@
   --sidebar-accent-foreground: #dfe8e1;
   --sidebar-border: #29312b;
   --sidebar-ring: #cda65e;
+}
+
+/* ═══ تم «شیشه‌ای» — شیشهٔ مایع کامل (liquid glass) ═════════════════════════
+   خانوادهٔ روشن: والپاپر آۆرایی پاستلی پشتِ سطوحِ نیمه‌شفافِ واقعاً شیشه‌ای.
+   هر کلاس bg-card / bg-popover / bg-sidebar به خودکار شفاف و بلوردار می‌شود
+   چون متغیرهای پالت به rgba بازتعریف شده‌اند. هیرو و نوار زمردی برند، تیره
+   و ثابت می‌مانند تا لنگرِ بصری برنامه حفظ شود. */
+.theme-glass {
+  --background: #edf1ea;
+  --foreground: #1e2a26;
+  --card: rgb(255 255 255 / 0.60);
+  --card-foreground: #1e2a26;
+  --popover: rgb(255 255 255 / 0.88);
+  --popover-foreground: #1e2a26;
+  --primary: #1d4b40;
+  --primary-foreground: #f1f7f3;
+  --secondary: rgb(255 255 255 / 0.52);
+  --secondary-foreground: #25443c;
+  --muted: rgb(255 255 255 / 0.42);
+  --muted-foreground: #5b6a62;
+  --accent: rgb(255 255 255 / 0.46);
+  --accent-foreground: #1d4b40;
+  --destructive: #b04a50;
+  --border: rgb(255 255 255 / 0.78);
+  --input: rgb(255 255 255 / 0.72);
+  --ring: #a87f3f;
+
+  --bronze: #a87f3f;
+  --bronze-foreground: #fff9ee;
+  --success: #35755b;
+  --warn: #a96f1f;
+  --danger: #b04a50;
+
+  --sidebar: rgb(255 255 255 / 0.42);
+  --sidebar-foreground: #1e2a26;
+  --sidebar-primary: #1d4b40;
+  --sidebar-primary-foreground: #f1f7f3;
+  --sidebar-accent: rgb(255 255 255 / 0.52);
+  --sidebar-accent-foreground: #1d4b40;
+  --sidebar-border: rgb(255 255 255 / 0.70);
+  --sidebar-ring: #a87f3f;
+}
+
+/* والپاپر آۆرایی — رنگ‌های نرم یشمی/طلایی/آبیِ پاستلی پشت شیشه‌ها */
+.theme-glass body {
+  background:
+    radial-gradient(1000px 640px at 10% -10%, rgb(150 200 172 / 0.50), transparent 62%),
+    radial-gradient(900px 600px at 92% 8%, rgb(233 211 160 / 0.46), transparent 64%),
+    radial-gradient(1100px 760px at 46% 112%, rgb(157 197 218 / 0.36), transparent 62%),
+    linear-gradient(180deg, #f2f5ee, #ebefe7);
+  background-attachment: fixed;
+}
+
+/* شیشهٔ واقعی روی سطوح اصلی — بلور + اشباع، بدون -webkit (به نکتهٔ بالا) */
+.theme-glass .bg-card { backdrop-filter: blur(14px) saturate(1.35); }
+.theme-glass .bg-popover { backdrop-filter: blur(20px) saturate(1.35); }
+.theme-glass .bg-sidebar { backdrop-filter: blur(16px) saturate(1.35); }
+
+/* سایهٔ شناور نرم‌تر برای حس معلق‌بودن شیشه */
+.theme-glass .shadow-card {
+  box-shadow:
+    0 1px 2px rgb(23 32 28 / 0.05),
+    0 12px 32px -14px rgb(23 32 28 / 0.18);
+}
+
+/* آزمایشگاه طرح خانه — والپاپر آۆراییِ محلی برای پیش‌نمایش تم شیشه‌ای
+   داخل یک قاب محدودشده (همان گرادیان‌های .theme-glass body، این‌بار روی خود قاب) */
+.lab-glass-wallpaper {
+  background:
+    radial-gradient(1000px 640px at 10% -10%, rgb(150 200 172 / 0.50), transparent 62%),
+    radial-gradient(900px 600px at 92% 8%, rgb(233 211 160 / 0.46), transparent 64%),
+    radial-gradient(1100px 760px at 46% 112%, rgb(157 197 218 / 0.36), transparent 62%),
+    linear-gradient(180deg, #f2f5ee, #ebefe7);
 }
 
 html {
@@ -290,6 +389,199 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow:
     0 1px 2px rgb(0 0 0 / 0.35),
     0 8px 22px -10px rgb(0 0 0 / 0.5);
+}
+
+/* ─── شیشهٔ مایع (Liquid Glass) — بازآفرینی وفادار به liquid-glass-vue ───────
+   https://github.com/polidario/Frontend-Projects/tree/main/liquid-glass-vue
+   فرمول مرجع: شیشهٔ شفافِ روشن (brightness + بلور + اشباع) که رنگِ پشتش را
+   نشان می‌دهد، لبهٔ نورانی با خطِ نور بالا، برق مورّب نور روی سطح و
+   سایهٔ شناور بزرگ. تینت هر تم جدا تنظیم شده تا شیشه در هر دو دیده شود.
+   (لایهٔ شکست SVG مرجع روی محتوای UI واقعی آرتیفکت موجی می‌سازد — حذف شد.)
+   نکته: فقط اعلان استاندارد backdrop-filter — اگر -webkit- هم نوشته شود
+   Lightning CSS (Tailwind v4) اعلان استاندارد را حذف می‌کند و بلور از بین می‌رود. */
+
+/* برق مشخصهٔ شیشه — بازتاب مورّب نور روی سطح + خطِ باریک روشن لبهٔ بالا */
+.lg-spec {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(105deg,
+    rgb(255 255 255 / 0.30) 0%,
+    rgb(255 255 255 / 0.12) 15%,
+    rgb(255 255 255 / 0.02) 34%,
+    rgb(255 255 255 / 0) 58%,
+    rgb(255 255 255 / 0.07) 86%,
+    rgb(255 255 255 / 0.14) 100%);
+  box-shadow: inset 0 1px 0.5px -0.25px rgb(255 255 255 / 0.55);
+}
+.dark .lg-spec {
+  background: linear-gradient(105deg,
+    rgb(255 255 255 / 0.16) 0%,
+    rgb(255 255 255 / 0.06) 15%,
+    rgb(255 255 255 / 0.01) 34%,
+    rgb(255 255 255 / 0) 58%,
+    rgb(255 255 255 / 0.04) 86%,
+    rgb(255 255 255 / 0.08) 100%);
+  box-shadow: inset 0 1px 0.5px -0.25px rgb(255 255 255 / 0.35);
+}
+
+/* داک موبایل — شیشهٔ شناور: پرشدگی سفید گرادیانی، لبهٔ نورانی، سایهٔ معلق */
+.lg-dock {
+  border: 1px solid rgb(255 255 255 / 0.55);
+  background: linear-gradient(105deg,
+    rgb(255 255 255 / 0.52) 0%,
+    rgb(255 255 255 / 0.30) 34%,
+    rgb(255 255 255 / 0.22) 62%,
+    rgb(255 255 255 / 0.36) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    inset 0 -1px 0.5px -0.5px rgb(255 255 255 / 0.35),
+    0 24px 48px -16px rgb(10 22 17 / 0.40),
+    0 6px 16px -6px rgb(10 22 17 / 0.30);
+  backdrop-filter: blur(20px) saturate(1.8) brightness(1.06);
+}
+.dark .lg-dock {
+  border-color: rgb(255 255 255 / 0.22);
+  background: linear-gradient(105deg,
+    rgb(46 62 56 / 0.62) 0%,
+    rgb(38 52 47 / 0.52) 40%,
+    rgb(30 42 38 / 0.55) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 -1px 0.5px -0.5px rgb(255 255 255 / 0.10),
+    0 24px 48px -16px rgb(0 0 0 / 0.60),
+    0 6px 16px -6px rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(20px) saturate(1.55) brightness(1.14);
+}
+
+/* پنل شیشه‌ای مایع — دیالوگ جستجو؛ هم‌جنس داک، با پرشدگی بیشتر برای خوانایی متن */
+.lg-panel {
+  border: 1px solid rgb(255 255 255 / 0.55);
+  background: linear-gradient(160deg,
+    rgb(255 255 255 / 0.68) 0%,
+    rgb(255 255 255 / 0.46) 42%,
+    rgb(255 255 255 / 0.58) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 32px 64px -20px rgb(10 22 17 / 0.45),
+    0 10px 24px -10px rgb(10 22 17 / 0.32);
+  backdrop-filter: blur(28px) saturate(1.7) brightness(1.05);
+}
+.dark .lg-panel {
+  border-color: rgb(255 255 255 / 0.2);
+  background: linear-gradient(160deg,
+    rgb(44 58 52 / 0.9) 0%,
+    rgb(33 45 40 / 0.82) 45%,
+    rgb(26 36 32 / 0.86) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 32px 64px -20px rgb(0 0 0 / 0.65),
+    0 10px 24px -10px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(28px) saturate(1.5) brightness(1.12);
+}
+
+/* آیتم فعال داک — «لنز» شیشه‌ای هم‌قوس با نوار (شعاع ۲۴ = ۲۸ بیرونی − ۴ فاصله):
+   ته‌رنگ برندِ سبز که از پشت شیشه می‌درخشد + لبهٔ نورانی کامل + هالهٔ داخلی،
+   تا قرصِ فعال بخشی از خودِ شیشه به‌نظر برسد نه برچسبی چسبیده روی آن */
+.lg-dock-btn-active {
+  color: var(--primary);
+  border: 1px solid rgb(255 255 255 / 0.92);
+  background:
+    radial-gradient(130% 105% at 50% -12%, rgb(255 255 255 / 0.80), rgb(255 255 255 / 0.16) 62%),
+    linear-gradient(165deg, rgb(29 75 64 / 0.28), rgb(29 75 64 / 0.10) 55%, rgb(168 127 63 / 0.16));
+  box-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.95),
+    inset 0 -5px 10px -7px rgb(29 75 64 / 0.35),
+    0 7px 16px -7px rgb(10 22 17 / 0.45);
+}
+.dark .lg-dock-btn-active {
+  color: rgb(232 203 143);
+  border-color: rgb(255 255 255 / 0.38);
+  background:
+    radial-gradient(130% 105% at 50% -12%, rgb(255 255 255 / 0.30), rgb(255 255 255 / 0.05) 62%),
+    linear-gradient(165deg, rgb(205 166 94 / 0.30), rgb(205 166 94 / 0.12) 55%, rgb(29 75 64 / 0.30));
+  box-shadow:
+    inset 0 1px 0.5px rgb(255 255 255 / 0.45),
+    inset 0 -5px 10px -7px rgb(0 0 0 / 0.40),
+    0 7px 16px -7px rgb(0 0 0 / 0.55);
+}
+
+/* کارت شیشه‌ای هیرو — پنۀ شفافِ روشن: رنگِ پنل از پشتش می‌درخشد */
+.lg-card {
+  border: 1px solid rgb(255 255 255 / 0.38);
+  background: linear-gradient(120deg,
+    rgb(255 255 255 / 0.20) 0%,
+    rgb(255 255 255 / 0.09) 32%,
+    rgb(255 255 255 / 0.06) 62%,
+    rgb(255 255 255 / 0.13) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.32),
+    inset 0 -1px 0.5px -0.5px rgb(255 255 255 / 0.16),
+    inset 0 -10px 18px -14px rgb(255 255 255 / 0.20),
+    0 22px 44px -18px rgb(3 12 9 / 0.55),
+    0 6px 16px -8px rgb(3 12 9 / 0.35);
+  backdrop-filter: blur(12px) saturate(1.85) brightness(1.30);
+}
+.dark .lg-card {
+  border-color: rgb(255 255 255 / 0.22);
+  background: linear-gradient(120deg,
+    rgb(255 255 255 / 0.14) 0%,
+    rgb(255 255 255 / 0.06) 32%,
+    rgb(255 255 255 / 0.05) 62%,
+    rgb(255 255 255 / 0.09) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.20),
+    inset 0 -1px 0.5px -0.5px rgb(255 255 255 / 0.10),
+    inset 0 -10px 18px -14px rgb(255 255 255 / 0.12),
+    0 22px 44px -18px rgb(0 0 0 / 0.55),
+    0 6px 16px -8px rgb(0 0 0 / 0.40);
+  backdrop-filter: blur(12px) saturate(1.7) brightness(1.22);
+}
+
+/* کارت «جدیدترین مطالب» — سفیدِ مات با فقط «ذره‌ای» شیشه:
+   بدنهٔ سفیدِ تقریباً کدر روی هیروی سبز، بلورِ خفیف و لبهٔ روشن
+   (بازخورد کاربر: کارتِ کاملاً شیشه‌ای خوب نیست — سفید و مات با کمی شیشه) */
+.feed-card {
+  /* کارت همیشه سفید است (روی هیروی همیشه‌سبز) — پالت متنش هم باید همیشه
+     «روشن» بماند؛ در تم شب که foreground سراسری روشن می‌شود، این متغیرها
+     داخل کارت به مقدار روز قفل می‌شوند تا متن روی سفید خوانا بماند */
+  --foreground: #212831;
+  --card-foreground: #212831;
+  --muted-foreground: #6d766f;
+  --border: #e2dfd2;
+  border: 1px solid rgb(255 255 255 / 0.85);
+  background: linear-gradient(165deg,
+    rgb(255 255 255 / 0.97) 0%,
+    rgb(255 255 255 / 0.92) 55%,
+    rgb(255 255 255 / 0.95) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.85),
+    0 16px 36px -18px rgb(3 12 9 / 0.55),
+    0 4px 12px -6px rgb(3 12 9 / 0.28);
+  backdrop-filter: blur(7px) saturate(1.12);
+}
+.feed-card:hover {
+  border-color: rgb(255 255 255 / 0.95);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.85),
+    0 22px 44px -18px rgb(3 12 9 / 0.62),
+    0 6px 16px -6px rgb(3 12 9 / 0.32);
+}
+
+/* اسکلت/حالت خالی — همان شیشه، کم‌رنگ‌تر که با کارت واقعی قاطی نشود */
+.lg-skeleton {
+  border: 1px solid rgb(255 255 255 / 0.22);
+  background: linear-gradient(120deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.04));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14);
+  backdrop-filter: blur(10px) saturate(1.4) brightness(1.10);
+}
+
+/* دکمهٔ N حالت توسعه (نشانگر Next.js) — در موبایل دیده نشود */
+@media (max-width: 1023px) {
+  nextjs-portal {
+    display: none !important;
+  }
 }
 
 /* درخشش نوار پیشرفت */
@@ -547,4 +839,16 @@ textarea:focus {
   main {
     padding: 0 !important;
   }
+}
+
+/* ─── پیوند نوار جستجوی هیرو به نوار بالا هنگام اسکرول ───────────────────── */
+@keyframes search-dock-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.search-dock-in {
+  animation: search-dock-in 0.28s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-dock-in { animation: none; }
 }

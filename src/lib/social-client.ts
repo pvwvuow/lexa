@@ -4,7 +4,6 @@
 import * as React from "react";
 import { useApp } from "@/lib/store";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
-import { listOfflineMetas } from "@/lib/offline";
 
 export interface SuggestionItem {
   id: string;
@@ -52,8 +51,7 @@ export interface TCourseCard {
   _status?: "draft" | "prep" | "published";
   _ownerUsername?: string;
   _ownerAvatar?: string | null;
-  _thumbnail?: string;
-  /** آخرین به‌روزرسانی دورهٔ سرور — مبنای نشان «به‌روز شده» در نسخهٔ آفلاین */
+  /** آخرین به‌روزرسانی سرور — مبنای نشان «به‌روز شده» نسخهٔ آفلاین */
   _updatedAt?: string;
   teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
@@ -100,7 +98,6 @@ export function useSocial() {
   const [feed, setFeed] = React.useState<FeedPost[]>([]);
   const [showingAll, setShowingAll] = React.useState(true);
   const [loading, setLoading] = React.useState(true);
-  const [offline, setOffline] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -110,21 +107,8 @@ export function useSocial() {
       const f = await jf<{ posts: FeedPost[]; showingAll?: boolean }>("/api/social/feed");
       setFeed(f.posts);
       setShowingAll(!!f.showingAll);
-      setOffline(false);
     } catch {
-      // آفلاین — مطلب‌هایی که تک‌تک برای مطالعهٔ آفلاین ذخیره شده‌اند
-      try {
-        const metas = await listOfflineMetas();
-        const cards = metas
-          .filter((m) => m.kind === "post")
-          .map((m) => m.card as FeedPost)
-          .filter((c) => c?.id)
-          .sort((a, b) => +new Date(b.createdAt ?? 0) - +new Date(a.createdAt ?? 0));
-        if (cards.length) {
-          setFeed(cards);
-          setOffline(true);
-        }
-      } catch { /* بدون IndexedDB */ }
+      /* در محیط آفلاین بی‌صدا */
     } finally {
       setLoading(false);
     }
@@ -158,35 +142,21 @@ export function useSocial() {
     [user, load],
   );
 
-  return { teachers, feed, showingAll, loading, offline, reload: load, toggleFollow };
+  return { teachers, feed, showingAll, loading, reload: load, toggleFollow };
 }
 
 /** فهرست دوره‌های اساتید (+ mine فقط دوره‌های خودم) */
 export function useTCourses(mine = false) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [offline, setOffline] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       const d = await jf<{ courses: TCourseCard[] }>(`/api/tcourses${mine ? "?mine=1" : ""}`);
       setCourses(d.courses);
-      setOffline(false);
     } catch {
-      // آفلاین — دوره‌هایی که تک‌تک برای مطالعهٔ آفلاین ذخیره شده‌اند
-      try {
-        const metas = await listOfflineMetas();
-        const cards = metas
-          .filter((m) => m.kind === "tcourse")
-          .map((m) => m.card as TCourseCard)
-          .filter((c) => c?.id)
-          .map((c) => ({ ...c, inLibrary: c.inLibrary ?? false, canManage: c.canManage ?? false, studentsCount: c.studentsCount ?? 0 }));
-        if (cards.length) {
-          setCourses(cards);
-          setOffline(true);
-        }
-      } catch { /* بدون IndexedDB */ }
+      /* ignore */
     } finally {
       setLoading(false);
     }
@@ -211,7 +181,7 @@ export function useTCourses(mine = false) {
     [],
   );
 
-  return { courses, loading, offline, reload: load, toggleLibrary, setCourses };
+  return { courses, loading, reload: load, toggleLibrary, setCourses };
 }
 
 /** وضعیت امتیاز یک هدف (مطلب یا دوره) + ثبت رأی ستاره‌ای */

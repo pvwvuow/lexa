@@ -12,7 +12,7 @@
 import * as React from "react";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.4.1";
+export const DESIGN_VERSION = "1.5.5";
 
 const DESIGN_META_KEY = "hh-design-meta-v1";
 /** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */

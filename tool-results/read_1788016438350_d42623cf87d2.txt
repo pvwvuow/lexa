@@ -1,0 +1,739 @@
+     1→"use client";
+     2→
+     3→/* ═══ آزمایشگاه طرح خانه — صفحهٔ موقت مقایسهٔ نمونه‌ها ═══════════════════════
+     4→   کاربر خواست بخش بزرگ خانه (خوش‌آمد، جلسهٔ بعدی، ادامهٔ یادگیری، آمار،
+     5→   مرکز آزمون و جدیدترین مطالب) از نو طراحی شود؛ این صفحه چند «نمونه»ی کامل
+     6→   از همان بخش را کنار هم می‌گذارد تا انتخاب کند.
+     7→   نکتهٔ فنی: تم‌های برنامه کلاس‌محورند (.dark و .theme-glass) و واریانت dark
+     8→   تیلویند هم (:is(.dark *))، پس هر نمونه با یک wrapper محدودشده هم‌زمان در
+     9→   هر سه تم (روز/شب/شیشه‌ای) رندر می‌شود — بدون دست‌زدن به تم واقعی برنامه.
+    10→   داده‌ها همهٔ نمونه‌ها ثابت و مطابق محتوای واقعی خانه است. */
+    11→
+    12→import * as React from "react";
+    13→import {
+    14→  PlayCircle, Clock3, Sparkles, BookOpen, Flame, ArrowLeft,
+    15→  MessageCircle, GraduationCap, Rss, Star, NotebookTabs, Briefcase,
+    16→  Sun, Moon, Droplets, Palette, Feather, Crown, Newspaper, LayoutGrid,
+    17→} from "lucide-react";
+    18→import { UserAvatar } from "./common";
+    19→
+    20→/* ─── دادهٔ ثابت نمونه‌ها — دقیقاً همان محتوای خانه ────────────────────────── */
+    21→
+    22→const GREETING = "شب بخیر، برای مرور شبانه آماده‌ای؟";
+    23→const NEXT_TITLE = "جلسهٔ بعدی آماده است";
+    24→const NEXT_COURSE = "حقوق مدنی ۷";
+    25→const NEXT_LESSON = "ودیعه و عاریه؛ سنگرهای امانت";
+    26→const EXAM_TITLE = "مرکز آزمون";
+    27→const EXAM_DESC = "دفترچه‌های آمادهٔ تستی زمان‌سنج و تشریحی با پاسخ نمونه";
+    28→const POSTS_TITLE = "جدیدترین مطالب";
+    29→const POSTS_CTA = "مشاهده همه";
+    30→const POSTS_HINT = "تازه‌ترین نوشته‌های اساتید";
+    31→const BOOKS_LABEL = "۵ درس فعال";
+    32→const STREAK_LABEL = "استریک ۱ روز";
+    33→
+    34→type LabPost = {
+    35→  id: string;
+    36→  cat: string;
+    37→  title: string;
+    38→  author: string;
+    39→  date: string;
+    40→  mins: number;
+    41→  comments: number;
+    42→  rating?: number;
+    43→  cover: string;
+    44→  Icon: React.ComponentType<{ className?: string }>;
+    45→};
+    46→
+    47→const POSTS: LabPost[] = [
+    48→  {
+    49→    id: "lab-p1", cat: "مطلب آموزشی",
+    50→    title: "حقوق قراردادها در یک ساعت: عمق واژهٔ «بیع»",
+    51→    author: "دکتر سلیمانی", date: "۵ شهریور", mins: 4, comments: 2, rating: 5,
+    52→    cover: "from-[#1f5a4c] to-[#0f2f28]", Icon: BookOpen,
+    53→  },
+    54→  {
+    55→    id: "lab-p2", cat: "تجارت",
+    56→    title: "قرارداد بیع و معایب بیع",
+    57→    author: "دکتر رضوی", date: "۴ شهریور", mins: 6, comments: 1,
+    58→    cover: "from-[#96742f] to-[#413113]", Icon: Briefcase,
+    59→  },
+    60→];
+    61→
+    62→/* ─── محدودکردن تم — هر نمونه در یک قاب با کلاس تم رندر می‌شود ─────────────── */
+    63→
+    64→export type LabTheme = "light" | "dark" | "glass";
+    65→
+    66→const THEMES: { id: LabTheme; label: string; hint: string }[] = [
+    67→  { id: "light", label: "تم روز", hint: "آلاباستر و یشمی" },
+    68→  { id: "dark", label: "تم شب", hint: "کتابخانهٔ شب" },
+    69→  { id: "glass", label: "تم شیشه‌ای", hint: "آۆرایی و شیشه" },
+    70→];
+    71→
+    72→function ThemeScope({ theme, children }: { theme: LabTheme; children: React.ReactNode }) {
+    73→  if (theme === "dark")
+    74→    return (
+    75→      <div className="dark relative overflow-hidden rounded-[24px] bg-background text-foreground shadow-card ring-1 ring-black/50">
+    76→        {children}
+    77→      </div>
+    78→    );
+    79→  if (theme === "glass")
+    80→    return (
+    81→      <div className="theme-glass lab-glass-wallpaper relative overflow-hidden rounded-[24px] text-foreground shadow-card ring-1 ring-white/70">
+    82→        {children}
+    83→      </div>
+    84→    );
+    85→  return (
+    86→    <div className="relative overflow-hidden rounded-[24px] bg-background text-foreground shadow-card ring-1 ring-border">
+    87→      {children}
+    88→    </div>
+    89→  );
+    90→}
+    91→
+    92→function ThemeBadge({ theme }: { theme: LabTheme }) {
+    93→  const Icon = theme === "light" ? Sun : theme === "dark" ? Moon : Droplets;
+    94→  const t = THEMES.find((x) => x.id === theme)!;
+    95→  return (
+    96→    <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1 text-[11px] font-extrabold text-foreground shadow-card ring-1 ring-border">
+    97→      <Icon className="h-3.5 w-3.5 text-bronze" />
+    98→      {t.label}
+    99→      <span className="font-medium text-muted-foreground">— {t.hint}</span>
+   100→    </span>
+   101→  );
+   102→}
+   103→
+   104→/* ─── قطعات مشترک نمونه‌ها ─────────────────────────────────────────────────── */
+   105→
+   106→/** دکمهٔ طلایی — همان جنس دکمهٔ روز/شب که کاربر آن را تأیید کرده */
+   107→function LabGoldCta({ label = "ادامه یادگیری" }: { label?: string }) {
+   108→  return (
+   109→    <span
+   110→      role="presentation"
+   111→      className="group relative mt-1 inline-flex cursor-default items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-[#ecd29a] via-[#cda65e] to-[#8a6a30] px-5 py-2.5 text-sm font-bold text-[#1b1408] shadow-[0_3px_12px_-3px_rgba(205,166,94,0.65),inset_0_1px_0_rgba(255,255,255,0.5)] ring-1 ring-[#f6e7c1]/70 transition-all duration-300 hover:shadow-[0_5px_18px_-3px_rgba(205,166,94,0.85),inset_0_1px_0_rgba(255,255,255,0.55)] hover:brightness-[1.06] active:scale-[.98]"
+   112→    >
+   113→      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/5 to-black/15" />
+   114→      <span aria-hidden className="pointer-events-none absolute -top-1/2 start-[-20%] h-[180%] w-2/3 rotate-12 bg-white/25 blur-[6px] transition-transform duration-500 group-hover:translate-x-[120%]" />
+   115→      <PlayCircle className="relative h-[18px] w-[18px]" />
+   116→      <span className="relative">{label}</span>
+   117→    </span>
+   118→  );
+   119→}
+   120→
+   121→/** سرصفحهٔ «جدیدترین مطالب» با لحن‌های متفاوت */
+   122→function PostsHeader({ tone }: { tone: "onGreen" | "ink" | "gold" | "white" }) {
+   123→  const title =
+   124→    tone === "onGreen" ? "text-white" : tone === "white" ? "text-white" : tone === "gold" ? "text-bronze" : "text-foreground";
+   125→  const hint =
+   126→    tone === "ink" ? "text-muted-foreground" : tone === "gold" ? "text-primary-foreground/50" : "text-white/60";
+   127→  const chip =
+   128→    tone === "ink"
+   129→      ? "border-bronze/60 bg-bronze/10 text-bronze hover:bg-bronze/20"
+   130→      : "border-bronze/60 bg-bronze/15 text-bronze hover:bg-bronze/25";
+   131→  return (
+   132→    <div className="flex flex-wrap items-center gap-2">
+   133→      <span className={`inline-flex items-center gap-1.5 text-[13px] font-extrabold ${title}`}>
+   134→        <Rss className="h-4 w-4 text-bronze" /> {POSTS_TITLE}
+   135→      </span>
+   136→      <span className={`cursor-default rounded-full border px-3 py-1 text-[10.5px] font-bold transition-colors ${chip}`}>
+   137→        {POSTS_CTA}
+   138→      </span>
+   139→      <span className={`ms-auto hidden text-[10px] font-medium sm:inline ${hint}`}>{POSTS_HINT}</span>
+   140→    </div>
+   141→  );
+   142→}
+   143→
+   144→/** کارت مطلب سفید مات (زبان «feed-card» فعلی) — با گزینهٔ حلقهٔ طلایی */
+   145→function LabPostCardMatte({ p, className = "", goldRing = false }: { p: LabPost; className?: string; goldRing?: boolean }) {
+   146→  const Icon = p.Icon;
+   147→  return (
+   148→    <div
+   149→      className={`feed-card group relative cursor-default overflow-hidden rounded-[24px] text-start transition-[border-color,box-shadow] duration-200 ${
+   150→        goldRing ? "shadow-[0_0_0_1px_rgba(168,127,63,0.45),0_16px_36px_-18px_rgb(3_12_9/0.55)] hover:shadow-[0_0_0_1px_rgba(168,127,63,0.8),0_22px_44px_-18px_rgb(3_12_9/0.62)]" : ""
+   151→      } ${className}`}
+   152→    >
+   153→      <span className="relative block px-3 pt-3">
+   154→        <span className={`relative mx-auto block h-[116px] w-full overflow-hidden rounded-[14px] bg-gradient-to-bl ${p.cover} shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)]`}>
+   155→          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+   156→          <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
+   157→            {p.title.slice(0, 1)}
+   158→          </span>
+   159→          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+   160→            <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+   161→          </span>
+   162→        </span>
+   163→        <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+   164→          {p.cat}
+   165→        </span>
+   166→      </span>
+   167→      <span className="block space-y-2 p-3.5">
+   168→        <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">
+   169→          {p.title}
+   170→        </span>
+   171→        <span className="flex items-center gap-2">
+   172→          <UserAvatar name={p.author} size="xs" />
+   173→          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-foreground/80">{p.author}</span>
+   174→          <span className="shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">{p.date}</span>
+   175→        </span>
+   176→        <span className="flex items-center gap-2 border-t border-border/70 pt-2 text-[10px] font-semibold text-muted-foreground">
+   177→          <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{p.mins} دقیقه مطالعه</span>
+   178→          <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{p.comments} گفتگو</span>
+   179→          {!!p.rating && (
+   180→            <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{p.rating}</span>
+   181→          )}
+   182→        </span>
+   183→      </span>
+   184→    </div>
+   185→  );
+   186→}
+   187→
+   188→/** کارت مطلب کاملاً شیشه‌ای — متن سفید روی شیشهٔ مایع */
+   189→function LabPostCardGlass({ p, className = "" }: { p: LabPost; className?: string }) {
+   190→  const Icon = p.Icon;
+   191→  return (
+   192→    <div className={`lg-card group relative cursor-default overflow-hidden rounded-[24px] text-start text-white ${className}`}>
+   193→      <span aria-hidden className="lg-spec" />
+   194→      <span className="relative block px-3 pt-3">
+   195→        <span className={`relative mx-auto block h-[116px] w-full overflow-hidden rounded-[14px] bg-gradient-to-bl ${p.cover} shadow-[0_4px_14px_-4px_rgba(0,0,0,0.55)]`}>
+   196→          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+   197→          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+   198→            <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+   199→          </span>
+   200→        </span>
+   201→        <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+   202→          {p.cat}
+   203→        </span>
+   204→      </span>
+   205→      <span className="relative block space-y-2 p-3.5">
+   206→        <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed">
+   207→          {p.title}
+   208→        </span>
+   209→        <span className="flex items-center gap-2">
+   210→          <UserAvatar name={p.author} size="xs" />
+   211→          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-white/85">{p.author}</span>
+   212→          <span className="shrink-0 text-[10px] font-semibold tabular-nums text-white/60">{p.date}</span>
+   213→        </span>
+   214→        <span className="flex items-center gap-2 border-t border-white/20 pt-2 text-[10px] font-semibold text-white/70">
+   215→          <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{p.mins} دقیقه مطالعه</span>
+   216→          <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{p.comments} گفتگو</span>
+   217→          {!!p.rating && (
+   218→            <span className="inline-flex items-center gap-0.5 font-bold text-[#ecd29a]"><Star className="h-3 w-3 fill-current" />{p.rating}</span>
+   219→          )}
+   220→        </span>
+   221→      </span>
+   222→    </div>
+   223→  );
+   224→}
+   225→
+   226→/* ═══ نمونهٔ ۱ — طرح فعلی (مرجع مقایسه) ═════════════════════════════════════ */
+   227→
+   228→function VariantCurrent() {
+   229→  return (
+   230→    <div className="p-3 sm:p-5">
+   231→      <section
+   232→        aria-label="نمونهٔ فعلی خانه"
+   233→        className="relative overflow-hidden rounded-[28px] border border-primary-foreground/10 bg-gradient-to-bl from-primary via-primary to-[#123628] p-5 text-primary-foreground shadow-card sm:p-8"
+   234→      >
+   235→        <div aria-hidden className="pattern-quilt absolute inset-0 opacity-90" />
+   236→        <img
+   237→          src="/media/hero-law.png"
+   238→          alt=""
+   239→          aria-hidden
+   240→          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-[0.16] lg:inset-y-0 lg:end-0 lg:start-auto lg:h-full lg:w-[47%] lg:opacity-95 lg:[mask-image:linear-gradient(to_right,black_36%,transparent_97%)]"
+   241→        />
+   242→        <div aria-hidden className="absolute -top-28 start-1/4 h-64 w-64 rounded-full bg-bronze/25 blur-3xl" />
+   243→        <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
+   244→
+   245→        <div className="relative space-y-6">
+   246→          <div className="space-y-3 lg:max-w-[55%]">
+   247→            <p className="text-sm font-medium text-primary-foreground/75">{GREETING}</p>
+   248→            <h3 className="text-xl font-extrabold leading-relaxed sm:text-2xl">{NEXT_TITLE}</h3>
+   249→            <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+   250→              <span className="font-semibold text-bronze">{NEXT_COURSE}</span> · {NEXT_LESSON}
+   251→            </p>
+   252→            <LabGoldCta />
+   253→            <div className="flex flex-wrap gap-2 pt-1.5">
+   254→              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><BookOpen className="h-3.5 w-3.5 text-bronze" />{BOOKS_LABEL}</span>
+   255→              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><Flame className="h-3.5 w-3.5 text-bronze" />{STREAK_LABEL}</span>
+   256→            </div>
+   257→          </div>
+   258→
+   259→          {/* مرکز آزمون */}
+   260→          <div className="feed-card group flex w-full cursor-default items-center gap-3 rounded-2xl px-4 py-3 text-start">
+   261→            <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-border bg-primary/5 shadow-card transition-transform duration-200 group-hover:scale-110">
+   262→              <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-bronze" />
+   263→            </span>
+   264→            <span className="min-w-0 flex-1">
+   265→              <span className="block text-[13.5px] font-extrabold text-foreground">{EXAM_TITLE}</span>
+   266→              <span className="block text-[11px] leading-relaxed text-muted-foreground">{EXAM_DESC}</span>
+   267→            </span>
+   268→            <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
+   269→          </div>
+   270→
+   271→          {/* جدیدترین مطالب */}
+   272→          <div className="space-y-3" aria-label="جدیدترین مطالب">
+   273→            <PostsHeader tone="onGreen" />
+   274→            <div className="hslider -mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
+   275→              {POSTS.map((p) => <LabPostCardMatte key={p.id} p={p} className="w-[240px] shrink-0 snap-start sm:w-[268px]" />)}
+   276→            </div>
+   277→          </div>
+   278→        </div>
+   279→      </section>
+   280→    </div>
+   281→  );
+   282→}
+   283→
+   284→/* ═══ نمونهٔ ۲ — کاغذی مینیمال (حس قفسهٔ کتاب؛ بدون بلوک رنگی) ══════════════ */
+   285→
+   286→function VariantPaper() {
+   287→  return (
+   288→    <div className="p-4 sm:p-6">
+   289→      {/* سربرگ تحریری */}
+   290→      <div className="flex items-center justify-between gap-3">
+   291→        <p className="text-xs font-semibold text-muted-foreground">{GREETING}</p>
+   292→        <span className="hidden text-[10px] font-medium text-muted-foreground/70 sm:inline">همیار حقوق · امشب</span>
+   293→      </div>
+   294→      <div aria-hidden className="ornament-rule mt-3" />
+   295→
+   296→      <div className="mt-5 grid items-start gap-6 lg:grid-cols-[1.15fr,1fr]">
+   297→        <div className="space-y-3">
+   298→          <p className="text-[11px] font-bold tracking-wide text-bronze">پیشنهاد مرور شبانه</p>
+   299→          <h3 className="text-[26px] font-extrabold leading-snug sm:text-3xl">{NEXT_TITLE}</h3>
+   300→          <p className="text-sm leading-relaxed text-muted-foreground">
+   301→            <span className="font-bold text-foreground">{NEXT_COURSE}</span>
+   302→            <span className="mx-1.5 text-bronze">·</span>
+   303→            {NEXT_LESSON}
+   304→          </p>
+   305→          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
+   306→            <span role="presentation" className="group inline-flex cursor-default items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-card ring-1 ring-bronze/40 transition-all hover:shadow-[0_6px_20px_-6px_rgba(29,75,64,0.55)] active:scale-[.98]">
+   307→              <PlayCircle className="h-[18px] w-[18px] text-bronze transition-transform group-hover:-translate-x-0.5" />
+   308→              ادامه یادگیری
+   309→            </span>
+   310→            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><BookOpen className="h-3.5 w-3.5 text-bronze" />{BOOKS_LABEL}</span>
+   311→            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Flame className="h-3.5 w-3.5 text-bronze" />{STREAK_LABEL}</span>
+   312→          </div>
+   313→        </div>
+   314→
+   315→        {/* برگهٔ درس جاری — حس صفحهٔ کتاب */}
+   316→        <div className="relative rounded-2xl border border-border bg-card p-4 shadow-card">
+   317→          <div aria-hidden className="absolute inset-y-3 start-3 w-px bg-bronze/30" />
+   318→          <div className="ps-4">
+   319→            <p className="flex items-center gap-1.5 text-[10.5px] font-bold text-muted-foreground"><BookOpen className="h-3.5 w-3.5 text-bronze" />درس جاری</p>
+   320→            <p className="mt-1.5 font-body text-lg font-bold leading-relaxed text-foreground">{NEXT_LESSON}</p>
+   321→            <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{NEXT_COURSE} · جلسهٔ ۱۲ از ۲۰</p>
+   322→            <div aria-hidden className="mt-3 h-1 overflow-hidden rounded-full bg-muted">
+   323→              <div className="h-full w-[58%] rounded-full bg-gradient-to-l from-bronze to-[#cda65e]/60" />
+   324→            </div>
+   325→          </div>
+   326→        </div>
+   327→      </div>
+   328→
+   329→      {/* مرکز آزمون — ردیف تحریری */}
+   330→      <div className="group mt-6 flex cursor-default items-center gap-3 rounded-xl border border-dashed border-bronze/50 bg-card px-4 py-3 shadow-card">
+   331→        <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-bronze/40 bg-bronze/10 transition-transform duration-200 group-hover:scale-110">
+   332→          <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-bronze" />
+   333→        </span>
+   334→        <span className="min-w-0 flex-1">
+   335→          <span className="block text-[13.5px] font-extrabold text-foreground">{EXAM_TITLE}</span>
+   336→          <span className="block text-[11px] leading-relaxed text-muted-foreground">{EXAM_DESC}</span>
+   337→        </span>
+   338→        <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
+   339→      </div>
+   340→
+   341→      {/* جدیدترین مطالب — فهرست تحریری */}
+   342→      <div className="mt-7 space-y-3">
+   343→        <PostsHeader tone="ink" />
+   344→        <div className="grid gap-3 sm:grid-cols-2">
+   345→          {POSTS.map((p) => {
+   346→            const Icon = p.Icon;
+   347→            return (
+   348→              <div key={p.id} className="feed-card group flex cursor-default gap-3 overflow-hidden rounded-2xl p-3">
+   349→                <span className={`relative block h-[86px] w-[92px] shrink-0 overflow-hidden rounded-xl bg-gradient-to-bl ${p.cover}`}>
+   350→                  <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+   351→                  <span aria-hidden className="absolute inset-0 m-auto grid h-9 w-9 rotate-45 place-items-center rounded-[9px] border border-white/40 bg-white/15 backdrop-blur-[2px]">
+   352→                    <Icon className="h-4 w-4 -rotate-45 text-white" />
+   353→                  </span>
+   354→                </span>
+   355→                <span className="min-w-0 flex-1 space-y-1.5 py-0.5">
+   356→                  <span className="block text-[9.5px] font-bold tracking-wide text-bronze">{p.cat}</span>
+   357→                  <span className="line-clamp-2 block text-[12.5px] font-extrabold leading-relaxed text-foreground transition-colors group-hover:text-bronze">{p.title}</span>
+   358→                  <span className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+   359→                    {p.author}<span className="text-bronze">·</span>{p.date}<span className="text-bronze">·</span>{p.mins} دقیقه
+   360→                    {!!p.rating && <span className="ms-auto inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{p.rating}</span>}
+   361→                  </span>
+   362→                </span>
+   363→              </div>
+   364→            );
+   365→          })}
+   366→        </div>
+   367→      </div>
+   368→    </div>
+   369→  );
+   370→}
+   371→
+   372→/* ═══ نمونهٔ ۳ — طلایی سلطنتی (زمرد تیره با قاب برنزی، حس نسخهٔ خطی) ════════ */
+   373→
+   374→function VariantRoyal() {
+   375→  return (
+   376→    <div className="p-4 sm:p-6">
+   377→      <section className="relative overflow-hidden rounded-[26px] bg-gradient-to-bl from-[#0d211a] via-[#16352a] to-[#0d211a] p-5 text-primary-foreground shadow-card ring-1 ring-bronze/50 sm:p-7">
+   378→        <div aria-hidden className="pattern-quilt absolute inset-0 opacity-60" />
+   379→        {/* تصویر صحنهٔ حقوق — نیمهٔ خالی هیرو را پر می‌کند */}
+   380→        <img
+   381→          src="/media/hero-law.png"
+   382→          alt=""
+   383→          aria-hidden
+   384→          className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-[0.12] lg:inset-y-0 lg:end-0 lg:start-auto lg:h-full lg:w-[44%] lg:opacity-70 lg:[mask-image:linear-gradient(to_right,black_30%,transparent_96%)]"
+   385→        />
+   386→        {/* قاب داخلی طلایی + گوشه‌های الماسی */}
+   387→        <div aria-hidden className="pointer-events-none absolute inset-2 rounded-[20px] border border-bronze/30" />
+   388→        <span aria-hidden className="pointer-events-none absolute start-3 top-3 h-2.5 w-2.5 rotate-45 border border-bronze/70 bg-bronze/20" />
+   389→        <span aria-hidden className="pointer-events-none absolute end-3 top-3 h-2.5 w-2.5 rotate-45 border border-bronze/70 bg-bronze/20" />
+   390→        <span aria-hidden className="pointer-events-none absolute bottom-3 start-3 h-2.5 w-2.5 rotate-45 border border-bronze/70 bg-bronze/20" />
+   391→        <span aria-hidden className="pointer-events-none absolute bottom-3 end-3 h-2.5 w-2.5 rotate-45 border border-bronze/70 bg-bronze/20" />
+   392→        <div aria-hidden className="absolute -top-24 start-1/3 h-56 w-56 rounded-full bg-bronze/20 blur-3xl" />
+   393→
+   394→        <div className="relative space-y-5">
+   395→          <div className="flex items-center justify-between gap-3">
+   396→            <p className="text-sm font-medium text-[#e8cb8f]">{GREETING}</p>
+   397→            <Crown aria-hidden className="h-4 w-4 shrink-0 text-bronze/80" />
+   398→          </div>
+   399→          <div className="space-y-2.5">
+   400→            <h3 className="text-2xl font-extrabold leading-relaxed sm:text-3xl">{NEXT_TITLE}</h3>
+   401→            <p className="text-sm leading-relaxed text-white/85">
+   402→              <span className="font-extrabold text-[#ecd29a]">{NEXT_COURSE}</span>
+   403→              <span className="mx-1.5 text-bronze">·</span>
+   404→              {NEXT_LESSON}
+   405→            </p>
+   406→          </div>
+   407→          <LabGoldCta />
+   408→          <div className="flex flex-wrap gap-2">
+   409→            <span className="inline-flex items-center gap-1.5 rounded-full border border-bronze/40 bg-bronze/10 px-3 py-1 text-xs font-semibold text-[#f3e3bb]"><BookOpen className="h-3.5 w-3.5 text-[#ecd29a]" />{BOOKS_LABEL}</span>
+   410→            <span className="inline-flex items-center gap-1.5 rounded-full border border-bronze/40 bg-bronze/10 px-3 py-1 text-xs font-semibold text-[#f3e3bb]"><Flame className="h-3.5 w-3.5 text-[#ecd29a]" />{STREAK_LABEL}</span>
+   411→          </div>
+   412→
+   413→          {/* مرکز آزمون — قاب طلایی */}
+   414→          <div className="group flex w-full cursor-default items-center gap-3 rounded-2xl border border-bronze/35 bg-white/[0.05] px-4 py-3 text-start backdrop-blur-sm transition-colors hover:border-bronze/60">
+   415→            <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-bronze/50 bg-bronze/15 transition-transform duration-200 group-hover:scale-110">
+   416→              <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-[#ecd29a]" />
+   417→            </span>
+   418→            <span className="min-w-0 flex-1">
+   419→              <span className="block text-[13.5px] font-extrabold text-white">{EXAM_TITLE}</span>
+   420→              <span className="block text-[11px] leading-relaxed text-white/60">{EXAM_DESC}</span>
+   421→            </span>
+   422→            <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-[#ecd29a] transition-transform group-hover:-translate-x-0.5" />
+   423→          </div>
+   424→
+   425→          {/* جدیدترین مطالب — کارت‌های سفید با حلقهٔ طلایی */}
+   426→          <div className="space-y-3">
+   427→            <PostsHeader tone="gold" />
+   428→            <div className="hslider -mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
+   429→              {POSTS.map((p) => <LabPostCardMatte key={p.id} p={p} goldRing className="w-[240px] shrink-0 snap-start sm:w-[268px]" />)}
+   430→            </div>
+   431→          </div>
+   432→        </div>
+   433→      </section>
+   434→    </div>
+   435→  );
+   436→}
+   437→
+   438→/* ═══ نمونهٔ ۴ — شیشهٔ مایع کامل (همه‌چیز از لُید گلس روی هاله‌های رنگی) ════ */
+   439→
+   440→function VariantGlass() {
+   441→  return (
+   442→    <div className="relative p-4 sm:p-6">
+   443→      {/* صحنهٔ رنگی پشت شیشه — شیشهٔ شفاف باید روی رنگِ زنده بنشیند
+   444→          تا در هر سه تم (روشن/شب/شیشه‌ای) خوانا و واقعاً شیشه‌ای بماند */}
+   445→      <div aria-hidden className="absolute inset-0 bg-gradient-to-bl from-[#0d211a] via-[#143026] to-[#0d211a]" />
+   446→      <div aria-hidden className="absolute inset-0">
+   447→        <div className="absolute -top-12 start-4 h-48 w-48 rounded-full bg-[#3f8a6d]/65 blur-3xl" />
+   448→        <div className="absolute bottom-2 end-6 h-44 w-44 rounded-full bg-[#cda65e]/60 blur-3xl" />
+   449→        <div className="absolute top-1/3 start-1/2 h-40 w-40 rounded-full bg-[#6fa8c4]/55 blur-3xl" />
+   450→      </div>
+   451→
+   452→      <div className="relative space-y-5">
+   453→        {/* هیروی شیشه‌ای */}
+   454→        <section className="lg-card relative overflow-hidden rounded-[28px] p-5 text-white sm:p-7">
+   455→          <span aria-hidden className="lg-spec" />
+   456→          <div className="relative space-y-4">
+   457→            <p className="text-sm font-medium text-white/80">{GREETING}</p>
+   458→            <h3 className="text-2xl font-extrabold leading-relaxed sm:text-3xl">{NEXT_TITLE}</h3>
+   459→            <p className="-mt-1 text-sm leading-relaxed text-white/85">
+   460→              <span className="font-semibold text-[#ecd29a]">{NEXT_COURSE}</span>
+   461→              <span className="mx-1.5 text-white/50">·</span>
+   462→              {NEXT_LESSON}
+   463→            </p>
+   464→            <LabGoldCta />
+   465→            <div className="flex flex-wrap gap-2 pt-1">
+   466→              <span className="lg-skeleton inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white"><BookOpen className="h-3.5 w-3.5 text-bronze" />{BOOKS_LABEL}</span>
+   467→              <span className="lg-skeleton inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white"><Flame className="h-3.5 w-3.5 text-bronze" />{STREAK_LABEL}</span>
+   468→            </div>
+   469→          </div>
+   470→        </section>
+   471→
+   472→        {/* مرکز آزمون — ردیف شیشه‌ای */}
+   473→        <div className="lg-card group relative flex w-full cursor-default items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-start text-white">
+   474→          <span aria-hidden className="lg-spec" />
+   475→          <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/10 transition-transform duration-200 group-hover:scale-110">
+   476→            <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-[#ecd29a]" />
+   477→          </span>
+   478→          <span className="relative min-w-0 flex-1">
+   479→            <span className="block text-[13.5px] font-extrabold text-white">{EXAM_TITLE}</span>
+   480→            <span className="block text-[11px] leading-relaxed text-white/65">{EXAM_DESC}</span>
+   481→          </span>
+   482→          <ArrowLeft aria-hidden className="relative h-4 w-4 shrink-0 text-[#ecd29a] transition-transform group-hover:-translate-x-0.5" />
+   483→        </div>
+   484→
+   485→        {/* جدیدترین مطالب — کارت‌های کاملاً شیشه‌ای */}
+   486→        <div className="space-y-3">
+   487→          <PostsHeader tone="white" />
+   488→          <div className="hslider -mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
+   489→            {POSTS.map((p) => <LabPostCardGlass key={p.id} p={p} className="w-[240px] shrink-0 snap-start sm:w-[268px]" />)}
+   490→          </div>
+   491→        </div>
+   492→      </div>
+   493→    </div>
+   494→  );
+   495→}
+   496→
+   497→/* ═══ نمونهٔ ۵ — مجلهٔ شبانه (چیدمان روزنامه‌ای با تیتر درشت) ═══════════════ */
+   498→
+   499→function VariantMagazine() {
+   500→  return (
+   501→    <div className="p-4 sm:p-6">
+   502→      {/* سرلوحهٔ گازت */}
+   503→      <div className="flex items-baseline justify-between gap-3 border-b-2 border-foreground/70 pb-2.5">
+   504→        <span className="text-[15px] font-black tracking-tight text-foreground">روزنامهٔ حقوق امشب</span>
+   505→        <span className="text-[10px] font-semibold text-muted-foreground">سه‌شنبه · شهریور</span>
+   506→      </div>
+   507→
+   508→      <div className="mt-5 grid items-start gap-7 lg:grid-cols-[1.2fr,1fr]">
+   509→        {/* تیتر اصلی */}
+   510→        <article className="space-y-3">
+   511→          <p className="text-[11px] font-bold tracking-[0.14em] text-bronze">مرور شبانه — پیشنهاد سردبیر</p>
+   512→          <h3 className="text-[28px] font-black leading-[1.35] text-foreground sm:text-[32px]">{NEXT_LESSON}</h3>
+   513→          <p className="text-sm leading-relaxed text-muted-foreground">
+   514→            {GREETING} درسِ امشب از <span className="font-bold text-foreground">{NEXT_COURSE}</span> آماده است؛
+   515→            همان‌جا که رهایش کردی ادامه بده.
+   516→          </p>
+   517→          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+   518→            <span role="presentation" className="group inline-flex cursor-default items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-bold text-background shadow-card transition-all active:scale-[.98]">
+   519→              <PlayCircle className="h-[18px] w-[18px] text-bronze transition-transform group-hover:-translate-x-0.5" />
+   520→              ادامه یادگیری
+   521→            </span>
+   522→            <span className="text-xs font-semibold text-muted-foreground">
+   523→              {BOOKS_LABEL} <span className="mx-1 text-bronze">·</span> {STREAK_LABEL}
+   524→            </span>
+   525→          </div>
+   526→        </article>
+   527→
+   528→        {/* ستون کنار — «در همین شماره» */}
+   529→        <aside className="rounded-2xl border border-border bg-card p-4 shadow-card">
+   530→          <p className="border-b border-dashed border-border pb-2 text-[11px] font-black text-foreground">در همین شماره</p>
+   531→          <div className="mt-3 space-y-3">
+   532→            <div className="group flex cursor-default items-center gap-2.5">
+   533→              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bronze/10"><NotebookTabs className="h-4 w-4 text-bronze" /></span>
+   534→              <span className="min-w-0">
+   535→                <span className="block text-[12px] font-extrabold text-foreground">{EXAM_TITLE}</span>
+   536→                <span className="block truncate text-[10px] text-muted-foreground">{EXAM_DESC}</span>
+   537→              </span>
+   538→              <ArrowLeft className="ms-auto h-3.5 w-3.5 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
+   539→            </div>
+   540→            <div className="flex items-center gap-2.5">
+   541→              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10"><BookOpen className="h-4 w-4 text-primary" /></span>
+   542→              <span className="min-w-0">
+   543→                <span className="block text-[12px] font-extrabold text-foreground">{BOOKS_LABEL}</span>
+   544→                <span className="block truncate text-[10px] text-muted-foreground">از فهرست مطالعهٔ تو</span>
+   545→              </span>
+   546→            </div>
+   547→            <div className="flex items-center gap-2.5">
+   548→              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-400/15"><Flame className="h-4 w-4 text-warn" /></span>
+   549→              <span className="min-w-0">
+   550→                <span className="block text-[12px] font-extrabold text-foreground">{STREAK_LABEL}</span>
+   551→                <span className="block truncate text-[10px] text-muted-foreground">امشب را هم کامل کن</span>
+   552→              </span>
+   553→            </div>
+   554→          </div>
+   555→        </aside>
+   556→      </div>
+   557→
+   558→      {/* ستون مطالب — ردیف‌های مجله‌ای */}
+   559→      <div className="mt-7 border-t-2 border-foreground/70 pt-3">
+   560→        <PostsHeader tone="ink" />
+   561→        <div className="mt-1">
+   562→          {POSTS.map((p, i) => {
+   563→            const Icon = p.Icon;
+   564→            return (
+   565→              <div key={p.id} className={`group flex cursor-default items-center gap-4 py-3.5 ${i < POSTS.length - 1 ? "border-b border-dashed border-border" : ""}`}>
+   566→                <span className={`relative block h-[72px] w-[96px] shrink-0 overflow-hidden rounded-lg bg-gradient-to-bl ${p.cover}`}>
+   567→                  <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+   568→                  <span aria-hidden className="absolute inset-0 m-auto grid h-8 w-8 rotate-45 place-items-center rounded-[8px] border border-white/40 bg-white/15 backdrop-blur-[2px]">
+   569→                    <Icon className="h-3.5 w-3.5 -rotate-45 text-white" />
+   570→                  </span>
+   571→                </span>
+   572→                <span className="min-w-0 flex-1 space-y-1">
+   573→                  <span className="block text-[9.5px] font-bold tracking-wide text-bronze">{p.cat}</span>
+   574→                  <span className="line-clamp-1 block text-[15px] font-extrabold leading-relaxed text-foreground transition-colors group-hover:text-bronze">{p.title}</span>
+   575→                  <span className="flex flex-wrap items-center gap-x-2 text-[10.5px] font-semibold text-muted-foreground">
+   576→                    <span className="inline-flex items-center gap-1.5"><UserAvatar name={p.author} size="xs" />{p.author}</span>
+   577→                    <span className="text-bronze">·</span>{p.date}
+   578→                    <span className="text-bronze">·</span>{p.mins} دقیقه مطالعه
+   579→                    <span className="text-bronze">·</span>{p.comments} گفتگو
+   580→                    {!!p.rating && <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{p.rating}</span>}
+   581→                  </span>
+   582→                </span>
+   583→                <ArrowLeft className="hidden h-4 w-4 shrink-0 text-muted-foreground/50 transition-all group-hover:-translate-x-0.5 group-hover:text-bronze sm:block" />
+   584→              </div>
+   585→            );
+   586→          })}
+   587→        </div>
+   588→      </div>
+   589→    </div>
+   590→  );
+   591→}
+   592→
+   593→/* ═══ نمونهٔ ۶ — کارت‌های مستقل (مستطیل بزرگ به کارت‌های شناور تقسیم شد) ════ */
+   594→
+   595→function VariantModular() {
+   596→  return (
+   597→    <div className="space-y-3 p-4 sm:p-5">
+   598→      {/* کارت خوش‌آمد */}
+   599→      <div className="flex items-center justify-between gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-border">
+   600→        <div className="min-w-0">
+   601→          <p className="text-[11px] font-semibold text-muted-foreground">{GREETING}</p>
+   602→          <p className="mt-0.5 truncate text-lg font-extrabold text-foreground">{NEXT_TITLE}</p>
+   603→        </div>
+   604→        <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-bronze/10">
+   605→          <Sparkles className="h-5 w-5 text-bronze" />
+   606→        </span>
+   607→      </div>
+   608→
+   609→      {/* سه کارت: جلسهٔ بعدی + دو آمار */}
+   610→      <div className="grid gap-3 sm:grid-cols-3">
+   611→        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-bl from-primary via-primary to-[#123628] p-4 text-primary-foreground shadow-card sm:col-span-1">
+   612→          <div aria-hidden className="pattern-quilt absolute inset-0 opacity-80" />
+   613→          <div className="relative space-y-1.5">
+   614→            <p className="text-[10px] font-bold text-bronze">{NEXT_COURSE}</p>
+   615→            <p className="line-clamp-2 min-h-[2.6em] text-[13px] font-extrabold leading-relaxed">{NEXT_LESSON}</p>
+   616→            <span role="presentation" className="mt-1.5 inline-flex cursor-default items-center gap-1.5 rounded-lg bg-white/[0.14] px-3.5 py-2 text-xs font-bold text-white ring-1 ring-white/25 backdrop-blur transition-colors hover:bg-white/[0.22]">
+   617→              <PlayCircle className="h-4 w-4 text-bronze" />
+   618→              ادامه یادگیری
+   619→            </span>
+   620→          </div>
+   621→        </div>
+   622→        <div className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-border">
+   623→          <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10"><BookOpen className="h-5 w-5 text-primary" /></span>
+   624→          <span>
+   625→            <span className="block text-[15px] font-extrabold text-foreground">{BOOKS_LABEL}</span>
+   626→            <span className="block text-[10.5px] text-muted-foreground">از فهرست مطالعهٔ تو</span>
+   627→          </span>
+   628→        </div>
+   629→        <div className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-border">
+   630→          <span aria-hidden className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-400/15"><Flame className="h-5 w-5 text-warn" /></span>
+   631→          <span>
+   632→            <span className="block text-[15px] font-extrabold text-foreground">{STREAK_LABEL}</span>
+   633→            <span className="block text-[10.5px] text-muted-foreground">امشب را هم کامل کن</span>
+   634→          </span>
+   635→        </div>
+   636→      </div>
+   637→
+   638→      {/* مرکز آزمون */}
+   639→      <div className="group flex cursor-default items-center gap-3 rounded-2xl bg-card p-4 shadow-card ring-1 ring-border">
+   640→        <span aria-hidden className="grid h-11 w-11 shrink-0 rotate-45 place-items-center rounded-xl border border-bronze/40 bg-bronze/10 transition-transform duration-200 group-hover:scale-110">
+   641→          <NotebookTabs className="h-5 w-5 -rotate-45 text-bronze" />
+   642→        </span>
+   643→        <span className="min-w-0 flex-1">
+   644→          <span className="block text-[13.5px] font-extrabold text-foreground">{EXAM_TITLE}</span>
+   645→          <span className="block text-[11px] leading-relaxed text-muted-foreground">{EXAM_DESC}</span>
+   646→        </span>
+   647→        <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
+   648→      </div>
+   649→
+   650→      {/* جدیدترین مطالب — دو کارت کنار هم */}
+   651→      <div className="space-y-3 pt-1">
+   652→        <PostsHeader tone="ink" />
+   653→        <div className="grid gap-3 sm:grid-cols-2">
+   654→          {POSTS.map((p) => <LabPostCardMatte key={p.id} p={p} />)}
+   655→        </div>
+   656→      </div>
+   657→    </div>
+   658→  );
+   659→}
+   660→
+   661→/* ─── فهرست نمونه‌ها ───────────────────────────────────────────────────────── */
+   662→
+   663→const VARIANTS: { id: string; name: string; tagline: string; icon: React.ComponentType<{ className?: string }>; Comp: React.ComponentType }[] = [
+   664→  { id: "current", name: "۱ · طرح فعلی", tagline: "زمردی همیشگی + کارت‌های سفید مات — مرجع مقایسه", icon: Sparkles, Comp: VariantCurrent },
+   665→  { id: "paper", name: "۲ · کاغذی مینیمال", tagline: "بدنهٔ کاغذی آرام، تایپ درشت، خطوط نازک — حس قفسهٔ کتاب", icon: Feather, Comp: VariantPaper },
+   666→  { id: "royal", name: "۳ · طلایی سلطنتی", tagline: "زمرد تیره با قاب و گوشه‌های برنزی — شکوه نسخهٔ خطی", icon: Crown, Comp: VariantRoyal },
+   667→  { id: "glass", name: "۴ · شیشهٔ مایع کامل", tagline: "همه‌چیز از لُید گلس روی هاله‌های رنگی — بیشترین شفافیت", icon: Droplets, Comp: VariantGlass },
+   668→  { id: "magazine", name: "۵ · مجلهٔ شبانه", tagline: "چیدمان روزنامه‌ای با تیتر درشت و ستون «در همین شماره»", icon: Newspaper, Comp: VariantMagazine },
+   669→  { id: "modular", name: "۶ · کارت‌های مستقل", tagline: "مستطیل بزرگ به کارت‌های جدا و شناور تقسیم شده", icon: LayoutGrid, Comp: VariantModular },
+   670→];
+   671→
+   672→/* ═══ صفحهٔ اصلی آزمایشگاه ══════════════════════════════════════════════════ */
+   673→
+   674→export function DesignLabView() {
+   675→  const [vid, setVid] = React.useState("current");
+   676→  const v = VARIANTS.find((x) => x.id === vid) ?? VARIANTS[0];
+   677→
+   678→  return (
+   679→    <div className="mx-auto w-full max-w-6xl px-4 pb-28 pt-2 sm:px-6">
+   680→      {/* سربرگ آزمایشگاه */}
+   681→      <div className="rounded-2xl border border-dashed border-bronze/50 bg-card/70 p-4 shadow-card backdrop-blur-sm sm:p-5">
+   682→        <div className="flex items-start gap-3">
+   683→          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-card">
+   684→            <Palette className="h-5 w-5" />
+   685→          </span>
+   686→          <div className="min-w-0 flex-1">
+   687→            <h2 className="flex flex-wrap items-center gap-2 text-base font-extrabold text-foreground">
+   688→              آزمایشگاه طرح خانه
+   689→              <span className="rounded-full bg-amber-400/95 px-2 py-0.5 text-[9.5px] font-extrabold text-amber-950">موقت</span>
+   690→            </h2>
+   691→            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+   692→              شش نمونه برای بخش بزرگ خانه (خوش‌آمد، جلسهٔ بعدی، ادامهٔ یادگیری، آمار، مرکز آزمون و جدیدترین مطالب) —
+   693→              هر نمونه هم‌زمان در هر سه تم رندر می‌شود. طرحی را که پسندیدی بگو تا همان در خانه پیاده شود.
+   694→            </p>
+   695→          </div>
+   696→        </div>
+   697→
+   698→        {/* انتخاب نمونه */}
+   699→        <div className="mt-4 flex flex-wrap gap-2">
+   700→          {VARIANTS.map((x) => (
+   701→            <button
+   702→              key={x.id}
+   703→              onClick={() => setVid(x.id)}
+   704→              aria-pressed={x.id === vid}
+   705→              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11.5px] font-bold shadow-card ring-1 transition-all ${
+   706→                x.id === vid
+   707→                  ? "bg-primary text-primary-foreground ring-bronze/60"
+   708→                  : "bg-card text-muted-foreground ring-border hover:text-foreground"
+   709→              }`}
+   710→            >
+   711→              <x.icon className={`h-3.5 w-3.5 ${x.id === vid ? "text-bronze" : "text-bronze/70"}`} />
+   712→              {x.name}
+   713→            </button>
+   714→          ))}
+   715→        </div>
+   716→        <p className="mt-3 text-[11px] font-bold text-bronze">{v.tagline}</p>
+   717→      </div>
+   718→
+   719→      {/* نمونهٔ انتخابی — در هر سه تم */}
+   720→      <div className="mt-6 space-y-8">
+   721→        {THEMES.map((t) => (
+   722→          <section key={t.id} className="space-y-2.5" aria-label={`نمونه در ${t.label}`}>
+   723→            <ThemeBadge theme={t.id} />
+   724→            <ThemeScope theme={t.id}>
+   725→              <v.Comp />
+   726→            </ThemeScope>
+   727→          </section>
+   728→        ))}
+   729→      </div>
+   730→
+   731→      <p className="mt-7 text-center text-[11px] leading-relaxed text-muted-foreground">
+   732→        شمارهٔ طرحی که پسندیدی را بگو (مثلاً «طرح ۳») تا با همان هویت در صفحهٔ خانه پیاده شود؛
+   733→        ترکیب بخش‌هایی از دو طرح هم ممکن است.
+   734→      </p>
+   735→    </div>
+   736→  );
+   737→}
+   738→
+   739→

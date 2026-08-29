@@ -58,7 +58,7 @@ export async function GET() {
   const rows = await db.post.findMany({
     where: { authorId: me.id },
     orderBy: { createdAt: "desc" },
-    select: { id: true, title: true, summary: true, tags: true, thumbnail: true, quizJson: true, createdAt: true, updatedAt: true, _count: { select: { comments: true } } },
+    select: { id: true, title: true, summary: true, tags: true, thumbnail: true, quizJson: true, createdAt: true, _count: { select: { comments: true } } },
   });
 
   return NextResponse.json({
@@ -70,7 +70,6 @@ export async function GET() {
       thumbnail: p.thumbnail,
       quizCount: (() => { try { return (JSON.parse(p.quizJson) as unknown[]).length; } catch { return 0; } })(),
       createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString(),
       commentsCount: p._count.comments,
     })),
   });

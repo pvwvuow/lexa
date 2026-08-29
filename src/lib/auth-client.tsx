@@ -36,28 +36,6 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 const PERSIST_KEY = "hamyar-hoghough-v1";
-/** کش نشست — تا در حالت آفلاین کاربر لاگ‌اوت دیده نشود و داده‌اش سر جای خود بماند */
-const SESSION_CACHE_KEY = "hamyar-session-cache-v1";
-
-function readCachedUser(): PublicUser | null {
-  try {
-    const raw = localStorage.getItem(SESSION_CACHE_KEY);
-    if (!raw) return null;
-    const d = JSON.parse(raw) as { user?: PublicUser };
-    return d?.user && typeof d.user.id === "string" ? d.user : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedUser(u: PublicUser | null): void {
-  try {
-    if (u) localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ user: u, savedAt: Date.now() }));
-    else localStorage.removeItem(SESSION_CACHE_KEY);
-  } catch {
-    /* حالت ناشناس/پر بودن حافظه */
-  }
-}
 
 /** هیدرات کتابخانهٔ دوره‌های اساتیدی که کاربر افزوده است + لیست حذف‌شده‌های داخلی */
 export async function refreshLibrary() {
@@ -145,19 +123,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const meRes = await fetch("/api/auth/me");
-        if (!meRes.ok) throw new Error("سرور در دسترس نیست");
         const me = (await meRes.json()) as { user: PublicUser | null };
         if (!alive) return;
         if (!me.user) {
-          // سرور صریحاً گفته کاربری نیست — کش نشست را هم پاک کن
-          writeCachedUser(null);
           setStatus("guest");
           hydratingRef.current = false;
           return;
         }
         setUser(me.user);
         userRef.current = me.user;
-        writeCachedUser(me.user);
         // دریافت داده‌های ذخیره‌شدهٔ کاربر و ادغام با داده‌های محلی دستگاه
         try {
           const dataRes = await fetch("/api/user/data");
@@ -175,19 +149,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           hydratingRef.current = false;
         });
       } catch {
-        // شبکه در دسترس نیست یا سرور پاسخ نداد — «لاگ‌اوت» حساب نکن!
-        // آخرین نشست معتبر دستگاه را ادامه می‌دهیم؛ داده‌های کاربر هم از
-        // حافظهٔ محلی (hamyar-hoghough-v1) خودکار هیدرات شده‌اند.
-        if (!alive) return;
-        const cached = readCachedUser();
-        if (cached) {
-          setUser(cached);
-          userRef.current = cached;
-          setStatus("authed");
-        } else {
+        if (alive) {
           setStatus("guest");
+          hydratingRef.current = false;
         }
-        hydratingRef.current = false;
       }
     })();
     return () => {
@@ -220,14 +185,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         void flush();
       }
     }
-    function onPageHide() {
-      if (userRef.current) void flush();
-    }
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pagehide", () => void flush());
     return () => {
       document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("pagehide", onPageHide);
     };
   }, [flush]);
 
@@ -236,7 +197,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (u: PublicUser, mode: "login" | "register") => {
       setUser(u);
       userRef.current = u;
-      writeCachedUser(u);
       setStatus("authed");
 
       if (mode === "login") {
@@ -252,10 +212,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (data.snapshot) useApp.getState().replaceFromServer(data.snapshot);
           }
         } catch {}
-        // پایان محافظت بلافاصله پس از واکشی — replaceFromServer همگام است و
-        // اشتراک‌های ناشی از آن در همان set() اجرا شده‌اند؛ تغییرهای بعدیِ کاربر
-        // واقعی‌اند و باید همگام شوند (رفع مسابقهٔ تایمر ثابت ۵۰۰ms)
-        hydratingRef.current = false;
+        setTimeout(() => {
+          hydratingRef.current = false;
+        }, 500);
         void refreshLibrary();
         return;
       }
@@ -321,7 +280,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     // پشتیبان محلی، سپس حذف داده‌های محلی؛ چون همه چیز امن در پایگاه داده ماندگار است
     backupGuestBlob();
-    writeCachedUser(null);
     hydratingRef.current = true;
     useApp.setState({
       progress: {},
@@ -331,7 +289,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hiddenBuiltins: [],
       notes: {},
       lastLocation: {},
-      examAttempts: {},
     });
     try { localStorage.removeItem("hoh_weak_topics"); } catch {}
     useApp.getState().setTBooks([]);
@@ -365,12 +322,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshMe = React.useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
-      if (!res.ok) return;
       const data = (await res.json()) as { user: PublicUser | null };
       if (data.user) {
         userRef.current = data.user;
         setUser(data.user);
-        writeCachedUser(data.user);
       }
     } catch {}
   }, []);

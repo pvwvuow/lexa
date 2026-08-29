@@ -139,12 +139,10 @@ export function sanitizeSections(raw: unknown): LessonSection[] {
       type: type as LessonSection["type"],
       title: s(o.title, 120) || undefined,
       body: o.body ? s(o.body, 9000) || undefined : undefined,
-      bullets: (() => {
-        const arrB = o.bullets && Array.isArray(o.bullets)
+      bullets:
+        o.bullets && Array.isArray(o.bullets)
           ? o.bullets.slice(0, 30).map((b) => s(b, 500)).filter(Boolean)
-          : undefined;
-        return arrB?.length ? arrB : undefined;
-      })(),
+          : undefined,
       questionText: o.questionText ? s(o.questionText, 2000) : undefined,
       suggestedAnswer: o.suggestedAnswer ? s(o.suggestedAnswer, 3000) : undefined,
       table: undefined,
@@ -213,10 +211,9 @@ export function teacherCourseToCourse(
     id: string; title: string; tagline: string; description: string;
     icon: string; accent: string; chaptersJson: string;
     category?: string; categories?: string; status?: string; thumbnail?: string;
-    updatedAt?: string | Date;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _teacherId?: string; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string; _updatedAt?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -231,14 +228,10 @@ export function teacherCourseToCourse(
     chapters: withIds(row.id, parsed),
     _ownerUsername: teacher.username,
     _ownerAvatar: teacher.avatarUrl ?? null,
-    // شناسهٔ کاربری استاد — برای رفتن به پروفایل او از صفحهٔ دوره
-    _teacherId: teacher.id,
     _category: safeCategory(row.category),
     _categories: parseCategories(row.categories, row.category),
     _status: row.status === "draft" || row.status === "prep" ? row.status : "published",
     _thumbnail: safeThumbnail(row.thumbnail),
-    // برای تشخیص «این دوره به‌روز شده» در نسخهٔ آفلاین
-    _updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined,
   };
 }
 

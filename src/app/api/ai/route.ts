@@ -34,25 +34,6 @@ function sanitizeQuiz(quiz: unknown[]): unknown[] {
   });
 }
 
-const SECTION_TYPES = ['intro', 'concept', 'law', 'notes', 'example', 'compare', 'question', 'summary'] as const;
-
-/** صافی ساختار جلسهٔ AI: هر type خارج از ۸ نوع شناخته‌شده → «concept» تا رندر درس هرگز نترکد */
-function sanitizeLesson(raw: { title?: unknown; sections?: unknown; quiz?: unknown }) {
-  const sections = (Array.isArray(raw.sections) ? raw.sections : []).map((s) => {
-    const sec = (s ?? {}) as { type?: unknown; text?: unknown } & Record<string, unknown>;
-    const type = SECTION_TYPES.includes(sec.type as (typeof SECTION_TYPES)[number])
-      ? (sec.type as string)
-      : 'concept';
-    return { ...sec, type, text: typeof sec.text === 'string' ? sec.text : '' };
-  });
-  const quiz = Array.isArray(raw.quiz) ? sanitizeQuiz(raw.quiz) : [];
-  return {
-    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : 'جلسهٔ تازه',
-    sections,
-    quiz,
-  };
-}
-
 export async function POST(req: Request) {
   // موتور AI پرهزینه است — حداکثر ۳۰ فراخوانی در دقیقه از هر IP
   if (!rateLimit(req, "ai", 30, 60_000))
@@ -60,10 +41,6 @@ export async function POST(req: Request) {
   let body: Body;
   try { body = (await req.json()) as Body; }
   catch { return NextResponse.json({ error: 'درخواست نامعتبر است.' }, { status: 400 }); }
-
-  // تولید کامل جلسه سنگین‌ترین کار AI است — سقف جداتری برای هر IP دارد
-  if (body.task === 'generate_lesson' && !rateLimit(req, "ai-lesson", 8, 60_000))
-    return NextResponse.json({ error: 'تولید جلسه محدود است؛ چند لحظه صبر کنید.' }, { status: 429 });
 
   const ai = body.ai ?? {};
   const ctx = body.context ?? {};
@@ -88,10 +65,9 @@ export async function POST(req: Request) {
         )}» را کاملاً تدریس‌شده تولید کن.\n\n${spec}\n\n--- منبع آموزشی ---\n${slice}`;
         for (let attempt = 0; attempt < 2; attempt++) {
           const raw = await dispatch(ai, buildSystem('TEACH'), user);
-          const parsed = extractJson<{ title?: unknown; sections?: unknown; quiz?: unknown }>(raw);
-          const clean = parsed ? sanitizeLesson(parsed) : null;
-          if (clean && clean.sections.length >= 5)
-            return NextResponse.json({ lesson: clean });
+          const parsed = extractJson<{ title: string; sections: never[]; quiz: never[] }>(raw);
+          if (parsed && Array.isArray(parsed.sections) && parsed.sections.length >= 5)
+            return NextResponse.json({ lesson: parsed });
         }
         return NextResponse.json({ error: 'تحلیل ساختار جلسه ناموفق بود.' }, { status: 502 });
       }

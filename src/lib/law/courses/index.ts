@@ -1,5 +1,6 @@
 import type { Chapter, Course, Lesson } from '../types';
 import { criminalPrivate, criminalPublic, intlPublic1, intlPublic2, intlPublic3, intlPrivate1 } from './new-courses-2025';
+import { tadrisJaza1 } from './tadris-jaza';
 import { lessonM1L1 } from './madani1-l1';
 import { lessonM1L2 } from './madani1-l2';
 import { lessonM1L3 } from './madani1-l3';
@@ -56,7 +57,6 @@ import { lessonM4L72 } from './madani4-l72';
 import { lessonM4L73 } from './madani4-l73';
 import { lessonM4L81 } from './madani4-l81';
 import { lessonM4L82 } from './madani4-l82';
-import { tadrisJaza1 } from './tadris-jaza';
 
 const L = (...l: Lesson[]) => l;
 const CH = (id: string, order: number, title: string, subtitle: string, lessons: Lesson[]): Chapter => ({
@@ -226,7 +226,6 @@ export const madani4: Course = {
 };
 
 export const builtinCourses: Course[] = [
-  tadrisJaza1,
   madani1,
   madani4,
   tejarat3,
@@ -237,4 +236,5 @@ export const builtinCourses: Course[] = [
   intlPublic2,
   intlPublic3,
   intlPrivate1,
+  tadrisJaza1,
 ];

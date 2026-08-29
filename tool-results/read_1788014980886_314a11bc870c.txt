@@ -1,0 +1,1040 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Flame, ArrowLeft,
+     6→  UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
+     7→  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel, NotebookTabs,
+     8→} from "lucide-react";
+     9→import { builtinCourses } from "@/lib/law/courses";
+    10→import type { Course, Lesson } from "@/lib/law/types";
+    11→import { useApp } from "@/lib/store";
+    12→import { mergeAll } from "@/lib/books";
+    13→import { fa } from "@/lib/fa";
+    14→import { navigate } from "@/lib/router";
+    15→import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+    16→import { OfflineDownloadButton } from "./offline-ui";
+    17→import { useAuth, refreshLibrary } from "@/lib/auth-client";
+    18→import { useSocial, toggleBuiltinHidden } from "@/lib/social-client";
+    19→
+    20→export const faDate = (iso: string) =>
+    21→  new Date(iso).toLocaleDateString("fa-IR", { month: "long", day: "numeric" });
+    22→
+    23→const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
+    24→
+    25→function lessonProgressOf(course: Course, progress: Record<string, { status?: string; sectionsSeen?: number; quizBest?: number }>) {
+    26→  let completed = 0;
+    27→  const flat = course.chapters.flatMap((c) => c.lessons);
+    28→  flat.forEach((l) => {
+    29→    const p = progress[l.id];
+    30→    if (p?.status === "completed") completed += 1;
+    31→    else if (p) completed += 0.5;
+    32→  });
+    33→  return Math.round((completed / Math.max(1, flat.length)) * 100);
+    34→}
+    35→
+    36→/** تعداد جلسات تمام‌شدهٔ یک درس */
+    37→function doneCountOf(course: Course, progress: Record<string, { status?: string }>) {
+    38→  return course.chapters.reduce((n, ch) => n + ch.lessons.filter((l) => progress[l.id]?.status === "completed").length, 0);
+    39→}
+    40→
+    41→/** اولین جلسهٔ ناتمام درس (برای «ادامه از …») */
+    42→function nextPending(course: Course, progress: Record<string, { status?: string }>): Lesson | null {
+    43→  for (const ch of [...course.chapters].sort((a, b) => a.order - b.order))
+    44→    for (const l of ch.lessons)
+    45→      if (!progress[l.id]?.status) return l;
+    46→  return null;
+    47→}
+    48→
+    49→/* ═══ بخش‌اسلایدر — سرصفحهٔ یکدست با دو دکمهٔ پیمایش + ردیف افقی اسنپ‌دار ═══ */
+    50→
+    51→function SectionSlider({
+    52→  icon: Icon, title, hint, action, ariaLabel, children, padEnds = false,
+    53→}: {
+    54→  icon: React.ComponentType<{ className?: string }>;
+    55→  title: string;
+    56→  hint?: string;
+    57→  action?: React.ReactNode;
+    58→  ariaLabel: string;
+    59→  children: React.ReactNode;
+    60→  /** بادسازی اولین و آخرین کارت لبه به لبه در نمایشگر کوچک */
+    61→  padEnds?: boolean;
+    62→}) {
+    63→  const ref = React.useRef<HTMLDivElement>(null);
+    64→  const [edge, setEdge] = React.useState<{ prev: boolean; next: boolean }>({ prev: false, next: false });
+    65→
+    66→  const measure = React.useCallback(() => {
+    67→    const el = ref.current;
+    68→    if (!el) return;
+    69→    const max = el.scrollWidth - el.clientWidth;
+    70→    if (max <= 4) return setEdge({ prev: false, next: false });
+    71→    const d = Math.abs(el.scrollLeft);
+    72→    setEdge({ prev: d > 4, next: max - d > 4 });
+    73→  }, []);
+    74→
+    75→  React.useEffect(() => {
+    76→    measure();
+    77→    const el = ref.current;
+    78→    if (!el) return;
+    79→    el.addEventListener("scroll", measure, { passive: true });
+    80→    window.addEventListener("resize", measure);
+    81→    const t = setTimeout(measure, 400); // پس از نشست فونت‌ها
+    82→    return () => {
+    83→      el.removeEventListener("scroll", measure);
+    84→      window.removeEventListener("resize", measure);
+    85→      clearTimeout(t);
+    86→    };
+    87→  }, [measure]);
+    88→
+    89→  function slide(dir: 1 | -1) {
+    90→    const el = ref.current;
+    91→    if (!el) return;
+    92→    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.82), behavior: "smooth" });
+    93→  }
+    94→
+    95→  const prevDisabled = !edge.prev;
+    96→  const nextDisabled = !edge.next;
+    97→
+    98→  return (
+    99→    <section className="space-y-3.5" aria-label={ariaLabel}>
+   100→      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+   101→        <h2 className="flex min-w-0 items-center gap-2 text-lg font-bold">
+   102→          <Icon className="h-5 w-5 shrink-0 text-bronze" />
+   103→          {title}
+   104→          {hint && <span className="hidden truncate text-[11px] font-medium text-muted-foreground sm:inline">· {hint}</span>}
+   105→        </h2>
+   106→        <div className="flex items-center gap-1.5">
+   107→          {action}
+   108→          <button
+   109→            onClick={() => slide(1)}
+   110→            disabled={prevDisabled}
+   111→            aria-label={`${title} — قبلی`}
+   112→            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-card transition-all hover:border-bronze/60 hover:text-bronze disabled:pointer-events-none disabled:opacity-30"
+   113→          >
+   114→            <ChevronRight className="h-4 w-4" />
+   115→          </button>
+   116→          <button
+   117→            onClick={() => slide(-1)}
+   118→            disabled={nextDisabled}
+   119→            aria-label={`${title} — بعدی`}
+   120→            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-card transition-all hover:border-bronze/60 hover:text-bronze disabled:pointer-events-none disabled:opacity-30"
+   121→          >
+   122→            <ChevronLeft className="h-4 w-4" />
+   123→          </button>
+   124→        </div>
+   125→      </div>
+   126→      <div
+   127→        ref={ref}
+   128→        className={`hslider flex gap-3 overflow-x-auto pb-2 ${
+   129→          padEnds ? "-mx-4 px-4 sm:-mx-6 sm:px-6" : ""
+   130→        }`}
+   131→      >
+   132→        {children}
+   133→      </div>
+   134→    </section>
+   135→  );
+   136→}
+   137→
+   138→export function DashboardView() {
+   139→  const progress = useApp((s) => s.progress);
+   140→  const last = useApp((s) => s.lastLocation);
+   141→  const streak = useApp((s) => s.streak);
+   142→  const customCourses = useApp((s) => s.customCourses);
+   143→  const tBooks = useApp((s) => s.tBooks);
+   144→
+   145→  const greeting = (() => {
+   146→    const h = new Date().getHours();
+   147→    if (h < 12) return "صبح بخیر، حق‌جو عزیز";
+   148→    if (h < 18) return "وقت بخیر، حق‌جو عزیز";
+   149→    return "شب بخیر، برای مرور شبانه آماده‌ای؟";
+   150→  })();
+   151→
+   152→  // همهٔ کتاب‌ها: جزوات پایه + دورهٔ استاد + وارداتی
+   153→  const allCourses = React.useMemo(() => mergeAll({ customCourses, tBooks }), [customCourses, tBooks]);
+   154→  const hidden = useApp((s) => s.hiddenBuiltins);
+   155→
+   156→  // مقصد «ادامه یادگیری»
+   157→  let resumeTarget: { courseTitle: string; lesson: Lesson } | null = null;
+   158→  if (last.lessonId) {
+   159→    for (const c of allCourses)
+   160→      for (const ch of c.chapters)
+   161→        for (const l of ch.lessons)
+   162→          if (l.id === last.lessonId) resumeTarget = { courseTitle: c.title, lesson: l };
+   163→  }
+   164→  if (!resumeTarget) {
+   165→    outer2: for (const m of allCourses) {
+   166→      for (const ch of m.chapters)
+   167→        for (const l of ch.lessons)
+   168→          if (!progress[l.id]?.status) { resumeTarget = { courseTitle: m.title, lesson: l }; break outer2; }
+   169→      if (resumeTarget) break;
+   170→    }
+   171→  }
+   172→
+   173→  const shelfCourses = allCourses.filter(
+   174→    (c) =>
+   175→      !hidden.includes(c.id) &&
+   176→      ((c.chapters?.flatMap?.((ch) => ch.lessons) ?? []).length > 0 || !BUILTIN_IDS.has(c.id)),
+   177→  );
+   178→  // سرفصل‌های بعدی هر کتاب — برای صحنهٔ تئاتری و اسلایدر پایین هیرو
+   179→  const nextLessons = React.useMemo(() => {
+   180→    const out: {
+   181→      lessonId: string; courseTitle: string; lessonTitle: string;
+   182→      pct: number; icon?: string; owner?: string; isPrep: boolean;
+   183→    }[] = [];
+   184→    for (const c of shelfCourses.slice(0, 12)) {
+   185→      const np = nextPending(c, progress);
+   186→      if (!np) continue;
+   187→      out.push({
+   188→        lessonId: np.id,
+   189→        courseTitle: c.title,
+   190→        lessonTitle: np.title,
+   191→        pct: lessonProgressOf(c, progress),
+   192→        icon: c.icon,
+   193→        owner: (c as Course & { _ownerUsername?: string })._ownerUsername,
+   194→        isPrep: (c as Course & { _status?: string })._status === "prep",
+   195→      });
+   196→      if (out.length >= 8) break;
+   197→    }
+   198→    return out;
+   199→  }, [shelfCourses, progress]);
+   200→
+   201→  return (
+   202→    <div className="mx-auto w-full max-w-6xl space-y-9 px-4 pb-28 pt-5 sm:px-6">
+   203→      {/* ═══ هیروی کربنی — سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
+   204→      <HeroPanel
+   205→        greeting={greeting}
+   206→        streak={streak.count}
+   207→        books={shelfCourses.length}
+   208→        resumeTarget={resumeTarget}
+   209→      />
+   210→
+   211→      {/* پیام وضعیت کتابخانه (حذف/افزودن) */}
+   212→      <ToastHost />
+   213→
+   214→      {/* ═══ قفسهٔ کتابخانهٔ من — اسلایدر ═══ */}
+   215→      <MyLibraryShelf courses={shelfCourses} progress={progress} />
+   216→
+   217→      {/* ═══ سرفصل‌های بعدی — نوار افقی بدون هیچ درصدی ═══ */}
+   218→      {nextLessons.length > 0 && (
+   219→        <SectionSlider icon={ListChecks} title="سرفصل‌های بعدی" hint="یک قدم تا جلسهٔ تازه" ariaLabel="سرفصل‌های بعدی" padEnds>
+   220→          {nextLessons.map((n) => (
+   221→            <button
+   222→              key={n.lessonId}
+   223→              onClick={() => navigate({ view: "learn", id: n.lessonId })}
+   224→              title={`${n.courseTitle} — جلسهٔ ${n.lessonTitle}`}
+   225→              className="group flex w-[250px] shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-start shadow-card transition-colors hover:border-bronze/60 sm:w-[290px]"
+   226→            >
+   227→              <span className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[10px] border border-border bg-primary/5 shadow-card">
+   228→                <CourseIcon icon={n.icon} className="h-4 w-4 -rotate-45 text-bronze" />
+   229→              </span>
+   230→              <span className="min-w-0 flex-1 space-y-0.5">
+   231→                <span className="flex items-baseline gap-x-2">
+   232→                  <span className="truncate text-[12.5px] font-bold group-hover:text-bronze">{n.courseTitle}</span>
+   233→                  {n.owner && <span className="hidden shrink-0 text-[9.5px] font-bold text-muted-foreground sm:inline">استاد {n.owner}</span>}
+   234→                  {n.isPrep && <span className="shrink-0 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
+   235→                </span>
+   236→                <span className="block truncate text-[11px] text-muted-foreground">جلسهٔ بعد: {n.lessonTitle}</span>
+   237→              </span>
+   238→              <PlayCircle className="h-5 w-5 shrink-0 text-bronze/60 transition-all group-hover:-translate-x-0.5 group-hover:text-bronze" />
+   239→            </button>
+   240→          ))}
+   241→        </SectionSlider>
+   242→      )}
+   243→
+   244→      {/* ═══ اساتید همیار — پیشنهاد اینستاگرامی ═══ */}
+   245→      <TeacherSuggestions />
+   246→
+   247→      <section className="flex flex-wrap items-center justify-center gap-2 pt-1">
+   248→        <StatChip icon={Sparkles}>برای استریک امروز کافیست یک جلسه را تمام کنی</StatChip>
+   249→      </section>
+   250→    </div>
+   251→  );
+   252→}
+   253→
+   254→/* ─── دکمهٔ طلایی CTA — همان جنس دکمهٔ روز/شب (گرادیان طلایی + برق شیشه‌ای) ── */
+   255→
+   256→function GoldCta({
+   257→  icon: Icon, children, onClick,
+   258→}: {
+   259→  icon: React.ComponentType<{ className?: string }>;
+   260→  children: React.ReactNode;
+   261→  onClick: () => void;
+   262→}) {
+   263→  return (
+   264→    <button
+   265→      onClick={onClick}
+   266→      className="group relative mt-1 inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-[#ecd29a] via-[#cda65e] to-[#8a6a30] px-5 py-2.5 text-sm font-bold text-[#1b1408] shadow-[0_3px_12px_-3px_rgba(205,166,94,0.65),inset_0_1px_0_rgba(255,255,255,0.5)] ring-1 ring-[#f6e7c1]/70 transition-all duration-300 hover:shadow-[0_5px_18px_-3px_rgba(205,166,94,0.85),inset_0_1px_0_rgba(255,255,255,0.55)] hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-white/80 active:scale-[.98]"
+   267→    >
+   268→      {/* برق شیشه‌ای روی گرادیان طلایی */}
+   269→      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/5 to-black/15" />
+   270→      <span aria-hidden className="pointer-events-none absolute -top-1/2 start-[-20%] h-[180%] w-2/3 rotate-12 bg-white/25 blur-[6px] transition-transform duration-500 group-hover:translate-x-[120%]" />
+   271→      <Icon className="relative h-[18px] w-[18px]" />
+   272→      <span className="relative">{children}</span>
+   273→    </button>
+   274→  );
+   275→}
+   276→
+   277→/* ═══ هیروی کربنی v3 — بدون حلقهٔ پیشرفت؛ صحنهٔ تئاتری تک‌آیتم تایم‌دار ═══ */
+   278→
+   279→type StageItem =
+   280→  | { kind: "post"; id: string; title: string; summary?: string; authorId: string; authorName: string; avatarUrl?: string | null; commentsCount: number; ratingAvg?: number; date: string }
+   281→  | { kind: "lesson"; lessonId: string; courseTitle: string; lessonTitle: string; owner?: string; isPrep: boolean; icon?: string };
+   282→
+   283→const STAGE_DELAY = 7000; // هفت ثانیه روی هر آیتم، بعد آیتم تازه
+   284→
+   285→function HeroPanel({
+   286→  greeting, streak, books, resumeTarget,
+   287→}: {
+   288→  greeting: string;
+   289→  streak: number;
+   290→  books: number;
+   291→  resumeTarget: { courseTitle: string; lesson: Lesson } | null;
+   292→}) {
+   293→  return (
+   294→    <section
+   295→      aria-label="خانه"
+   296→      className="relative overflow-hidden rounded-[28px] border border-primary-foreground/10 bg-gradient-to-bl from-primary via-primary to-[#123628] p-5 text-primary-foreground shadow-card sm:p-8"
+   297→    >
+   298→      {/* بافت فیبرکربنی و هالهٔ برنزی */}
+   299→      <div aria-hidden className="pattern-quilt absolute inset-0 opacity-90" />
+   300→      {/* تصویر صحنهٔ حقوق — نیمهٔ خالی هیرو را پر می‌کند (موبایل: پس‌زمینهٔ کم‌رنگ) */}
+   301→      <img
+   302→        src="/media/hero-law.png"
+   303→        alt=""
+   304→        aria-hidden
+   305→        className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover opacity-[0.16] lg:inset-y-0 lg:end-0 lg:start-auto lg:h-full lg:w-[47%] lg:opacity-95 lg:[mask-image:linear-gradient(to_right,black_36%,transparent_97%)]"
+   306→      />
+   307→      <div aria-hidden className="absolute -top-28 start-1/4 h-64 w-64 rounded-full bg-bronze/25 blur-3xl" />
+   308→      <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
+   309→
+   310→      <div className="relative space-y-6">
+   311→        {/* سطر بالایی: سلام + آمار — بدون هیچ درصد پیشرفتی؛ در دسکتاپ در نیمهٔ راست */}
+   312→        <div className="space-y-3 lg:max-w-[55%]">
+   313→          <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
+   314→          {resumeTarget ? (
+   315→            <>
+   316→              <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">جلسهٔ بعدی آماده است</h1>
+   317→              <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+   318→                <span className="font-semibold text-bronze">{resumeTarget.courseTitle}</span> · {resumeTarget.lesson.title}
+   319→              </p>
+   320→              <GoldCta icon={PlayCircle} onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}>
+   321→                ادامه یادگیری
+   322→              </GoldCta>
+   323→            </>
+   324→          ) : (
+   325→            <>
+   326→              <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">به استاد حقوقی هوشمند خوش آمدی</h1>
+   327→              <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+   328→                یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
+   329→              </p>
+   330→              <GoldCta icon={LibraryBig} onClick={() => navigate({ view: "library" })}>
+   331→                انتخاب درس از کتابخانه
+   332→              </GoldCta>
+   333→            </>
+   334→          )}
+   335→          <div className="flex flex-wrap gap-2 pt-1.5">
+   336→            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><BookOpen className="h-3.5 w-3.5 text-bronze" />{fa(books)} درس فعال</span>
+   337→            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.13] px-3 py-1 text-xs font-semibold text-white backdrop-blur"><Flame className="h-3.5 w-3.5 text-bronze" />استریک {fa(streak)} روز</span>
+   338→          </div>
+   339→        </div>
+   340→
+   341→        {/* مرکز آزمون — ورودی مستقیم دفترچه‌های آماده (تستی و تشریحی) */}
+   342→        <button
+   343→          onClick={() => navigate({ view: "quiz", id: "packs" })}
+   344→          className="feed-card group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start transition-[border-color,box-shadow] duration-200"
+   345→        >
+   346→          <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-border bg-primary/5 shadow-card transition-transform duration-200 group-hover:scale-110">
+   347→            <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-bronze" />
+   348→          </span>
+   349→          <span className="min-w-0 flex-1">
+   350→            <span className="block text-[13.5px] font-extrabold text-foreground">مرکز آزمون</span>
+   351→            <span className="block text-[11px] leading-relaxed text-muted-foreground">دفترچه‌های آمادهٔ تستی زمان‌سنج و تشریحی با پاسخ نمونه</span>
+   352→          </span>
+   353→          <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
+   354→        </button>
+   355→
+   356→        {/* جدیدترین مطالب — کارت‌های فید مثل طرح مرجع */}
+   357→        <LatestPosts />
+   358→      </div>
+   359→    </section>
+   360→  );
+   361→}
+   362→
+   363→/* ─── جدیدترین مطالب — کاروسل کارت فید با جلد دسته‌بندی، نویسنده و زمان مطالعه ── */
+   364→
+   365→const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ className?: string }> }> = {
+   366→  tejarat: { bg: "from-[#96742f] to-[#413113]", Icon: Briefcase },
+   367→  "ayin-dadresi": { bg: "from-[#1f5a4c] to-[#0f2f28]", Icon: Gavel },
+   368→  "azmoon-vekalat": { bg: "from-[#2c5083] to-[#152a47]", Icon: GraduationCap },
+   369→  takhassosi: { bg: "from-[#5a3b6e] to-[#2c1d38]", Icon: BookMarked },
+   370→  other: { bg: "from-[#3c5148] to-[#1c2b24]", Icon: BookOpen },
+   371→};
+   372→
+   373→function LatestPosts() {
+   374→  const { feed, loading } = useSocial();
+   375→  const ref = React.useRef<HTMLDivElement>(null);
+   376→  const [edge, setEdge] = React.useState({ prev: false, next: false });
+   377→
+   378→  const measure = React.useCallback(() => {
+   379→    const el = ref.current;
+   380→    if (!el) return;
+   381→    const max = el.scrollWidth - el.clientWidth;
+   382→    if (max <= 4) return setEdge({ prev: false, next: false });
+   383→    const d = Math.abs(el.scrollLeft);
+   384→    setEdge({ prev: d > 4, next: max - d > 4 });
+   385→  }, []);
+   386→
+   387→  React.useEffect(() => {
+   388→    measure();
+   389→    const el = ref.current;
+   390→    if (!el) return;
+   391→    el.addEventListener("scroll", measure, { passive: true });
+   392→    window.addEventListener("resize", measure);
+   393→    const t = setTimeout(measure, 500); // پس از نشست فونت‌ها
+   394→    return () => {
+   395→      el.removeEventListener("scroll", measure);
+   396→      window.removeEventListener("resize", measure);
+   397→      clearTimeout(t);
+   398→    };
+   399→  }, [measure, feed.length]);
+   400→
+   401→  function slide(dir: 1 | -1) {
+   402→    const el = ref.current;
+   403→    if (!el) return;
+   404→    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.82), behavior: "smooth" });
+   405→  }
+   406→
+   407→  return (
+   408→    <div className="space-y-3" aria-label="جدیدترین مطالب استادها">
+   409→      {/* سرصفحه: عنوان + «مشاهده همه» */}
+   410→      <div className="flex flex-wrap items-center gap-2">
+   411→        <span className="inline-flex items-center gap-1.5 text-[13px] font-extrabold text-white">
+   412→          <Rss className="h-4 w-4 text-bronze" /> جدیدترین مطالب
+   413→        </span>
+   414→        <button
+   415→          onClick={() => navigate({ view: "teachers" })}
+   416→          className="rounded-full border border-bronze/60 bg-bronze/15 px-3 py-1 text-[10.5px] font-bold text-bronze transition-colors hover:bg-bronze/25"
+   417→        >
+   418→          مشاهده همه
+   419→        </button>
+   420→        <span className="ms-auto hidden text-[10px] font-medium text-primary-foreground/50 sm:inline">
+   421→          تازه‌ترین نوشته‌های اساتید
+   422→        </span>
+   423→      </div>
+   424→
+   425→      {/* ردیف کارت‌ها + فلش‌های شناور */}
+   426→      <div className="relative">
+   427→        <div ref={ref} className="hslider -mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
+   428→          {loading && feed.length === 0 ? (
+   429→            [0, 1, 2, 3].map((i) => <FeedCardSkeleton key={i} />)
+   430→          ) : feed.length > 0 ? (
+   431→            feed.slice(0, 10).map((p) => <FeedCard key={p.id} p={p} />)
+   432→          ) : (
+   433→            <button
+   434→              onClick={() => navigate({ view: "teachers" })}
+   435→              className="lg-skeleton flex w-full items-center justify-center gap-3 rounded-[24px] border-dashed px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
+   436→            >
+   437→              <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
+   438→              هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
+   439→            </button>
+   440→          )}
+   441→        </div>
+   442→
+   443→        {edge.next && (
+   444→          <button
+   445→            onClick={() => slide(-1)}
+   446→            aria-label="مطالب بعدی"
+   447→            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
+   448→          >
+   449→            <ChevronLeft className="h-4 w-4" />
+   450→          </button>
+   451→        )}
+   452→        {edge.prev && (
+   453→          <button
+   454→            onClick={() => slide(1)}
+   455→            aria-label="مطالب قبلی"
+   456→            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
+   457→          >
+   458→            <ChevronRight className="h-4 w-4" />
+   459→          </button>
+   460→        )}
+   461→      </div>
+   462→    </div>
+   463→  );
+   464→}
+   465→
+   466→/** کارت مطلب — تامنیل آپلودی استاد اگر بود، وگرنه جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
+   467→function FeedCard({
+   468→  p,
+   469→}: {
+   470→  p: {
+   471→    id: string; title: string; summary?: string; createdAt: string; updatedAt?: string; commentsCount: number;
+   472→    rating?: { avg: number; count: number };
+   473→    categories?: string[];
+   474→    category?: string;
+   475→    thumbnail?: string;
+   476→    author: { id: string; displayName: string; avatarUrl?: string | null; username?: string };
+   477→  };
+   478→}) {
+   479→  const cat = p.categories?.[0] ?? p.category ?? "other";
+   480→  const cover = CATEGORY_COVER[cat] ?? CATEGORY_COVER.other;
+   481→  const Icon = cover.Icon;
+   482→  const catLabel = categoryLabelOf(cat);
+   483→  // برآورد زمان مطالعه از حجم خلاصه — تشریفاتی ولی منطقی
+   484→  const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
+   485→  const hasThumb = typeof p.thumbnail === "string" && p.thumbnail.trim() !== "";
+   486→
+   487→  const offlineCard = {
+   488→    id: p.id,
+   489→    title: p.title,
+   490→    summary: p.summary ?? "",
+   491→    tags: "",
+   492→    category: p.category,
+   493→    categories: p.categories,
+   494→    thumbnail: hasThumb ? p.thumbnail : undefined,
+   495→    createdAt: p.createdAt,
+   496→    updatedAt: p.updatedAt,
+   497→    commentsCount: p.commentsCount,
+   498→    rating: p.rating,
+   499→    author: {
+   500→      id: p.author.id,
+   501→      username: p.author.username ?? "",
+   502→      displayName: p.author.displayName,
+   503→      avatarUrl: p.author.avatarUrl,
+   504→    },
+   505→  };
+   506→
+   507→  return (
+   508→    <div className="relative w-[240px] shrink-0 snap-start sm:w-[268px]">
+   509→      <button
+   510→        onClick={() => navigate({ view: "post", id: p.id })}
+   511→        className="feed-card group relative block w-full overflow-hidden rounded-[24px] text-start text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze/70"
+   512→      >
+   513→      {/* جلد — قاب شیشه‌ای داخلی: تامنیل/جلد دسته با گوشهٔ کرو و فاصلهٔ یکسان از بوردر کارت */}
+   514→      {hasThumb ? (
+   515→        <span className="relative block px-3 pt-3">
+   516→          <span className="relative mx-auto block h-[116px] w-full overflow-hidden rounded-[14px] shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)] transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.6)]">
+   517→            <img
+   518→              src={p.thumbnail}
+   519→              alt=""
+   520→              dir="ltr"
+   521→              loading="lazy"
+   522→              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
+   523→            />
+   524→            <span aria-hidden className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/30" />
+   525→          </span>
+   526→          <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+   527→            {catLabel}
+   528→          </span>
+   529→        </span>
+   530→      ) : (
+   531→      <span className="relative block px-3 pt-3">
+   532→        <span className={`relative block h-[116px] w-full overflow-hidden rounded-[14px] bg-gradient-to-bl ${cover.bg}`}>
+   533→        <>
+   534→          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+   535→          <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
+   536→            {p.title.slice(0, 1)}
+   537→          </span>
+   538→          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+   539→            <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+   540→          </span>
+   541→        </>
+   542→        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+   543→          {catLabel}
+   544→        </span>
+   545→        </span>
+   546→      </span>
+   547→      )}
+   548→
+   549→      <span className="block space-y-2 p-3.5">
+   550→        <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">
+   551→          {p.title}
+   552→        </span>
+   553→        <span className="flex items-center gap-2">
+   554→          <UserAvatar src={p.author.avatarUrl} name={p.author.displayName} size="xs" />
+   555→          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-foreground/80">{p.author.displayName}</span>
+   556→          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">{faDate(p.createdAt)}</span>
+   557→        </span>
+   558→        <span className="flex items-center gap-2 border-t border-border/70 pt-2 text-[10px] font-semibold text-muted-foreground">
+   559→          <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
+   560→          <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
+   561→          {!!p.rating?.count && (
+   562→            <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
+   563→          )}
+   564→        </span>
+   565→      </span>
+   566→      </button>
+   567→
+   568→      {/* دکمهٔ دانلود آفلاین — لایهٔ شناور گوشهٔ جلد */}
+   569→      <span className="absolute end-2 top-2 z-10">
+   570→        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} variant="glass" className="!h-8 !w-8 shadow-card backdrop-blur" />
+   571→      </span>
+   572→    </div>
+   573→  );
+   574→}
+   575→
+   576→function FeedCardSkeleton() {
+   577→  return (
+   578→    <span className="feed-card block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] sm:w-[268px]">
+   579→      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[14px] bg-black/[0.06]" /></span>
+   580→      <span className="block space-y-2 p-3.5">
+   581→        <span className="block h-3.5 w-4/5 rounded bg-black/[0.09]" />
+   582→        <span className="block h-3 w-2/5 rounded bg-black/[0.06]" />
+   583→        <span className="block h-2.5 w-3/5 rounded bg-black/[0.05]" />
+   584→      </span>
+   585→    </span>
+   586→  );
+   587→}
+   588→
+   589→/** برچسب فارسی دسته — بدون وابستگی به social-shared (سبک‌وزن برای هیرو) */
+   590→function categoryLabelOf(slug: string): string {
+   591→  return (
+   592→    { tejarat: "تجارت", "ayin-dadresi": "آیین دادرسی مدنی", "azmoon-vekalat": "آزمون وکالت", takhassosi: "دروس تخصصی", other: "مطلب آموزشی" } as Record<string, string>
+   593→  )[slug] ?? "مطلب آموزشی";
+   594→}
+   595→
+   596→/** آواتار + نام کوچک روشن روی پنل تیره — کلیک به پروفایل استاد */
+   597→function ToTeacherProfileLight({
+   598→  id, displayName, avatarUrl,
+   599→}: { id: string; displayName: string; avatarUrl?: string | null }) {
+   600→  return (
+   601→    <span
+   602→      role="link"
+   603→      tabIndex={0}
+   604→      onClick={(e) => { e.stopPropagation(); navigate({ view: "teacher", id }); }}
+   605→      onKeyDown={(e) => e.key === "Enter" && navigate({ view: "teacher", id })}
+   606→      title={`پروفایل ${displayName}`}
+   607→      className="flex w-fit shrink-0 items-center gap-2 rounded-lg p-0.5 transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+   608→    >
+   609→      <UserAvatar src={avatarUrl} name={displayName} size="sm" />
+   610→      <span className="hidden truncate text-[11.5px] font-bold text-white/90 sm:block max-w-24">{displayName}</span>
+   611→    </span>
+   612→  );
+   613→}
+   614→
+   615→function HeroRowSkeleton() {
+   616→  return (
+   617→    <span className="flex animate-pulse items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3">
+   618→      <span className="h-8 w-8 shrink-0 rounded-full bg-white/15" />
+   619→      <span className="flex-1 space-y-1.5">
+   620→        <span className="block h-3 w-3/4 rounded bg-white/15" />
+   621→        <span className="block h-2.5 w-1/3 rounded bg-white/10" />
+   622→      </span>
+   623→    </span>
+   624→  );
+   625→}
+   626→
+   627→/** پیام لحظه‌ای وضعیت کتابخانه — بازخورد «حذف شد ولی داده‌ات ماند» */
+   628→let toastSetter: ((m: string) => void) | null = null;
+   629→
+   630→function ToastHost() {
+   631→  const [msg, setMsg] = React.useState("");
+   632→  React.useEffect(() => {
+   633→    toastSetter = setMsg;
+   634→    return () => { toastSetter = null; };
+   635→  }, []);
+   636→  if (!msg) return null;
+   637→  return (
+   638→    <p className="rounded-xl border border-success/40 bg-success/10 px-4 py-2.5 text-xs leading-relaxed text-success">{msg}</p>
+   639→  );
+   640→}
+   641→
+   642→function shelfToast(text: string) {
+   643→  toastSetter?.(text);
+   644→}
+   645→
+   646→/* ═══ کتابخانهٔ من — قفسهٔ اسلایدری جلدها بدون انیمیشن بالارفتن ═══════════ */
+   647→
+   648→function MyLibraryShelf({
+   649→  courses, progress,
+   650→}: {
+   651→  courses: Course[];
+   652→  progress: Record<string, { status?: string }>;
+   653→}) {
+   654→  const tBooks = useApp((s) => s.tBooks);
+   655→  const hidden = useApp((s) => s.hiddenBuiltins);
+   656→
+   657→  const teacherCount = courses.filter((c) => !!((c as Course & { _ownerUsername?: string })._ownerUsername)).length;
+   658→
+   659→  /** حذف دورهٔ استاد از کتابخانه — رکورد سرور پاک می‌شود ولی هیچ دادهٔ یادگیری دست نمی‌خورد */
+   660→  async function removeTeacherBook(courseId: string, title: string) {
+   661→    try {
+   662→      await fetch("/api/library", {
+   663→        method: "POST",
+   664→        headers: { "Content-Type": "application/json" },
+   665→        body: JSON.stringify({ courseId }),
+   666→      });
+   667→      await refreshLibrary();
+   668→      shelfToast(`«${title}» از کتابخانه حذف شد؛ اگر دوباره اضافه‌اش کنی همهٔ فعالیتت سر جایش است.`);
+   669→    } catch {}
+   670→  }
+   671→
+   672→  /** توگل حذف دورهٔ داخلی (پیش‌فرض اپ) — برای حساب روی سرور، برای مهمان در همین مرورگر */
+   673→  async function toggleBuiltin(courseId: string, title: string) {
+   674→    const willHide = await toggleBuiltinHidden(courseId);
+   675→    shelfToast(
+   676→      willHide
+   677→        ? `«${title}» از کتابخانه حذف شد؛ پیشرفت و تست‌هایت محفوظ می‌ماند و از «کتابخانهٔ عمومی ← دوره‌های آماده» برمی‌گردد.`
+   678→        : `«${title}» به کتابخانه برگشت؛ دقیقاً همان‌جا که رهایش کرده بودی.`,
+   679→    );
+   680→  }
+   681→
+   682→  const addGhostCard = (
+   683→    <button
+   684→      onClick={() => navigate({ view: "library" })}
+   685→      className="group flex w-[164px] shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/90 bg-card/60 p-4 text-center transition-colors hover:border-bronze/50 sm:w-[184px]"
+   686→      aria-label="افزودن درس تازه از کتابخانهٔ عمومی"
+   687→    >
+   688→      <span className="grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-bronze/40 bg-bronze/10 shadow-card transition-transform group-hover:scale-105">
+   689→        <BookPlusDiamond />
+   690→      </span>
+   691→      <span className="text-xs font-bold text-bronze">درس تازه بخوان</span>
+   692→      <span className="text-[10px] leading-relaxed text-muted-foreground">از کتابخانهٔ عمومی یا دوره‌های آماده</span>
+   693→    </button>
+   694→  );
+   695→
+   696→  return (
+   697→    <SectionSlider
+   698→      icon={BookMarked}
+   699→      title="کتابخانهٔ من"
+   700→      hint={`${fa(courses.length - teacherCount)} جزوهٔ پایه · ${fa(teacherCount)} دورهٔ استاد${hidden.length ? ` · ${fa(hidden.length)} عنوان مخفی` : ""}`}
+   701→      ariaLabel="قفسهٔ کتابخانهٔ من"
+   702→      padEnds
+   703→    >
+   704→      {courses.length === 0 ? (
+   705→        <div className="flex w-full shrink-0 gap-3">
+   706→          <button
+   707→            onClick={() => navigate({ view: "library" })}
+   708→            className="min-w-[240px] flex-1 rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-start text-sm leading-relaxed text-muted-foreground transition-colors hover:border-bronze/50"
+   709→          >
+   710→            هنوز درسی در قفسه نداری؛ از «کتابخانهٔ عمومی» یکی را انتخاب کن تا همین‌جا ببینی‌اش.
+   711→          </button>
+   712→          <div className="hidden w-[260px] shrink-0 rounded-2xl border border-border bg-card p-3.5 sm:block">
+   713→            <p className="mb-2 text-[11px] font-bold text-bronze">افزودن سریع</p>
+   714→            <div className="space-y-1.5">
+   715→              {["madani-1", "madani-4", "tejarat-3"].map((bid) => {
+   716→                const bc = builtinCourses.find((x) => x.id === bid);
+   717→                if (!bc) return null;
+   718→                return (
+   719→                  <button
+   720→                    key={bid}
+   721→                    onClick={() => void toggleBuiltinHidden(bid)}
+   722→                    className="flex w-full items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-[12px] font-bold transition-colors hover:border-bronze/60 hover:text-bronze"
+   723→                  >
+   724→                    <span className="grid h-5 w-5 place-items-center rounded-md bg-bronze/15 text-bronze">+</span>
+   725→                    <span className="min-w-0 flex-1 truncate text-start">{bc.title}</span>
+   726→                  </button>
+   727→                );
+   728→              })}
+   729→            </div>
+   730→          </div>
+   731→        </div>
+   732→      ) : (
+   733→        courses.map((c) => {
+   734→          const cid = c.id;
+   735→          const ownerCourse =
+   736→            !!((c as Course & { _ownerUsername?: string })._ownerUsername) &&
+   737→            tBooks.some((t) => t.id === cid);
+   738→          const isBuiltin = BUILTIN_IDS.has(cid);
+   739→          return (
+   740→            <BookCover
+   741→              key={cid}
+   742→              c={c}
+   743→              progress={progress}
+   744→              onRemove={
+   745→                ownerCourse
+   746→                  ? () => removeTeacherBook(cid, c.title)
+   747→                  : isBuiltin
+   748→                    ? () => toggleBuiltin(cid, c.title)
+   749→                    : undefined
+   750→              }
+   751→            />
+   752→          );
+   753→        })
+   754→      )}
+   755→      {addGhostCard}
+   756→    </SectionSlider>
+   757→  );
+   758→}
+   759→
+   760→/** لوزی کوچک «+» روی کارت افزودن */
+   761→function BookPlusDiamond() {
+   762→  return (
+   763→    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 -rotate-45 text-bronze" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+   764→      <path d="M12 5v14M5 12h14" />
+   765→    </svg>
+   766→  );
+   767→}
+   768→
+   769→function BookCover({
+   770→  c, progress, onRemove,
+   771→}: {
+   772→  c: Course;
+   773→  progress: Record<string, { status?: string }>;
+   774→  onRemove?: () => void;
+   775→}) {
+   776→  const owner = (c as Course & { _ownerUsername?: string })._ownerUsername;
+   777→  const isPrep = (c as Course & { _status?: string })._status === "prep";
+   778→  const isBuiltin = BUILTIN_IDS.has(c.id);
+   779→  const [confirming, setConfirming] = React.useState(false);
+   780→  const total = c.chapters.reduce((n, x) => n + x.lessons.length, 0);
+   781→  const done = doneCountOf(c, progress);
+   782→  const p = lessonProgressOf(c, progress);
+   783→  const zone = owner
+   784→    ? "bg-gradient-to-bl from-bronze/85 to-primary"
+   785→    : "bg-gradient-to-bl from-primary to-black/25";
+   786→
+   787→  return (
+   788→    <div className="group relative w-[164px] shrink-0 snap-start sm:w-[184px]">
+   789→      <button
+   790→        onClick={() => navigate({ view: "course", id: c.id })}
+   791→        title={`${c.title} — ${fa(p)}٪ تکمیل`}
+   792→        className="block w-full overflow-hidden rounded-2xl border border-border bg-card text-start shadow-card transition-colors duration-200 hover:border-bronze/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+   793→      >
+   794→        <span aria-hidden className={`relative block h-[86px] ${zone}`}>
+   795→          <span className="absolute -bottom-3 start-2 select-none font-display text-[58px] leading-none text-white/10">
+   796→            {c.title.slice(0, 1)}
+   797→          </span>
+   798→          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-60" />
+   799→          <span className="absolute inset-x-0 bottom-2.5 mx-auto grid h-10 w-10 rotate-45 place-items-center rounded-[9px] border border-white/25 bg-background/20 shadow-card backdrop-blur-sm">
+   800→            <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-white" />
+   801→          </span>
+   802→          {owner && (
+   803→            <span className="absolute start-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/35 px-2 py-0.5 text-[9.5px] font-bold text-white backdrop-blur-sm">
+   804→              <GraduationCap className="h-3 w-3" /> {owner}
+   805→            </span>
+   806→          )}
+   807→          {isPrep && (
+   808→            <span className="absolute end-2 top-2 inline-flex items-center gap-1 rounded-full bg-amber-400/95 px-2 py-0.5 text-[9px] font-extrabold text-amber-950 shadow-card">
+   809→              <Clock3 className="h-3 w-3" /> در حال آماده‌سازی
+   810→            </span>
+   811→          )}
+   812→        </span>
+   813→
+   814→        <span className="block space-y-2 p-3">
+   815→          <span className="line-clamp-1 block font-display text-[13px] font-bold">{c.title}</span>
+   816→          <ProgressBar value={p} />
+   817→          <span className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+   818→            <span>{fa(p)}٪ پیشرفت</span>
+   819→            <span>{fa(done)}/{fa(total)}</span>
+   820→          </span>
+   821→        </span>
+   822→      </button>
+   823→
+   824→      {/* حذف از کتابخانهٔ من — هم دورهٔ استاد، هم دورهٔ پیش‌فرض اپ؛ پیشرفت هرگز پاک نمی‌شود */}
+   825→      {onRemove && (
+   826→        confirming ? (
+   827→          <span className="absolute -top-2 end-1.5 z-10 flex items-center gap-1 rounded-xl border border-destructive/50 bg-background p-1 ps-2 shadow-card">
+   828→            <span className="whitespace-nowrap text-[10px] font-bold text-destructive">حذف شود؟</span>
+   829→            <button
+   830→              aria-label="تایید حذف"
+   831→              onClick={(e) => { e.stopPropagation(); setConfirming(false); onRemove(); }}
+   832→              className="rounded-lg bg-destructive px-2 py-1 text-[10px] font-bold text-white hover:brightness-110"
+   833→            >
+   834→              بله
+   835→            </button>
+   836→            <button
+   837→              aria-label="انصراف"
+   838→              onClick={(e) => { e.stopPropagation(); setConfirming(false); }}
+   839→              className="rounded-lg border border-border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground"
+   840→            >
+   841→              نه
+   842→            </button>
+   843→          </span>
+   844→        ) : (
+   845→          <button
+   846→            aria-label={`حذف ${c.title} از کتابخانه`}
+   847→            title={isBuiltin ? "حذف از کتابخانهٔ من — پیشرفتت می‌ماند" : "حذف از کتابخانهٔ من (پیشرفتت حفظ می‌شود)"}
+   848→            onClick={() => setConfirming(true)}
+   849→            className="absolute end-1.5 top-1.5 z-10 rounded-lg border border-border bg-background/90 p-1.5 text-muted-foreground opacity-0 shadow-card transition-opacity duration-150 hover:border-destructive/60 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 md:opacity-0"
+   850→          >
+   851→            <Trash2 className="h-3.5 w-3.5" />
+   852→          </button>
+   853→        )
+   854→      )}
+   855→    </div>
+   856→  );
+   857→}
+   858→
+   859→/* ═══ مطالب استادهایی که دنبال می‌کنی — اسلایدر کارتی ════════════════════ */
+   860→
+   861→interface FollowPostLite {
+   862→  id: string; title: string; summary?: string; commentsCount: number;
+   863→  createdAt: string; rating?: { avg: number; count: number };
+   864→  author: { id: string; displayName: string; avatarUrl?: string | null };
+   865→}
+   866→
+   867→function FeedSkeleton() {
+   868→  return (
+   869→    <div className="w-[240px] shrink-0 animate-pulse rounded-2xl border border-border bg-card p-4 shadow-card">
+   870→      <div className="mb-3 h-6 w-32 rounded-lg bg-muted" />
+   871→      <div className="space-y-2"><div className="h-3.5 w-full rounded bg-muted" /><div className="h-3.5 w-3/4 rounded bg-muted" /></div>
+   872→    </div>
+   873→  );
+   874→}
+   875→
+   876→/** دکمهٔ کوچک رفتن به پروفایل استاد (آواتار + نام) */
+   877→function ToTeacherProfile({
+   878→  id, displayName, avatarUrl, compact = false,
+   879→}: { id: string; displayName: string; avatarUrl?: string | null; compact?: boolean }) {
+   880→  return (
+   881→    <button
+   882→      onClick={(e) => {
+   883→        e.stopPropagation();
+   884→        navigate({ view: "teacher", id });
+   885→      }}
+   886→      title={`پروفایل ${displayName}`}
+   887→      className="flex min-w-0 items-center gap-2 -m-0.5 rounded-lg p-0.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+   888→    >
+   889→      <UserAvatar src={avatarUrl} name={displayName} size={compact ? "xs" : "sm"} />
+   890→      {!compact && (
+   891→        <span className="min-w-0 flex-1 text-start">
+   892→          <span className="block truncate text-[12px] font-bold hover:text-bronze">{displayName}</span>
+   893→          <span className="block text-[9.5px] text-muted-foreground">پروفایل و فعالیت‌ها ←</span>
+   894→        </span>
+   895→      )}
+   896→    </button>
+   897→  );
+   898→}
+   899→
+   900→/* ═══ اساتید همیار — پیشنهاد اینستاگرامی داخل همان چارچوب اسلایدر ═══════ */
+   901→
+   902→export function TeacherSuggestions() {
+   903→  const { teachers, loading, toggleFollow } = useSocial();
+   904→  const { user } = useAuth();
+   905→  const [err, setErr] = React.useState("");
+   906→  async function onFollow(id: string) {
+   907→    setErr("");
+   908→    try {
+   909→      await toggleFollow(id);
+   910→    } catch (e) {
+   911→      setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+   912→    }
+   913→  }
+   914→
+   915→  if (loading && !teachers.length) {
+   916→    return (
+   917→      <SectionSlider icon={GraduationCap} title="اساتید همیار" ariaLabel="اساتید همیار">
+   918→        {Array.from({ length: 3 }).map((_, i) => (
+   919→          <div key={i} className="min-w-[188px] shrink-0 animate-pulse rounded-2xl border border-border bg-card p-4 pt-5 shadow-card">
+   920→            <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted" />
+   921→            <div className="mx-auto mb-2 h-3.5 w-20 rounded bg-muted" />
+   922→            <div className="mx-auto mb-3 h-3 w-14 rounded bg-muted" />
+   923→            <div className="mx-auto h-7 w-24 rounded-full bg-muted" />
+   924→          </div>
+   925→        ))}
+   926→      </SectionSlider>
+   927→    );
+   928→  }
+   929→  if (!teachers.length) return null;
+   930→
+   931→  const suggestions = teachers.filter((t) => !t.isFollowing).slice(0, 6);
+   932→  const following = teachers.filter((t) => t.isFollowing);
+   933→
+   934→  return (
+   935→    <SectionSlider
+   936→      icon={GraduationCap}
+   937→      title="اساتید همیار"
+   938→      hint="روی آواتار بزن تا فعالیت کاملش را ببینی"
+   939→      ariaLabel="اساتید همیار"
+   940→      action={
+   941→        <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
+   942→          دیدن همه ←
+   943→        </button>
+   944→      }
+   945→    >
+   946→      {!user && (
+   947→        <p className="flex w-full shrink-0 items-center gap-2 self-stretch rounded-xl border border-dashed border-border bg-card px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:w-[420px]">
+   948→          <LogIn className="h-4 w-4 shrink-0 text-bronze" />
+   949→          برای دنبال کردن اساتید و مشاهدهٔ مطالبشان، وارد حساب شو یا حساب بساز.
+   950→        </p>
+   951→      )}
+   952→      {err && (
+   953→        <p className="self-start rounded-xl bg-destructive/10 px-4 py-2 text-xs text-destructive">{err}</p>
+   954→      )}
+   955→      {[...suggestions, ...following].map((t) => (
+   956→        <div key={t.id} className="group relative w-[188px] shrink-0 snap-start rounded-2xl border border-border bg-card p-4 pt-5 text-center shadow-card transition-colors hover:border-bronze/50">
+   957→          <span aria-hidden className="absolute -top-[7px] start-1/2 h-px w-14 -translate-x-1/2 rtl:translate-x-1/2 bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
+   958→          <div className="mx-auto mb-3 w-fit" aria-hidden>
+   959→            <button onClick={() => navigate({ view: "teacher", id: t.id })} title={`پروفایل ${t.displayName}`} className="rounded-full p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze">
+   960→              <UserAvatar src={t.avatarUrl} name={t.displayName} />
+   961→            </button>
+   962→          </div>
+   963→          <button
+   964→            onClick={() => navigate({ view: "teacher", id: t.id })}
+   965→            className="w-full truncate rounded-lg font-display text-[13.5px] font-bold transition-colors hover:text-bronze"
+   966→            title={`پروفایل و فعالیت‌های ${t.displayName}`}
+   967→          >
+   968→            {t.displayName}
+   969→          </button>
+   970→          <p className="truncate text-[10.5px] text-muted-foreground">@{t.username}</p>
+   971→          <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">
+   972→            {fa(t.followers)} دنبال‌کننده · {fa(t.posts)} مطلب{t.courses > 0 ? ` · ${fa(t.courses)} دوره` : ""}
+   973→          </p>
+   974→          <button
+   975→            onClick={() => onFollow(t.id)}
+   976→            disabled={!user}
+   977→            title={!user ? "ابتدا وارد شو" : undefined}
+   978→            className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11.5px] font-bold transition-all ${
+   979→              t.isFollowing
+   980→                ? "border border-success/50 bg-success/10 text-success"
+   981→                : "bg-primary text-primary-foreground hover:brightness-110 disabled:opacity-45"
+   982→            }`}
+   983→          >
+   984→            {t.isFollowing ? <UserCheck className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+   985→            {t.isFollowing ? "دنبال می‌کنی" : "دنبال کردن"}
+   986→          </button>
+   987→        </div>
+   988→      ))}
+   989→    </SectionSlider>
+   990→  );
+   991→}
+   992→
+   993→/* ═══ نسخهٔ قبلی تیزرهای فید — همچنان در صفحهٔ اساتید استفاده می‌شود ═════ */
+   994→
+   995→export function TeacherFeedTeasers() {
+   996→  const { feed, showingAll, loading } = useSocial();
+   997→  if (!loading && !feed.length) return null;
+   998→
+   999→  return (
+  1000→    <section className="space-y-3">
+  1001→      <div className="flex flex-wrap items-baseline justify-between gap-2">
+  1002→        <h2 className="flex items-center gap-2 text-lg font-bold"><Rss className="h-5 w-5 text-bronze" /> مطالب اساتید</h2>
+  1003→        <span className="text-[11px] text-muted-foreground">
+  1004→          {showingAll ? "برای اختصاصی شدن فید، اساتید را دنبال کن" : "فقط از اساتیدی که دنبال می‌کنی"}
+  1005→        </span>
+  1006→      </div>
+  1007→
+  1008→      {loading && <p className="text-sm text-muted-foreground">در حال بارگذاری مطالب…</p>}
+  1009→
+  1010→      <div className="grid gap-3 md:grid-cols-2">
+  1011→        {feed.map((p) => (
+  1012→          <div
+  1013→            key={p.id}
+  1014→            role="link"
+  1015→            tabIndex={0}
+  1016→            onClick={() => navigate({ view: "post", id: p.id })}
+  1017→            onKeyDown={(e) => e.key === "Enter" && navigate({ view: "post", id: p.id })}
+  1018→            className="group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5"
+  1019→          >
+  1020→            <div className="mb-2.5 flex items-center gap-2.5">
+  1021→              <ToTeacherProfile id={p.author.id} displayName={p.author.displayName} avatarUrl={p.author.avatarUrl} />
+  1022→              <span className="text-[10px] text-muted-foreground">{faDate(p.createdAt)}</span>
+  1023→              <span className="ms-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+  1024→                <MessageCircle className="h-3 w-3" /> {fa(p.commentsCount)}
+  1025→              </span>
+  1026→              {!!p.rating?.count && (
+  1027→                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-bronze/10 px-2 py-0.5 text-[10px] font-bold text-bronze">
+  1028→                  <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
+  1029→                </span>
+  1030→              )}
+  1031→            </div>
+  1032→            <p className="font-display line-clamp-1 text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
+  1033→            {p.summary && <p className="line-clamp-2 mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{p.summary}</p>}
+  1034→          </div>
+  1035→        ))}
+  1036→      </div>
+  1037→    </section>
+  1038→  );
+  1039→}
+  1040→

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { Search, X, CornerDownLeft, GraduationCap, BookOpenText, Landmark } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
@@ -102,7 +103,7 @@ function buildLawIndex(full?: Record<string, { books?: LawBook[] }> | null): Law
   return items;
 }
 
-export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[]; variant?: "icon" | "bar" }) {
+export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[]; variant?: "icon" | "bar" | "hero" }) {
   const [open, setOpen] = React.useState(false);
   const [rawQ, setRawQ] = React.useState("");
   // ورودی دیبانس می‌شود تا تایپ روان بماند
@@ -290,6 +291,14 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
     el?.scrollIntoView({ block: "nearest" });
   }, [cursor]);
 
+  // قفل اسکرول پس‌زمینه وقتی دیالوگ باز است (موبایل/PWA)
+  React.useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   function hl(text: string): React.ReactNode[] {
     const tokens = q.trim().split(/\s+/).filter((t) => t.length >= 2);
     if (tokens.length === 0) return [text];
@@ -312,17 +321,28 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
         <button
           onClick={() => setOpen(true)}
           aria-label="جستجو در جلسه‌ها، مواد قانونی و اساتید"
-          className="group flex h-10 w-full max-w-xl min-w-[220px] items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 text-white/65 shadow-card transition-colors hover:border-bronze/60 hover:bg-white/[0.1]"
+          className="group flex h-10 w-full max-w-xl min-w-0 items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 text-white/65 shadow-card transition-colors hover:border-bronze/60 hover:bg-white/[0.1] sm:min-w-[220px]"
         >
           <Search className="h-4 w-4 shrink-0 text-bronze" />
           <span className="min-w-0 flex-1 truncate text-start text-xs font-medium">جستجو در جلسه‌ها، مواد قانونی و اساتید…</span>
           <kbd dir="ltr" className="hidden shrink-0 rounded-md border border-white/20 bg-white/[0.08] px-1.5 py-0.5 font-display text-[10px] leading-none text-white/70 sm:inline">Ctrl /</kbd>
         </button>
+      ) : variant === "hero" ? (
+        /* نوار باریک جستجو داخل هیروی سبز خانه — با اسکرول به نوار بالا می‌پیوندد */
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="جستجو در جلسه‌ها، مواد قانونی و اساتید"
+          className="group flex h-10 w-full max-w-md items-center gap-2.5 rounded-full border border-white/[0.16] bg-white/[0.09] px-4 text-white/60 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-bronze/60 hover:bg-white/[0.14] hover:text-white/90"
+        >
+          <Search className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:scale-110" />
+          <span className="min-w-0 flex-1 truncate text-start text-[12.5px] font-medium">جستجو در جلسه‌ها، مواد قانونی و اساتید…</span>
+          <kbd dir="ltr" className="hidden shrink-0 rounded-md border border-white/20 bg-white/[0.08] px-1.5 py-0.5 font-display text-[10px] leading-none text-white/70 sm:inline">/</kbd>
+        </button>
       ) : (
         <button
           onClick={() => setOpen(true)}
           aria-label="جستجو در کتابخانه و اساتید"
-          title="جستجو در کتابخانه و اساتید (/)"
+          title="جستجو در کتابخانه و اساتид (/)"
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-card transition-colors hover:text-bronze"
         >
           <Search className="h-[17px] w-[17px]" />
@@ -331,17 +351,20 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
         </button>
       )}
 
-      {open && (
+      {/* دیالوگ با پورتال به body رندر می‌شود تا نمایش/مخفی‌شدن هدر یا هیرو هرگز آن را نپوشاند */}
+      {open && createPortal(
         <div
           role="dialog"
           aria-modal="true"
           aria-label="جستجوی سراسری"
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-background/70 p-0 backdrop-blur-sm sm:items-start sm:p-4 sm:pt-[12vh]"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-background/50 backdrop-blur-[6px] dark:bg-black/45 sm:items-start sm:p-4 sm:pt-[10vh]"
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
-          <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-border bg-card shadow-card sm:max-h-[70vh] sm:rounded-2xl">
+          {/* شیشهٔ مایع — هم‌جنس داک پایین؛ در موبایل تمام‌صفحه با safe-area */}
+          <div className="lg-panel relative flex h-dvh w-full max-w-xl flex-col overflow-hidden rounded-none sm:h-auto sm:max-h-[76vh] sm:rounded-2xl">
+            <span aria-hidden className="lg-spec" />
             {/* ورودی */}
-            <div className="flex items-center gap-2 border-b border-border/70 px-4 transition-colors focus-within:border-bronze/50">
+            <div className="relative flex items-center gap-2 border-b border-white/45 px-4 pt-[max(env(safe-area-inset-top),12px)] transition-colors focus-within:border-bronze/60 dark:border-white/12 sm:pt-0">
               <Search className="h-4 w-4 shrink-0 text-bronze" />
               <input
                 ref={inputRef}
@@ -354,13 +377,13 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               {(busy || teachersLoading) && hasQuery && (
                 <span aria-hidden className="h-4 w-4 shrink-0 animate-pulse rounded-full bg-bronze/30" />
               )}
-              <button onClick={() => setOpen(false)} aria-label="بستن" className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+              <button onClick={() => setOpen(false)} aria-label="بستن" className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* بدنه */}
-            <div ref={listRef} dir="rtl" className="min-h-0 flex-1 overflow-y-auto p-1.5">
+            <div ref={listRef} dir="rtl" className="relative min-h-0 flex-1 overflow-y-auto p-1.5">
               {/* حالت خالی: راهنما + دسترسی سریع به اساتید (چیپ‌های «پیشنهاد شروع» به درخواست کاربر حذف شد) */}
               {!hasQuery ? (
                 <div className="space-y-4 px-2 pb-3 pt-3">
@@ -405,7 +428,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               ) : (
                 <>
                   {/* نوار نتیجه */}
-                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-card/95 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground backdrop-blur-sm">
+                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-white/55 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground ring-1 ring-inset ring-white/40 backdrop-blur-md dark:bg-white/[0.07] dark:ring-white/10">
                     <span>{fa(teacherHits.length)} استاد · {fa(lawHits.length)} ماده · {fa(hits.length)} جلسه</span>
                     <span dir="ltr" className="hidden font-display tabular-nums opacity-70 sm:inline">Esc</span>
                   </div>
@@ -423,7 +446,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
                             onClick={() => go(item)}
                             aria-selected={i === cursor}
                             role="option"
-                            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
+                            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-3 text-start transition-colors sm:py-2.5 ${
                               i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
                             }`}
                           >
@@ -445,7 +468,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
                             onClick={() => go(item)}
                             aria-selected={i === cursor}
                             role="option"
-                            className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
+                            className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-start transition-colors sm:py-2.5 ${
                               i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
                             }`}
                           >
@@ -476,7 +499,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
                               onClick={() => go(item)}
                               aria-selected={i === cursor}
                               role="option"
-                              className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-start transition-colors ${
+                              className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-start transition-colors sm:py-2.5 ${
                                 i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
                               }`}
                             >
@@ -500,13 +523,15 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               )}
             </div>
 
-            {/* پانویس */}
-            <div className="flex items-center justify-between border-t border-border/70 px-4 py-2 text-[10.5px] text-muted-foreground">
-              <span>بالا/پایین برای حرکت · Enter برای رفتن</span>
-              <span className="hidden md:inline">کلاً {fa(indexReady ? courses.reduce((n, c) => n + c.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) : 0)} جلسه ایندکس شده</span>
+            {/* پانویس — در موبایل با فاصلهٔ امن نوار خانه */}
+            <div className="relative flex items-center justify-between gap-2 border-t border-white/45 px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 text-[10.5px] text-muted-foreground dark:border-white/12 sm:pb-2">
+              <span className="hidden sm:inline">بالا/پایین برای حرکت · Enter برای رفتن</span>
+              <span className="sm:hidden">از جلسه‌ها، مواد قانونی و اساتید</span>
+              <span className="shrink-0 tabular-nums opacity-80">کلاً {fa(indexReady ? courses.reduce((n, c) => n + c.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) : 0)} جلسه ایندکس شده</span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

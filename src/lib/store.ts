@@ -32,13 +32,13 @@ export interface LessonProgress {
   markedReview?: boolean;    // «نیاز به مرور دارم» در فلش‌کارت/تست
 }
 
-/** یک بار شرکت در دفترچهٔ آزمون — محلی (روی دستگاه) ذخیره می‌شود */
+// ─── یک اجرای دفترچهٔ آزمون (بستهٔ تستی) ──────────────────────────────────
 export interface ExamAttempt {
-  date: string;              // ISO
-  score: number;             // ۰ تا ۱۰۰
-  correct: number;
-  total: number;
-  usedSec: number;           // زمان مصرف‌شده
+  date: string;      // ISO
+  score: number;     // درصد ۰..۱۰۰
+  correct: number;   // شمار پاسخ درست
+  total: number;     // شمار کل سؤال‌ها
+  usedSec: number;   // زمان مصرف‌شده (ثانیه)
 }
 
 interface AppState {
@@ -53,7 +53,7 @@ interface AppState {
   notes: Record<string, { id: string; text: string; quote?: string; createdAt: number }[]>;
   ai: AiSettings;
   lastLocation: { courseId?: string; lessonId?: string };
-  /** تاریخچهٔ دفترچه‌های آزمون (تستی) — بر اساس شناسهٔ بسته */
+  /** تاریخچهٔ اجرای دفترچه‌های آزمون — کلید = شناسهٔ بسته (pack-*) */
   examAttempts: Record<string, ExamAttempt[]>;
 
   touchStreak(): void;
@@ -69,9 +69,8 @@ interface AppState {
   setTBooks(courses: Course[]): void;
   /** جایگزینی کامل لیست دوره‌های داخلی حذف‌شده (پس از هیدریشن از سرور یا توگل محلی) */
   setHiddenBuiltins(ids: string[]): void;
+  recordExamAttempt(packId: string, attempt: ExamAttempt): void;
   updateAi(patch: Partial<AiSettings>): void;
-  /** ثبت نتیجهٔ یک دفترچهٔ آزمون (حداکثر ۵۰ نوبت اخیر هر بسته) */
-  recordExamAttempt(packId: string, a: ExamAttempt): void;
   reset(): void;
   /** ادغام بی‌خلط دادهٔ سرور با دادهٔ محلی — هیچ پیشرفتی از بین نمی‌رود */
   mergeServerSnapshot(snap: SyncSnapshot): void;
@@ -149,7 +148,7 @@ export const useApp = create<AppState>()(
         if (scorePct < 60 && topic) rev.add(topic);
         else rev.delete(topic ?? '');
         rev.delete('');
-        try { localStorage.setItem('hoh_weak_topics', JSON.stringify([...rev])); } catch { /* حالت ناشناس/پر بودن حافظه */ }
+        localStorage.setItem('hoh_weak_topics', JSON.stringify([...rev]));
         set({
           progress: { ...get().progress, [lessonId]: { ...cur, quizBest: best, quizAttempts: attempts } },
         });
@@ -159,6 +158,11 @@ export const useApp = create<AppState>()(
       },
 
       toggleReviewFlag(_topicKey) { /* جایگزین با recordQuiz مدیریت می‌شود */ },
+
+      recordExamAttempt(packId, attempt) {
+        const list = get().examAttempts[packId] ?? [];
+        set({ examAttempts: { ...get().examAttempts, [packId]: [...list, attempt].slice(-40) } });
+      },
 
       addNote(lessonId, text, quote) {
         const list = get().notes[lessonId] ?? [];
@@ -195,12 +199,6 @@ export const useApp = create<AppState>()(
 
       updateAi(patch) {
         set({ ai: { ...get().ai, ...patch } });
-      },
-
-      recordExamAttempt(packId, a) {
-        const cur = get().examAttempts;
-        const list = [...(cur[packId] ?? []), a].slice(-50);
-        set({ examAttempts: { ...cur, [packId]: list } });
       },
 
       reset() {
@@ -352,8 +350,6 @@ export const useApp = create<AppState>()(
         streak: s.streak,
         activity: s.activity,
         customCourses: s.customCourses,
-        /** tBooks هم ماندگار است تا در حالت آفلاین کتابخانهٔ دوره‌های اساتیدی خالی دیده نشود */
-        tBooks: s.tBooks,
         hiddenBuiltins: s.hiddenBuiltins,
         notes: s.notes,
         ai: s.ai,
@@ -370,7 +366,7 @@ export function weakTopics(): string[] {
 export function clearWeakTopic(t: string) {
   const list = new Set(weakTopics());
   list.delete(t);
-  try { localStorage.setItem('hoh_weak_topics', JSON.stringify([...list])); } catch { /* حالت ناشناس/پر بودن حافظه */ }
+  localStorage.setItem('hoh_weak_topics', JSON.stringify([...list]));
 }
 
 /** تبدیل وضعیت فعلی استور به بستهٔ همگام‌سازی برای ارسال به سرور */
