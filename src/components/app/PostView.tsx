@@ -4,19 +4,17 @@
 import * as React from "react";
 import {
   Loader2, MessageCircle, Send, Trash2, Scale, Quote, ListChecks, Lightbulb,
-  GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft, ClipboardList,
-  RefreshCw, CloudOff,
+  GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft,
 } from "lucide-react";
-import type { LessonSection, QuizQuestion } from "@/lib/law/types";
+import type { LessonSection } from "@/lib/law/types";
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { categoryLabel } from "@/lib/social-shared";
 import { useTargetRating } from "@/lib/social-client";
-import { getOfflineItem, useOfflineItem, useOnlineStatus, isServerNewer, downloadPostOffline, faDateTime, type OfflineCardPost } from "@/lib/offline";
-import { SectionBody, StarRating, UserAvatar } from "./common";
+import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
-import { QuizRunnerDialog } from "./QuizRunnerDialog";
+import { SectionBody, StarRating, UserAvatar } from "./common";
 
 interface PostData {
   id: string;
@@ -25,7 +23,6 @@ interface PostData {
   tags: string;
   category?: string;
   thumbnail?: string;
-  quiz?: QuizQuestion[];
   blocks: LessonSection[];
   createdAt: string;
   updatedAt: string;
@@ -59,54 +56,45 @@ export function PostView({ id }: { id: string }) {
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
-  /** اگر مطلب از نسخهٔ ذخیره‌شدهٔ آفلاین خوانده شد — زمان ذخیره */
-  const [fromOffline, setFromOffline] = React.useState<number | null>(null);
+  const [offlineUsed, setOfflineUsed] = React.useState(false);
 
   // فرم کامنت
   const [text, setText] = React.useState("");
   const [replyTo, setReplyTo] = React.useState<CommentItem | null>(null);
   const [sending, setSending] = React.useState(false);
   const [cErr, setCErr] = React.useState("");
-  const [quizOpen, setQuizOpen] = React.useState(false);
   const { user } = useAuth();
-  const online = useOnlineStatus();
-  const saved = useOfflineItem("post", id);
 
   // امتیاز مطلب
   const rating = useTargetRating("post", id);
 
-  /** نمایش نسخهٔ ذخیره‌شدهٔ آفلاین — وقتی شبکه در دسترس نیست یا مطلب از سرور برداشته شده */
-  async function showOfflineCopy() {
-    const item = await getOfflineItem("post", id);
-    if (!item?.post) return false;
-    setData(item.post as PostData);
-    setComments((item.comments as CommentItem[]) ?? []);
-    setFromOffline(item.savedAt);
-    return true;
-  }
-
+  // واکشی مطلب — اگر سرور در دسترس نبود، از نسخهٔ ذخیره‌شدهٔ آفلاین (IndexedDB) می‌خوانیم
   React.useEffect(() => {
     let alive = true;
     setLoading(true);
-    setFromOffline(null);
+    setNotFound(false);
+    setOfflineUsed(false);
+    const loadOffline = async () => {
+      const it = await getOfflineItem("post", id);
+      if (!alive) return;
+      if (it?.post) {
+        setData(it.post as PostData);
+        setComments((it.comments as CommentItem[]) ?? []);
+        setOfflineUsed(true);
+      } else {
+        setNotFound(true);
+      }
+    };
     fetch(`/api/posts/${id}`)
-      .then((r) => r.json().catch(() => ({})))
-      .then(async (d: { post?: PostData; comments?: CommentItem[]; error?: string }) => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { post?: PostData; comments?: CommentItem[]; error?: string } | null) => {
         if (!alive) return;
-        if (d.post) {
+        if (d?.post) {
           setData(d.post);
           setComments(d.comments ?? []);
-        } else {
-          // سرور پاسخ منطقی نداد (حذف شده یا خطا) — نسخهٔ ذخیره‌شدهٔ آفلاین
-          const ok = await showOfflineCopy();
-          if (alive && !ok) setNotFound(true);
-        }
+        } else void loadOffline();
       })
-      .catch(async () => {
-        if (!alive) return;
-        const ok = await showOfflineCopy();
-        if (alive && !ok) setNotFound(true);
-      })
+      .catch(() => { if (alive) void loadOffline(); })
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [id]);
@@ -163,7 +151,7 @@ export function PostView({ id }: { id: string }) {
     return (
       <div className="mx-auto max-w-md pt-20 text-center">
         <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">
-          این مطلب یافت نشد — شاید نویسنده آن را حذف کرده باشد.
+          این مطلب یافت نشد — شاید نویسنده آن را حذف کرده باشد یا بدون اینترنت باشی و این مطلب ذخیرهٔ آفلاین نباشد.
         </p>
         <button onClick={() => navigate({ view: "teachers" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">
           بازگشت به اساتید <ArrowLeft className="h-4 w-4" />
@@ -173,15 +161,6 @@ export function PostView({ id }: { id: string }) {
   }
 
   const faFull = new Date(data.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
-
-  // ── وضعیت آفلاین این مطلب ──
-  const offlineCard: OfflineCardPost = {
-    id: data.id, title: data.title, summary: data.summary, tags: data.tags,
-    category: data.category, thumbnail: data.thumbnail, createdAt: data.createdAt,
-    updatedAt: data.updatedAt, commentsCount: comments.length,
-    author: { id: data.author.id, username: data.author.username, displayName: data.author.displayName, avatarUrl: data.author.avatarUrl },
-  };
-  const offlineOutdated = saved.status === "saved" && isServerNewer(data.updatedAt, saved.savedUpdatedAt);
 
   // ساخت درخت کامنت‌ها — والد + زیرشاخهٔ یک‌سطحی
   const roots = comments.filter((c) => !c.replyToId);
@@ -233,6 +212,13 @@ export function PostView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 pb-28 pt-6 sm:px-6">
+      {/* نشان نسخهٔ آفلاین */}
+      {offlineUsed && (
+        <p className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+          <OfflineIcon /> در حال دیدن نسخهٔ ذخیره‌شدهٔ آفلاین این مطلب هستی؛ با وصل شدن اینترنت، نسخهٔ تازه خودکار بارگذاری می‌شود.
+        </p>
+      )}
+
       {/* سرصفحهٔ مطلب */}
       <header>
         <button onClick={() => navigate({ view: "teachers" })} className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-bronze">
@@ -271,33 +257,18 @@ export function PostView({ id }: { id: string }) {
         <h1 className="mt-4 text-2xl font-extrabold leading-relaxed">{data.title}</h1>
         {data.summary && <p className="mt-2 leading-loose text-muted-foreground">{data.summary}</p>}
 
-        {/* تصویر شاخص دلخواه استاد — اگر گذاشته باشد */}
-        {data.thumbnail && (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-border shadow-card">
-            <img src={data.thumbnail} alt={data.title} className="max-h-[340px] w-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
-          </div>
+        {/* تصویر شاخص آپلودی استاد */}
+        {typeof data.thumbnail === "string" && data.thumbnail.trim() !== "" && (
+          <img
+            src={data.thumbnail}
+            alt=""
+            dir="ltr"
+            loading="lazy"
+            className="mt-4 max-h-[340px] w-full rounded-2xl border border-border object-cover shadow-card"
+          />
         )}
 
-        {/* وضعیت آفلاین — دانلود تکی این مطلب برای مطالعهٔ بدون اینترنت */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <OfflineDownloadButton kind="post" id={data.id} serverUpdatedAt={data.updatedAt} card={offlineCard} labeled />
-          <OfflineUpdatedPill kind="post" id={data.id} serverUpdatedAt={data.updatedAt} />
-          {fromOffline && !offlineOutdated && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300">
-              <CloudOff className="h-3.5 w-3.5" /> نسخهٔ آفلاین — ذخیره‌شده در {faDateTime(fromOffline)}
-            </span>
-          )}
-        </div>
-        {offlineOutdated && (
-          <p className="mt-2 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
-            <RefreshCw className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              این مطلب در سایت به‌روز شده است؛ اگر می‌خواهید این مطلب در نسخهٔ آفلاین شما هم به‌روز و آپدیت باشد، مجدداً آن را دانلود یا آپدیت کنید.
-            </span>
-          </p>
-        )}
-
-        {/* امتیاز به این مطلب */}
+        {/* امتیاز به این مطلب + دانلود آفلاین */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border/70 bg-card px-4 py-2.5 shadow-card">
           <span className="flex items-center gap-1.5 text-xs font-bold"><StarIco /> امتیاز تو به این مطلب</span>
           {user ? (
@@ -311,6 +282,33 @@ export function PostView({ id }: { id: string }) {
           {user && rating.agg.count > 0 && (
             <span className="text-[11px] text-muted-foreground">میانگین {fa(Math.round(rating.agg.avg * 10) / 10)} از {fa(rating.agg.count)} رأی</span>
           )}
+          <span className="ms-auto flex items-center gap-2">
+            <OfflineUpdatedPill kind="post" id={data.id} serverUpdatedAt={data.updatedAt} />
+            <OfflineDownloadButton
+              kind="post"
+              id={data.id}
+              labeled
+              serverUpdatedAt={data.updatedAt}
+              card={{
+                id: data.id,
+                title: data.title,
+                summary: data.summary,
+                tags: data.tags,
+                category: data.category,
+                thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : undefined,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+                commentsCount: comments.length,
+                rating: rating.agg.count > 0 ? { avg: rating.agg.avg, count: rating.agg.count } : undefined,
+                author: {
+                  id: data.author.id,
+                  username: data.author.username,
+                  displayName: data.author.displayName,
+                  avatarUrl: data.author.avatarUrl,
+                },
+              }}
+            />
+          </span>
         </div>
 
         {(data.category || data.tags) && (
@@ -352,36 +350,13 @@ export function PostView({ id }: { id: string }) {
         })}
       </article>
 
-      {/* آزمون پایان مبحث — اگر استاد ساخته باشد */}
-      {!!data.quiz?.length && (
-        <section className="overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-bl from-bronze/[0.08] to-transparent shadow-card">
-          <div className="flex flex-wrap items-center gap-3 p-5 sm:p-6">
-            <span aria-hidden className="grid h-11 w-11 shrink-0 rotate-45 place-items-center rounded-[12px] border border-bronze/40 bg-card shadow-card">
-              <ClipboardList className="h-5 w-5 -rotate-45 text-bronze" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h2 className="font-display text-base font-bold">آزمون پایان این مبحث</h2>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {fa(data.quiz.length)} سؤال چهارگزینه‌ای ساختهٔ استاد — با پاسخ تشریحی؛ نتیجه فقط برای خودت ثبت می‌شود.
-              </p>
-            </div>
-            <button
-              onClick={() => setQuizOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-white shadow-card transition-all hover:brightness-110"
-            >
-              <ListChecks className="h-4 w-4" /> شروع آزمون
-            </button>
-          </div>
-        </section>
-      )}
-
       {/* کامنت‌ها */}
       <section className="space-y-4">
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <MessageCircle className="h-5 w-5 text-bronze" /> نظرات دانشجوها ({fa(comments.length)})
         </h2>
 
-        {user && online ? (
+        {user ? (
           <form id="comment-form" onSubmit={submitComment} className="rounded-2xl border border-border bg-card p-4 shadow-card">
             {replyTo && (
               <p className="mb-2 flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-[11px] font-semibold text-muted-foreground">
@@ -413,10 +388,6 @@ export function PostView({ id }: { id: string }) {
               </button>
             </div>
           </form>
-        ) : user && !online ? (
-          <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
-            در حالت آفلاین فقط می‌توانی بخوانی — پس از اتصال به اینترنت می‌توانی نظر بگذاری.
-          </p>
         ) : (
           <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
             برای گذاشتن کامنت یا امتیاز دادن، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو.
@@ -435,17 +406,6 @@ export function PostView({ id }: { id: string }) {
           })}
         </ul>
       </section>
-
-      {/* اجراکنندهٔ آزمون پایان مبحث */}
-      {data && !!data.quiz?.length && (
-        <QuizRunnerDialog
-          open={quizOpen}
-          onClose={() => setQuizOpen(false)}
-          title="آزمون پایان مبحث"
-          subtitle={data.title}
-          questions={data.quiz}
-        />
-      )}
     </div>
   );
 }
@@ -454,6 +414,14 @@ function StarIco() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-bronze">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+    </svg>
+  );
+}
+
+function OfflineIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+      <path d="M12 2v8" /><path d="m8 6 4 4 4-4" /><path d="M4 14a8 8 0 0 0 16 0" />
     </svg>
   );
 }

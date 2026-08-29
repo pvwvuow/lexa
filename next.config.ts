@@ -16,13 +16,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
+  /* نشانگر گرد «N» حالت توسعه در هیچ دستگاهی نشان داده نشود */
+  devIndicators: false,
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // دکمهٔ شناور «N» ابزار باگ‌یابی Next.js است — برای تجربهٔ تمیز کاربر (مخصوصاً موبایل) کامل غیرفعال می‌شود
-  devIndicators: false,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -1,0 +1,707 @@
+     1→"use client";
+     2→
+     3→/* ─── مدیریت حالت آفلاین ─────────────────────────────────────────────────────────
+     4→ * ۱) «بستهٔ طراحی» — پوسته/فونت/رسانه با Service Worker کش می‌شود؛ نسخهٔ آن با
+     5→ *    DESIGN_VERSION کنترل می‌شود تا اگر طراحی سایت تغییر کرد، تنظیمات هشدار
+     6→ *    «نسخهٔ آفلاین شما به‌روز نیست» بدهد.
+     7→ * ۲) «مطالب ذخیره‌شدهٔ من» — کاربر کنار هر مطلب یا دوره دکمهٔ دانلود دارد و
+     8→ *    آن‌ها را تک‌تک برای مطالعهٔ آفلاین ذخیره می‌کند (IndexedDB). اگر همان
+     9→ *    مطلب/دوره بعداً در سایت تغییر کند، کنارش نشان «به‌روز شده» می‌آید تا
+    10→ *    کاربر با یک دانلود مجدد، نسخهٔ آفلاینش را آپدیت کند.
+    11→ * ──────────────────────────────────────────────────────────────────────────── */
+    12→import * as React from "react";
+    13→
+    14→/* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
+    15→export const DESIGN_VERSION = "1.4.6";
+    16→
+    17→const DESIGN_META_KEY = "hh-design-meta-v1";
+    18→/** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */
+    19→const LEGACY_PACK_KEY = "hh-offline-pack-v1";
+    20→
+    21→export interface DesignMeta {
+    22→  savedAt: number;
+    23→  version: string;
+    24→}
+    25→
+    26→export function getDesignMeta(): DesignMeta | null {
+    27→  if (typeof window === "undefined") return null;
+    28→  try {
+    29→    const raw = localStorage.getItem(DESIGN_META_KEY);
+    30→    if (!raw) return null;
+    31→    return JSON.parse(raw) as DesignMeta;
+    32→  } catch {
+    33→    return null;
+    34→  }
+    35→}
+    36→
+    37→export function saveDesignMeta(): void {
+    38→  try {
+    39→    localStorage.setItem(DESIGN_META_KEY, JSON.stringify({ savedAt: Date.now(), version: DESIGN_VERSION }));
+    40→  } catch {}
+    41→}
+    42→
+    43→export function clearDesignMeta(): void {
+    44→  try {
+    45→    localStorage.removeItem(DESIGN_META_KEY);
+    46→  } catch {}
+    47→}
+    48→
+    49→/** آیا «بستهٔ طراحی» ذخیره‌شده با نسخهٔ فعلی سایت فرق دارد؟ */
+    50→export function designPackOutdated(): boolean {
+    51→  const m = getDesignMeta();
+    52→  return !!m && m.version !== DESIGN_VERSION;
+    53→}
+    54→
+    55→/* ═══ انبار آیتمی مطالب/دوره‌های ذخیره‌شده — IndexedDB ══════════════════════ */
+    56→
+    57→const DB_NAME = "hamyar-offline-db";
+    58→const STORE = "items";
+    59→
+    60→export type OfflineKind = "post" | "tcourse" | "builtin";
+    61→
+    62→/** کارت نمایشی مطلب — برای فهرست/فید آفلاین (هم‌ساختار FeedPost) */
+    63→export interface OfflineCardPost {
+    64→  id: string;
+    65→  title: string;
+    66→  summary: string;
+    67→  tags?: string;
+    68→  category?: string;
+    69→  categories?: string[];
+    70→  thumbnail?: string;
+    71→  createdAt: string;
+    72→  updatedAt?: string;
+    73→  commentsCount: number;
+    74→  rating?: { avg: number; count: number };
+    75→  author: { id: string; username: string; displayName: string; avatarUrl?: string | null };
+    76→}
+    77→
+    78→/** کارت نمایشی دورهٔ استاد — هم‌ساختار TCourseCard */
+    79→export interface OfflineCardCourse {
+    80→  id: string;
+    81→  title: string;
+    82→  tagline: string;
+    83→  description: string;
+    84→  icon?: string;
+    85→  thumbnail?: string;
+    86→  _thumbnail?: string;
+    87→  lessonsCount: number;
+    88→  studentsCount?: number;
+    89→  inLibrary?: boolean;
+    90→  canManage?: boolean;
+    91→  rating?: { avg: number; count: number };
+    92→  _category?: string;
+    93→  _categories?: string[];
+    94→  _status?: string;
+    95→  _updatedAt?: string;
+    96→  teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
+    97→}
+    98→
+    99→/** یک آیتم ذخیره‌شدهٔ کامل — متن/ساختار کامل + متادیتای دانلود */
+   100→export interface OfflineItem {
+   101→  kind: OfflineKind;
+   102→  id: string;
+   103→  /** زمان دانلود روی دستگاه */
+   104→  savedAt: number;
+   105→  /** updatedAt نسخهٔ سرور در لحظهٔ دانلود — مبنای تشخیص «به‌روز شده» */
+   106→  savedUpdatedAt: string;
+   107→  card: OfflineCardPost | OfflineCardCourse;
+   108→  /** متن کامل مطلب (PostData سرور) */
+   109→  post?: unknown;
+   110→  /** نظرات مطلب در لحظهٔ دانلود */
+   111→  comments?: unknown[];
+   112→  /** ساختار کامل دوره (Course موتور مطالعه) */
+   113→  course?: unknown;
+   114→}
+   115→
+   116→/** فقط متادیتا و کارت — بدون بدنهٔ سنگین (برای فهرست‌ها) */
+   117→export type OfflineItemMeta = Omit<OfflineItem, "post" | "comments" | "course">;
+   118→
+   119→function openDb(): Promise<IDBDatabase> {
+   120→  return new Promise((resolve, reject) => {
+   121→    const req = indexedDB.open(DB_NAME, 1);
+   122→    req.onupgradeneeded = () => {
+   123→      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+   124→    };
+   125→    req.onsuccess = () => resolve(req.result);
+   126→    req.onerror = () => reject(req.error ?? new Error("IndexedDB نامرتب است"));
+   127→  });
+   128→}
+   129→
+   130→function idbRun<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest): Promise<T> {
+   131→  return openDb().then(
+   132→    (db) =>
+   133→      new Promise<T>((resolve, reject) => {
+   134→        const tx = db.transaction(STORE, mode);
+   135→        const req = fn(tx.objectStore(STORE));
+   136→        req.onsuccess = () => resolve(req.result as T);
+   137→        req.onerror = () => reject(req.error ?? new Error("خطای IndexedDB"));
+   138→        tx.oncomplete = () => db.close();
+   139→        tx.onabort = () => {
+   140→          db.close();
+   141→          reject(tx.error ?? new Error("تراکنش IndexedDB ناتمام ماند"));
+   142→        };
+   143→      }),
+   144→  );
+   145→}
+   146→
+   147→function keyOf(kind: OfflineKind, id: string): string {
+   148→  return `${kind}:${id}`;
+   149→}
+   150→
+   151→/* ── کش سبک وضعیت‌ها + اعلان تغییر بین کامپوننت‌ها ── */
+   152→
+   153→type ItemStatus = "none" | "busy" | "saved";
+   154→interface CacheEntry {
+   155→  status: ItemStatus;
+   156→  savedAt?: number;
+   157→  savedUpdatedAt?: string;
+   158→}
+   159→
+   160→const metaCache = new Map<string, CacheEntry>();
+   161→const listeners = new Set<() => void>();
+   162→let hydrated = false;
+   163→let hydrating: Promise<void> | null = null;
+   164→
+   165→function emitChange(): void {
+   166→  listeners.forEach((l) => l());
+   167→}
+   168→
+   169→export function subscribeOffline(fn: () => void): () => void {
+   170→  listeners.add(fn);
+   171→  return () => {
+   172→    listeners.delete(fn);
+   173→  };
+   174→}
+   175→
+   176→/** بارگذاری اولیهٔ وضعیت‌ها از IndexedDB (+ مهاجرت یک‌بارهٔ بستهٔ قدیمی) */
+   177→export async function ensureOfflineCache(): Promise<void> {
+   178→  if (hydrated) return;
+   179→  if (!hydrating) {
+   180→    hydrating = (async () => {
+   181→      try {
+   182→        const all = await idbRun<OfflineItem[]>("readonly", (s) => s.getAll());
+   183→        metaCache.clear();
+   184→        for (const it of all ?? []) {
+   185→          if (!it?.kind || !it?.id) continue;
+   186→          metaCache.set(keyOf(it.kind, it.id), { status: "saved", savedAt: it.savedAt, savedUpdatedAt: it.savedUpdatedAt });
+   187→        }
+   188→      } catch {
+   189→        /* بدون IndexedDB (حالت خصوصی مرورگر) — فقط حالت حافظه */
+   190→      }
+   191→      hydrated = true;
+   192→      emitChange();
+   193→      void migrateLegacyPack();
+   194→    })();
+   195→  }
+   196→  return hydrating;
+   197→}
+   198→
+   199→/** آیا نسخهٔ سرور از نسخهٔ ذخیره‌شدهٔ روی دستگاه جدیدتر است؟ */
+   200→export function isServerNewer(serverUpdatedAt?: string, savedUpdatedAt?: string): boolean {
+   201→  if (!serverUpdatedAt || !savedUpdatedAt) return false;
+   202→  const a = +new Date(serverUpdatedAt);
+   203→  const b = +new Date(savedUpdatedAt);
+   204→  if (!isFinite(a) || !isFinite(b)) return false;
+   205→  return a > b + 1000; // اختلاف‌های زیرثانیه‌ای را نادیده بگیر
+   206→}
+   207→
+   208→/** هوک وضعیت آفلاین یک آیتم — همگام بین همهٔ دکمه‌ها و نشان‌ها */
+   209→export function useOfflineItem(kind: OfflineKind, id: string): CacheEntry {
+   210→  const none = React.useMemo<CacheEntry>(() => ({ status: "none" as const }), []);
+   211→  const read = React.useCallback((): CacheEntry => metaCache.get(keyOf(kind, id)) ?? none, [kind, id, none]);
+   212→  const [entry, setEntry] = React.useState<CacheEntry>(read);
+   213→
+   214→  React.useEffect(() => {
+   215→    let alive = true;
+   216→    setEntry(read());
+   217→    void ensureOfflineCache().then(() => alive && setEntry(read()));
+   218→    const un = subscribeOffline(() => alive && setEntry(read()));
+   219→    return () => {
+   220→      alive = false;
+   221→      un();
+   222→    };
+   223→  }, [kind, id, read]);
+   224→
+   225→  return entry;
+   226→}
+   227→
+   228→/** کل آیتم‌های ذخیره‌شده — فقط متادیتا و کارت (بدون بدنهٔ سنگین) */
+   229→export async function listOfflineMetas(): Promise<OfflineItemMeta[]> {
+   230→  await ensureOfflineCache();
+   231→  try {
+   232→    const all = await idbRun<OfflineItem[]>("readonly", (s) => s.getAll());
+   233→    return (all ?? [])
+   234→      .filter((it) => it?.kind && it?.id)
+   235→      .map(({ post: _p, comments: _c, course: _co, ...meta }) => meta);
+   236→  } catch {
+   237→    return [];
+   238→  }
+   239→}
+   240→
+   241→/** یک آیتم کامل ذخیره‌شده (متن/ساختار کامل) */
+   242→export async function getOfflineItem(kind: OfflineKind, id: string): Promise<OfflineItem | null> {
+   243→  try {
+   244→    const it = await idbRun<OfflineItem | undefined>("readonly", (s) => s.get(keyOf(kind, id)));
+   245→    return it ?? null;
+   246→  } catch {
+   247→    return null;
+   248→  }
+   249→}
+   250→
+   251→function setBusy(kind: OfflineKind, id: string): CacheEntry | undefined {
+   252→  const prev = metaCache.get(keyOf(kind, id));
+   253→  metaCache.set(keyOf(kind, id), { status: "busy" });
+   254→  emitChange();
+   255→  return prev;
+   256→}
+   257→
+   258→function settle(kind: OfflineKind, id: string, prev: CacheEntry | undefined, ok: boolean, item?: { savedAt: number; savedUpdatedAt: string }): boolean {
+   259→  if (ok && item) metaCache.set(keyOf(kind, id), { status: "saved", savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   260→  else if (prev) metaCache.set(keyOf(kind, id), prev);
+   261→  else metaCache.delete(keyOf(kind, id));
+   262→  emitChange();
+   263→  return ok;
+   264→}
+   265→
+   266→/** دانلود/به‌روزرسانی یک مطلب برای مطالعهٔ آفلاین */
+   267→export async function downloadPostOffline(card: OfflineCardPost): Promise<boolean> {
+   268→  const prev = setBusy("post", card.id);
+   269→  try {
+   270→    const r = await fetch(`/api/posts/${encodeURIComponent(card.id)}`);
+   271→    const d = (await r.json().catch(() => ({}))) as { post?: unknown; comments?: unknown[] };
+   272→    if (!r.ok || !d.post) throw new Error("سرور پاسخ نداد");
+   273→    const post = d.post as { updatedAt?: string };
+   274→    const item: OfflineItem = {
+   275→      kind: "post",
+   276→      id: card.id,
+   277→      savedAt: Date.now(),
+   278→      savedUpdatedAt: String(post.updatedAt ?? card.updatedAt ?? new Date().toISOString()),
+   279→      card: { ...card, commentsCount: Array.isArray(d.comments) ? d.comments.length : card.commentsCount },
+   280→      post: d.post,
+   281→      comments: Array.isArray(d.comments) ? d.comments : [],
+   282→    };
+   283→    await idbRun("readwrite", (s) => s.put(item, keyOf("post", card.id)));
+   284→    void precacheItemImages([card.thumbnail]);
+   285→    return settle("post", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   286→  } catch {
+   287→    return settle("post", card.id, prev, false);
+   288→  }
+   289→}
+   290→
+   291→/** دانلود/به‌روزرسانی یک دورهٔ استاد برای مطالعهٔ آفلاین */
+   292→export async function downloadCourseOffline(card: OfflineCardCourse): Promise<boolean> {
+   293→  const prev = setBusy("tcourse", card.id);
+   294→  try {
+   295→    const r = await fetch(`/api/tcourses/${encodeURIComponent(card.id)}`);
+   296→    const d = (await r.json().catch(() => ({}))) as { course?: unknown };
+   297→    if (!r.ok || !d.course) throw new Error("سرور پاسخ نداد");
+   298→    const course = d.course as { _updatedAt?: string };
+   299→    const item: OfflineItem = {
+   300→      kind: "tcourse",
+   301→      id: card.id,
+   302→      savedAt: Date.now(),
+   303→      savedUpdatedAt: String(course._updatedAt ?? card._updatedAt ?? new Date().toISOString()),
+   304→      card,
+   305→      course: d.course,
+   306→    };
+   307→    await idbRun("readwrite", (s) => s.put(item, keyOf("tcourse", card.id)));
+   308→    void precacheItemImages([card.thumbnail ?? card._thumbnail]);
+   309→    return settle("tcourse", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   310→  } catch {
+   311→    return settle("tcourse", card.id, prev, false);
+   312→  }
+   313→}
+   314→
+   315→/**
+   316→ * ذخیرهٔ دورهٔ آمادهٔ اپ — محتوا در باندل برنامه است و شبکه نمی‌خواهد؛
+   317→ * ذخیره فقط آن را در فهرست «مطالب آفلاین من» ثبت می‌کند تا کاربر مطمئن شود
+   318→ * بدون اینترنت هم در دسترس است. اگر تامنیل داشته باشد در کش SW هم می‌رود.
+   319→ */
+   320→export async function downloadBuiltinCourseOffline(card: OfflineCardCourse, course: unknown): Promise<boolean> {
+   321→  const prev = setBusy("builtin", card.id);
+   322→  try {
+   323→    const item: OfflineItem = {
+   324→      kind: "builtin",
+   325→      id: card.id,
+   326→      savedAt: Date.now(),
+   327→      savedUpdatedAt: new Date().toISOString(),
+   328→      card,
+   329→      course,
+   330→    };
+   331→    await idbRun("readwrite", (s) => s.put(item, keyOf("builtin", card.id)));
+   332→    void precacheItemImages([card.thumbnail ?? card._thumbnail]);
+   333→    return settle("builtin", card.id, prev, true, { savedAt: item.savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   334→  } catch {
+   335→    return settle("builtin", card.id, prev, false);
+   336→  }
+   337→}
+   338→
+   339→/** حذف یک آیتم ذخیره‌شده */
+   340→export async function removeOfflineItem(kind: OfflineKind, id: string): Promise<void> {
+   341→  try {
+   342→    await idbRun("readwrite", (s) => s.delete(keyOf(kind, id)));
+   343→  } catch {}
+   344→  metaCache.delete(keyOf(kind, id));
+   345→  emitChange();
+   346→}
+   347→
+   348→/** پاک‌سازی همهٔ مطالب/دوره‌های ذخیره‌شده */
+   349→export async function clearOfflineItems(): Promise<void> {
+   350→  try {
+   351→    await idbRun("readwrite", (s) => s.clear());
+   352→  } catch {}
+   353→  for (const k of [...metaCache.keys()]) metaCache.delete(k);
+   354→  emitChange();
+   355→}
+   356→
+   357→/** کش‌کردن تصویر شاخص آیتم در کش Service Worker — تا آفلاین هم دیده شود */
+   358→function precacheItemImages(urls: (string | undefined)[]): void {
+   359→  const list = (urls.filter(Boolean) as string[]).slice(0, 3);
+   360→  if (!list.length || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+   361→  navigator.serviceWorker.ready
+   362→    .then((reg) => reg.active?.postMessage({ type: "PRECACHE_IMAGES", urls: list }))
+   363→    .catch(() => {});
+   364→}
+   365→
+   366→/* ── مهاجرت یک‌بارهٔ «بستهٔ مطالب» قدیمی به انبار آیتمی ── */
+   367→async function migrateLegacyPack(): Promise<void> {
+   368→  if (typeof window === "undefined" || !localStorage.getItem(LEGACY_PACK_KEY)) return;
+   369→  let pack: { savedAt?: number; posts?: OfflineCardPost[]; courses?: OfflineCardCourse[] } | null = null;
+   370→  try {
+   371→    pack = JSON.parse(localStorage.getItem(LEGACY_PACK_KEY) ?? "null");
+   372→  } catch {}
+   373→  localStorage.removeItem(LEGACY_PACK_KEY);
+   374→  if (!pack) return;
+   375→
+   376→  for (const p of pack.posts ?? []) {
+   377→    if (!p?.id || metaCache.has(keyOf("post", p.id))) continue;
+   378→    const savedAt = pack.savedAt ?? Date.now();
+   379→    try {
+   380→      // اگر آنلاینیم، متن کامل را هم بگیر تا مهاجرت بی‌نقص باشد
+   381→      const r = await fetch(`/api/posts/${encodeURIComponent(p.id)}`);
+   382→      const d = (await r.json().catch(() => ({}))) as { post?: unknown; comments?: unknown[] };
+   383→      if (r.ok && d.post) {
+   384→        const post = d.post as { updatedAt?: string };
+   385→        const item: OfflineItem = {
+   386→          kind: "post", id: p.id, savedAt, savedUpdatedAt: String(post.updatedAt ?? p.createdAt ?? ""),
+   387→          card: { ...p, commentsCount: Array.isArray(d.comments) ? d.comments.length : p.commentsCount },
+   388→          post: d.post, comments: Array.isArray(d.comments) ? d.comments : [],
+   389→        };
+   390→        await idbRun("readwrite", (s) => s.put(item, keyOf("post", p.id)));
+   391→        metaCache.set(keyOf("post", p.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   392→        continue;
+   393→      }
+   394→    } catch {}
+   395→    // آفلاین: فقط کارت — بعد از آنلاین شدن با دکمهٔ «به‌روزرسانی» متن کامل می‌آید
+   396→    const item: OfflineItem = {
+   397→      kind: "post", id: p.id, savedAt, savedUpdatedAt: String(p.updatedAt ?? p.createdAt ?? ""),
+   398→      card: p, post: { id: p.id, title: p.title, summary: p.summary, blocks: [], tags: p.tags ?? "", createdAt: p.createdAt, author: p.author, canManage: false },
+   399→      comments: [],
+   400→    };
+   401→    try {
+   402→      await idbRun("readwrite", (s) => s.put(item, keyOf("post", p.id)));
+   403→      metaCache.set(keyOf("post", p.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   404→    } catch {}
+   405→  }
+   406→
+   407→  for (const c of pack.courses ?? []) {
+   408→    if (!c?.id || metaCache.has(keyOf("tcourse", c.id))) continue;
+   409→    const savedAt = pack.savedAt ?? Date.now();
+   410→    try {
+   411→      const r = await fetch(`/api/tcourses/${encodeURIComponent(c.id)}`);
+   412→      const d = (await r.json().catch(() => ({}))) as { course?: unknown };
+   413→      if (r.ok && d.course) {
+   414→        const course = d.course as { _updatedAt?: string };
+   415→        const item: OfflineItem = {
+   416→          kind: "tcourse", id: c.id, savedAt, savedUpdatedAt: String(course._updatedAt ?? ""),
+   417→          card: { ...c }, course: d.course,
+   418→        };
+   419→        await idbRun("readwrite", (s) => s.put(item, keyOf("tcourse", c.id)));
+   420→        metaCache.set(keyOf("tcourse", c.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   421→        continue;
+   422→      }
+   423→    } catch {}
+   424→    const item: OfflineItem = { kind: "tcourse", id: c.id, savedAt, savedUpdatedAt: String(c._updatedAt ?? ""), card: { ...c }, course: { ...c, chapters: [] } };
+   425→    try {
+   426→      await idbRun("readwrite", (s) => s.put(item, keyOf("tcourse", c.id)));
+   427→      metaCache.set(keyOf("tcourse", c.id), { status: "saved", savedAt, savedUpdatedAt: item.savedUpdatedAt });
+   428→    } catch {}
+   429→  }
+   430→  emitChange();
+   431→}
+   432→
+   433→/* ═══ به‌روزرسانی خودکار نسخهٔ آفلاین ═══════════════════════════════════════
+   434→ * «سایت آپدیت شد ولی آفلاین آپدیت نمی‌شود» — راه‌حل: وقتی کاربر آنلاین است،
+   435→ * در پس‌زمینه همه چیز خودکار تازه می‌شود:
+   436→ *   ۱) بستهٔ طراحی اگر نسخه‌اش عقب مانده باشد (کش پوسته/فونت/رسانه)
+   437→ *   ۲) دوره‌های آمادهٔ ذخیره‌شده (همگام با باندل تازهٔ اپ)
+   438→ *   ۳) مطالب/دوره‌های اساتیدی که روی سرور تغییر کرده‌اند (یک‌به‌یک)
+   439→ * برای فشار نیاوردن به شبکه، حداکثر هر ۴۵ دقیقه یک‌بار اجرا می‌شود.
+   440→ * ──────────────────────────────────────────────────────────────────────── */
+   441→const AUTOUPDATE_KEY = "hh-autoupdate-v1";
+   442→let autoUpdateStarted = false;
+   443→let autoUpdateRunning = false;
+   444→
+   445→/** برچسب‌های زمانی تازهٔ سرور برای آیتم‌های ذخیره‌شده (پست‌ها + دوره‌های اساتیدی) */
+   446→async function fetchServerStamps(metas: OfflineItemMeta[]): Promise<Record<string, string>> {
+   447→  const stamps: Record<string, string> = {};
+   448→  try {
+   449→    const postIds = metas.filter((it) => it.kind === "post").map((it) => it.id).slice(0, 120);
+   450→    const r = await fetch(`/api/social/feed${postIds.length ? `?ids=${encodeURIComponent(postIds.join(","))}` : ""}`, { cache: "no-store" });
+   451→    if (r.ok) {
+   452→      const j = (await r.json()) as { posts?: { id?: string; updatedAt?: string }[]; items?: { id?: string; updatedAt?: string }[] };
+   453→      for (const p of j.posts ?? j.items ?? []) {
+   454→        if (p?.id && p.updatedAt) stamps[`post:${p.id}`] = p.updatedAt;
+   455→      }
+   456→    }
+   457→  } catch { /* آفلاین */ }
+   458→  try {
+   459→    const r = await fetch("/api/tcourses", { cache: "no-store" });
+   460→    if (r.ok) {
+   461→      const j = (await r.json()) as { courses?: { id?: string; _updatedAt?: string }[] };
+   462→      for (const c of j.courses ?? []) {
+   463→        if (c?.id && c._updatedAt) stamps[`tcourse:${c.id}`] = c._updatedAt;
+   464→      }
+   465→    }
+   466→  } catch { /* آفلاین */ }
+   467→  return stamps;
+   468→}
+   469→
+   470→async function runAutoUpdate(): Promise<void> {
+   471→  if (autoUpdateRunning) return;
+   472→  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+   473→  autoUpdateRunning = true;
+   474→  try {
+   475→    const last = Number(localStorage.getItem(AUTOUPDATE_KEY) || 0);
+   476→    const designOutdated = designPackOutdated();
+   477→    if (!designOutdated && Date.now() - last < 45 * 60 * 1000) return;
+   478→
+   479→    // ۱) بستهٔ طراحی — اگر نسخهٔ اپ عوض شده، پوستهٔ آفلاین را تازه کن
+   480→    if (designOutdated) {
+   481→      const ok = await precacheDesignAssets();
+   482→      if (ok > 0) saveDesignMeta();
+   483→    }
+   484→
+   485→    // ۲) آیتم‌های ذخیره‌شده
+   486→    await ensureOfflineCache();
+   487→    const metas = await listOfflineMetas();
+   488→
+   489→    // دوره‌های آماده: وقتی نسخهٔ اپ عوض شده، با باندل تازه دوباره ثبت می‌شوند (بی‌شبکه)
+   490→    if (designOutdated && metas.length) {
+   491→      try {
+   492→        const { builtinCourses } = await import("@/lib/law/courses");
+   493→        for (const m of metas) {
+   494→          if (m.kind !== "builtin") continue;
+   495→          const c = builtinCourses.find((x) => x.id === m.id);
+   496→          if (c) await downloadBuiltinCourseOffline(m.card as OfflineCardCourse, c);
+   497→        }
+   498→      } catch { /* باندل در دسترس نبود */ }
+   499→    }
+   500→
+   501→    if (!metas.length) return;
+   502→
+   503→    // مطلب/دورهٔ اساتیدی: فقط آن‌هایی که روی سرور تغییر کرده‌اند
+   504→    const stamps = await fetchServerStamps(metas);
+   505→    for (const m of metas) {
+   506→      if (m.kind === "builtin") continue;
+   507→      if (!isServerNewer(stamps[`${m.kind}:${m.id}`], m.savedUpdatedAt)) continue;
+   508→      const ok =
+   509→        m.kind === "post"
+   510→          ? await downloadPostOffline(m.card as OfflineCardPost)
+   511→          : await downloadCourseOffline(m.card as OfflineCardCourse);
+   512→      if (ok) await new Promise((r) => setTimeout(r, 350)); // نرم و پیوسته، نه انفجاری
+   513→    }
+   514→  } catch {
+   515→    /* هر خطایی نباید صفحه را برهم بزند */
+   516→  } finally {
+   517→    try { localStorage.setItem(AUTOUPDATE_KEY, String(Date.now())); } catch {}
+   518→    autoUpdateRunning = false;
+   519→  }
+   520→}
+   521→
+   522→/** شروع موتور به‌روزرسانی خودکار — یک بار در سطح برنامه (SwRegister) */
+   523→export function startOfflineAutoUpdate(): void {
+   524→  if (typeof window === "undefined" || autoUpdateStarted) return;
+   525→  autoUpdateStarted = true;
+   526→  window.setTimeout(() => void runAutoUpdate(), 10_000);
+   527→  window.addEventListener("online", () => void runAutoUpdate());
+   528→}
+   529→
+   530→
+   531→/* ═══ زیرساخت PWA و بستهٔ طراحی ═══════════════════════════════════════════ */
+   532→
+   533→/** ثبت سرویس‌ورکر — یک بار در سطح برنامه */
+   534→export function useServiceWorkerRegistration() {
+   535→  React.useEffect(() => {
+   536→    if (typeof window === "undefined") return;
+   537→    if (!("serviceWorker" in navigator)) return;
+   538→    const url = "/sw.js";
+   539→    if (navigator.serviceWorker.controller?.scriptURL.endsWith(url)) return;
+   540→    navigator.serviceWorker.register(url).catch(() => {
+   541→      /* بی‌صدا — محیط بدون SW (مثل file://) نباید خطا بدهد */
+   542→    });
+   543→  }, []);
+   544→}
+   545→
+   546→/**
+   547→ * «دکتر مهربان» — پاک‌سازی کامل حافظهٔ موقت مرورگر (SW + همهٔ Cacheها) و رفرش.
+   548→ * اگر صفحه‌ای به‌هر دلیل بالا نیامد یا رفتار عجیب دید، این مسیر نجات است:
+   549→ * سرویس‌ورکر لغو ثبت می‌شود، همهٔ کش‌های PWA حذف می‌شوند و صفحه با نسخهٔ
+   550→ * تازهٔ سرور از نو بالا می‌آید. داده‌های کاربر (localStorage) دست‌نخورده می‌ماند.
+   551→ */
+   552→export async function purgeBrowserCache(): Promise<void> {
+   553→  try {
+   554→    if ("serviceWorker" in navigator) {
+   555→      const regs = await navigator.serviceWorker.getRegistrations();
+   556→      await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+   557→    }
+   558→    if (typeof caches !== "undefined") {
+   559→      const keys = await caches.keys();
+   560→      await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+   561→    }
+   562→  } catch {
+   563→    /* حتی اگر بخشی شکست، رفرش را ادامه بده */
+   564→  }
+   565→  window.location.replace(window.location.pathname);
+   566→}
+   567→
+   568→/** آیا برنامه به‌صورت PWA نصب‌شده اجرا می‌شود؟ */
+   569→export function isStandalone(): boolean {
+   570→  if (typeof window === "undefined") return false;
+   571→  return (
+   572→    window.matchMedia?.("(display-mode: standalone)").matches ||
+   573→    // iOS Safari
+   574→    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+   575→  );
+   576→}
+   577→
+   578→/** هوک وضعیت آنلاین بودن */
+   579→export function useOnlineStatus(): boolean {
+   580→  const [online, setOnline] = React.useState(true);
+   581→  React.useEffect(() => {
+   582→    setOnline(navigator.onLine);
+   583→    const on = () => setOnline(true);
+   584→    const off = () => setOnline(false);
+   585→    window.addEventListener("online", on);
+   586→    window.addEventListener("offline", off);
+   587→    return () => {
+   588→      window.removeEventListener("online", on);
+   589→      window.removeEventListener("offline", off);
+   590→    };
+   591→  }, []);
+   592→  return online;
+   593→}
+   594→
+   595→/** وضعیت نصب + رویداد نصب (اندروید/دسکتاپ) */
+   596→export type PwaPlatform = "ios" | "android" | "desktop";
+   597→
+   598→/** پلتفرم دستگاه — برای راهنمای نصب مخصوص هر سیستم */
+   599→export function detectPwaPlatform(): PwaPlatform {
+   600→  if (typeof navigator === "undefined") return "desktop";
+   601→  const ua = navigator.userAgent || "";
+   602→  if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+   603→  // iPadOS 13+ خودش را Mac معرفی می‌کند؛ با پشتیبانی لمسی تشخیص می‌دهیم
+   604→  if (/Macintosh/i.test(ua) && typeof document !== "undefined" && "ontouchend" in document) return "ios";
+   605→  if (/android/i.test(ua)) return "android";
+   606→  return "desktop";
+   607→}
+   608→
+   609→/** مرورگر درون‌برنامه‌ای (تلگرام، اینستاگرام و…) — نصب PWA در آن‌ها ممکن نیست */
+   610→export function isInAppBrowser(): boolean {
+   611→  if (typeof navigator === "undefined") return false;
+   612→  const ua = navigator.userAgent || "";
+   613→  return /FBAN|FBAV|FBDV|Instagram|Line\/|Snapchat|Telegram|Twitter|TikTok|musical_ly|Bytedance|HiApplication|wv\)/i.test(ua);
+   614→}
+   615→
+   616→export function usePwaInstall() {
+   617→  const [prompt, setPrompt] = React.useState<{ prompt: () => Promise<void> } | null>(null);
+   618→  const [installed, setInstalled] = React.useState(false);
+   619→  const [platform, setPlatform] = React.useState<PwaPlatform>("desktop");
+   620→  const [inApp, setInApp] = React.useState(false);
+   621→
+   622→  React.useEffect(() => {
+   623→    setInstalled(isStandalone());
+   624→    setPlatform(detectPwaPlatform());
+   625→    setInApp(isInAppBrowser());
+   626→    const onBeforeInstall = (e: Event) => {
+   627→      e.preventDefault();
+   628→      setPrompt(e as unknown as { prompt: () => Promise<void> });
+   629→    };
+   630→    const onInstalled = () => {
+   631→      setInstalled(true);
+   632→      setPrompt(null);
+   633→    };
+   634→    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+   635→    window.addEventListener("appinstalled", onInstalled);
+   636→    return () => {
+   637→      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+   638→      window.removeEventListener("appinstalled", onInstalled);
+   639→    };
+   640→  }, []);
+   641→
+   642→  const install = React.useCallback(async (): Promise<"accepted" | "dismissed" | "unavailable"> => {
+   643→    if (!prompt) return "unavailable";
+   644→    await prompt.prompt();
+   645→    const choice = await (prompt as unknown as { userChoice: Promise<{ outcome: string }> }).userChoice;
+   646→    setPrompt(null);
+   647→    if (choice.outcome === "accepted") {
+   648→      setInstalled(true);
+   649→      return "accepted";
+   650→    }
+   651→    return "dismissed";
+   652→  }, [prompt]);
+   653→
+   654→  return { canInstall: !!prompt, installed, install, platform, inApp };
+   655→}
+   656→
+   657→/** پیش‌بارگذاری «بستهٔ طراحی» — پیام به سرویس‌ورکر برای کش‌کردن پوسته */
+   658→export function precacheDesignAssets(): Promise<number> {
+   659→  return new Promise((resolve) => {
+   660→    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return resolve(-1);
+   661→    navigator.serviceWorker.ready
+   662→      .then((reg) => {
+   663→        const fonts = [
+   664→          "/fonts/Vazirmatn-Regular.woff2", "/fonts/Vazirmatn-Medium.woff2", "/fonts/Vazirmatn-Bold.woff2",
+   665→          "/fonts/Vazirmatn-SemiBold.woff2", "/fonts/MarkaziText-arabic-var.woff2", "/fonts/MarkaziText-latin-var.woff2",
+   666→          "/fonts/NotoNaskhArabic-var.woff2", "/fonts/Estedad-Regular.woff2", "/fonts/Estedad-Medium.woff2",
+   667→          "/fonts/Estedad-SemiBold.woff2", "/fonts/Estedad-Bold.woff2",
+   668→        ];
+   669→        const media = ["/media/hero-law.png", "/logo.svg", "/robots.txt"];
+   670→        const urls = [...fonts, ...media];
+   671→        const channel = new MessageChannel();
+   672→        channel.port1.onmessage = (e) => {
+   673→          if (e.data?.type === "PRECACHE_DONE") resolve(e.data.count as number);
+   674→        };
+   675→        reg.active?.postMessage({ type: "PRECACHE_SHELL", urls }, [channel.port2]);
+   676→        // اگر SW پاسخ نداد (نسخهٔ قدیمی) بعد از ۱۰ ثانیه رها کن
+   677→        setTimeout(() => resolve(-2), 10_000);
+   678→      })
+   679→      .catch(() => resolve(-1));
+   680→  });
+   681→}
+   682→
+   683→/** برآورد حجم مصرفی کش و ذخیره‌سازی (بایت) */
+   684→export function storageEstimate(): Promise<{ usage: number; quota: number } | null> {
+   685→  if (typeof navigator === "undefined" || !navigator.storage?.estimate) return Promise.resolve(null);
+   686→  return navigator.storage.estimate().then((e) => ({ usage: e.usage ?? 0, quota: e.quota ?? 0 }));
+   687→}
+   688→
+   689→export function formatBytes(n: number): string {
+   690→  if (!n) return "۰";
+   691→  if (n < 1024) return faDigits(n) + " بایت";
+   692→  if (n < 1024 * 1024) return faDigits(Math.round(n / 1024)) + " کیلوبایت";
+   693→  return faDigits(Math.round((n / (1024 * 1024)) * 10) / 10) + " مگابایت";
+   694→}
+   695→
+   696→function faDigits(n: number | string): string {
+   697→  return String(n).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+   698→}
+   699→
+   700→export function faDateTime(ts: number): string {
+   701→  try {
+   702→    return new Date(ts).toLocaleString("fa-IR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+   703→  } catch {
+   704→    return "";
+   705→  }
+   706→}
+   707→

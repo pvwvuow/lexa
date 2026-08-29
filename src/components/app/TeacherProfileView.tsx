@@ -16,7 +16,7 @@ import {
   type RatingInfo,
 } from "@/lib/social-client";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
-import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
+import { OfflineDownloadButton } from "./offline-ui";
 
 function StatChipP({ Icon, label, value }: { Icon: React.ComponentType<{ className?: string }>; label: string; value: number }) {
   return (
@@ -136,21 +136,12 @@ export function TeacherProfileView({ id }: { id?: string }) {
                     <MessageCircle className="h-4 w-4 -rotate-45 text-bronze" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="line-clamp-1 block font-display text-[14.5px] font-bold group-hover:text-bronze">{p.title}</span>
-                      <OfflineUpdatedPill kind="post" id={p.id} serverUpdatedAt={p.updatedAt} />
-                    </span>
+                    <span className="line-clamp-1 block font-display text-[14.5px] font-bold group-hover:text-bronze">{p.title}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{fa(p.commentsCount)} نظر</span>
                   </span>
                   {!!p.rating?.count && (
                     <span className="hidden shrink-0 sm:block"><StarRating value={p.rating.avg} count={p.rating.count} size={12} /></span>
                   )}
-                  <OfflineDownloadButton
-                    kind="post"
-                    id={p.id}
-                    serverUpdatedAt={p.updatedAt}
-                    card={{ ...p, author: { id: data.profile.id, username: data.profile.username, displayName: data.profile.displayName, avatarUrl: data.profile.avatarUrl } }}
-                  />
                 </div>
               </li>
             ))}
@@ -269,9 +260,7 @@ function ProfileCourseCard({
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[10px] font-extrabold text-amber-950">
             <Clock3 className="h-3 w-3" /> در حال آماده‌سازی
           </span>
-        ) : (
-          <OfflineUpdatedPill kind="tcourse" id={c.id} serverUpdatedAt={c._updatedAt} />
-        )}
+        ) : null}
       </div>
       {c.description && <p className="mb-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{c.description}</p>}
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
@@ -279,15 +268,15 @@ function ProfileCourseCard({
           <StarRating value={c.rating!.avg} count={c.rating!.count} size={13} />
         )}
         {!isDraft && (
-          <>
-            <OfflineDownloadButton kind="tcourse" id={c.id} serverUpdatedAt={c._updatedAt} card={c} />
+          <span className="ml-auto inline-flex items-center gap-2">
+            <OfflineDownloadButton kind="tcourse" id={c.id} card={{ ...c }} serverUpdatedAt={c._updatedAt} />
             <button
-              onClick={(e) => { e.stopPropagation(); void act(); }}
-              disabled={!user || busyId === c.id}
-              className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors disabled:opacity-45 ${
-                c.inLibrary ? "border border-success/50 bg-success/10 text-success" : "bg-bronze/15 text-bronze hover:bg-bronze/25"
-              }`}
-            >
+            onClick={(e) => { e.stopPropagation(); void act(); }}
+            disabled={!user || busyId === c.id}
+            className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors disabled:opacity-45 ${
+              c.inLibrary ? "border border-success/50 bg-success/10 text-success" : "bg-bronze/15 text-bronze hover:bg-bronze/25"
+            }`}
+          >
             {busyId === c.id ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : c.inLibrary ? (
@@ -296,8 +285,8 @@ function ProfileCourseCard({
               <BookPlus className="h-3.5 w-3.5" />
             )}
             {c.inLibrary ? "در کتابخانه" : "افزودن"}
-            </button>
-          </>
+          </button>
+          </span>
         )}
       </div>
     </div>

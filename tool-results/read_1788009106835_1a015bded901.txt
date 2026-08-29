@@ -1,0 +1,551 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import {
+     5→  Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
+     6→  ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
+     7→  LibraryBig, Landmark, Menu, ScrollText, ListTree, NotebookTabs,
+     8→} from "lucide-react";
+     9→import { useRoute, navigate, type Route } from "@/lib/router";
+    10→import { useApp } from "@/lib/store";
+    11→import { mergeVisible } from "@/lib/books";
+    12→import { useAuth } from "@/lib/auth-client";
+    13→import { builtinCourses } from "@/lib/law/courses";
+    14→import type { Course } from "@/lib/law/types";
+    15→import { fa, pct } from "@/lib/fa";
+    16→import { ThemeToggle } from "./theme-provider";
+    17→import { DashboardView } from "./DashboardView";
+    18→import { CourseView } from "./CourseView";
+    19→import { LearnView } from "./LearnView";
+    20→import { QuizView } from "./QuizView";
+    21→import { FlashcardsView } from "./FlashcardsView";
+    22→import { CaseStudyView } from "./CaseStudyView";
+    23→import { ProgressView } from "./ProgressView";
+    24→import { SettingsView } from "./SettingsView";
+    25→import { ImportView } from "./ImportView";
+    26→import { CourseIcon } from "./common";
+    27→import { GlobalSearch } from "./GlobalSearch";
+    28→import { AccountArea, SyncHint } from "./AccountArea";
+    29→import { AdminView } from "./AdminView";
+    30→import { TeachersView } from "./TeachersView";
+    31→import { StudioView } from "./StudioView";
+    32→import { PostView } from "./PostView";
+    33→import { PublicLibraryView } from "./PublicLibraryView";
+    34→import { TeacherProfileView } from "./TeacherProfileView";
+    35→import { LawLibraryView } from "./LawLibraryView";
+    36→import { StudyListView } from "./StudyListView";
+    37→import { StudioWriteView } from "./StudioWriteView";
+    38→import { ExamPackRoute } from "./ExamPacksView";
+    39→import { BackButton } from "./common";
+    40→import { FeedBell } from "./FeedBell";
+    41→import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+    42→
+    43→type NavMode = "expanded" | "rail";
+    44→
+    45→/** آیتم منوی ستونی — در حالت نوار باریک فقط آیکون با تولتیپ */
+    46→function SideItem({
+    47→  icon: Icon, label, active, rail, onClick, chevron, open,
+    48→}: {
+    49→  icon: React.ComponentType<{ className?: string }>;
+    50→  label: string; active?: boolean; rail: boolean; onClick: () => void;
+    51→  chevron?: boolean; open?: boolean;
+    52→}) {
+    53→  return (
+    54→    <button
+    55→      onClick={onClick}
+    56→      title={label}
+    57→      aria-expanded={chevron && !rail ? !!open : undefined}
+    58→      aria-current={active ? "page" : undefined}
+    59→      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+    60→        rail ? "justify-center px-0" : ""
+    61→      } ${
+    62→        active
+    63→          ? "bg-primary text-primary-foreground shadow-card"
+    64→          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+    65→      }`}
+    66→    >
+    67→      <Icon className="h-[18px] w-[18px] shrink-0" />
+    68→      {!rail && <span className="flex-1 truncate text-start">{label}</span>}
+    69→      {!rail && chevron && (
+    70→        <ChevronDown className={`h-4 w-4 shrink-0 opacity-60 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+    71→      )}
+    72→      {rail && (
+    73→        <span className="pointer-events-none absolute start-full z-50 ms-2.5 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background opacity-0 shadow-card transition-opacity duration-150 group-hover:opacity-100">
+    74→          {label}
+    75→        </span>
+    76→      )}
+    77→    </button>
+    78→  );
+    79→}
+    80→
+    81→function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; active?: boolean; onClick: () => void }) {
+    82→  return (
+    83→    <button
+    84→      onClick={onClick}
+    85→      aria-current={active ? "page" : undefined}
+    86→      className={`relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors duration-200 ${
+    87→        active
+    88→          ? "bg-foreground/[0.09] text-primary shadow-[inset_0_1px_0.5px_-0.5px_rgba(255,255,255,0.6)] dark:bg-white/[0.16] dark:text-bronze"
+    89→          : "text-muted-foreground hover:text-foreground"
+    90→      }`}
+    91→    >
+    92→      <Icon className="h-5 w-5" />
+    93→      {label}
+    94→      {active && <span aria-hidden className="absolute -top-px h-0.5 w-6 rounded-full bg-gradient-to-l from-bronze to-primary" />}
+    95→    </button>
+    96→  );
+    97→}
+    98→
+    99→/** تشخیص جهت اسکرول — اسکرول به پایین، نوار بالا/پایین را در موبایل پنهان می‌کند و اسکرول به بالا برمی‌گرداند */
+   100→function useHideOnScroll(resetKey: unknown) {
+   101→  const [hidden, setHidden] = React.useState(false);
+   102→  React.useEffect(() => {
+   103→    setHidden(false); // با هر جابه‌جایی مسیر، نوارها دیده می‌شوند
+   104→  }, [resetKey]);
+   105→  React.useEffect(() => {
+   106→    let lastY = window.scrollY;
+   107→    let ticking = false;
+   108→    const onScroll = () => {
+   109→      if (ticking) return;
+   110→      ticking = true;
+   111→      requestAnimationFrame(() => {
+   112→        const y = window.scrollY;
+   113→        const delta = y - lastY;
+   114→        lastY = y;
+   115→        if (delta > 6 && y > 90) setHidden(true);
+   116→        else if (delta < -6 || y <= 8) setHidden(false);
+   117→        ticking = false;
+   118→      });
+   119→    };
+   120→    window.addEventListener("scroll", onScroll, { passive: true });
+   121→    return () => window.removeEventListener("scroll", onScroll);
+   122→  }, []);
+   123→  return hidden;
+   124→}
+   125→
+   126→function lessonPctOf(course: Course, progress: Record<string, { status?: string }>) {
+   127→  const flat = course.chapters.flatMap((c) => c.lessons);
+   128→  let done = 0;
+   129→  flat.forEach((l) => {
+   130→    if (progress[l.id]?.status === "completed") done += 1;
+   131→    else if (progress[l.id]) done += 0.5;
+   132→  });
+   133→  return pct(done, Math.max(1, flat.length));
+   134→}
+   135→
+   136→export function AppShell() {
+   137→  const route = useRoute();
+   138→  const auth = useAuth();
+   139→  const last = useApp((s) => s.lastLocation);
+   140→  const progress = useApp((s) => s.progress);
+   141→  const customCourses = useApp((s) => s.customCourses);
+   142→  const tBooks = useApp((s) => s.tBooks);
+   143→  const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
+   144→  // دوره‌هایی که کاربر از «کتابخانهٔ من» برداشته، از همهٔ سطح‌های نمایشی کنار می‌روند
+   145→  const courses = React.useMemo(
+   146→    () => mergeVisible({ customCourses, tBooks, hiddenBuiltins }),
+   147→    [customCourses, tBooks, hiddenBuiltins],
+   148→  );
+   149→  const [mounted, setMounted] = React.useState(false);
+   150→
+   151→  // در موبایل با اسکرول به پایین نوار بالا و داک پایین جمع می‌شوند
+   152→  const chromeHidden = useHideOnScroll(route);
+   153→
+   154→  // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است
+   155→  const [mode, setMode] = React.useState<NavMode>("expanded");
+   156→  // درخواست کاربر: کلیک روی «مطالعه» فهرست کشویی درس‌ها را باز می‌کند
+   157→  const [studyOpen, setStudyOpen] = React.useState(false);
+   158→  // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
+   159→  const [drawerOpen, setDrawerOpen] = React.useState(false);
+   160→  const [drawerStudy, setDrawerStudy] = React.useState(false);
+   161→
+   162→  React.useEffect(() => {
+   163→    setMounted(true);
+   164→    try {
+   165→      if (window.localStorage.getItem("hh-nav") === "rail") setMode("rail");
+   166→    } catch {}
+   167→  }, []);
+   168→
+   169→  const isSubPage = ["learn", "quiz", "case", "admin", "studio", "write"].includes(route.view) || route.view === "cards";
+   170→
+   171→  // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
+   172→  React.useEffect(() => {
+   173→    if (!mounted) return;
+   174→    setMode((m) => (isSubPage ? "rail" : m === "rail" && window.localStorage.getItem("hh-nav") !== "rail" ? "expanded" : m));
+   175→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   176→  }, [isSubPage, mounted]);
+   177→
+   178→  function expandNav() {
+   179→    setMode("expanded");
+   180→    try { window.localStorage.setItem("hh-nav", "expanded"); } catch {}
+   181→  }
+   182→  function collapseNav() {
+   183→    setMode("rail");
+   184→    try { window.localStorage.setItem("hh-nav", "rail"); } catch {}
+   185→  }
+   186→
+   187→  // ── مقصد پیش‌فرض فهرست مطالعه: آخرین درسی که کاربر در آن بوده ──
+   188→  let recentCourse: Course | null = null;
+   189→  let recentLessonTitle: string | null = null;
+   190→  if (last.lessonId) {
+   191→    outer: for (const c of courses)
+   192→      for (const ch of c.chapters)
+   193→        for (const l of ch.lessons)
+   194→          if (l.id === last.lessonId) {
+   195→            recentCourse = c;
+   196→            recentLessonTitle = l.title;
+   197→            break outer;
+   198→          }
+   199→  }
+   200→
+   201→  function clickStudy() {
+   202→    if (mode === "rail") {
+   203→      expandNav();
+   204→      setStudyOpen(true);
+   205→      return;
+   206→    }
+   207→    setStudyOpen((v) => !v);
+   208→  }
+   209→
+   210→  if (!mounted) {
+   211→    return (
+   212→      <div className="grid min-h-screen place-items-center bg-background">
+   213→        <div className="flex items-center gap-3 text-bronze"><Scale className="h-6 w-6 animate-pulse" /><span className="font-bold">همیار حقوق</span></div>
+   214→      </div>
+   215→    );
+   216→  }
+   217→
+   218→  const current = route.view;
+   219→  // فعال‌بودن «مرکز آزمون» — هم هاب دفترچه‌ها (#/quiz/packs) و هم اجرای یک دفترچه (#/quiz/pack-*)
+   220→  const examCenterActive = current === "quiz" && !!route.id && (route.id === "packs" || route.id.startsWith("pack-"));
+   221→  const rail = mode === "rail";
+   222→
+   223→  function go(r: Route) {
+   224→    setDrawerOpen(false);
+   225→    setDrawerStudy(false);
+   226→    navigate(r);
+   227→  }
+   228→
+   229→  /** دکمهٔ «تدریس» داک موبایل: اگر جلسه‌ای جاری بود برو همان؛ والا فهرست درس‌های فعال باز شود */
+   230→  function dockTadriss() {
+   231→    if (last.lessonId) {
+   232→      go({ view: "learn", id: last.lessonId });
+   233→    } else {
+   234→      setDrawerStudy(true);
+   235→      setDrawerOpen(true);
+   236→    }
+   237→  }
+   238→
+   239→  // ─── سایدبار ستونی سمت راست (دسکتاپ) ───
+   240→  const Sidebar = (
+   241→    <aside
+   242→      className={`sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-e border-border/70 bg-card/50 backdrop-blur-sm transition-[width] duration-200 ease-out lg:flex ${
+   243→        rail ? "w-[76px]" : "w-[228px]"
+   244→      }`}
+   245→    >
+   246→      <nav aria-label="ناوبری اصلی" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+   247→        <SideItem icon={Home} label="خانه" rail={rail} active={current === "home"} onClick={() => go({ view: "home" })} />
+   248→
+   249→        {/* فهرست مطالعه — فهرست منظم همهٔ دوره‌ها و درس‌ها */}
+   250→        <SideItem icon={ListTree} label="فهرست مطالعه" rail={rail} active={current === "study"} onClick={() => go({ view: "study" })} />
+   251→
+   252→        {/* مطالعه — با فهرست کشویی درس‌ها */}
+   253→        <SideItem
+   254→          icon={BookOpen}
+   255→          label="مطالعه"
+   256→          rail={rail}
+   257→          active={["course", "learn", "case", "cards"].includes(current)}
+   258→          onClick={clickStudy}
+   259→          chevron
+   260→          open={studyOpen}
+   261→        />
+   262→        {!rail && studyOpen && (
+   263→          <div className="mb-1 space-y-1 border-s border-dashed border-border ps-2.5 pe-1 py-1">
+   264→            <p className="px-2 pb-0.5 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
+   265→            {courses.map((c) => {
+   266→              const isRecent = recentCourse?.id === c.id;
+   267→              return (
+   268→                <div key={c.id}>
+   269→                  <button
+   270→                    onClick={() => go({ view: "course", id: c.id })}
+   271→                    title={`${c.title} — ${fa(lessonPctOf(c, progress))}٪`}
+   272→                    className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors ${
+   273→                      isRecent ? "bg-accent font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+   274→                    }`}
+   275→                  >
+   276→                    <CourseIcon icon={c.icon} className="h-3.5 w-3.5 shrink-0 text-bronze" />
+   277→                    <span className="min-w-0 flex-1 truncate text-start">{c.title}</span>
+   278→                    <span dir="ltr" className="shrink-0 text-[10px] tabular-nums opacity-70">{fa(lessonPctOf(c, progress))}%</span>
+   279→                  </button>
+   280→
+   281→                  {/* ادامه از آخرین جلسهٔ همین درس */}
+   282→                  {isRecent && last.lessonId && (
+   283→                    <button
+   284→                      onClick={() => go({ view: "learn", id: last.lessonId! })}
+   285→                      className="mt-0.5 flex w-full items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1.5 text-start text-[11px] font-medium text-primary transition-colors hover:bg-primary/15"
+   286→                      title={`ادامه «${recentLessonTitle}»`}
+   287→                    >
+   288→                      <PlayCircle className="h-3.5 w-3.5 shrink-0 text-bronze" />
+   289→                      <span className="min-w-0 truncate">ادامه: {recentLessonTitle}</span>
+   290→                    </button>
+   291→                  )}
+   292→                  {isRecent && !last.lessonId && (
+   293→                    <p className="mt-0.5 px-2 text-[10px] leading-relaxed text-muted-foreground/60">آخرین محل مطالعه شما</p>
+   294→                  )}
+   295→                </div>
+   296→              );
+   297→            })}
+   298→          </div>
+   299→        )}
+   300→
+   301→        <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz" && !examCenterActive} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+   302→        {/* مرکز آزمون — دفترچه‌های آمادهٔ تستی و تشریحی، مستقیم */}
+   303→        <SideItem icon={NotebookTabs} label="مرکز آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz", id: "packs" })} />
+   304→        <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
+   305→        {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
+   306→        <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+   307→        {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
+   308→        <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
+   309→        {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
+   310→        <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+   311→        {/* افزودن کتاب فقط برای مدیر */}
+   312→        {auth.user?.role === "admin" && (
+   313→          <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
+   314→        )}
+   315→        {auth.user?.role === "teacher" && (
+   316→          <SideItem icon={PenSquare} label="اتاق استاد" rail={rail} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+   317→        )}
+   318→        {auth.user?.role === "admin" && (
+   319→          <SideItem
+   320→            icon={ShieldCheck}
+   321→            label="پنل مدیریت"
+   322→            rail={rail}
+   323→            active={current === "admin"}
+   324→            onClick={() => go({ view: "admin" })}
+   325→          />
+   326→        )}
+   327→      </nav>
+   328→
+   329→      {/* یک دکمه واحد: جمع کردن / باز کردن */}
+   330→      <div className="border-t border-border/70 p-3">
+   331→        <SyncHint collapsed={rail} />
+   332→        {rail ? (
+   333→          <button
+   334→            onClick={expandNav}
+   335→            title="باز کردن منو"
+   336→            aria-label="باز کردن منو"
+   337→            className="grid h-10 w-full place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-bronze"
+   338→          >
+   339→            <ChevronsLeft className="h-[18px] w-[18px]" />
+   340→          </button>
+   341→        ) : (
+   342→          <button
+   343→            onClick={collapseNav}
+   344→            title="جمع کردن منو"
+   345→            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+   346→          >
+   347→            <ChevronsRight className="h-[18px] w-[18px] shrink-0" />
+   348→            جمع کردن منو
+   349→          </button>
+   350→        )}
+   351→      </div>
+   352→    </aside>
+   353→  );
+   354→
+   355→  return (
+   356→    <div className="flex min-h-screen">
+   357→      {Sidebar}
+   358→
+   359→      <div className="flex min-w-0 flex-1 flex-col">
+   360→        {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
+   361→        <header
+   362→          className={`sticky top-0 z-40 bg-background/0 px-2.5 pt-3 transition-all duration-300 ease-out sm:px-5 ${
+   363→            chromeHidden ? "max-lg:pointer-events-none max-lg:-translate-y-[135%] max-lg:opacity-0" : ""
+   364→          }`}
+   365→        >
+   366→          <div className="mx-auto max-w-7xl">
+   367→            <div className="relative flex h-14 items-center gap-2 overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-l from-[#0d211a] via-[#143026] to-[#0d211a] px-2 shadow-card sm:gap-3 sm:px-3.5">
+   368→              <div aria-hidden className="pattern-quilt pointer-events-none absolute inset-0 opacity-40" />
+   369→              <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-l from-transparent via-bronze/70 to-transparent" />
+   370→              <div aria-hidden className="pointer-events-none absolute -top-16 start-1/3 h-32 w-64 rounded-full bg-bronze/15 blur-3xl" />
+   371→
+   372→              {/* برند — ترازوی طلایی + نام + زیرعنوان */}
+   373→              <button onClick={() => go({ view: "home" })} className="group relative flex shrink-0 items-center gap-2.5">
+   374→                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#d9b877] via-bronze to-[#8a6a30] text-[#132018] shadow-card transition-transform duration-200 group-hover:scale-105">
+   375→                  <Scale className="h-4.5 w-4.5" />
+   376→                </span>
+   377→                <span className="hidden leading-tight sm:block">
+   378→                  <span className="block text-[15px] font-extrabold tracking-tight text-white">همیار حقوق</span>
+   379→                  <span className="block text-[9.5px] font-semibold text-bronze">استاد حقوقی هوشمند</span>
+   380→                </span>
+   381→              </button>
+   382→
+   383→              {/* جستجوی میانی — قرص جستجو با میانبر Ctrl / */}
+   384→              <div className="relative hidden min-w-0 flex-1 justify-center md:flex">
+   385→                <GlobalSearch courses={courses} variant="bar" />
+   386→              </div>
+   387→
+   388→              {/* ابزارها — حساب، تم، تنظیمات، منوی موبایل */}
+   389→              <div className="relative ms-auto flex items-center gap-1.5">
+   390→                <div className="md:hidden">
+   391→                  <GlobalSearch courses={courses} variant="icon" />
+   392→                </div>
+   393→                <FeedBell />
+   394→                <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
+   395→                  <AccountArea />
+   396→                </span>
+   397→                {/* دکمهٔ روز/شب طلایی — طرح ۶ شهریور */}
+   398→                <span className="hidden sm:inline">
+   399→                  <ThemeToggle />
+   400→                </span>
+   401→                <button
+   402→                  onClick={() => go({ view: "settings" })}
+   403→                  aria-label="تنظیمات و پروفایل"
+   404→                  title="تنظیمات و پروفایل"
+   405→                  className="hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/85 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze sm:inline-flex"
+   406→                >
+   407→                  <Settings className="h-[18px] w-[18px]" />
+   408→                </button>
+   409→                <button
+   410→                  onClick={() => setDrawerOpen(true)}
+   411→                  aria-label="باز کردن منو"
+   412→                  title="منو"
+   413→                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/90 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze lg:hidden"
+   414→                >
+   415→                  <Menu className="h-[18px] w-[18px]" />
+   416→                </button>
+   417→              </div>
+   418→            </div>
+   419→          </div>
+   420→        </header>
+   421→
+   422→        {/* محتوا */}
+   423→        <main className="flex-1">
+   424→          {/* نوار بازگشت — در همهٔ زیرصفحه‌ها یکدست */}
+   425→        {current !== "home" && (
+   426→          <div className="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-6">
+   427→            <BackButton />
+   428→          </div>
+   429→        )}
+   430→        {route.view === "home" && <DashboardView />}
+   431→          {route.view === "study" && <StudyListView />}
+   432→          {route.view === "course" && <CourseView id={route.id} />}
+   433→          {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
+   434→          {route.view === "quiz" && route.id?.startsWith("pack-") && <ExamPackRoute packId={route.id} />}
+   435→          {route.view === "quiz" && !route.id?.startsWith("pack-") && <QuizView key={route.id ?? "mixed"} id={route.id} />}
+   436→          {route.view === "case" && <CaseStudyView id={route.id} />}
+   437→          {route.view === "cards" && <FlashcardsView />}
+   438→          {route.view === "progress" && <ProgressView />}
+   439→          {route.view === "settings" && <SettingsView />}
+   440→          {route.view === "import" && <ImportView />}
+   441→          {route.view === "teachers" && <TeachersView />}
+   442→          {route.view === "studio" && <StudioView />}
+   443→          {route.view === "write" && <StudioWriteView kind={route.kind} id={route.id} />}
+   444→          {route.view === "post" && <PostView id={route.id} />}
+   445→          {route.view === "library" && <PublicLibraryView />}
+   446→          {route.view === "law" && <LawLibraryView id={route.id} />}
+   447→          {route.view === "teacher" && <TeacherProfileView id={route.id} />}
+   448→          {route.view === "admin" && <AdminView />}
+   449→        </main>
+   450→
+   451→        {/* فوتر دسکتاپ */}
+   452→        <footer className="mt-auto hidden border-t border-border/70 py-4 text-center text-xs leading-relaxed text-muted-foreground lg:block">
+   453→          همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
+   454→        </footer>
+   455→
+   456→        {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass) با شکست نور و حلقهٔ نور */}
+   457→        <svg aria-hidden className="hidden" width="0" height="0" focusable="false">
+   458→          <filter id="lg-displacement" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+   459→            <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves={2} result="turbulence" />
+   460→            <feDisplacementMap in="SourceGraphic" in2="turbulence" scale={200} xChannelSelector="R" yChannelSelector="G" />
+   461→          </filter>
+   462→        </svg>
+   463→        <nav
+   464→          aria-label="ناوبری پایین"
+   465→          className={`lg-dock fixed inset-x-3 bottom-2 z-40 rounded-[28px] transition-all duration-300 ease-out lg:hidden pb-[env(safe-area-inset-bottom)] ${
+   466→            chromeHidden ? "max-lg:pointer-events-none max-lg:translate-y-[160%] max-lg:opacity-0" : ""
+   467→          }`}
+   468→        >
+   469→          <div aria-hidden className="lg-refract" />
+   470→          <div aria-hidden className="lg-spec" />
+   471→          <div className="relative mx-auto grid max-w-md grid-cols-5 p-1">
+   472→            <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
+   473→            <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />
+   474→            <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+   475→            <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
+   476→            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
+   477→          </div>
+   478→        </nav>
+   479→
+   480→        {/* ═══ منوی کشویی موبایل — کامل معادل سایدبار دسکتاپ ═══ */}
+   481→        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+   482→          <SheetContent side="right" className="flex w-[290px] flex-col gap-0 overflow-y-auto p-4 sm:w-[320px]">
+   483→            <SheetHeader className="p-0 pb-3 text-start">
+   484→              <SheetTitle className="flex items-center gap-2.5 text-base">
+   485→                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
+   486→                منوی همیار حقوق
+   487→              </SheetTitle>
+   488→            </SheetHeader>
+   489→            <div className="flex flex-1 flex-col gap-1">
+   490→              <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
+   491→              <SideItem icon={ListTree} label="فهرست مطالعه" rail={false} active={current === "study"} onClick={() => go({ view: "study" })} />
+   492→              <SideItem
+   493→                icon={BookOpen}
+   494→                label="مطالعه"
+   495→                rail={false}
+   496→                active={["course", "learn", "case", "cards"].includes(current)}
+   497→                onClick={() => setDrawerStudy((v) => !v)}
+   498→                chevron
+   499→                open={drawerStudy}
+   500→              />
+   501→              {drawerStudy && (
+   502→                <div className="mb-1 space-y-1 border-s border-dashed border-border ps-2.5 pe-1 py-1">
+   503→                  <p className="px-2 pb-0.5 text-[10px] font-medium text-muted-foreground/70">درس‌های فعال</p>
+   504→                  {courses.length === 0 ? (
+   505→                    <p className="px-2 text-[11px] leading-relaxed text-muted-foreground/70">هنوز درسی فعال نیست؛ از کتابخانهٔ عمومی یکی را انتخاب کن.</p>
+   506→                  ) : (
+   507→                    courses.map((c) => (
+   508→                      <button
+   509→                        key={c.id}
+   510→                        onClick={() => go({ view: "course", id: c.id })}
+   511→                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+   512→                      >
+   513→                        <CourseIcon icon={c.icon} className="h-3.5 w-3.5 shrink-0 text-bronze" />
+   514→                        <span className="min-w-0 flex-1 truncate text-start">{c.title}</span>
+   515→                        <span dir="ltr" className="shrink-0 text-[10px] tabular-nums opacity-70">{fa(lessonPctOf(c, progress))}%</span>
+   516→                      </button>
+   517→                    ))
+   518→                  )}
+   519→                </div>
+   520→              )}
+   521→              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz" && !examCenterActive} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+   522→              <SideItem icon={NotebookTabs} label="مرکز آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz", id: "packs" })} />
+   523→              <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
+   524→              <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+   525→              <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
+   526→              <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+   527→              {auth.user?.role === "teacher" && (
+   528→                <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+   529→              )}
+   530→              {auth.user?.role === "admin" && (
+   531→                <>
+   532→                  <SideItem icon={Upload} label="افزودن کتاب" rail={false} active={current === "import"} onClick={() => go({ view: "import" })} />
+   533→                  <SideItem icon={ShieldCheck} label="پنل مدیریت" rail={false} active={current === "admin"} onClick={() => go({ view: "admin" })} />
+   534→                </>
+   535→              )}
+   536→              <SideItem icon={Settings} label="تنظیمات و پروفایل" rail={false} active={current === "settings"} onClick={() => go({ view: "settings" })} />
+   537→            </div>
+   538→            <div className="mt-2 flex items-center justify-between border-t border-border/70 pt-3">
+   539→              <span className="text-[11px] text-muted-foreground">همیار حقوق</span>
+   540→              <div className="flex items-center gap-2">
+   541→                <ThemeToggle />
+   542→                <SyncHint collapsed />
+   543→              </div>
+   544→            </div>
+   545→          </SheetContent>
+   546→        </Sheet>
+   547→      </div>
+   548→    </div>
+   549→  );
+   550→}
+   551→
