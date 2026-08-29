@@ -394,7 +394,8 @@ export function AppShell() {
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
                 </span>
-                <span className="hidden [&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white sm:inline">
+                {/* دکمهٔ روز/شب طلایی — طرح ۶ شهریور */}
+                <span className="hidden sm:inline">
                   <ThemeToggle />
                 </span>
                 <button
