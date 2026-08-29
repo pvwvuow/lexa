@@ -406,9 +406,12 @@ function LatestPosts() {
         </span>
       </div>
 
-      {/* ردیف کارت‌ها + فلش‌های شناور */}
-      <div className="relative">
-        <div ref={ref} className="hslider -mx-1 flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
+      {/* سینی شیشه‌ای «مستطیل کرو» — لبهٔ چپش (سمت end در RTL) عمداً صاف است و با
+          منفی‌کردن پدینگ هیرو (p-5/sm:p-8) دقیقاً روی خطِ سمت چپِ هیروی سبز می‌نشیند
+          و بدون بوردر چپ در دیوار سبز ادغام می‌شود */}
+      <div className="relative -me-5 rounded-s-[20px] rounded-e-none border-y border-s border-white/[0.14] bg-white/[0.10] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_28px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[2px] sm:-me-8 sm:p-3">
+        <div className="relative">
+        <div ref={ref} className="hslider flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
           {loading && feed.length === 0 ? (
             [0, 1, 2, 3].map((i) => <FeedCardSkeleton key={i} />)
           ) : feed.length > 0 ? (
@@ -442,6 +445,7 @@ function LatestPosts() {
             <ChevronRight className="h-4 w-4" />
           </button>
         )}
+        </div>
       </div>
     </div>
   );
@@ -551,7 +555,7 @@ function FeedCard({
 
       {/* دکمهٔ دانلود آفلاین — لایهٔ شناور گوشهٔ جلد */}
       <span className="absolute end-2 top-2 z-10">
-        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} variant="glass" className="!h-8 !w-8 shadow-card backdrop-blur" />
+        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} className="!h-8 !w-8 shadow-card backdrop-blur" />
       </span>
     </div>
   );
