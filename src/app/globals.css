@@ -292,32 +292,35 @@ h1, h2, h3, h4, h5, h6 {
     0 8px 22px -10px rgb(0 0 0 / 0.5);
 }
 
-/* ─── شیشهٔ مایع (Liquid Glass) — داک شناور موبایل ───────────────────────────
-   الهام از liquid-glass-vue: backdrop با فیلتر جابه‌جایی SVG می‌شکند (شکست نور)،
-   blur/saturate شیشه‌ای می‌سازد و حلقهٔ نور داخلی لبهٔ شیشه را نشان می‌دهد.
+/* ─── شیشهٔ مایع (Liquid Glass) — پارامترهای مرجع liquid-glass-vue ───────────
+   https://github.com/polidario/Frontend-Projects/tree/main/liquid-glass-vue
+   · backdrop با فیلتر جابه‌جایی SVG می‌شکند (شکست نور) — turbulence 0.01 / ۲ اکتاو / scale 200
+   · بلور و روشنایی کم (brightness 1.1) که شکست نور خودش دیده شود
+   · سایهٔ شناور بزرگ drop-shadow(-8px -10px 46px #0000005f) به‌صورت box-shadow
+   · حلقهٔ نور داخلی: inset 6px 6px 0 -6px سفیدِ ۷۰٪ + هالهٔ ۸px
    لایهٔ شکست نور فقط در مرورگرهای مبتنی بر کروم اعمال می‌شود (url در
    backdrop-filter پشتیبانی نمی‌شود → اعلان نادیده گرفته شده و شیشهٔ پایه می‌ماند). */
 .lg-dock {
-  border: 1px solid rgb(255 255 255 / 0.34);
-  background: color-mix(in srgb, var(--card) 52%, transparent);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  background: color-mix(in srgb, var(--card) 38%, transparent);
   box-shadow:
-    0 14px 34px -12px rgb(12 24 19 / 0.45),
-    0 3px 10px -3px rgb(12 24 19 / 0.22);
+    -8px -10px 46px rgb(0 0 0 / 0.37),
+    0 12px 28px -10px rgb(0 0 0 / 0.38);
 }
 /* نکته: فقط اعلان استاندارد backdrop-filter — اگر -webkit- هم نوشته شود
    Lightning CSS (Tailwind v4) اعلان استاندارد را حذف می‌کند و بلور از بین می‌رود. */
 .lg-dock {
-  backdrop-filter: blur(15px) saturate(1.65) brightness(1.05);
+  backdrop-filter: brightness(1.1) blur(3px) saturate(1.4);
 }
 .dark .lg-dock {
-  border-color: rgb(255 255 255 / 0.14);
-  background: color-mix(in srgb, var(--card) 46%, transparent);
+  border-color: rgb(255 255 255 / 0.13);
+  background: color-mix(in srgb, var(--card) 40%, transparent);
   box-shadow:
-    0 14px 34px -12px rgb(0 0 0 / 0.65),
-    0 3px 10px -3px rgb(0 0 0 / 0.4);
+    -8px -10px 46px rgb(0 0 0 / 0.55),
+    0 12px 28px -10px rgb(0 0 0 / 0.55);
 }
 
-/* لایهٔ شکست نور — فقط کرومیوم؛ محتوای پشت داک را با نقشۀ جابه‌جایی می‌شکند */
+/* لایهٔ شکست نور — فقط کرومیوم؛ محتوای پشت شیشه را با نقشۀ جابه‌جایی می‌شکند */
 .lg-refract {
   position: absolute;
   inset: 0;
@@ -326,22 +329,39 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: url(#lg-displacement);
 }
 
-/* حلقهٔ نور مشخصه — بازتاب نور از لبهٔ بالایی و هالۀ داخلی شیشه */
+/* حلقهٔ نور مشخصه — دقیقاً ::before مرجع liquid-glass-vue */
 .lg-spec {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
   box-shadow:
-    inset 0 1px 0.5px -0.5px rgb(255 255 255 / 0.7),
-    inset 0 -1px 0.5px -0.5px rgb(255 255 255 / 0.22),
-    inset 0 10px 18px -12px rgb(255 255 255 / 0.38);
+    inset 6px 6px 0 -6px rgb(255 255 255 / 0.7),
+    inset 0 0 8px 1px rgb(255 255 255 / 0.7);
 }
 .dark .lg-spec {
   box-shadow:
-    inset 0 1px 0.5px -0.5px rgb(255 255 255 / 0.42),
-    inset 0 -1px 0.5px -0.5px rgb(255 255 255 / 0.12),
-    inset 0 10px 18px -12px rgb(255 255 255 / 0.2);
+    inset 6px 6px 0 -6px rgb(255 255 255 / 0.5),
+    inset 0 0 8px 1px rgb(255 255 255 / 0.5);
+}
+
+/* کارت شیشه‌ای — همان زبان liquid-glass برای کارت‌های «جدیدترین مطالب» هیرو */
+.lg-card {
+  border: 1px solid rgb(255 255 255 / 0.3);
+  background: rgb(255 255 255 / 0.09);
+  box-shadow:
+    -8px -10px 46px rgb(0 0 0 / 0.16),
+    0 14px 30px -14px rgb(6 16 12 / 0.6);
+}
+.lg-card {
+  backdrop-filter: brightness(1.09) blur(13px) saturate(1.5);
+}
+.dark .lg-card {
+  border-color: rgb(255 255 255 / 0.15);
+  background: rgb(255 255 255 / 0.07);
+  box-shadow:
+    -8px -10px 46px rgb(0 0 0 / 0.3),
+    0 14px 30px -14px rgb(0 0 0 / 0.65);
 }
 
 /* دکمهٔ N حالت توسعه (نشانگر Next.js) — در موبایل دیده نشود */

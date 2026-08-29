@@ -85,7 +85,7 @@ function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.Component
       aria-current={active ? "page" : undefined}
       className={`relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors duration-200 ${
         active
-          ? "bg-foreground/[0.07] text-primary shadow-[inset_0_1px_0.5px_-0.5px_rgba(255,255,255,0.55)] dark:bg-white/[0.14] dark:text-bronze"
+          ? "bg-foreground/[0.09] text-primary shadow-[inset_0_1px_0.5px_-0.5px_rgba(255,255,255,0.6)] dark:bg-white/[0.16] dark:text-bronze"
           : "text-muted-foreground hover:text-foreground"
       }`}
     >
@@ -456,14 +456,13 @@ export function AppShell() {
         {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass) با شکست نور و حلقهٔ نور */}
         <svg aria-hidden className="hidden" width="0" height="0" focusable="false">
           <filter id="lg-displacement" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="0.011 0.02" numOctaves={2} seed={7} result="noise" />
-            <feGaussianBlur in="noise" stdDeviation={1} result="soft" />
-            <feDisplacementMap in="SourceGraphic" in2="soft" scale={62} xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves={2} result="turbulence" />
+            <feDisplacementMap in="SourceGraphic" in2="turbulence" scale={200} xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </svg>
         <nav
           aria-label="ناوبری پایین"
-          className={`lg-dock fixed inset-x-3 bottom-2 z-40 rounded-[26px] transition-all duration-300 ease-out lg:hidden pb-[env(safe-area-inset-bottom)] ${
+          className={`lg-dock fixed inset-x-3 bottom-2 z-40 rounded-[28px] transition-all duration-300 ease-out lg:hidden pb-[env(safe-area-inset-bottom)] ${
             chromeHidden ? "max-lg:pointer-events-none max-lg:translate-y-[160%] max-lg:opacity-0" : ""
           }`}
         >

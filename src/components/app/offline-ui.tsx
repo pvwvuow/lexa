@@ -14,7 +14,7 @@ export type OfflineCardInput = OfflineCardPost | OfflineCardCourse;
 
 /** دکمهٔ دانلود/به‌روزرسانی آفلاین — حالت‌ها: دانلود / در حال ذخیره / ذخیره شد / به‌روزرسانی */
 export function OfflineDownloadButton({
-  kind, id, card, serverUpdatedAt, labeled = false, className = "", courseObj,
+  kind, id, card, serverUpdatedAt, labeled = false, className = "", courseObj, variant,
 }: {
   kind: OfflineKind;
   id: string;
@@ -25,6 +25,8 @@ export function OfflineDownloadButton({
   className?: string;
   /** برای دوره‌های آمادهٔ اپ (kind=builtin) — ساختار کامل دوره که در باندل است */
   courseObj?: unknown;
+  /** "glass" — روی کارت‌های شیشه‌ای: لبهٔ سفید نیمه‌شفاف به‌جای برنزی */
+  variant?: "glass";
 }) {
   const online = useOnlineStatus();
   const item = useOfflineItem(kind, id);
@@ -61,12 +63,14 @@ export function OfflineDownloadButton({
 
   const Icon = fail ? TriangleAlert : item.status === "busy" ? Loader2 : outdated ? RefreshCw : item.status === "saved" ? CheckCircle2 : Download;
   const tone = fail
-    ? "border-destructive/40 bg-destructive/10 text-destructive"
+    ? "border-destructive/40 bg-black/45 text-destructive"
     : item.status === "saved" && !outdated
-      ? "border-success/40 bg-success/10 text-success"
+      ? "border-success/50 bg-black/45 text-success"
       : outdated
-        ? "border-amber-500/50 bg-amber-400/10 text-amber-600 dark:text-amber-400"
-        : "border-bronze/40 bg-bronze/10 text-bronze";
+        ? "border-amber-400/60 bg-black/45 text-amber-300"
+        : variant === "glass"
+          ? "border-white/40 bg-black/45 text-white"
+          : "border-bronze/40 bg-bronze/10 text-bronze";
 
   const stateCls = item.status === "busy" ? "cursor-wait opacity-80" : !interactive ? "cursor-default opacity-60" : "cursor-pointer hover:brightness-110 active:scale-95";
 

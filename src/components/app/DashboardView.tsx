@@ -417,7 +417,7 @@ function LatestPosts() {
           ) : (
             <button
               onClick={() => navigate({ view: "teachers" })}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-white/25 bg-white/[0.05] px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
+              className="flex w-full items-center justify-center gap-3 rounded-[24px] border border-dashed border-white/25 bg-white/[0.07] px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 backdrop-blur-sm transition-colors hover:border-bronze/50"
             >
               <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
               هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
@@ -493,12 +493,13 @@ function FeedCard({
     <div className="relative w-[240px] shrink-0 snap-start sm:w-[268px]">
       <button
         onClick={() => navigate({ view: "post", id: p.id })}
-        className="group block w-full overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
+        className="lg-card group relative block w-full overflow-hidden rounded-[24px] text-start text-white transition-[border-color,box-shadow] duration-200 hover:border-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
       >
-      {/* جلد — تامنیل آپلودی: دایرهٔ کرو با فاصله از بوردر کارت؛ بدون تامنیل: جلد رنگی دسته‌بندی */}
+      <span aria-hidden className="lg-spec" />
+      {/* جلد — قاب شیشه‌ای داخلی: تامنیل/جلد دسته با گوشهٔ کرو و فاصلهٔ یکسان از بوردر کارت */}
       {hasThumb ? (
         <span className="relative block px-3 pt-3">
-          <span className="relative mx-auto block h-[118px] w-[118px] overflow-hidden rounded-full border-2 border-bronze/55 bg-black/10 shadow-card transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.45)]">
+          <span className="relative mx-auto block h-[116px] w-full overflow-hidden rounded-[18px] bg-black/20 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)] transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.6)]">
             <img
               src={p.thumbnail}
               alt=""
@@ -506,14 +507,15 @@ function FeedCard({
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
             />
-            <span aria-hidden className="absolute inset-0 rounded-full ring-1 ring-inset ring-black/10" />
+            <span aria-hidden className="absolute inset-0 rounded-[18px] ring-1 ring-inset ring-white/25" />
           </span>
           <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
             {catLabel}
           </span>
         </span>
       ) : (
-      <span className={`relative block h-[116px] overflow-hidden bg-gradient-to-bl ${cover.bg}`}>
+      <span className="relative block px-3 pt-3">
+        <span className={`relative block h-[116px] w-full overflow-hidden rounded-[18px] bg-gradient-to-bl ${cover.bg}`}>
         <>
           <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
           <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
@@ -526,6 +528,7 @@ function FeedCard({
         <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
           {catLabel}
         </span>
+        </span>
       </span>
       )}
 
@@ -535,10 +538,10 @@ function FeedCard({
         </span>
         <span className="flex items-center gap-2">
           <UserAvatar src={p.author.avatarUrl} name={p.author.displayName} size="xs" />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-bold">{p.author.displayName}</span>
-          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-[#66756b]">{faDate(p.createdAt)}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-white/90">{p.author.displayName}</span>
+          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-white/55">{faDate(p.createdAt)}</span>
         </span>
-        <span className="flex items-center gap-2 border-t border-black/10 pt-2 text-[10px] font-semibold text-[#66756b]">
+        <span className="flex items-center gap-2 border-t border-white/15 pt-2 text-[10px] font-semibold text-white/60">
           <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
           <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
           {!!p.rating?.count && (
@@ -550,7 +553,7 @@ function FeedCard({
 
       {/* دکمهٔ دانلود آفلاین — لایهٔ شناور گوشهٔ جلد */}
       <span className="absolute end-2 top-2 z-10">
-        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} className="!h-8 !w-8 shadow-card backdrop-blur" />
+        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} variant="glass" className="!h-8 !w-8 shadow-card backdrop-blur" />
       </span>
     </div>
   );
@@ -558,8 +561,8 @@ function FeedCard({
 
 function FeedCardSkeleton() {
   return (
-    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-2xl border border-white/10 bg-white/[0.05] sm:w-[268px]">
-      <span className="block h-[104px] bg-white/10" />
+    <span className="block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] border border-white/15 bg-white/[0.07] sm:w-[268px]">
+      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[18px] bg-white/10" /></span>
       <span className="block space-y-2 p-3.5">
         <span className="block h-3.5 w-4/5 rounded bg-white/15" />
         <span className="block h-3 w-2/5 rounded bg-white/10" />
