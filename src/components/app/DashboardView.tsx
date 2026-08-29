@@ -432,7 +432,7 @@ function LatestPosts() {
   );
 }
 
-/** کارت مطلب — جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
+/** کارت مطلب — تامنیل آپلودی استاد اگر بود، وگرنه جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
 function FeedCard({
   p,
 }: {
@@ -441,6 +441,7 @@ function FeedCard({
     rating?: { avg: number; count: number };
     categories?: string[];
     category?: string;
+    thumbnail?: string;
     author: { id: string; displayName: string; avatarUrl?: string | null };
   };
 }) {
@@ -450,22 +451,39 @@ function FeedCard({
   const catLabel = categoryLabelOf(cat);
   // برآورد زمان مطالعه از حجم خلاصه — تشریفاتی ولی منطقی
   const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
+  const hasThumb = typeof p.thumbnail === "string" && p.thumbnail.trim() !== "";
 
   return (
     <button
       onClick={() => navigate({ view: "post", id: p.id })}
       className="group w-[240px] shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze sm:w-[268px]"
     >
-      {/* جلد دسته‌بندی */}
-      <span className={`relative block h-[104px] bg-gradient-to-bl ${cover.bg}`}>
-        <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
-        <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
-          {p.title.slice(0, 1)}
-        </span>
-        <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
-          <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
-        </span>
-        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+      {/* جلد — تصویر شاخص آپلودی یا جلد رنگی دسته‌بندی */}
+      <span className={`relative block h-[116px] overflow-hidden ${hasThumb ? "bg-black/10" : `bg-gradient-to-bl ${cover.bg}`}`}>
+        {hasThumb ? (
+          <>
+            <img
+              src={p.thumbnail}
+              alt=""
+              dir="ltr"
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.06]"
+            />
+            <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+            <span aria-hidden className="absolute inset-0 ring-1 ring-inset ring-black/10" />
+          </>
+        ) : (
+          <>
+            <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+            <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
+              {p.title.slice(0, 1)}
+            </span>
+            <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+              <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+            </span>
+          </>
+        )}
+        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
           {catLabel}
         </span>
       </span>

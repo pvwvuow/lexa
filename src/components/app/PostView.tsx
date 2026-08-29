@@ -20,6 +20,7 @@ interface PostData {
   summary: string;
   tags: string;
   category?: string;
+  thumbnail?: string;
   blocks: LessonSection[];
   createdAt: string;
   updatedAt: string;
@@ -231,6 +232,17 @@ export function PostView({ id }: { id: string }) {
 
         <h1 className="mt-4 text-2xl font-extrabold leading-relaxed">{data.title}</h1>
         {data.summary && <p className="mt-2 leading-loose text-muted-foreground">{data.summary}</p>}
+
+        {/* تصویر شاخص آپلودی استاد */}
+        {typeof data.thumbnail === "string" && data.thumbnail.trim() !== "" && (
+          <img
+            src={data.thumbnail}
+            alt=""
+            dir="ltr"
+            loading="lazy"
+            className="mt-4 max-h-[340px] w-full rounded-2xl border border-border object-cover shadow-card"
+          />
+        )}
 
         {/* امتیاز به این مطلب */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border/70 bg-card px-4 py-2.5 shadow-card">

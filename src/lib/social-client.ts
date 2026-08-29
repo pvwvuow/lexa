@@ -26,6 +26,7 @@ export interface FeedPost {
   tags: string;
   category?: string;
   categories?: string[];
+  thumbnail?: string;
   createdAt: string;
   updatedAt: string;
   commentsCount: number;
