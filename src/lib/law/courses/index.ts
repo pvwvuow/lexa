@@ -1,5 +1,6 @@
 import type { Chapter, Course, Lesson } from '../types';
 import { criminalPrivate, criminalPublic, intlPublic1, intlPublic2, intlPublic3, intlPrivate1 } from './new-courses-2025';
+import { tadrisJaza1 } from './tadris-jaza';
 import { lessonM1L1 } from './madani1-l1';
 import { lessonM1L2 } from './madani1-l2';
 import { lessonM1L3 } from './madani1-l3';
@@ -235,4 +236,5 @@ export const builtinCourses: Course[] = [
   intlPublic2,
   intlPublic3,
   intlPrivate1,
+  tadrisJaza1,
 ];

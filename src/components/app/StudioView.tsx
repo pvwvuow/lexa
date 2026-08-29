@@ -18,14 +18,14 @@ import { useAuth } from "@/lib/auth-client";
 import { useTCourses } from "@/lib/social-client";
 import {
   QuizEditor, ThumbnailPicker,
-  draftToQuizPayload, quizPayloadToDraft, emptyQuestion,
+  draftToQuizPayload, emptyQuestion,
   type QuizDraft,
 } from "./studio-widgets";
 
 /* ─── ابزار فرم ── */
-const inputCls =
+export const inputCls =
   "w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-bronze placeholder:text-muted-foreground/50";
-const labelCls = "mb-1 block text-[11.5px] font-bold text-muted-foreground";
+export const labelCls = "mb-1 block text-[11.5px] font-bold text-muted-foreground";
 
 function newBlock(type: string): LessonSection {
   const id = `b-${Math.random().toString(36).slice(2, 9)}`;
@@ -56,7 +56,7 @@ const PALETTE = [
   { type: "question", label: "سؤال تعاملی", Icon: HelpCircle },
 ] as const;
 
-const LABEL_OF: Record<string, string> = {
+export const LABEL_OF: Record<string, string> = {
   intro: "درآمد",
   concept: "پاراگراف / مفهوم",
   law: "مستند قانونی",
@@ -248,11 +248,11 @@ function Modal({ open, onClose, children, wide }: { open: boolean; onClose: () =
 }
 
 /* ═══ ویرایشگر مطلب ══════════════════════════════════════════════════════════ */
-interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; categories: string[]; blocks: LessonSection[]; thumbnail: string; quiz: QuizDraft[] }
-const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", categories: [], blocks: [], thumbnail: "", quiz: [] };
+export interface PostDraft { id?: string; title: string; summary: string; tags: string; category: string; categories: string[]; blocks: LessonSection[]; thumbnail: string; quiz: QuizDraft[] }
+export const EMPTY_POST: PostDraft = { title: "", summary: "", tags: "", category: "", categories: [], blocks: [], thumbnail: "", quiz: [] };
 
 /** چیپ‌های انتخاب چندشاخه — استاد می‌تواند هر چند گزینه که خواست انتخاب کند */
-function CategoryChips({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+export function CategoryChips({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {CATEGORIES.map((c) => {
@@ -353,15 +353,15 @@ export function PostEditor({ draft, onClose, onSaved }: { draft: PostDraft | nul
 }
 
 /* ═══ ویرایشگر دورهٔ آنلاین ══════════════════════════════════════════════════ */
-interface TLesson { key: string; title: string; minutes?: number; sections: LessonSection[]; quiz: QuizDraft[] }
-interface TChapter { key: string; title: string; lessons: TLesson[]; quiz: QuizDraft[] }
-interface CourseDraft {
+export interface TLesson { key: string; title: string; minutes?: number; sections: LessonSection[]; quiz: QuizDraft[] }
+export interface TChapter { key: string; title: string; lessons: TLesson[]; quiz: QuizDraft[] }
+export interface CourseDraft {
   id?: string; title: string; tagline: string; description: string;
   icon: string; accent: string; category: string; categories: string[]; status: string; thumbnail?: string; chapters: TChapter[];
 }
 
-const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", thumbnail: "", chapters: [] };
-const uid = () => Math.random().toString(36).slice(2, 9);
+export const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", thumbnail: "", chapters: [] };
+export const uid = () => Math.random().toString(36).slice(2, 9);
 
 /** سه حالت انتشار دوره */
 const COURSE_STATUS: { key: string; label: string; desc: string }[] = [
@@ -604,8 +604,6 @@ export function StudioView() {
   const { courses: myCourses, reload: reloadCourses } = useTCourses(true);
   const [posts, setPosts] = React.useState<MyPost[]>([]);
   const [tab, setTab] = React.useState<"posts" | "courses">("posts");
-  const [postDraft, setPostDraft] = React.useState<PostDraft | null>(null);
-  const [courseDraft, setCourseDraft] = React.useState<CourseDraft | null>(null);
   const [busyId, setBusyId] = React.useState("");
 
   const loadPosts = React.useCallback(async () => {
@@ -655,41 +653,7 @@ export function StudioView() {
     setBusyId("");
   }
 
-  /** بارگذاری مطلب برای ویرایش */
-  async function editPost(id: string) {
-    try {
-      const res = await fetch(`/api/posts/${id}`);
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error);
-      setPostDraft({
-        id: j.post.id, title: j.post.title, summary: j.post.summary, tags: j.post.tags,
-        category: j.post.category ?? "",
-        categories: Array.isArray(j.post.categories) ? j.post.categories : (j.post.category ? [j.post.category] : []),
-        blocks: (j.post.blocks as LessonSection[]) ?? [],
-        thumbnail: typeof j.post.thumbnail === "string" ? j.post.thumbnail : "",
-        quiz: quizPayloadToDraft(Array.isArray(j.post.quiz) ? j.post.quiz : []),
-      });
-    } catch {}
-  }
-
-  /** بارگذاری دوره برای ویرایش — بازسازی جلوهٔ بلاک‌ها از Course */
-  async function editCourse(id: string) {
-    try {
-      const res = await fetch(`/api/tcourses/${id}`);
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error);
-      const c = j.course;
-      const chapters: TChapter[] = (c.chapters ?? []).map((ch: never) => {
-        const chc = ch as unknown as import("@/lib/law/types").Chapter;
-        return {
-          key: uid(),
-          title: chc.title,
-          lessons: chc.lessons.map((l) => ({ key: uid(), title: l.title, minutes: l.minutes, sections: (l.sections ?? []) as LessonSection[] })),
-        };
-      });
-      setCourseDraft({ id: c.id, title: c.title, tagline: c.tagline, description: c.description, icon: c.icon ?? "", accent: c.accent ?? "bronze", category: (c as unknown as { _category?: string })._category ?? "other", categories: ((c as unknown as { _categories?: string[] })._categories) ?? [(c as unknown as { _category?: string })._category ?? "other"], status: (c as unknown as { _status?: string })._status ?? "published", chapters });
-    } catch {}
-  }
+  /** بارگذاری مطلب برای ویرایش — صفحهٔ تمام‌صفحهٔ نوشتن خودش مطلب را واکشی می‌کند */
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pb-28 pt-6 sm:px-6">
@@ -722,13 +686,13 @@ export function StudioView() {
         ))}
         <span className="flex-1" />
         <button
-          onClick={() => setPostDraft({ ...EMPTY_POST })}
+          onClick={() => navigate({ view: "write", kind: "post", id: "new" })}
           className="inline-flex items-center gap-2 rounded-xl bg-bronze px-4 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
         >
           <Plus className="h-4 w-4" /> مطلب جدید
         </button>
         <button
-          onClick={() => setCourseDraft({ ...EMPTY_COURSE, chapters: [] })}
+          onClick={() => navigate({ view: "write", kind: "course", id: "new" })}
           className="inline-flex items-center gap-2 rounded-xl border border-bronze/50 bg-bronze/10 px-4 py-2.5 text-sm font-bold text-bronze transition-colors hover:bg-bronze/20"
         >
           <Plus className="h-4 w-4" /> دورهٔ جدید
@@ -755,7 +719,7 @@ export function StudioView() {
                 </p>
               </div>
               <button onClick={() => navigate({ view: "post", id: p.id })} className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:border-bronze hover:text-bronze">مشاهده</button>
-              <button onClick={() => editPost(p.id)} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
+              <button onClick={() => navigate({ view: "write", kind: "post", id: p.id })} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
               <button onClick={() => deletePost(p.id)} disabled={busyId === p.id} aria-label="حذف مطلب" className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40">
                 {busyId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </button>
@@ -779,7 +743,7 @@ export function StudioView() {
                 <p className="truncate text-sm font-bold">{c.title}</p>
                 <p className="text-[10.5px] text-muted-foreground">{fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو کتابخانه کرده</p>
               </div>
-              <button onClick={() => editCourse(c.id)} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
+              <button onClick={() => navigate({ view: "write", kind: "course", id: c.id })} className="rounded-lg border border-bronze/40 px-3 py-1.5 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/10">ویرایش</button>
               <button onClick={() => deleteCourse(c.id)} disabled={busyId === c.id} aria-label="حذف دوره" className="rounded-lg p-1.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-40">
                 {busyId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </button>
@@ -787,9 +751,6 @@ export function StudioView() {
           ))}
         </section>
       )}
-
-      <PostEditor draft={postDraft} onClose={() => setPostDraft(null)} onSaved={() => void loadPosts()} />
-      <CourseEditor draft={courseDraft} onClose={() => setCourseDraft(null)} onSaved={() => void reloadCourses()} />
     </div>
   );
 }

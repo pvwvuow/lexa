@@ -544,7 +544,7 @@ function WriteCoursePage({ id }: { id?: string }) {
                 <label className={labelCls}>توضیح دوره</label>
                 <textarea value={d.description} onChange={(e) => mutate((x) => ({ ...x, description: e.target.value }))} rows={3} maxLength={2000} className={`${inputCls} resize-y`} />
               </div>
-              <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))} />
+              <ThumbnailPicker value={d.thumbnail ?? ""} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))} />
               <div>
                 <label className={labelCls}>شاخه‌های کتابخانهٔ عمومی (چند گزینه مجاز است)</label>
                 <CategoryChips

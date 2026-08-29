@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText,
+  LibraryBig, Landmark, Menu, ScrollText, ListTree,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
@@ -33,6 +33,9 @@ import { PostView } from "./PostView";
 import { PublicLibraryView } from "./PublicLibraryView";
 import { TeacherProfileView } from "./TeacherProfileView";
 import { LawLibraryView } from "./LawLibraryView";
+import { StudyListView } from "./StudyListView";
+import { StudioWriteView } from "./StudioWriteView";
+import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -163,7 +166,7 @@ export function AppShell() {
     } catch {}
   }, []);
 
-  const isSubPage = ["learn", "quiz", "case", "admin", "studio"].includes(route.view) || route.view === "cards";
+  const isSubPage = ["learn", "quiz", "case", "admin", "studio", "write"].includes(route.view) || route.view === "cards";
 
   // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
   React.useEffect(() => {
@@ -240,6 +243,9 @@ export function AppShell() {
     >
       <nav aria-label="ناوبری اصلی" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         <SideItem icon={Home} label="خانه" rail={rail} active={current === "home"} onClick={() => go({ view: "home" })} />
+
+        {/* فهرست مطالعه — فهرست منظم همهٔ دوره‌ها و درس‌ها */}
+        <SideItem icon={ListTree} label="فهرست مطالعه" rail={rail} active={current === "study"} onClick={() => go({ view: "study" })} />
 
         {/* مطالعه — با فهرست کشویی درس‌ها */}
         <SideItem
@@ -417,9 +423,11 @@ export function AppShell() {
           </div>
         )}
         {route.view === "home" && <DashboardView />}
+          {route.view === "study" && <StudyListView />}
           {route.view === "course" && <CourseView id={route.id} />}
           {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
-          {route.view === "quiz" && <QuizView key={route.id ?? "mixed"} id={route.id} />}
+          {route.view === "quiz" && route.id?.startsWith("pack-") && <ExamPackRoute packId={route.id} />}
+          {route.view === "quiz" && !route.id?.startsWith("pack-") && <QuizView key={route.id ?? "mixed"} id={route.id} />}
           {route.view === "case" && <CaseStudyView id={route.id} />}
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "progress" && <ProgressView />}
@@ -427,6 +435,7 @@ export function AppShell() {
           {route.view === "import" && <ImportView />}
           {route.view === "teachers" && <TeachersView />}
           {route.view === "studio" && <StudioView />}
+          {route.view === "write" && <StudioWriteView kind={route.kind} id={route.id} />}
           {route.view === "post" && <PostView id={route.id} />}
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
@@ -475,6 +484,7 @@ export function AppShell() {
             </SheetHeader>
             <div className="flex flex-1 flex-col gap-1">
               <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
+              <SideItem icon={ListTree} label="فهرست مطالعه" rail={false} active={current === "study"} onClick={() => go({ view: "study" })} />
               <SideItem
                 icon={BookOpen}
                 label="مطالعه"
