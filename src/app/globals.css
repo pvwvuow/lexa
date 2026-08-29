@@ -251,6 +251,16 @@
     0 12px 32px -14px rgb(23 32 28 / 0.18);
 }
 
+/* آزمایشگاه طرح خانه — والپاپر آۆراییِ محلی برای پیش‌نمایش تم شیشه‌ای
+   داخل یک قاب محدودشده (همان گرادیان‌های .theme-glass body، این‌بار روی خود قاب) */
+.lab-glass-wallpaper {
+  background:
+    radial-gradient(1000px 640px at 10% -10%, rgb(150 200 172 / 0.50), transparent 62%),
+    radial-gradient(900px 600px at 92% 8%, rgb(233 211 160 / 0.46), transparent 64%),
+    radial-gradient(1100px 760px at 46% 112%, rgb(157 197 218 / 0.36), transparent 62%),
+    linear-gradient(180deg, #f2f5ee, #ebefe7);
+}
+
 html {
   font-family: var(--font-display);
 }
