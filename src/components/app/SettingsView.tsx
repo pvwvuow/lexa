@@ -5,6 +5,7 @@ import * as React from "react";
 import {
   KeyRound, Bot, Wand2, ShieldCheck, Loader2, CheckCircle2,
   UserCog, Upload, Trash2, Camera, GraduationCap, User as UserIcon, Save, WifiOff,
+  Palette, Sun, Moon, Droplets,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import type { AiProvider } from "@/lib/store";
@@ -13,6 +14,7 @@ import { useAuth } from "@/lib/auth-client";
 import { fa } from "@/lib/fa";
 import { UserAvatar } from "./common";
 import { OfflineSettings } from "./OfflineSettings";
+import { applyTheme, readStoredTheme, type AppTheme } from "./theme-provider";
 
 type Tab = "general" | "ai" | "offline";
 
@@ -43,8 +45,94 @@ export function SettingsView() {
         ))}
       </div>
 
+      {/* انتخاب تم — همیشه نمایان */}
+      <ThemePicker />
+
       {tab === "general" ? <GeneralSettings /> : tab === "ai" ? <AiSettings /> : <OfflineSettings />}
     </div>
+  );
+}
+
+/* ═══ انتخاب تم — روز / شب / شیشه‌ای (همیشه نمایان، حتی بدون ورود) ═════════ */
+
+const THEME_OPTIONS: {
+  key: AppTheme;
+  title: string;
+  desc: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  preview: string;
+  chip: string;
+}[] = [
+  {
+    key: "light",
+    title: "روز",
+    desc: "آلاباستر گرم و یشمی عمیق",
+    Icon: Sun,
+    preview: "bg-gradient-to-br from-[#f5f3ed] to-[#e9e6dc]",
+    chip: "bg-[#1d4b40]",
+  },
+  {
+    key: "dark",
+    title: "شب",
+    desc: "زغالی با ته‌مایهٔ سبز و برنج براق",
+    Icon: Moon,
+    preview: "bg-gradient-to-br from-[#101512] to-[#232b26]",
+    chip: "bg-[#2a604f]",
+  },
+  {
+    key: "glass",
+    title: "شیشه‌ای",
+    desc: "شیشهٔ مایع کامل روی والپاپر آۆرایی",
+    Icon: Droplets,
+    preview: "bg-[radial-gradient(120px_80px_at_20%_0%,rgba(150,200,172,0.55),transparent),radial-gradient(120px_80px_at_100%_60%,rgba(233,211,160,0.55),transparent),linear-gradient(160deg,#f2f5ee,#e7ede4)]",
+    chip: "bg-white/60 ring-1 ring-white/90 backdrop-blur",
+  },
+];
+
+function ThemePicker() {
+  const [theme, setThemeState] = React.useState<AppTheme>("light");
+  React.useEffect(() => {
+    setThemeState(readStoredTheme());
+  }, []);
+  const pick = (t: AppTheme) => {
+    applyTheme(t);
+    setThemeState(t);
+  };
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+      <h2 className="flex items-center gap-2 font-bold"><Palette className="h-5 w-5 text-bronze" /> تم و ظاهر</h2>
+      <p className="mb-4 mt-1 text-xs leading-relaxed text-muted-foreground">
+        حالت نمایش برنامه را انتخاب کن؛ انتخاب تو روی همین دستگاه ذخیره می‌شود.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {THEME_OPTIONS.map(({ key, title, desc, Icon, preview, chip }) => {
+          const selected = theme === key;
+          return (
+            <button
+              key={key}
+              onClick={() => pick(key)}
+              aria-pressed={selected}
+              className={`rounded-2xl border p-3 text-start transition-all duration-200 ${
+                selected
+                  ? "border-bronze bg-gradient-to-l from-bronze/[0.09] to-transparent ring-1 ring-inset ring-bronze/30"
+                  : "border-border bg-background/50 hover:-translate-y-px hover:border-bronze/50"
+              }`}
+            >
+              <span className={`relative mb-2.5 block h-16 overflow-hidden rounded-xl border border-border/60 shadow-inner ${preview}`}>
+                <span className={`absolute end-2 top-2 h-3.5 w-3.5 rounded-full ${chip}`} />
+                <span className="absolute bottom-2 start-2 end-8 h-4 rounded-md bg-white/55 ring-1 ring-white/70 backdrop-blur-[2px]" />
+              </span>
+              <span className="flex items-center gap-1.5 text-sm font-bold">
+                <Icon className={`h-4 w-4 ${selected ? "text-bronze" : "text-muted-foreground"}`} />
+                {title}
+                {key === "glass" && <span className="rounded-full bg-bronze/15 px-1.5 py-px text-[9px] font-extrabold text-bronze">جدید</span>}
+              </span>
+              <span className="mt-0.5 block text-[10.5px] leading-relaxed text-muted-foreground">{desc}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

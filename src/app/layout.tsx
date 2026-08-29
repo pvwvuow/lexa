@@ -22,6 +22,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning>
+      <head>
+        {/* اعمال زودهنگام تم (روز/شب/شیشه‌ای) قبل از اولین رنگ‌آمیزی — بدون فلش */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("hh-theme")||localStorage.getItem("theme")||"light";var c=document.documentElement.classList;if(t==="dark")c.add("dark");else if(t==="glass")c.add("theme-glass");}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="antialiased bg-background text-foreground min-h-screen flex flex-col">
         <ThemeProvider>{children}</ThemeProvider>
         <SwRegister />

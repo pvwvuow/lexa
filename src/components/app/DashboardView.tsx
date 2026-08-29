@@ -251,6 +251,29 @@ export function DashboardView() {
   );
 }
 
+/* ─── دکمهٔ طلایی CTA — همان جنس دکمهٔ روز/شب (گرادیان طلایی + برق شیشه‌ای) ── */
+
+function GoldCta({
+  icon: Icon, children, onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="group relative mt-1 inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-br from-[#ecd29a] via-[#cda65e] to-[#8a6a30] px-5 py-2.5 text-sm font-bold text-[#1b1408] shadow-[0_3px_12px_-3px_rgba(205,166,94,0.65),inset_0_1px_0_rgba(255,255,255,0.5)] ring-1 ring-[#f6e7c1]/70 transition-all duration-300 hover:shadow-[0_5px_18px_-3px_rgba(205,166,94,0.85),inset_0_1px_0_rgba(255,255,255,0.55)] hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-white/80 active:scale-[.98]"
+    >
+      {/* برق شیشه‌ای روی گرادیان طلایی */}
+      <span aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/5 to-black/15" />
+      <span aria-hidden className="pointer-events-none absolute -top-1/2 start-[-20%] h-[180%] w-2/3 rotate-12 bg-white/25 blur-[6px] transition-transform duration-500 group-hover:translate-x-[120%]" />
+      <Icon className="relative h-[18px] w-[18px]" />
+      <span className="relative">{children}</span>
+    </button>
+  );
+}
+
 /* ═══ هیروی کربنی v3 — بدون حلقهٔ پیشرفت؛ صحنهٔ تئاتری تک‌آیتم تایم‌دار ═══ */
 
 type StageItem =
@@ -294,13 +317,9 @@ function HeroPanel({
               <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
                 <span className="font-semibold text-bronze">{resumeTarget.courseTitle}</span> · {resumeTarget.lesson.title}
               </p>
-              <button
-                onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}
-                className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
-              >
-                <PlayCircle className="h-[18px] w-[18px]" />
+              <GoldCta icon={PlayCircle} onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}>
                 ادامه یادگیری
-              </button>
+              </GoldCta>
             </>
           ) : (
             <>
@@ -308,13 +327,9 @@ function HeroPanel({
               <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
                 یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
               </p>
-              <button
-                onClick={() => navigate({ view: "library" })}
-                className="mt-1 inline-flex items-center gap-2 rounded-xl bg-bronze px-5 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
-              >
-                <LibraryBig className="h-[18px] w-[18px]" />
+              <GoldCta icon={LibraryBig} onClick={() => navigate({ view: "library" })}>
                 انتخاب درس از کتابخانه
-              </button>
+              </GoldCta>
             </>
           )}
           <div className="flex flex-wrap gap-2 pt-1.5">
@@ -326,14 +341,14 @@ function HeroPanel({
         {/* مرکز آزمون — ورودی مستقیم دفترچه‌های آماده (تستی و تشریحی) */}
         <button
           onClick={() => navigate({ view: "quiz", id: "packs" })}
-          className="lg-card group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start transition-[border-color,box-shadow] duration-200 hover:border-white/55"
+          className="feed-card group flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start transition-[border-color,box-shadow] duration-200"
         >
-          <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-white/30 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
-            <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-white" />
+          <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-border bg-primary/5 shadow-card transition-transform duration-200 group-hover:scale-110">
+            <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-bronze" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[13.5px] font-extrabold text-white">مرکز آزمون</span>
-            <span className="block text-[11px] leading-relaxed text-white/75">دفترچه‌های آمادهٔ تستی زمان‌سنج و تشریحی با پاسخ نمونه</span>
+            <span className="block text-[13.5px] font-extrabold text-foreground">مرکز آزمون</span>
+            <span className="block text-[11px] leading-relaxed text-muted-foreground">دفترچه‌های آمادهٔ تستی زمان‌سنج و تشریحی با پاسخ نمونه</span>
           </span>
           <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
         </button>
@@ -493,9 +508,8 @@ function FeedCard({
     <div className="relative w-[240px] shrink-0 snap-start sm:w-[268px]">
       <button
         onClick={() => navigate({ view: "post", id: p.id })}
-        className="lg-card group relative block w-full overflow-hidden rounded-[24px] text-start text-white transition-[border-color,box-shadow] duration-200 hover:border-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        className="feed-card group relative block w-full overflow-hidden rounded-[24px] text-start text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze/70"
       >
-      <span aria-hidden className="lg-spec" />
       {/* جلد — قاب شیشه‌ای داخلی: تامنیل/جلد دسته با گوشهٔ کرو و فاصلهٔ یکسان از بوردر کارت */}
       {hasThumb ? (
         <span className="relative block px-3 pt-3">
@@ -538,10 +552,10 @@ function FeedCard({
         </span>
         <span className="flex items-center gap-2">
           <UserAvatar src={p.author.avatarUrl} name={p.author.displayName} size="xs" />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-white/90">{p.author.displayName}</span>
-          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-white/55">{faDate(p.createdAt)}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-foreground/80">{p.author.displayName}</span>
+          <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">{faDate(p.createdAt)}</span>
         </span>
-        <span className="flex items-center gap-2 border-t border-white/15 pt-2 text-[10px] font-semibold text-white/60">
+        <span className="flex items-center gap-2 border-t border-border/70 pt-2 text-[10px] font-semibold text-muted-foreground">
           <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
           <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
           {!!p.rating?.count && (
@@ -561,12 +575,12 @@ function FeedCard({
 
 function FeedCardSkeleton() {
   return (
-    <span className="lg-skeleton block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] sm:w-[268px]">
-      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[14px] bg-white/10" /></span>
+    <span className="feed-card block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] sm:w-[268px]">
+      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[14px] bg-black/[0.06]" /></span>
       <span className="block space-y-2 p-3.5">
-        <span className="block h-3.5 w-4/5 rounded bg-white/15" />
-        <span className="block h-3 w-2/5 rounded bg-white/10" />
-        <span className="block h-2.5 w-3/5 rounded bg-white/[0.08]" />
+        <span className="block h-3.5 w-4/5 rounded bg-black/[0.09]" />
+        <span className="block h-3 w-2/5 rounded bg-black/[0.06]" />
+        <span className="block h-2.5 w-3/5 rounded bg-black/[0.05]" />
       </span>
     </span>
   );
