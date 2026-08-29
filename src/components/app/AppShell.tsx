@@ -81,7 +81,9 @@ function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.Component
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={`relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors duration-200 ${
-        active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+        active
+          ? "bg-foreground/[0.07] text-primary shadow-[inset_0_1px_0.5px_-0.5px_rgba(255,255,255,0.55)] dark:bg-white/[0.14] dark:text-bronze"
+          : "text-muted-foreground hover:text-foreground"
       }`}
     >
       <Icon className="h-5 w-5" />
@@ -89,6 +91,33 @@ function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.Component
       {active && <span aria-hidden className="absolute -top-px h-0.5 w-6 rounded-full bg-gradient-to-l from-bronze to-primary" />}
     </button>
   );
+}
+
+/** تشخیص جهت اسکرول — اسکرول به پایین، نوار بالا/پایین را در موبایل پنهان می‌کند و اسکرول به بالا برمی‌گرداند */
+function useHideOnScroll(resetKey: unknown) {
+  const [hidden, setHidden] = React.useState(false);
+  React.useEffect(() => {
+    setHidden(false); // با هر جابه‌جایی مسیر، نوارها دیده می‌شوند
+  }, [resetKey]);
+  React.useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const delta = y - lastY;
+        lastY = y;
+        if (delta > 6 && y > 90) setHidden(true);
+        else if (delta < -6 || y <= 8) setHidden(false);
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return hidden;
 }
 
 function lessonPctOf(course: Course, progress: Record<string, { status?: string }>) {
@@ -115,6 +144,9 @@ export function AppShell() {
     [customCourses, tBooks, hiddenBuiltins],
   );
   const [mounted, setMounted] = React.useState(false);
+
+  // در موبایل با اسکرول به پایین نوار بالا و داک پایین جمع می‌شوند
+  const chromeHidden = useHideOnScroll(route);
 
   // منوی ستونی دسکتاپ: باز یا نوار باریک؛ انتخاب کاربر ماندگار است
   const [mode, setMode] = React.useState<NavMode>("expanded");
@@ -316,7 +348,11 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
-        <header className="sticky top-0 z-40 bg-background/0 px-2.5 pt-3 sm:px-5">
+        <header
+          className={`sticky top-0 z-40 bg-background/0 px-2.5 pt-3 transition-all duration-300 ease-out sm:px-5 ${
+            chromeHidden ? "max-lg:pointer-events-none max-lg:-translate-y-[135%] max-lg:opacity-0" : ""
+          }`}
+        >
           <div className="mx-auto max-w-7xl">
             <div className="relative flex h-14 items-center gap-2 overflow-hidden rounded-2xl border border-bronze/30 bg-gradient-to-l from-[#0d211a] via-[#143026] to-[#0d211a] px-2 shadow-card sm:gap-3 sm:px-3.5">
               <div aria-hidden className="pattern-quilt pointer-events-none absolute inset-0 opacity-40" />
@@ -403,9 +439,23 @@ export function AppShell() {
           همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
-        {/* داک شناور موبایل — با دکمهٔ «منو» برای دسترسی کامل به همهٔ بخش‌ها */}
-        <nav aria-label="ناوبری پایین" className="fixed inset-x-3 bottom-2 z-40 rounded-2xl border border-border/80 bg-card/95 shadow-card backdrop-blur-md lg:hidden pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto grid max-w-md grid-cols-5 p-1">
+        {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass) با شکست نور و حلقهٔ نور */}
+        <svg aria-hidden className="hidden" width="0" height="0" focusable="false">
+          <filter id="lg-displacement" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.011 0.02" numOctaves={2} seed={7} result="noise" />
+            <feGaussianBlur in="noise" stdDeviation={1} result="soft" />
+            <feDisplacementMap in="SourceGraphic" in2="soft" scale={62} xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
+        <nav
+          aria-label="ناوبری پایین"
+          className={`lg-dock fixed inset-x-3 bottom-2 z-40 rounded-[26px] transition-all duration-300 ease-out lg:hidden pb-[env(safe-area-inset-bottom)] ${
+            chromeHidden ? "max-lg:pointer-events-none max-lg:translate-y-[160%] max-lg:opacity-0" : ""
+          }`}
+        >
+          <div aria-hidden className="lg-refract" />
+          <div aria-hidden className="lg-spec" />
+          <div className="relative mx-auto grid max-w-md grid-cols-5 p-1">
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage} onClick={dockTadriss} />
             <DockBtn icon={ClipboardList} label="تست" active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />

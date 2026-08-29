@@ -357,7 +357,7 @@ interface TLesson { key: string; title: string; minutes?: number; sections: Less
 interface TChapter { key: string; title: string; lessons: TLesson[]; quiz: QuizDraft[] }
 interface CourseDraft {
   id?: string; title: string; tagline: string; description: string;
-  icon: string; accent: string; category: string; categories: string[]; status: string; chapters: TChapter[];
+  icon: string; accent: string; category: string; categories: string[]; status: string; thumbnail?: string; chapters: TChapter[];
 }
 
 const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", thumbnail: "", chapters: [] };
@@ -442,7 +442,7 @@ export function CourseEditor({ draft, onClose, onSaved }: { draft: CourseDraft |
         </div>
 
         {/* تصویر شاخص دلخواه دوره */}
-        <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))} />
+        <ThumbnailPicker value={d.thumbnail ?? ""} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))} />
 
         {/* شاخه و وضعیت انتشار */}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -666,6 +666,8 @@ export function StudioView() {
         category: j.post.category ?? "",
         categories: Array.isArray(j.post.categories) ? j.post.categories : (j.post.category ? [j.post.category] : []),
         blocks: (j.post.blocks as LessonSection[]) ?? [],
+        thumbnail: typeof j.post.thumbnail === "string" ? j.post.thumbnail : "",
+        quiz: quizPayloadToDraft(Array.isArray(j.post.quiz) ? j.post.quiz : []),
       });
     } catch {}
   }
