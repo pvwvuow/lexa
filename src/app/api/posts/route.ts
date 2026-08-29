@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   if (me.role !== "teacher" && me.role !== "admin")
     return NextResponse.json({ error: "انتشار مطلب ویژهٔ اساتید است." }, { status: 403 });
 
-  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown; categories?: unknown };
+  let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown; categories?: unknown; thumbnail?: unknown; quiz?: unknown };
   try {
     body = await req.json();
   } catch {

@@ -1,5 +1,5 @@
 // ─── ابزارهای مشترک شبکهٔ اساتید (سمت سرور) ───────────────────────────────────
-import type { Course, Chapter, Lesson, LessonSection } from "@/lib/law/types";
+import type { Course, Chapter, Lesson, LessonSection, QuizQuestion } from "@/lib/law/types";
 
 export interface AuthorMeta {
   id: string;
