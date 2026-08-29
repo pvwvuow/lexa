@@ -1,5 +1,5 @@
 /*
- * همیار حقوق — Service Worker (v7)
+ * همیار حقوق — Service Worker (v8)
  * راهبرد: پوستهٔ طراحی (HTML/JS/CSS/فونت/تصاویر) کش می‌شود تا سایت آفلاین هم با همان
  * ظاهر بالا بیاید؛ ولی پاسخ‌های JSON مسیر /api/* هرگز کش نمی‌شوند — مطالبِ سروری فقط
  * با «ذخیرهٔ تک‌تک مطالب/دوره‌ها» در دسترس می‌مانند.
@@ -21,7 +21,7 @@
  * v3 — رفع «آفلاین باز نمی‌شود»: کش دارایی‌های ارجاع‌شده در HTML پوسته + timeout race
  * برای برگشت سریع به کش در نبود اینترنت + پس‌افت ناوبری با ignoreSearch.
  */
-const VERSION = "hh-pwa-v7";
+const VERSION = "hh-pwa-v8";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;

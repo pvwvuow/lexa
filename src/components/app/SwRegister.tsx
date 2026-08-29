@@ -20,5 +20,38 @@ export function SwRegister() {
     return () => window.clearInterval(iv);
   }, []);
 
+  // ── خودرفرش پس از آپگرید سرویس‌ورکر ──────────────────────────────────────
+  // اگر صفحه با سرویس‌ورکر «کهنه» بالا آمده باشد و سرویس‌ورکر «تازه» کنترل را
+  // بگیرد (skipWaiting + clients.claim)، همین بار صفحه رفرش می‌شود تا پوستهٔ
+  // جدید بلافاصله دیده شود — کاربر دیگر نسخهٔ کهنهٔ کش‌شده نمی‌بیند.
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    // اگر صفحه از ابتدا تحت کنترل هیچ SW نبود (اولین بازدید)، رفرش لازم نیست
+    let hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    const onControllerChange = () => {
+      if (reloading || !hadController) {
+        hadController = true;
+        return;
+      }
+      try {
+        if (sessionStorage.getItem("hh-sw-refresh") === "1") return;
+        sessionStorage.setItem("hh-sw-refresh", "1");
+      } catch { /* حالت خصوصی مرورگر — بی‌خیال گارد */ }
+      reloading = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+  }, []);
+
+  // پرچم گاردِ رفرش پس از چند ثانیه پاک می‌شود تا آپگریدهای بعدیِ همان تب هم کار کنند
+  React.useEffect(() => {
+    const t = window.setTimeout(() => {
+      try { sessionStorage.removeItem("hh-sw-refresh"); } catch {}
+    }, 15_000);
+    return () => window.clearTimeout(t);
+  }, []);
+
   return null;
 }

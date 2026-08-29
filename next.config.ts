@@ -16,7 +16,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
+  /* نشانگر گرد «N» حالت توسعه در هیچ دستگاهی نشان داده نشود */
+  devIndicators: false,
   typescript: {
     ignoreBuildErrors: true,
   },
