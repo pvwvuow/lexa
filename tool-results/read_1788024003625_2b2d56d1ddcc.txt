@@ -1,0 +1,538 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { createPortal } from "react-dom";
+     5→import { Search, X, CornerDownLeft, GraduationCap, BookOpenText, Landmark } from "lucide-react";
+     6→import { navigate } from "@/lib/router";
+     7→import { fa } from "@/lib/fa";
+     8→import { flatLessons } from "@/lib/law/types";
+     9→import type { Course } from "@/lib/law/types";
+    10→import { LAW_CODES, type LawCode, type LawBook } from "@/lib/law/statutes";
+    11→import { fetchFullLaws } from "./LawLibraryView";
+    12→import { CourseIcon, UserAvatar } from "./common";
+    13→
+    14→/* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
+    15→function norm(s: string): string {
+    16→  return s
+    17→    .replace(/[ىي]/g, "ی")
+    18→    .replace(/ك/g, "ک")
+    19→    .replace(/[\u064B-\u0652\u200c]/g, "")
+    20→    .replace(/[\u06F0-\u06F9\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) & 0xf))
+    21→    .toLowerCase();
+    22→}
+    23→
+    24→interface Hit {
+    25→  courseId: string;
+    26→  courseTitle: string;
+    27→  icon?: string;
+    28→  chapterTitle: string;
+    29→  lessonId: string;
+    30→  lessonTitle: string;
+    31→  idx: number;
+    32→  total: number;
+    33→  score: number;
+    34→  snippet: string;
+    35→  at: number;
+    36→}
+    37→
+    38→/** نتیجهٔ استاد برای «جستجوی اسم استاد» */
+    39→interface TeacherHit {
+    40→  id: string;
+    41→  displayName: string;
+    42→  username: string;
+    43→  avatarUrl?: string | null;
+    44→  followers: number;
+    45→  postsCount: number;
+    46→  coursesCount: number;
+    47→  score: number;
+    48→}
+    49→
+    50→/** ساخت شاخص سبک از کل کتابخانه — یک‌بار به ازای تغییر آرایهٔ دوره‌ها */
+    51→function buildIndex(courses: Course[]) {
+    52→  const items: { c: Course; ch: string; l: { id: string; title: string }; flatIdx: number; total: number; hay: string; plain: string }[] = [];
+    53→  for (const c of courses) {
+    54→    const flats = flatLessons(c);
+    55→    const total = flats.length;
+    56→    flats.forEach(({ lesson, chapter }, i) => {
+    57→      let plain = `${lesson.title} ${chapter.title} ${c.title}`;
+    58→      for (const s of lesson.sections) {
+    59→        if (s.title) plain += ` ${s.title}`;
+    60→        if (s.body) plain += ` ${s.body}`;
+    61→        if (s.bullets) plain += ` ${s.bullets.join(" ")}`;
+    62→        if (s.law) for (const w of s.law) plain += ` ماده ${w.no} ${w.text}`;
+    63→        if (s.table) for (const r of s.table.rows) plain += ` ${r.join(" ")}`;
+    64→        if (s.questionText) plain += ` ${s.questionText}`;
+    65→      }
+    66→      for (const q of lesson.quiz.slice(0, 3)) plain += ` ${q.q}`;
+    67→      plain = plain.replace(/\s+/g, " ");
+    68→      items.push({ c, ch: chapter.title, l: { id: lesson.id, title: lesson.title }, flatIdx: i, total, hay: norm(plain), plain });
+    69→    });
+    70→  }
+    71→  return items;
+    72→}
+    73→
+    74→/** نتیجهٔ مادهٔ قانونی از کتابخانهٔ قوانین */
+    75→interface LawHit {
+    76→  lawId: string;
+    77→  lawTitle: string;
+    78→  icon: string;
+    79→  book: string;
+    80→  chapter: string;
+    81→  no: string;
+    82→  text: string;
+    83→  score: number;
+    84→  snippet: string;
+    85→}
+    86→
+    87→/** شاخص سبک قوانین — یک‌بار ساخته می‌شود و همیشه در حافظه می‌ماند؛ با متن کامل غنی‌تر می‌شود */
+    88→interface LawIndexItem { law: LawCode; no: string; text: string; book: string; chapter: string; hay: string; plain: string }
+    89→let LAW_INDEX: LawIndexItem[] | null = null;
+    90→function buildLawIndex(full?: Record<string, { books?: LawBook[] }> | null): LawIndexItem[] {
+    91→  const items: LawIndexItem[] = [];
+    92→  for (const law of LAW_CODES) {
+    93→    const fbooks = full?.[law.id]?.books;
+    94→    const books = fbooks?.length ? fbooks : law.books;
+    95→    const word = law.articleWord === "اصل" ? "اصل" : "ماده";
+    96→    for (const b of books)
+    97→      for (const ch of b.chapters)
+    98→        for (const a of ch.articles) {
+    99→          const plain = `${a.text}`.replace(/\s+/g, " ");
+   100→          items.push({ law, no: a.no, text: a.text, book: b.title, chapter: ch.title, hay: norm(`${law.title} ${word} ${a.no} ${plain}`), plain });
+   101→        }
+   102→  }
+   103→  return items;
+   104→}
+   105→
+   106→export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[]; variant?: "icon" | "bar" | "hero" }) {
+   107→  const [open, setOpen] = React.useState(false);
+   108→  const [rawQ, setRawQ] = React.useState("");
+   109→  // ورودی دیبانس می‌شود تا تایپ روان بماند
+   110→  const [q, setQ] = React.useState("");
+   111→  const [cursor, setCursor] = React.useState(0);
+   112→  const [indexReady, setIndexReady] = React.useState(false);
+   113→  const [teachersLoading, setTeachersLoading] = React.useState(false);
+   114→  const inputRef = React.useRef<HTMLInputElement>(null);
+   115→  const listRef = React.useRef<HTMLDivElement>(null);
+   116→  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+   117→
+   118→  React.useEffect(() => {
+   119→    if (debounceRef.current) clearTimeout(debounceRef.current);
+   120→    debounceRef.current = setTimeout(() => setQ(rawQ), 110);
+   121→    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+   122→  }, [rawQ]);
+   123→
+   124→  // ── اساتید (برای جستجوی اسم استاد)؛ مهمان هم آزاد است ──
+   125→  const [teachers, setTeachers] = React.useState<
+   126→    { id: string; displayName: string; username: string; avatarUrl?: string | null; followers: number; posts: number; courses: number }[]
+   127→  >([]);
+   128→
+   129→  const [index, setIndex] = React.useState<ReturnType<typeof buildIndex> | null>(null);
+   130→  const [lawIndex, setLawIndex] = React.useState<ReturnType<typeof buildLawIndex> | null>(null);
+   131→
+   132→  /* میانبرهای کیبورد: / یا Ctrl+K باز میکند؛ Esc میبندد */
+   133→  React.useEffect(() => {
+   134→    function onKey(e: KeyboardEvent) {
+   135→      const t = e.target as HTMLElement | null;
+   136→      const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+   137→      if (!typing && ((e.key === "/" && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"))) {
+   138→        e.preventDefault();
+   139→        setOpen(true);
+   140→      }
+   141→      if (e.key === "Escape") setOpen(false);
+   142→    }
+   143→    window.addEventListener("keydown", onKey);
+   144→    return () => window.removeEventListener("keydown", onKey);
+   145→  }, []);
+   146→
+   147→  // آماده‌سازی شاخص به صورت غیرمسدودکننده پس از باز شدن
+   148→  React.useEffect(() => {
+   149→    if (!open) return;
+   150→    setRawQ("");
+   151→    setQ("");
+   152→    setCursor(0);
+   153→    setIndex(null);
+   154→    setIndexReady(false);
+   155→    setTimeout(() => inputRef.current?.focus(), 40);
+   156→    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+   157→      ?? ((cb: () => void) => window.setTimeout(cb, 120));
+   158→    idle(() => {
+   159→      setIndex(buildIndex(courses));
+   160→      setLawIndex(buildLawIndex());
+   161→      setIndexReady(true);
+   162→    });
+   163→    // متن کامل قوانین برسد، شاخص قانونی غنی‌تر می‌شود
+   164→    fetchFullLaws().then((d) => {
+   165→      if (d && Object.keys(d).length) setLawIndex(buildLawIndex(d));
+   166→    });
+   167→    setTeachersLoading(true);
+   168→    fetch("/api/social/suggestions")
+   169→      .then((r) => (r.ok ? r.json() : null))
+   170→      .then((d: { teachers?: typeof teachers } | null) => {
+   171→        if (d?.teachers) setTeachers(d.teachers);
+   172→      })
+   173→      .catch(() => {})
+   174→      .finally(() => setTeachersLoading(false));
+   175→     
+   176→  }, [open]);
+   177→
+   178→  const hits: Hit[] = React.useMemo(() => {
+   179→    if (!indexReady || !index) return [];
+   180→    const tokens = q.trim().split(/\s+/).filter(Boolean).map(norm);
+   181→    if (tokens.length === 0) return [];
+   182→    const out: Hit[] = [];
+   183→    for (const it of index) {
+   184→      let ok = true;
+   185→      let sc = 0;
+   186→      for (const tk of tokens) {
+   187→        const i = it.hay.indexOf(tk);
+   188→        if (i === -1) { ok = false; break; }
+   189→        sc += 1 + Math.min((it.hay.split(tk).length - 1), 4);
+   190→      }
+   191→      if (!ok) continue;
+   192→      const nt = norm(it.l.title);
+   193→      for (const tk of tokens) if (nt.includes(tk)) sc += 3;
+   194→      // برش قطعهٔ متن
+   195→      const firstTok = norm(q.trim().split(/\s+/)[0] ?? "");
+   196→      let at = it.hay.indexOf(firstTok);
+   197→      if (at > it.plain.length) at = 0;
+   198→      const start = Math.max(0, at - 38);
+   199→      const raw = it.plain.slice(start, start + 130);
+   200→      out.push({
+   201→        courseId: it.c.id, courseTitle: it.c.title, icon: it.c.icon,
+   202→        chapterTitle: it.ch, lessonId: it.l.id, lessonTitle: it.l.title,
+   203→        idx: it.flatIdx + 1, total: it.total,
+   204→        score: sc, snippet: (start > 0 ? "…" : "") + raw.trim() + (start + 130 < it.plain.length ? "…" : ""), at,
+   205→      });
+   206→    }
+   207→    out.sort((a, b) => b.score - a.score);
+   208→    return out.slice(0, 24);
+   209→  }, [q, index, indexReady]);
+   210→
+   211→  /** مطابقت اساتید با عبارت — تطابق نام نمایشی/یوزرنیم؛ محبوبیت بیک سردسته */
+   212→  const teacherHits: TeacherHit[] = React.useMemo(() => {
+   213→    const tokens = q.trim().split(/\s+/).filter(Boolean).map(norm);
+   214→    if (tokens.length === 0 || teachers.length === 0) return [];
+   215→    const out: TeacherHit[] = [];
+   216→    for (const t of teachers) {
+   217→      const nameHay = norm(`${t.displayName} ${t.username}`);
+   218→      let ok = true;
+   219→      let sc = 0;
+   220→      for (const tk of tokens) {
+   221→        if (nameHay.includes(tk)) sc += 4;
+   222→        else { ok = false; break; }
+   223→      }
+   224→      if (!ok) continue;
+   225→      out.push({
+   226→        id: t.id, displayName: t.displayName, username: t.username,
+   227→        avatarUrl: t.avatarUrl ?? null, followers: t.followers,
+   228→        postsCount: t.posts, coursesCount: t.courses,
+   229→        score: sc + Math.min(t.followers, 12),
+   230→      });
+   231→    }
+   232→    return out.sort((a, b) => b.score - a.score).slice(0, 6);
+   233→  }, [q, teachers]);
+   234→
+   235→  /** مطابقت مواد قوانین با عبارت — از کتابخانهٔ قوانین */
+   236→  const lawHits: LawHit[] = React.useMemo(() => {
+   237→    const tokens = q.trim().split(/\s+/).filter(Boolean).map(norm);
+   238→    if (tokens.length === 0 || !lawIndex) return [];
+   239→    const out: LawHit[] = [];
+   240→    for (const it of lawIndex) {
+   241→      let ok = true;
+   242→      let sc = 0;
+   243→      for (const tk of tokens) {
+   244→        const i = it.hay.indexOf(tk);
+   245→        if (i === -1) { ok = false; break; }
+   246→        sc += 1 + Math.min((it.hay.split(tk).length - 1), 4);
+   247→      }
+   248→      if (!ok) continue;
+   249→      // تطبیق شمارهٔ ماده وزن بالا دارد (مثل «۲۲۰» یا «ماده ۲۲۰»)
+   250→      if (norm(`ماده ${it.no}`).includes(tokens.join(" "))) sc += 6;
+   251→      const firstTok = tokens[0];
+   252→      let at = it.hay.indexOf(firstTok);
+   253→      if (at > it.plain.length) at = 0;
+   254→      const start = Math.max(0, at - 42);
+   255→      const raw = it.plain.slice(start, start + 150);
+   256→      out.push({
+   257→        lawId: it.law.id, lawTitle: it.law.title, icon: it.law.icon,
+   258→        book: it.book, chapter: it.chapter, no: it.no, text: it.text,
+   259→        score: sc, snippet: (start > 0 ? "…" : "") + raw.trim() + (start + 150 < it.plain.length ? "…" : ""),
+   260→      });
+   261→    }
+   262→    return out.sort((a, b) => b.score - a.score).slice(0, 8);
+   263→  }, [q, lawIndex]);
+   264→
+   265→  type FlatHit = { kind: "teacher"; t: TeacherHit } | { kind: "law"; h: LawHit } | { kind: "lesson"; h: Hit };
+   266→  const flat: FlatHit[] = React.useMemo(
+   267→    () => [
+   268→      ...teacherHits.map((t) => ({ kind: "teacher" as const, t })),
+   269→      ...lawHits.map((h) => ({ kind: "law" as const, h })),
+   270→      ...hits.map((h) => ({ kind: "lesson" as const, h })),
+   271→    ],
+   272→    [teacherHits, lawHits, hits],
+   273→  );
+   274→
+   275→  function go(item: FlatHit) {
+   276→    setOpen(false);
+   277→    if (item.kind === "teacher") navigate({ view: "teacher", id: item.t.id });
+   278→    else if (item.kind === "law") navigate({ view: "law", id: item.h.lawId });
+   279→    else navigate({ view: "learn", id: item.h.lessonId });
+   280→  }
+   281→
+   282→  function onKeyDownList(e: React.KeyboardEvent) {
+   283→    if (e.key === "ArrowDown") { e.preventDefault(); setCursor((v) => Math.min(v + 1, Math.max(0, flat.length - 1))); }
+   284→    else if (e.key === "ArrowUp") { e.preventDefault(); setCursor((v) => Math.max(v - 1, 0)); }
+   285→    else if (e.key === "Enter" && flat[cursor]) { e.preventDefault(); go(flat[cursor]); }
+   286→  }
+   287→
+   288→  // نشانگر صفحه‌کلید همیشه در دید باشد
+   289→  React.useEffect(() => {
+   290→    const el = listRef.current?.querySelector('[aria-selected="true"]');
+   291→    el?.scrollIntoView({ block: "nearest" });
+   292→  }, [cursor]);
+   293→
+   294→  // قفل اسکرول پس‌زمینه وقتی دیالوگ باز است (موبایل/PWA)
+   295→  React.useEffect(() => {
+   296→    if (!open) return;
+   297→    const prev = document.body.style.overflow;
+   298→    document.body.style.overflow = "hidden";
+   299→    return () => { document.body.style.overflow = prev; };
+   300→  }, [open]);
+   301→
+   302→  function hl(text: string): React.ReactNode[] {
+   303→    const tokens = q.trim().split(/\s+/).filter((t) => t.length >= 2);
+   304→    if (tokens.length === 0) return [text];
+   305→    const rx = new RegExp("(" + tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
+   306→    return text.split(rx).map((part, i) =>
+   307→      rx.test(part) ? (
+   308→        <mark key={i} className="rounded-[4px] bg-bronze/20 px-0.5 font-bold text-bronze">{part}</mark>
+   309→      ) : (
+   310→        <React.Fragment key={i}>{part}</React.Fragment>
+   311→      ),
+   312→    );
+   313→  }
+   314→
+   315→  const busy = (!indexReady || rawQ !== q) && true;
+   316→  const hasQuery = rawQ.trim().length > 0;
+   317→
+   318→  return (
+   319→    <>
+   320→      {variant === "bar" ? (
+   321→        <button
+   322→          onClick={() => setOpen(true)}
+   323→          aria-label="جستجو در جلسه‌ها، مواد قانونی و اساتید"
+   324→          className="group flex h-10 w-full max-w-xl min-w-[220px] items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 text-white/65 shadow-card transition-colors hover:border-bronze/60 hover:bg-white/[0.1]"
+   325→        >
+   326→          <Search className="h-4 w-4 shrink-0 text-bronze" />
+   327→          <span className="min-w-0 flex-1 truncate text-start text-xs font-medium">جستجو در جلسه‌ها، مواد قانونی و اساتید…</span>
+   328→          <kbd dir="ltr" className="hidden shrink-0 rounded-md border border-white/20 bg-white/[0.08] px-1.5 py-0.5 font-display text-[10px] leading-none text-white/70 sm:inline">Ctrl /</kbd>
+   329→        </button>
+   330→      ) : variant === "hero" ? (
+   331→        /* نوار باریک جستجو داخل هیروی سبز خانه — با اسکرول به نوار بالا می‌پیوندد */
+   332→        <button
+   333→          onClick={() => setOpen(true)}
+   334→          aria-label="جستجو در جلسه‌ها، مواد قانونی و اساتید"
+   335→          className="group flex h-10 w-full max-w-md items-center gap-2.5 rounded-full border border-white/[0.16] bg-white/[0.09] px-4 text-white/60 shadow-card backdrop-blur-sm transition-all duration-200 hover:border-bronze/60 hover:bg-white/[0.14] hover:text-white/90"
+   336→        >
+   337→          <Search className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:scale-110" />
+   338→          <span className="min-w-0 flex-1 truncate text-start text-[12.5px] font-medium">جستجو در جلسه‌ها، مواد قانونی و اساتید…</span>
+   339→          <kbd dir="ltr" className="hidden shrink-0 rounded-md border border-white/20 bg-white/[0.08] px-1.5 py-0.5 font-display text-[10px] leading-none text-white/70 sm:inline">/</kbd>
+   340→        </button>
+   341→      ) : (
+   342→        <button
+   343→          onClick={() => setOpen(true)}
+   344→          aria-label="جستجو در کتابخانه و اساتید"
+   345→          title="جستجو در کتابخانه و اساتид (/)"
+   346→          className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-card transition-colors hover:text-bronze"
+   347→        >
+   348→          <Search className="h-[17px] w-[17px]" />
+   349→          <span className="hidden text-xs font-medium md:inline">جستجو…</span>
+   350→          <kbd dir="ltr" className="hidden rounded-md border border-border bg-muted px-1.5 py-0.5 font-display text-[10px] leading-none opacity-80 lg:inline">/</kbd>
+   351→        </button>
+   352→      )}
+   353→
+   354→      {/* دیالوگ با پورتال به body رندر می‌شود تا نمایش/مخفی‌شدن هدر یا هیرو هرگز آن را نپوشاند */}
+   355→      {open && createPortal(
+   356→        <div
+   357→          role="dialog"
+   358→          aria-modal="true"
+   359→          aria-label="جستجوی سراسری"
+   360→          className="fixed inset-0 z-[60] flex items-end justify-center bg-background/70 backdrop-blur-sm sm:items-start sm:p-4 sm:pt-[10vh]"
+   361→          onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+   362→        >
+   363→          {/* موبایل/PWA: پنل تمام‌صفحه با احترام به نوار وضعیت و نوار خانه؛ دسکتاپ: دیالوگ شناور مرکزی */}
+   364→          <div className="flex h-dvh w-full max-w-xl flex-col overflow-hidden rounded-none bg-card shadow-card sm:h-auto sm:max-h-[76vh] sm:rounded-2xl sm:border sm:border-border">
+   365→            {/* ورودی */}
+   366→            <div className="flex items-center gap-2 border-b border-border/70 px-4 pt-[max(env(safe-area-inset-top),12px)] transition-colors focus-within:border-bronze/50 sm:pt-0">
+   367→              <Search className="h-4 w-4 shrink-0 text-bronze" />
+   368→              <input
+   369→                ref={inputRef}
+   370→                value={rawQ}
+   371→                onChange={(e) => { setRawQ(e.target.value); setCursor(0); }}
+   372→                onKeyDown={onKeyDownList}
+   373→                placeholder="جلسه، ماده یا اسم استاد…"
+   374→                className="h-14 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+   375→              />
+   376→              {(busy || teachersLoading) && hasQuery && (
+   377→                <span aria-hidden className="h-4 w-4 shrink-0 animate-pulse rounded-full bg-bronze/30" />
+   378→              )}
+   379→              <button onClick={() => setOpen(false)} aria-label="بستن" className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">
+   380→                <X className="h-4 w-4" />
+   381→              </button>
+   382→            </div>
+   383→
+   384→            {/* بدنه */}
+   385→            <div ref={listRef} dir="rtl" className="min-h-0 flex-1 overflow-y-auto p-1.5">
+   386→              {/* حالت خالی: راهنما + دسترسی سریع به اساتید (چیپ‌های «پیشنهاد شروع» به درخواست کاربر حذف شد) */}
+   387→              {!hasQuery ? (
+   388→                <div className="space-y-4 px-2 pb-3 pt-3">
+   389→                  <p className="text-center text-xs leading-6 text-muted-foreground">
+   390→                    همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام استاد، پروفایلش را هم پیدا می‌کنی.
+   391→                  </p>
+   392→                  {teachers.length > 0 && (
+   393→                    <div className="space-y-2">
+   394→                      <p className="flex items-center gap-1.5 text-[10.5px] font-bold tracking-wide text-muted-foreground/80">
+   395→                        <GraduationCap className="h-3.5 w-3.5 text-bronze" /> اساتیدی که سریع پیدایشان می‌کنی
+   396→                      </p>
+   397→                      <div className="flex flex-wrap gap-1.5">
+   398→                        {teachers.slice(0, 5).map((t) => (
+   399→                          <button
+   400→                            key={t.id}
+   401→                            onClick={() => { setOpen(false); navigate({ view: "teacher", id: t.id }); }}
+   402→                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background py-1 pe-3 ps-1 text-[11px] font-semibold transition-colors hover:border-bronze/50"
+   403→                          >
+   404→                            <UserAvatar src={t.avatarUrl} name={t.displayName} size="xs" />
+   405→                            {t.displayName}
+   406→                          </button>
+   407→                        ))}
+   408→                      </div>
+   409→                    </div>
+   410→                  )}
+   411→                </div>
+   412→              ) : busy ? (
+   413→                <div className="space-y-1.5 p-1">
+   414→                  {[0, 1, 2].map((i) => (
+   415→                    <span key={i} className="block animate-pulse rounded-xl bg-muted/80 p-3">
+   416→                      <span className="mb-1.5 block h-3 w-2/5 rounded bg-border" />
+   417→                      <span className="block h-2.5 w-4/5 rounded bg-muted" />
+   418→                    </span>
+   419→                  ))}
+   420→                </div>
+   421→              ) : flat.length === 0 ? (
+   422→                <p className="px-3 py-8 text-center text-xs leading-6 text-muted-foreground">
+   423→                  چیزی پیدا نشد؛ با کلمهٔ دیگری امتحان کن.
+   424→                  <br />
+   425→                  <span className="text-[11px] opacity-80">نام ماده (مثلاً «ماده ۲۲۰») یا کلیدواژهٔ بحث را امتحان کن.</span>
+   426→                </p>
+   427→              ) : (
+   428→                <>
+   429→                  {/* نوار نتیجه */}
+   430→                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-card/95 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground backdrop-blur-sm">
+   431→                    <span>{fa(teacherHits.length)} استاد · {fa(lawHits.length)} ماده · {fa(hits.length)} جلسه</span>
+   432→                    <span dir="ltr" className="hidden font-display tabular-nums opacity-70 sm:inline">Esc</span>
+   433→                  </div>
+   434→                  <ul role="listbox" aria-label="نتیجه‌ها" className="space-y-0.5">
+   435→                    {teacherHits.length > 0 && (
+   436→                      <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-1 text-[10px] font-bold tracking-wide text-muted-foreground/80">
+   437→                        <GraduationCap className="h-3.5 w-3.5 text-bronze" /> اساتید
+   438→                      </li>
+   439→                    )}
+   440→                    {flat.map((item, i) =>
+   441→                      item.kind === "teacher" ? (
+   442→                        <li key={`t-${item.t.id}`}>
+   443→                          <button
+   444→                            onMouseEnter={() => setCursor(i)}
+   445→                            onClick={() => go(item)}
+   446→                            aria-selected={i === cursor}
+   447→                            role="option"
+   448→                            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-3 text-start transition-colors sm:py-2.5 ${
+   449→                              i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
+   450→                            }`}
+   451→                          >
+   452→                            <UserAvatar src={item.t.avatarUrl} name={item.t.displayName} size="sm" />
+   453→                            <span className="min-w-0 flex-1">
+   454→                              <span className="block truncate text-[13px] font-bold text-foreground">{hl(item.t.displayName)}</span>
+   455→                              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+   456→                                @{hl(item.t.username)} · {fa(item.t.followers)} دنبال‌کننده · {fa(item.t.postsCount)} مطلب{item.t.coursesCount > 0 ? ` · ${fa(item.t.coursesCount)} دوره` : ""}
+   457→                              </span>
+   458→                            </span>
+   459→                            <span className="shrink-0 rounded-full bg-bronze/10 px-2 py-0.5 text-[10px] font-bold text-bronze">استاد</span>
+   460→                            <CornerDownLeft className={`h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
+   461→                          </button>
+   462→                        </li>
+   463→                      ) : item.kind === "law" ? (
+   464→                        <li key={`law-${item.h.lawId}-${item.h.no}`}>
+   465→                          <button
+   466→                            onMouseEnter={() => setCursor(i)}
+   467→                            onClick={() => go(item)}
+   468→                            aria-selected={i === cursor}
+   469→                            role="option"
+   470→                            className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-start transition-colors sm:py-2.5 ${
+   471→                              i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
+   472→                            }`}
+   473→                          >
+   474→                            <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-bronze" />
+   475→                            <span className="min-w-0 flex-1">
+   476→                              <span className="flex items-baseline gap-2">
+   477→                                <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-foreground">
+   478→                                  مادهٔ {item.h.no} {hl(item.h.lawTitle)}
+   479→                                </span>
+   480→                                <span className="shrink-0 rounded-full bg-bronze/10 px-2 py-0.5 text-[10px] font-bold text-bronze">قانون</span>
+   481→                              </span>
+   482→                              <span className="mt-0.5 block truncate text-[11px] text-bronze">{item.h.book} · {item.h.chapter}</span>
+   483→                              <span className="mt-1 block line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">{hl(item.h.snippet)}</span>
+   484→                            </span>
+   485→                            <CornerDownLeft className={`mt-1 h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
+   486→                          </button>
+   487→                        </li>
+   488→                      ) : (
+   489→                        <React.Fragment key={item.h.lessonId}>
+   490→                          {i === teacherHits.length + lawHits.length && teacherHits.length + lawHits.length > 0 && (
+   491→                            <li aria-hidden className="flex items-center gap-2 px-3 pb-0.5 pt-2 text-[10px] font-bold tracking-wide text-muted-foreground/80">
+   492→                              <BookOpenText className="h-3.5 w-3.5 text-bronze" /> جلسه‌ها
+   493→                            </li>
+   494→                          )}
+   495→                          <li>
+   496→                            <button
+   497→                              onMouseEnter={() => setCursor(i)}
+   498→                              onClick={() => go(item)}
+   499→                              aria-selected={i === cursor}
+   500→                              role="option"
+   501→                              className={`flex w-full items-start gap-2.5 rounded-xl px-3 py-3 text-start transition-colors sm:py-2.5 ${
+   502→                                i === cursor ? "bg-primary/10 ring-1 ring-inset ring-bronze/40" : "hover:bg-muted"
+   503→                              }`}
+   504→                            >
+   505→                              <CourseIcon icon={item.h.icon} className="mt-0.5 h-4 w-4 shrink-0 text-bronze" />
+   506→                              <span className="min-w-0 flex-1">
+   507→                                <span className="flex items-baseline gap-2">
+   508→                                  <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-foreground">{hl(item.h.lessonTitle)}</span>
+   509→                                  <span dir="ltr" className="shrink-0 font-display text-[10px] tabular-nums text-muted-foreground">{fa(item.h.idx)}/{fa(item.h.total)}</span>
+   510→                                </span>
+   511→                                <span className="mt-0.5 block truncate text-[11px] text-bronze">{item.h.courseTitle} · {item.h.chapterTitle}</span>
+   512→                                <span className="mt-1 block line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">{hl(item.h.snippet)}</span>
+   513→                              </span>
+   514→                              <CornerDownLeft className={`mt-1 h-3.5 w-3.5 shrink-0 ${i === cursor ? "text-muted-foreground" : "invisible"}`} />
+   515→                            </button>
+   516→                          </li>
+   517→                        </React.Fragment>
+   518→                      ),
+   519→                    )}
+   520→                  </ul>
+   521→                </>
+   522→              )}
+   523→            </div>
+   524→
+   525→            {/* پانویس — در موبایل با فاصلهٔ امن نوار خانه */}
+   526→            <div className="flex items-center justify-between gap-2 border-t border-border/70 px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 text-[10.5px] text-muted-foreground sm:pb-2">
+   527→              <span className="hidden sm:inline">بالا/پایین برای حرکت · Enter برای رفتن</span>
+   528→              <span className="sm:hidden">از جلسه‌ها، مواد قانونی و اساتید</span>
+   529→              <span className="shrink-0 tabular-nums opacity-80">کلاً {fa(indexReady ? courses.reduce((n, c) => n + c.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) : 0)} جلسه ایندکس شده</span>
+   530→            </div>
+   531→          </div>
+   532→        </div>,
+   533→        document.body,
+   534→      )}
+   535→    </>
+   536→  );
+   537→}
+   538→
