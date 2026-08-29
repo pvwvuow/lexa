@@ -306,8 +306,8 @@ function HeroPanel({
       <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
 
       <div className="relative space-y-6">
-        {/* نوار باریک جستجو — بالای المان؛ با اسکرول به نوار اصلی بالا می‌پیوندد */}
-        <div className="flex">
+        {/* نوار باریک جستجو — وسط‌چین بالای المان؛ با اسکرول به نوار اصلی بالا می‌پیوندد */}
+        <div className="flex justify-center">
           <GlobalSearch courses={courses} variant="hero" />
         </div>
 

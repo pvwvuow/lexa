@@ -321,7 +321,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
         <button
           onClick={() => setOpen(true)}
           aria-label="جستجو در جلسه‌ها، مواد قانونی و اساتید"
-          className="group flex h-10 w-full max-w-xl min-w-[220px] items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 text-white/65 shadow-card transition-colors hover:border-bronze/60 hover:bg-white/[0.1]"
+          className="group flex h-10 w-full max-w-xl min-w-0 items-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.07] px-3.5 text-white/65 shadow-card transition-colors hover:border-bronze/60 hover:bg-white/[0.1] sm:min-w-[220px]"
         >
           <Search className="h-4 w-4 shrink-0 text-bronze" />
           <span className="min-w-0 flex-1 truncate text-start text-xs font-medium">جستجو در جلسه‌ها، مواد قانونی و اساتید…</span>
