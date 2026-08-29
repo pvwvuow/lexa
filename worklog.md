@@ -430,3 +430,24 @@ Work Log:
 
 Stage Summary:
 - فضای خالی هیرو با تصویر هماهنگ پر شد، قوانین مدنی/تجارت/اساسی متن کامل شدند، حساب تازه با قفسهٔ خالی و انتخاب آزاد شروع می‌کند و زنگ تازه‌ها خبر مطلب‌های جدید استادها را می‌دهد
+
+---
+Task ID: 29
+Agent: main (Super Z)
+Task: بازیابی کامل کارهای ازدست‌رفتهٔ دیشب — کاربر گفت «تا صفحهٔ ۱۵۰ جزوه اضافه کردیم ولی همش پریده؛ همه را برگردان»
+
+Work Log:
+- ریشه‌یابی: محتوای دیشب در کامیت 9d6238b محفوظ بود (jaza-g-ch1..11 + tadris-jaza.ts یعنی ۴۰ جلسهٔ صفحات ۱–۱۵۰ جزوهٔ تدریس جزا غفوری، StudyListView، ExamPacksView/Runner، exam-packs، StudioWriteView، PWA کامل با sw.js v6 و manifest و آیکون‌ها)؛ اما «سیم‌کشی» (اتصال به روتر/استور/ناوبری) هرگز کامیت نشده بود و با ریست کانتینر پریده بود — reflog هم کامیت گمشده نداشت.
+- store.ts: نوع ExamAttempt + state آموزشی examAttempts (کلید = شناسهٔ بسته، سقف ۴۰ اجرا) + اکشن recordExamAttempt + persist در partialize + reset.
+- router.ts: مسیرهای study و write/{post|course}/{id} + parseHash/routeToHash + رفتار جدید goBack (بازگشت از learn/course به #/study و از فهرست به خانه — مطابق سند StudyListView).
+- courses/index.ts: ثبت tadrisJaza1 در builtinCourses (۱۱ دورهٔ آماده؛ ۱۳ فصل/۴۰ جلسه).
+- StudioView.tsx: خروجی عمومی inputCls/labelCls/LABEL_OF/CategoryChips/PostDraft/EMPTY_POST/CourseDraft/EMPTY_COURSE/TChapter/uid + انتقال «مطلب جدید/دورهٔ جدید/ویرایش» به صفحهٔ تمام‌صفحهٔ نوشتن (dialogهای قدیمی برداشته شد) و حذف editPost/editCourse (واکشی داخل خود صفحهٔ نوشتن انجام می‌شود).
+- AppShell.tsx: روت study→StudyListView، write→StudioWriteView، quiz/pack-*→ExamPackRoute؛ آیتم «فهرست مطالعه» با آیکون ListTree در سایدبار دسکتاپ و منوی کشویی موبایل؛ write به زیرصفحه‌ها (rail خودکار) اضافه شد.
+- QuizView.tsx: تب دوگانهٔ مرکز آزمون «از کتابخانهٔ من / بسته‌های آمادهٔ آزمون» + ExamPackHub با دکمهٔ برگشت به کتابخانه؛ تنظیمات/شروع/تولید AI فقط در تب کتابخانه.
+- layout.tsx: ثبت SwRegister + manifest + appleWebApp (فعال‌سازی کامل PWA).
+- باگ کشف‌شدهٔ مهم: Lightning CSS (Tailwind v4) وقتی backdrop-filter و -webkit-backdrop-filter در یک بلاک باشند اعلان استاندارد را حذف می‌کرد → بلور شیشهٔ مایع داک موبایل عملاً «none» بود؛ با حذف -webkit از سورس، Lightning خودش هر دو را خروجی داد و blur(15px) saturate(1.65) brightness(1.05) در computed style برگشت. DESIGN_VERSION به 1.4.2 ارتقا یافت.
+- دام محیطی: Turbopack پس از تغییر globals.css هم چانک CSS کهنه را سرو می‌کرد؛ ری‌استارت تمیز next dev (بدون اسکریپت سنگین) لازم بود.
+- QA واقعی: فهرست مطالعه با ۱۱ دوره (تدریس جزا ۱۳فصل/۴۰جلسه)؛ جلسهٔ jg-1 با محتوای کامل؛ اجرای کامل دفترچهٔ «تدریس جزا ۳ (۱۰۱–۱۵۰)» با ۵۴ سؤال — تایمر، پرچم، پایان با تأیید بی‌پاسخ، نتیجه و پاسخ‌نامهٔ تشریحی + ثبت attempt در localStorage؛ چرخهٔ نوشتن مطلب با حساب استاد آزمایشی (ساخت/ارتقا/انتشار واقعی/حذف کامل)؛ گیت معلم برای مهمان؛ رفتار بازگشت به فهرست؛ داک شیشه‌ای موبایل در روشن/تاریک با computed style + اسکرین‌شات دسکتاپ/موبایل دو تم؛ console فقط هشدار قدیمی DialogContent؛ tsc صفر و ESLint صفر خطا (۵ هشدار قدیمی).
+
+Stage Summary:
+- همهٔ کارهای دیشب دوباره در اپ قابل استفاده‌اند: جزوهٔ تدریس جزا ۱ (صفحات ۱–۱۵۰، ۴۰ جلسه با تست‌های ۱ تا ۳۵) در کتابخانه، فهرست مطالعه، مرکز بسته‌های آزمون با دفترچه‌های ۳۸ تا ۵۴ سؤالی زمان‌دار و تشریحی، صفحهٔ تمام‌صفحهٔ نوشتن اتاق استاد و PWA با نصب/آفلاین — و بلور شیشهٔ مایع داک موبایل که از ابتدا هم به‌درستی کار نمی‌کرد واقعاً برطرف شد.
