@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
           inLibrary: libIds.has(r.id),
           canManage: !!me && (me.id === r.teacherId || me.role === "admin"),
           rating,
+          _updatedAt: r.updatedAt.toISOString(),
           score: feedScore(r.updatedAt, rating),
         };
       })

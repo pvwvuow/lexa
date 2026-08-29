@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff } from "lucide-react";
 import type { Course } from "@/lib/law/types";
+import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
 import { fa } from "@/lib/fa";
@@ -12,6 +13,8 @@ import { useAuth } from "@/lib/auth-client";
 import { useTargetRating } from "@/lib/social-client";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
+
+const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
 
 export function CourseView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
@@ -61,6 +64,14 @@ export function CourseView({ id }: { id: string }) {
 
   const course: Course | undefined = local ?? remoteCourse ?? undefined;
 
+  // نوع آفلاین: دورهٔ آماده (در باندل) / دورهٔ استاد (کتابخانهای یا پیش‌نمایش سروری)
+  // دورههای وارداتی/تولیدی محلی از قبل در دستگاه‌اند و دکمه لازم ندارند
+  const offlineKind: "builtin" | "tcourse" | null = BUILTIN_IDS.has(id)
+    ? "builtin"
+    : tBooks.some((t) => t.id === id) || remoteCourse
+      ? "tcourse"
+      : null;
+
   if (!course) {
     if (remoteLoading) {
       return (
@@ -76,6 +87,7 @@ export function CourseView({ id }: { id: string }) {
     <CourseBody
       course={course}
       isRemote={!!remoteCourse}
+      offlineKind={offlineKind}
       offlineUsed={offlineUsed}
       inLibrary={!!local && !hiddenBuiltins.includes(course.id)}
       progress={progress}
@@ -89,10 +101,11 @@ export function CourseView({ id }: { id: string }) {
 /* ─── بدنهٔ صفحهٔ دوره — مشترک بین دورهٔ محلی و پیش‌نمایش سروری ─────────── */
 
 function CourseBody({
-  course, isRemote, offlineUsed, inLibrary, progress, openCh, setOpenCh, openLesson,
+  course, isRemote, offlineKind, offlineUsed, inLibrary, progress, openCh, setOpenCh, openLesson,
 }: {
   course: Course;
   isRemote?: boolean;
+  offlineKind: "builtin" | "tcourse" | null;
   offlineUsed?: boolean;
   inLibrary: boolean;
   progress: Record<string, { status?: string; quizBest?: number }>;
@@ -155,7 +168,7 @@ function CourseBody({
           </div>
         </div>
 
-        {/* امتیازدهی دورهٔ استاد + دانلود آفلاین */}
+        {/* امتیازدهی دورهٔ استاد */}
         {!!isRemote && (
           <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-bronze/25 bg-bronze/[0.05] px-4 py-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-bronze">
@@ -175,13 +188,28 @@ function CourseBody({
                 <span className="text-[11px] text-muted-foreground">برای ثبت امتیاز وارد شو</span>
               </span>
             )}
+          </div>
+        )}
+
+        {/* دانلود آفلاین این درس — برای همهٔ دوره‌ها: آمادهٔ اپ و دورهٔ استاد */}
+        {offlineKind && (
+          <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+              <WifiOff className="h-4 w-4 shrink-0 text-bronze" />
+              {offlineKind === "builtin"
+                ? "این جزوه را یک‌جا برای مطالعهٔ آفلاین ذخیره کن"
+                : "این دوره را یک‌جا برای مطالعهٔ آفلاین ذخیره کن"}
+            </span>
             <span className="ms-auto flex items-center gap-2">
-              <OfflineUpdatedPill kind="tcourse" id={course.id} serverUpdatedAt={(course as Course & { _updatedAt?: string })._updatedAt} />
+              {offlineKind === "tcourse" && (
+                <OfflineUpdatedPill kind="tcourse" id={course.id} serverUpdatedAt={(course as Course & { _updatedAt?: string })._updatedAt} />
+              )}
               <OfflineDownloadButton
-                kind="tcourse"
+                kind={offlineKind}
                 id={course.id}
                 labeled
-                serverUpdatedAt={(course as Course & { _updatedAt?: string })._updatedAt}
+                serverUpdatedAt={offlineKind === "tcourse" ? (course as Course & { _updatedAt?: string })._updatedAt : undefined}
+                courseObj={offlineKind === "builtin" ? course : undefined}
                 card={{
                   id: course.id,
                   title: course.title,
@@ -193,7 +221,7 @@ function CourseBody({
                   teacher: {
                     id: (course as Course & { _teacherId?: string })._teacherId ?? "",
                     username: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "",
-                    displayName: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "استاد",
+                    displayName: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "همیار حقوق",
                     avatarUrl: (course as Course & { _ownerAvatar?: string | null })._ownerAvatar,
                   },
                 }}
