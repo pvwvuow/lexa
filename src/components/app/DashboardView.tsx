@@ -495,21 +495,21 @@ function FeedCard({
         onClick={() => navigate({ view: "post", id: p.id })}
         className="group block w-full overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
       >
-      {/* جلد — تامنیل آپلودی: عکس قاب‌شده با فاصله از بوردر؛ بدون تامنیل: جلد رنگی دسته‌بندی */}
+      {/* جلد — تامنیل آپلودی: دایرهٔ کرو با فاصله از بوردر کارت؛ بدون تامنیل: جلد رنگی دسته‌بندی */}
       {hasThumb ? (
-        <span className="block p-2 pb-0">
-          <span className="relative block h-[108px] overflow-hidden rounded-xl bg-black/10">
+        <span className="relative block px-3 pt-3">
+          <span className="relative mx-auto block h-[118px] w-[118px] overflow-hidden rounded-full border-2 border-bronze/55 bg-black/10 shadow-card transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.45)]">
             <img
               src={p.thumbnail}
               alt=""
               dir="ltr"
               loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.06]"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
             />
-            <span aria-hidden className="absolute inset-0 rounded-xl ring-1 ring-inset ring-black/10" />
-            <span className="absolute bottom-2 start-2 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
-              {catLabel}
-            </span>
+            <span aria-hidden className="absolute inset-0 rounded-full ring-1 ring-inset ring-black/10" />
+          </span>
+          <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+            {catLabel}
           </span>
         </span>
       ) : (

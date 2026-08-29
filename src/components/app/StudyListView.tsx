@@ -10,11 +10,40 @@ import {
   ClipboardList, CheckCircle2, CircleDot, LibraryBig,
 } from "lucide-react";
 import type { Course } from "@/lib/law/types";
+import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
 import { fa, pct } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { CourseIcon } from "./common";
+import { OfflineDownloadButton } from "./offline-ui";
+import type { OfflineCardCourse } from "@/lib/offline";
+
+const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
+
+/** کارت آفلاین هر دوره — فقط دورهٔ آمادهٔ اپ و دورهٔ استاد؛ دوره‌های وارداتی محلی از قبل روی دستگاه‌اند */
+function offlineCardOf(c: Course): { card: OfflineCardCourse; kind: "builtin" | "tcourse" } | null {
+  const isBuiltin = BUILTIN_IDS.has(c.id);
+  const owner = (c as Course & { _ownerUsername?: string })._ownerUsername;
+  if (!isBuiltin && !owner) return null;
+  return {
+    kind: isBuiltin ? "builtin" : "tcourse",
+    card: {
+      id: c.id,
+      title: c.title,
+      tagline: c.tagline ?? "",
+      description: c.description ?? "",
+      icon: c.icon,
+      lessonsCount: c.chapters.reduce((n, x) => n + x.lessons.length, 0),
+      teacher: {
+        id: (c as Course & { _teacherId?: string })._teacherId ?? "",
+        username: owner ?? "",
+        displayName: owner ?? "همیار حقوق",
+        avatarUrl: (c as Course & { _ownerAvatar?: string | null })._ownerAvatar,
+      },
+    },
+  };
+}
 
 function courseStats(course: Course, progress: Record<string, { status?: string }>) {
   const flat = course.chapters.flatMap((c) => c.lessons);
@@ -114,6 +143,7 @@ export function StudyListView() {
           const isOpen = openId === c.id;
           const owner = (c as Course & { _ownerUsername?: string })._ownerUsername;
           const isPrep = (c as Course & { _status?: string })._status === "prep";
+          const off = offlineCardOf(c);
           return (
             <section key={c.id} className="py-1">
               {/* ردیف دوره — div با نقش دکمه (داخلش دکمهٔ «صفحهٔ دوره» داریم) */}
@@ -147,6 +177,16 @@ export function StudyListView() {
                 >
                   صفحهٔ دوره
                 </button>
+                {/* دانلود آفلاین همین درس — جدا برای هر دوره */}
+                {off && (
+                  <OfflineDownloadButton
+                    kind={off.kind}
+                    id={c.id}
+                    card={off.card}
+                    courseObj={off.kind === "builtin" ? c : undefined}
+                    serverUpdatedAt={off.kind === "tcourse" ? (c as Course & { _updatedAt?: string })._updatedAt : undefined}
+                  />
+                )}
                 <ChevronDown className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180 text-bronze" : ""}`} />
               </div>
 

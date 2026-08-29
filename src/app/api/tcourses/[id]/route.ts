@@ -17,12 +17,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!row) return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
 
-  const course = teacherCourseToCourse(row, {
-    id: row.teacher.id,
-    username: row.teacher.username,
-    displayName: row.teacher.displayName || row.teacher.username,
-    avatarUrl: row.teacher.avatarUrl,
-  });
+  const course = {
+    ...teacherCourseToCourse(row, {
+      id: row.teacher.id,
+      username: row.teacher.username,
+      displayName: row.teacher.displayName || row.teacher.username,
+      avatarUrl: row.teacher.avatarUrl,
+    }),
+    _updatedAt: row.updatedAt.toISOString(),
+  };
 
   return NextResponse.json({
     course,

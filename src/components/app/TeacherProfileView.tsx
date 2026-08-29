@@ -16,6 +16,7 @@ import {
   type RatingInfo,
 } from "@/lib/social-client";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
+import { OfflineDownloadButton } from "./offline-ui";
 
 function StatChipP({ Icon, label, value }: { Icon: React.ComponentType<{ className?: string }>; label: string; value: number }) {
   return (
@@ -267,7 +268,9 @@ function ProfileCourseCard({
           <StarRating value={c.rating!.avg} count={c.rating!.count} size={13} />
         )}
         {!isDraft && (
-          <button
+          <span className="ml-auto inline-flex items-center gap-2">
+            <OfflineDownloadButton kind="tcourse" id={c.id} card={{ ...c }} serverUpdatedAt={c._updatedAt} />
+            <button
             onClick={(e) => { e.stopPropagation(); void act(); }}
             disabled={!user || busyId === c.id}
             className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors disabled:opacity-45 ${
@@ -283,6 +286,7 @@ function ProfileCourseCard({
             )}
             {c.inLibrary ? "در کتابخانه" : "افزودن"}
           </button>
+          </span>
         )}
       </div>
     </div>

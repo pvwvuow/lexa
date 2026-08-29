@@ -51,6 +51,8 @@ export interface TCourseCard {
   _status?: "draft" | "prep" | "published";
   _ownerUsername?: string;
   _ownerAvatar?: string | null;
+  /** آخرین به‌روزرسانی سرور — مبنای نشان «به‌روز شده» نسخهٔ آفلاین */
+  _updatedAt?: string;
   teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 

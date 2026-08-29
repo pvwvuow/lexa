@@ -15,6 +15,7 @@ import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { usePublicLibrary, toggleBuiltinHidden, type TCourseCard, type FeedPost } from "@/lib/social-client";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
+import { OfflineDownloadButton } from "./offline-ui";
 
 /** افزودن/حذف یک دوره از کتابخانهٔ من؛ true یعنی اضافه شد */
 async function toggleInLibrary(courseId: string): Promise<boolean> {
@@ -90,6 +91,9 @@ function CourseCardLib({
             </p>
           )}
         </div>
+        <span className="shrink-0">
+          <OfflineDownloadButton kind="tcourse" id={c.id} card={{ ...c }} serverUpdatedAt={c._updatedAt} />
+        </span>
       </div>
 
       {c.description && (
@@ -174,6 +178,32 @@ function PostTeaser({ p }: { p: FeedPost }) {
             <Star className="h-3 w-3 fill-current" /> {fa(Math.round(p.rating.avg * 10) / 10)}
           </span>
         )}
+        <span className="shrink-0">
+          <OfflineDownloadButton
+            kind="post"
+            id={p.id}
+            serverUpdatedAt={p.updatedAt}
+            card={{
+              id: p.id,
+              title: p.title,
+              summary: p.summary ?? "",
+              tags: p.tags,
+              category: p.category,
+              categories: p.categories,
+              thumbnail: p.thumbnail,
+              createdAt: p.createdAt,
+              updatedAt: p.updatedAt,
+              commentsCount: p.commentsCount,
+              rating: p.rating,
+              author: {
+                id: p.author.id,
+                username: p.author.username ?? "",
+                displayName: p.author.displayName,
+                avatarUrl: p.author.avatarUrl,
+              },
+            }}
+          />
+        </span>
       </div>
       <p className="line-clamp-1 font-display text-[15px] font-bold group-hover:text-bronze">{p.title}</p>
       {p.summary && <p className="line-clamp-2 mt-1 text-xs leading-relaxed text-muted-foreground">{p.summary}</p>}
@@ -238,6 +268,22 @@ function BuiltinCourseCard({ c }: { c: Course }) {
             <Sparkles className="h-3 w-3" /> دورهٔ آمادهٔ همیار حقوق
           </p>
         </div>
+        <span className="shrink-0">
+          <OfflineDownloadButton
+            kind="builtin"
+            id={c.id}
+            courseObj={c}
+            card={{
+              id: c.id,
+              title: c.title,
+              tagline: c.tagline ?? "",
+              description: c.description ?? "",
+              icon: c.icon,
+              lessonsCount: lessonsN,
+              teacher: { id: "", username: "", displayName: "همیار حقوق" },
+            }}
+          />
+        </span>
       </div>
 
       {c.description && (
