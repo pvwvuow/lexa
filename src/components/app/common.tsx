@@ -748,14 +748,14 @@ export function SectionBody({ s, decorativeHeadless }: { s: LessonSection; decor
   );
 }
 
-/* ═══ آواتار لوزی — تصویر آپلودشدهٔ استاد یا حرف اول نام ═════════════════════ */
+/* ═══ آواتار دایره‌ای — تصویر آپلودشدهٔ استاد یا حرف اول نام ═══════════════════ */
 
 const AVATAR_SIZE = {
-  xs: { box: "h-7 w-7 text-[11px] rounded-[7px]" },
-  sm: { box: "h-9 w-9 text-[13px] rounded-[8px]" },
-  md: { box: "h-11 w-11 text-[15px] rounded-[10px]" },
-  lg: { box: "h-16 w-16 text-[22px] rounded-[14px]" },
-  xl: { box: "h-28 w-28 text-[36px] rounded-[22px]" },
+  xs: { box: "h-7 w-7 text-[11px]" },
+  sm: { box: "h-9 w-9 text-[13px]" },
+  md: { box: "h-11 w-11 text-[15px]" },
+  lg: { box: "h-16 w-16 text-[22px]" },
+  xl: { box: "h-28 w-28 text-[36px]" },
 } as const;
 
 export function UserAvatar({
@@ -770,18 +770,17 @@ export function UserAvatar({
   return (
     <span
       aria-hidden={!src}
-      className={`relative grid ${s.box} shrink-0 rotate-45 place-items-center overflow-hidden bg-gradient-to-bl from-primary/90 to-bronze shadow-card ${className}`}
+      className={`relative grid ${s.box} shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-bl from-primary/90 to-bronze shadow-card ${className}`}
     >
       {src ? (
-        // چرخش معکوس + مقیاس √۲ تا تصویر مربعی کامل در لوزی بپوشاند
         <img
           src={src}
           alt=""
-          className="absolute inset-0 m-auto h-full w-full -rotate-45 scale-[1.415] object-cover"
+          className="absolute inset-0 m-auto h-full w-full object-cover"
           loading="lazy"
         />
       ) : (
-        <span className="-rotate-45 font-display font-bold leading-none text-primary-foreground">
+        <span className="font-display font-bold leading-none text-primary-foreground">
           {(name || "؟").slice(0, 1)}
         </span>
       )}

@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   PlayCircle, Clock3, Sparkles, BookOpen, BookMarked, Flame, ArrowLeft,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
-  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel,
+  ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel, NotebookTabs,
 } from "lucide-react";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course, Lesson } from "@/lib/law/types";
@@ -323,6 +323,21 @@ function HeroPanel({
           </div>
         </div>
 
+        {/* مرکز آزمون — ورودی مستقیم دفترچه‌های آماده (تستی و تشریحی) */}
+        <button
+          onClick={() => navigate({ view: "quiz", id: "packs" })}
+          className="group flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/[0.10] px-4 py-3 text-start shadow-card backdrop-blur transition-colors hover:border-bronze/70 hover:bg-white/[0.16]"
+        >
+          <span aria-hidden className="grid h-10 w-10 shrink-0 rotate-45 place-items-center rounded-[11px] border border-white/30 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+            <NotebookTabs className="h-4.5 w-4.5 -rotate-45 text-white" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13.5px] font-extrabold text-white">مرکز آزمون</span>
+            <span className="block text-[11px] leading-relaxed text-white/75">دفترچه‌های آمادهٔ تستی زمان‌سنج و تشریحی با پاسخ نمونه</span>
+          </span>
+          <ArrowLeft aria-hidden className="h-4 w-4 shrink-0 text-bronze transition-transform group-hover:-translate-x-0.5" />
+        </button>
+
         {/* جدیدترین مطالب — کارت‌های فید مثل طرح مرجع */}
         <LatestPosts />
       </div>
@@ -480,10 +495,10 @@ function FeedCard({
         onClick={() => navigate({ view: "post", id: p.id })}
         className="group block w-full overflow-hidden rounded-2xl border border-white/10 bg-[#f8f4ea] text-start text-[#1f2c25] shadow-card transition-colors duration-200 hover:border-bronze/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
       >
-      {/* جلد — تصویر شاخص آپلودی یا جلد رنگی دسته‌بندی */}
-      <span className={`relative block h-[116px] overflow-hidden ${hasThumb ? "bg-black/10" : `bg-gradient-to-bl ${cover.bg}`}`}>
-        {hasThumb ? (
-          <>
+      {/* جلد — تامنیل آپلودی: عکس قاب‌شده با فاصله از بوردر؛ بدون تامنیل: جلد رنگی دسته‌بندی */}
+      {hasThumb ? (
+        <span className="block p-2 pb-0">
+          <span className="relative block h-[108px] overflow-hidden rounded-xl bg-black/10">
             <img
               src={p.thumbnail}
               alt=""
@@ -491,24 +506,28 @@ function FeedCard({
               loading="lazy"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.06]"
             />
-            <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-            <span aria-hidden className="absolute inset-0 ring-1 ring-inset ring-black/10" />
-          </>
-        ) : (
-          <>
-            <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
-            <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
-              {p.title.slice(0, 1)}
+            <span aria-hidden className="absolute inset-0 rounded-xl ring-1 ring-inset ring-black/10" />
+            <span className="absolute bottom-2 start-2 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+              {catLabel}
             </span>
-            <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
-              <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
-            </span>
-          </>
-        )}
+          </span>
+        </span>
+      ) : (
+      <span className={`relative block h-[116px] overflow-hidden bg-gradient-to-bl ${cover.bg}`}>
+        <>
+          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
+          <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
+            {p.title.slice(0, 1)}
+          </span>
+          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+            <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
+          </span>
+        </>
         <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
           {catLabel}
         </span>
       </span>
+      )}
 
       <span className="block space-y-2 p-3.5">
         <span className="line-clamp-2 block min-h-[2.7em] text-[13px] font-extrabold leading-relaxed transition-colors group-hover:text-bronze">
