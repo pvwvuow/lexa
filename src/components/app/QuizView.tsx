@@ -60,10 +60,10 @@ export function QuizView({ id }: { id?: string }) {
     return null;
   }, [id, all]);
 
-  /** حالت «مرکز آزمون»: انتخاب دامنه از کل کتابخانه */
-  const [hubActive, setHubActive] = React.useState<boolean>(() => !id);
+  /** حالت «مرکز آزمون»: انتخاب دامنه از کل کتابخانه — با #/quiz/packs مستقیم روی دفترچه‌ها باز می‌شود */
+  const [hubActive, setHubActive] = React.useState<boolean>(() => !id || id === "packs");
   /** تب مرکز آزمون: سؤال از کتابخانهٔ من یا دفترچه‌های آمادهٔ آزمون */
-  const [hubTab, setHubTab] = React.useState<"library" | "packs">("library");
+  const [hubTab, setHubTab] = React.useState<"library" | "packs">(() => (id === "packs" ? "packs" : "library"));
 
   // ── انتخاب دامنه در مرکز آزمون ──
   const flatAll = React.useMemo(() => flattenAll(all), [all]);

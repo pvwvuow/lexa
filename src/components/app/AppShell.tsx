@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText, ListTree,
+  LibraryBig, Landmark, Menu, ScrollText, ListTree, NotebookTabs,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
@@ -216,6 +216,8 @@ export function AppShell() {
   }
 
   const current = route.view;
+  // فعال‌بودن «مرکز آزمون» — هم هاب دفترچه‌ها (#/quiz/packs) و هم اجرای یک دفترچه (#/quiz/pack-*)
+  const examCenterActive = current === "quiz" && !!route.id && (route.id === "packs" || route.id.startsWith("pack-"));
   const rail = mode === "rail";
 
   function go(r: Route) {
@@ -296,7 +298,9 @@ export function AppShell() {
           </div>
         )}
 
-        <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+        <SideItem icon={ClipboardList} label="تست" rail={rail} active={current === "quiz" && !examCenterActive} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+        {/* مرکز آزمون — دفترچه‌های آمادهٔ تستی و تشریحی، مستقیم */}
+        <SideItem icon={NotebookTabs} label="مرکز آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz", id: "packs" })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
@@ -514,7 +518,8 @@ export function AppShell() {
                   )}
                 </div>
               )}
-              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz"} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+              <SideItem icon={ClipboardList} label="تست" rail={false} active={current === "quiz" && !examCenterActive} onClick={() => go({ view: "quiz", id: last.lessonId })} />
+              <SideItem icon={NotebookTabs} label="مرکز آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz", id: "packs" })} />
               <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
