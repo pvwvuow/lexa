@@ -45,11 +45,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * دکمهٔ روز و شب — طراحی طلاییِ گرادیانی (بازسازی طرح ۶ شهریور)
+ * دکمهٔ تم طلایی — طراحی گرادیانیِ بازسازی‌شدهٔ ۶ شهریور
  * قرص طلایی برند با خورشید/ماه/قطره، جابه‌جایی نرم چرخشی؛ در هدر و منوی موبایل.
- * رفتار: جابه‌جایی روز ↔ شب؛ اگر تم شیشه‌ای فعال باشد، کلیک به شب می‌رود
- * (انتخاب دوبارهٔ شیشه‌ای از «تنظیمات → تم و ظاهر» است).
+ * رفتار: چرخهٔ سه‌حالته روز → شب → شیشه‌ای → روز (درخواست کاربر: سوییچ بین هر ۳ تم، نه فقط روز و شب).
  */
+
+const THEME_ORDER: AppTheme[] = ["light", "dark", "glass"];
+
+const NEXT_THEME_LABEL: Record<AppTheme, string> = {
+  light: "رفتن به حالت شب",
+  dark: "رفتن به حالت شیشه‌ای",
+  glass: "رفتن به حالت روز",
+};
 export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false);
   const [theme, setTheme] = React.useState<AppTheme>("light");
@@ -58,7 +65,7 @@ export function ThemeToggle() {
     setTheme(readStoredTheme());
   }, []);
   const toggle = () => {
-    const next: AppTheme = theme === "dark" ? "light" : "dark";
+    const next = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
     applyTheme(next);
     setTheme(next);
   };
@@ -67,8 +74,8 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label="تغییر حالت روشن و تاریک"
-      title={isDark ? "رفتن به حالت روز" : "رفتن به حالت شب"}
+      aria-label="تغییر تم برنامه (روز، شب، شیشه‌ای)"
+      title={mounted ? NEXT_THEME_LABEL[theme] : "تغییر تم"}
       className="group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#ecd29a] via-[#cda65e] to-[#8a6a30] text-[#1b1408] shadow-[0_3px_12px_-3px_rgba(205,166,94,0.65),inset_0_1px_0_rgba(255,255,255,0.5)] outline-none ring-1 ring-[#f6e7c1]/70 transition-all duration-300 hover:shadow-[0_5px_18px_-3px_rgba(205,166,94,0.85),inset_0_1px_0_rgba(255,255,255,0.55)] hover:brightness-[1.06] focus-visible:ring-2 focus-visible:ring-white/80 active:scale-95"
     >
       {/* برق شیشه‌ای روی گرادیان طلایی */}

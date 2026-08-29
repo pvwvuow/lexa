@@ -403,12 +403,12 @@ export function AppShell() {
                 </span>
               </button>
 
-              {/* جستجوی میانی — دسکتاپ همیشه؛ موبایل پس از اسکرول (پیوند نوار جستجوی هیرو) */}
-              <div className={`relative min-w-0 flex-1 justify-center ${searchDocked ? "flex search-dock-in" : "hidden md:flex"}`}>
+              {/* جستجوی میانی — در خانه فقط پس از اسکرول (در بالای صفحه جستجو در هیرو دیده می‌شود)؛ در بقیهٔ صفحات دسکتاپ همیشه */}
+              <div className={`relative min-w-0 flex-1 justify-center ${searchDocked ? "flex search-dock-in" : route.view !== "home" ? "hidden md:flex" : "hidden"}`}>
                 <GlobalSearch courses={courses} variant="bar" />
               </div>
 
-              {/* ابزارها — حساب، تم، تنظیمات، منوی موبایل */}
+              {/* ابزارها — جستجوی موبایل، حساب، تم، تنظیمات */}
               <div className="relative ms-auto flex items-center gap-1.5">
                 <div className={searchDocked ? "hidden" : "md:hidden"}>
                   <GlobalSearch courses={courses} variant="icon" />
@@ -417,8 +417,8 @@ export function AppShell() {
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
                 </span>
-                {/* دکمهٔ روز/شب طلایی — طرح ۶ شهریور */}
-                <span className="hidden sm:inline">
+                {/* دکمهٔ طلایی تم — چرخهٔ روز/شب/شیشه‌ای؛ جای دکمهٔ منوی حذف‌شده در موبایل */}
+                <span className="inline-flex">
                   <ThemeToggle />
                 </span>
                 <button
@@ -429,14 +429,7 @@ export function AppShell() {
                 >
                   <Settings className="h-[18px] w-[18px]" />
                 </button>
-                <button
-                  onClick={() => setDrawerOpen(true)}
-                  aria-label="باز کردن منو"
-                  title="منو"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/90 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze lg:hidden"
-                >
-                  <Menu className="h-[18px] w-[18px]" />
-                </button>
+
               </div>
             </div>
           </div>
