@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, ClipboardList, TrendingUp, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText, ListTree, NotebookTabs,
+  LibraryBig, Landmark, Menu, ScrollText, ListTree, NotebookTabs, Palette,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { useApp } from "@/lib/store";
@@ -36,6 +36,7 @@ import { LawLibraryView } from "./LawLibraryView";
 import { StudyListView } from "./StudyListView";
 import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
+import { DesignLabView } from "./DesignLabView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -307,6 +308,8 @@ export function AppShell() {
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
         <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+        {/* آزمایشگاه طرح خانه — موقت برای انتخاب طراحی جدید بخش خانه */}
+        <SideItem icon={Palette} label="طرح‌های خانه · موقت" rail={rail} active={current === "designs"} onClick={() => go({ view: "designs" })} />
         {/* افزودن کتاب فقط برای مدیر */}
         {auth.user?.role === "admin" && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
@@ -445,6 +448,7 @@ export function AppShell() {
           {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && <TeacherProfileView id={route.id} />}
           {route.view === "admin" && <AdminView />}
+          {route.view === "designs" && <DesignLabView />}
         </main>
 
         {/* فوتر دسکتاپ */}
@@ -516,6 +520,7 @@ export function AppShell() {
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
               <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+              <SideItem icon={Palette} label="طرح‌های خانه · موقت" rail={false} active={current === "designs"} onClick={() => go({ view: "designs" })} />
               {auth.user?.role === "teacher" && (
                 <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}
