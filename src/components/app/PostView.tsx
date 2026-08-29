@@ -12,6 +12,8 @@ import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { categoryLabel } from "@/lib/social-shared";
 import { useTargetRating } from "@/lib/social-client";
+import { getOfflineItem } from "@/lib/offline";
+import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { SectionBody, StarRating, UserAvatar } from "./common";
 
 interface PostData {
@@ -54,6 +56,7 @@ export function PostView({ id }: { id: string }) {
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [notFound, setNotFound] = React.useState(false);
+  const [offlineUsed, setOfflineUsed] = React.useState(false);
 
   // فرم کامنت
   const [text, setText] = React.useState("");
@@ -65,19 +68,33 @@ export function PostView({ id }: { id: string }) {
   // امتیاز مطلب
   const rating = useTargetRating("post", id);
 
+  // واکشی مطلب — اگر سرور در دسترس نبود، از نسخهٔ ذخیره‌شدهٔ آفلاین (IndexedDB) می‌خوانیم
   React.useEffect(() => {
     let alive = true;
     setLoading(true);
+    setNotFound(false);
+    setOfflineUsed(false);
+    const loadOffline = async () => {
+      const it = await getOfflineItem("post", id);
+      if (!alive) return;
+      if (it?.post) {
+        setData(it.post as PostData);
+        setComments((it.comments as CommentItem[]) ?? []);
+        setOfflineUsed(true);
+      } else {
+        setNotFound(true);
+      }
+    };
     fetch(`/api/posts/${id}`)
-      .then((r) => r.json())
-      .then((d: { post?: PostData; comments?: CommentItem[]; error?: string }) => {
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { post?: PostData; comments?: CommentItem[]; error?: string } | null) => {
         if (!alive) return;
-        if (d.post) {
+        if (d?.post) {
           setData(d.post);
           setComments(d.comments ?? []);
-        } else setNotFound(true);
+        } else void loadOffline();
       })
-      .catch(() => alive && setNotFound(true))
+      .catch(() => { if (alive) void loadOffline(); })
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [id]);
@@ -134,7 +151,7 @@ export function PostView({ id }: { id: string }) {
     return (
       <div className="mx-auto max-w-md pt-20 text-center">
         <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">
-          این مطلب یافت نشد — شاید نویسنده آن را حذف کرده باشد.
+          این مطلب یافت نشد — شاید نویسنده آن را حذف کرده باشد یا بدون اینترنت باشی و این مطلب ذخیرهٔ آفلاین نباشد.
         </p>
         <button onClick={() => navigate({ view: "teachers" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">
           بازگشت به اساتید <ArrowLeft className="h-4 w-4" />
@@ -195,6 +212,13 @@ export function PostView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 pb-28 pt-6 sm:px-6">
+      {/* نشان نسخهٔ آفلاین */}
+      {offlineUsed && (
+        <p className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-4 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400">
+          <OfflineIcon /> در حال دیدن نسخهٔ ذخیره‌شدهٔ آفلاین این مطلب هستی؛ با وصل شدن اینترنت، نسخهٔ تازه خودکار بارگذاری می‌شود.
+        </p>
+      )}
+
       {/* سرصفحهٔ مطلب */}
       <header>
         <button onClick={() => navigate({ view: "teachers" })} className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-bronze">
@@ -244,7 +268,7 @@ export function PostView({ id }: { id: string }) {
           />
         )}
 
-        {/* امتیاز به این مطلب */}
+        {/* امتیاز به این مطلب + دانلود آفلاین */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border/70 bg-card px-4 py-2.5 shadow-card">
           <span className="flex items-center gap-1.5 text-xs font-bold"><StarIco /> امتیاز تو به این مطلب</span>
           {user ? (
@@ -258,6 +282,33 @@ export function PostView({ id }: { id: string }) {
           {user && rating.agg.count > 0 && (
             <span className="text-[11px] text-muted-foreground">میانگین {fa(Math.round(rating.agg.avg * 10) / 10)} از {fa(rating.agg.count)} رأی</span>
           )}
+          <span className="ms-auto flex items-center gap-2">
+            <OfflineUpdatedPill kind="post" id={data.id} serverUpdatedAt={data.updatedAt} />
+            <OfflineDownloadButton
+              kind="post"
+              id={data.id}
+              labeled
+              serverUpdatedAt={data.updatedAt}
+              card={{
+                id: data.id,
+                title: data.title,
+                summary: data.summary,
+                tags: data.tags,
+                category: data.category,
+                thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : undefined,
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+                commentsCount: comments.length,
+                rating: rating.agg.count > 0 ? { avg: rating.agg.avg, count: rating.agg.count } : undefined,
+                author: {
+                  id: data.author.id,
+                  username: data.author.username,
+                  displayName: data.author.displayName,
+                  avatarUrl: data.author.avatarUrl,
+                },
+              }}
+            />
+          </span>
         </div>
 
         {(data.category || data.tags) && (
@@ -363,6 +414,14 @@ function StarIco() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-bronze">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+    </svg>
+  );
+}
+
+function OfflineIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+      <path d="M12 2v8" /><path d="m8 6 4 4 4-4" /><path d="M4 14a8 8 0 0 0 16 0" />
     </svg>
   );
 }
