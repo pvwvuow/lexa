@@ -60,4 +60,8 @@ tool-results/
 scripts/extracted/
 scripts/tessdata/
 upload/
-db/
+# سیاست ۳۰ مرداد ۱۴۰۵ (بازیابی دوم): خود db/custom.db حالا tracked است تا هیچ ریست محیطی
+# دیگر دادهٔ کاربران را پاک نکند — فقط فایل‌های فرّار SQLite نادیده گرفته می‌شوند
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
