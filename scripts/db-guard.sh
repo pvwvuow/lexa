@@ -1,32 +1,25 @@
 #!/bin/bash
-# نگهبان دیتابیس — هر ۵ دقیقه وضعیت زندهٔ db/custom.db را در گیت امن می‌کند
-# تا هیچ ریست محیطی دیگر دادهٔ کاربران را پاک نکند (سیاست پس از بازیابی دوم، ۳۰ مرداد ۱۴۰۵)
-# اجرا: setsid nohup bash scripts/db-guard.sh >/dev/null 2>&1 &
-set -u
+# بکاپ فوریِ یک‌بارهٔ داده‌ها — برای اجرای دستی (نسخهٔ دیمن حذف شد: پلتفرم حلقه‌های bash را جمع می‌کند؛
+# بکاپ دوره‌ای حالا داخل خود سرور next است: src/lib/data-guard.ts)
+set -e
 cd /home/z/my-project
-LOCK=/tmp/db-guard.lock
-# جلوگیری از اجرای دوباره (اجازهٔ ۱۰ دقیقه تجاوز عمر لاک برای ریکاوری پس از ریست)
-if [ -f "$LOCK" ]; then
-  AGE=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || echo 0) ))
-  [ "$AGE" -lt 600 ] && exit 0
+node -e "
+const {PrismaClient}=require('@prisma/client');
+const fs=require('fs');
+const p=new PrismaClient();
+(async()=>{
+  fs.rmSync('backups/db-snapshot.db',{force:true});
+  await p.\$queryRawUnsafe(\"VACUUM INTO '/home/z/my-project/backups/db-snapshot.db'\");
+  fs.copyFileSync('backups/db-snapshot.db','backups/db-safety.db');
+  const users=await p.user.count(); const posts=await p.post.count();
+  console.log('اسنپ‌شات گرفته شد — کاربران:',users,'| مطالب:',posts);
+  await p.\$disconnect();
+})().catch(e=>{console.error(e.message);process.exit(1)});
+"
+git add db/custom.db backups/db-snapshot.db backups/db-safety.db data 2>/dev/null || true
+if ! git diff --cached --quiet; then
+  git commit --quiet -m "db-guard(دستی): اسنپ‌شوت فوری داده‌ها ($(date +%H:%M))"
+  echo "کامیت شد ✅"
+else
+  echo "بدون تغییر — کامیت لازم نبود"
 fi
-echo $$ > "$LOCK"
-trap 'rm -f "$LOCK"' EXIT
-
-while true; do
-  sleep 300
-  # ۱) کپی امن دیتابیس زنده (فقط اگر سالم باشد — جدول User باید موجود باشد)
-  if [ -f db/custom.db ] && node -e "
-    const {PrismaClient}=require('@prisma/client');
-    const p=new PrismaClient();
-    p.user.count().then(c=>{console.log(c);process.exit(0)}).catch(()=>process.exit(1));
-  " >/dev/null 2>&1; then
-    cp db/custom.db backups/db-snapshot.db
-    cp db/custom.db backups/db-safety.db
-    # ۲) کامیت بی‌صدا فقط اگر تغییری باشد
-    git add db/custom.db backups/db-snapshot.db backups/db-safety.db 2>/dev/null
-    if ! git diff --cached --quiet 2>/dev/null; then
-      git commit --quiet -m "db-guard: اسنپ‌شوت خودکار دیتابیس زنده ($(date +%H:%M))" 2>/dev/null
-    fi
-  fi
-done
