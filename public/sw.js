@@ -21,7 +21,7 @@
  * v3 — رفع «آفلاین باز نمی‌شود»: کش دارایی‌های ارجاع‌شده در HTML پوسته + timeout race
  * برای برگشت سریع به کش در نبود اینترنت + پس‌افت ناوبری با ignoreSearch.
  */
-const VERSION = "hh-pwa-v21";
+const VERSION = "hh-pwa-v22";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
