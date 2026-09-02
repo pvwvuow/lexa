@@ -42,6 +42,54 @@ import { lessonJG130, lessonJG131, lessonJG132, lessonJG133, lessonJG134 } from 
 import { lessonJG135, lessonJG136 } from './jaza-g-ch40';
 import { lessonJG137, lessonJG138, lessonJG139 } from './jaza-g-ch41';
 import { lessonJG140, lessonJG141, lessonJG142, lessonJG143 } from './jaza-g-ch42';
+import { lessonJG144, lessonJG145, lessonJG146, lessonJG147 } from './jaza-g-ch43';
+import { lessonJG148, lessonJG149, lessonJG150, lessonJG151 } from './jaza-g-ch44';
+import { lessonJG152, lessonJG153 } from './jaza-g-ch45';
+import { lessonJG154, lessonJG155, lessonJG156, lessonJG157 } from './jaza-g-ch46';
+import { lessonJG158, lessonJG159, lessonJG160, lessonJG161 } from './jaza-g-ch47';
+import { lessonJG162, lessonJG163, lessonJG164, lessonJG165 } from './jaza-g-ch48';
+import { lessonJG166, lessonJG167, lessonJG168, lessonJG169 } from './jaza-g-ch49';
+import { lessonJG170, lessonJG171, lessonJG172, lessonJG173 } from './jaza-g-ch50';
+import { lessonJG174, lessonJG175, lessonJG176, lessonJG177 } from './jaza-g-ch51';
+import { lessonJG178, lessonJG179 } from './jaza-g-ch52';
+import { lessonJG180, lessonJG181, lessonJG182, lessonJG183 } from './jaza-g-ch53';
+import { lessonJG184, lessonJG185, lessonJG186, lessonJG187 } from './jaza-g-ch54';
+import { lessonJG188, lessonJG189, lessonJG190, lessonJG191 } from './jaza-g-ch55';
+import { lessonJG192, lessonJG193, lessonJG194 } from './jaza-g-ch56';
+import { lessonJG195, lessonJG196, lessonJG197, lessonJG198 } from './jaza-g-ch57';
+import { lessonJG199, lessonJG200, lessonJG201 } from './jaza-g-ch58';
+import { lessonJG202, lessonJG203, lessonJG204 } from './jaza-g-ch59';
+import { lessonJG205, lessonJG206, lessonJG207, lessonJG208, lessonJG209 } from './jaza-g-ch60';
+import { lessonJG210, lessonJG211, lessonJG212, lessonJG213 } from './jaza-g-ch61';
+import { lessonJG214, lessonJG215, lessonJG216, lessonJG217 } from './jaza-g-ch62';
+import { lessonJG218, lessonJG219, lessonJG220, lessonJG221 } from './jaza-g-ch63';
+import { lessonJG222, lessonJG223, lessonJG224, lessonJG225 } from './jaza-g-ch64';
+import { lessonJG226, lessonJG227, lessonJG228, lessonJG229 } from './jaza-g-ch65';
+import { lessonJG230, lessonJG231, lessonJG232, lessonJG233 } from './jaza-g-ch66';
+import { lessonJG234, lessonJG235, lessonJG236, lessonJG237 } from './jaza-g-ch67';
+import { lessonJG238, lessonJG239, lessonJG240, lessonJG241 } from './jaza-g-ch68';
+import { lessonJG242, lessonJG243, lessonJG244, lessonJG245 } from './jaza-g-ch69';
+import { lessonJG246, lessonJG247, lessonJG248, lessonJG249 } from './jaza-g-ch70';
+import { lessonJG250, lessonJG251, lessonJG252, lessonJG253 } from './jaza-g-ch71';
+import { lessonJG254, lessonJG255, lessonJG256, lessonJG257 } from './jaza-g-ch72';
+import { lessonJG258, lessonJG259, lessonJG260, lessonJG261 } from './jaza-g-ch73';
+import { lessonJG262, lessonJG263, lessonJG264, lessonJG265, lessonJG266 } from './jaza-g-ch74';
+import { lessonJG267, lessonJG268, lessonJG269, lessonJG270 } from './jaza-g-ch75';
+import { lessonJG271, lessonJG272, lessonJG273, lessonJG274 } from './jaza-g-ch76';
+import { lessonJG275, lessonJG276, lessonJG277, lessonJG278 } from './jaza-g-ch77';
+import { lessonJG279, lessonJG280, lessonJG281, lessonJG282 } from './jaza-g-ch78';
+import { lessonJG283, lessonJG284, lessonJG285, lessonJG286 } from './jaza-g-ch79';
+import { lessonJG287, lessonJG288, lessonJG289, lessonJG290 } from './jaza-g-ch80';
+import { lessonJG291, lessonJG292, lessonJG293, lessonJG294 } from './jaza-g-ch81';
+import { lessonJG295, lessonJG296, lessonJG297, lessonJG298 } from './jaza-g-ch82';
+import { lessonJG299, lessonJG300, lessonJG301, lessonJG302 } from './jaza-g-ch83';
+import { lessonJG303, lessonJG304, lessonJG305, lessonJG306 } from './jaza-g-ch84';
+import { lessonJG307, lessonJG308, lessonJG309, lessonJG310 } from './jaza-g-ch85';
+import { lessonJG311, lessonJG312, lessonJG313, lessonJG314 } from './jaza-g-ch86';
+import { lessonJG315, lessonJG316, lessonJG317, lessonJG318 } from './jaza-g-ch87';
+import { lessonJG319, lessonJG320, lessonJG321, lessonJG322 } from './jaza-g-ch88';
+import { lessonJG323, lessonJG324, lessonJG325, lessonJG326 } from './jaza-g-ch89';
+import { lessonJG327, lessonJG328, lessonJG329, lessonJG330 } from './jaza-g-ch90';
 
 // ─── تدریس جزا ۱ (کلیات جزا) — بازنویسی کامل صفحات ۱ تا ۴۰۰ جزوهٔ تدریس رایگان جزا ───
 // مطابق جزوهٔ «تدریس جزا — احمد غفوری»: نقشهٔ قانون مجازات، عناصر سه‌گانهٔ جرم،
@@ -54,13 +102,13 @@ import { lessonJG140, lessonJG141, lessonJG142, lessonJG143 } from './jaza-g-ch4
 export const tadrisJaza1: Course = {
   id: 'tadris-jaza-1',
   title: 'تدریس جزا ۱ — کلیات',
-  tagline: 'جزوهٔ احمد غفوری؛ از کلیات جرم تا قصاص و قسامه و علم اجمالی، صفحه‌به‌صفحه تا ۴۵۰',
+  tagline: 'جزوهٔ احمد غفوری؛ دورهٔ کامل ۹۸۴ صفحه‌ای — از کلیات جرم تا قصاص، دیه، جرایم تعزیری و قوانین خاص',
   description:
-    'مطابق جزوهٔ تدریس رایگان جزا (احمد غفوری) — صفحات ۱ تا ۴۵۰: تقسیم‌بندی پنج‌گانهٔ قانون مجازات، اصل قانونی بودن و استثناهایش، عناصر مادی و روانی جرم، قلمرو اجرای قوانین در مکان و زمان، رأی وحدت رویه، قانونی بودن مجازات‌ها، درجات مادهٔ ۱۹، مجازات‌های تبعی و تکمیلی، احتساب بازداشت و بازداشت بدل از جزای نقدی، محرومیت‌ها و انتشار حکم، تخفیف و معافیت از کیفر، تعویق صدور حکم و تعلیق اجرا، نیمه‌آزادی و آزادی مشروط و نظارت الکترونیکی و مجازات‌های جایگزین حبس، احکام تکمیلی و اجرای جایگزین (مواد ۷۴ تا ۸۷)، اطفال و نوجوانان (مواد ۸۸ تا ۹۵)، عفو و نسخ و گذشت شاکی (مواد ۹۶ تا ۱۰۴)، مرور زمان کامل (مواد ۱۰۵ تا ۱۱۳)، توبه (مواد ۱۱۴ تا ۱۱۹)، قاعدهٔ درأ (مواد ۱۲۰ و ۱۲۱)، جرایم ناتمام (مواد ۱۲۲ و ۱۲۳) و شرکت و سبب و معاونت (مواد ۱۲۵ تا ۱۳۵)، مجازات معاون و معاونت‌های خاص (مواد ۱۲۷ تا ۱۳۸)، سردستگی (مادهٔ ۱۳۰)، اسباب متعدد (مواد ۵۳۵ و ۵۳۶) و تعدد و تکرار کامل (مواد ۱۳۱ تا ۱۳۷ و تکرار در جرایم حدی و تعزیرات)، شرایط و موانع مسئولیت کیفری (مواد ۱۴۰ تا ۱۴۵)، جنون (مواد ۱۴۹ و ۱۵۰ و ۵۰۳ ق.آ.د.ک)، اجبار و اکراه (مادهٔ ۱۵۱)، اضطرار و احسان (مواد ۱۵۲ و ۵۱۰)، مستی و اشتباه (مواد ۱۵۴ و ۳۰۷)، دفاع مشروع و علل موجهه (مواد ۱۵۵ تا ۱۵۸)، ادلهٔ اثبات (اقرار و شهادت و سوگند و علم قاضی — مواد ۱۶۰ تا ۲۱۵)، کلیات حدود و زنا و لواط و تفخیذ و مساحقه و قوادی و شرب خمر و محاربه و افساد فی‌الارض و بغی (مواد ۲۱۷ تا ۲۸۷) و باب قصاص از سه نوع جنایت و راهکار تشخیص (مواد ۲۸۹ تا ۲۹۲ و ۶۱۶) تا اشتباه در هدف و هویت و ترک فعل (نکته‌های ۲۶۷ تا ۲۷۷)، جنایات متعدد و سرایت به نفس (مواد ۲۹۳ تا ۳۰۰)، شرایط عمومی قصاص و درجات دین و مهدورالدم و جنین و مستی (مواد ۳۰۱ تا ۳۱۱) و قسامه و لوث و لوث مردد و علم اجمالی (مواد ۳۱۲ تا ۳۳۷) — همراه کارگاه کامل تست‌های ۱ تا ۷۶ خودِ جزوه و کوئیزهای متراکم تألیفی.\n\nدر پایان هر مبحث، «منبع و مستندات همان جلسه» (صفحات جزوه و مواد و رأی‌های مربوط) درج شده است.',
+    'مطابق جزوهٔ تدریس رایگان جزا (احمد غفوری) — دورهٔ کامل صفحات ۱ تا ۹۸۴: تقسیم‌بندی پنج‌گانهٔ قانون مجازات، اصل قانونی بودن و استثناهایش، عناصر مادی و روانی جرم، قلمرو اجرای قوانین در مکان و زمان، رأی وحدت رویه، قانونی بودن مجازات‌ها، درجات مادهٔ ۱۹، مجازات‌های تبعی و تکمیلی، احتساب بازداشت و بازداشت بدل از جزای نقدی، محرومیت‌ها و انتشار حکم، تخفیف و معافیت از کیفر، تعویق صدور حکم و تعلیق اجرا، نیمه‌آزادی و آزادی مشروط و نظارت الکترونیکی و مجازات‌های جایگزین حبس، احکام تکمیلی و اجرای جایگزین (مواد ۷۴ تا ۸۷)، اطفال و نوجوانان (مواد ۸۸ تا ۹۵)، عفو و نسخ و گذشت شاکی (مواد ۹۶ تا ۱۰۴)، مرور زمان کامل (مواد ۱۰۵ تا ۱۱۳)، توبه (مواد ۱۱۴ تا ۱۱۹)، قاعدهٔ درأ (مواد ۱۲۰ و ۱۲۱)، جرایم ناتمام (مواد ۱۲۲ و ۱۲۳) و شرکت و سبب و معاونت (مواد ۱۲۵ تا ۱۳۵)، مجازات معاون و معاونت‌های خاص (مواد ۱۲۷ تا ۱۳۸)، سردستگی (مادهٔ ۱۳۰)، اسباب متعدد (مواد ۵۳۵ و ۵۳۶) و تعدد و تکرار کامل (مواد ۱۳۱ تا ۱۳۷ و تکرار در جرایم حدی و تعزیرات)، شرایط و موانع مسئولیت کیفری (مواد ۱۴۰ تا ۱۴۵)، جنون (مواد ۱۴۹ و ۱۵۰ و ۵۰۳ ق.آ.د.ک)، اجبار و اکراه (مادهٔ ۱۵۱)، اضطرار و احسان (مواد ۱۵۲ و ۵۱۰)، مستی و اشتباه (مواد ۱۵۴ و ۳۰۷)، دفاع مشروع و علل موجهه (مواد ۱۵۵ تا ۱۵۸)، ادلهٔ اثبات (اقرار و شهادت و سوگند و علم قاضی — مواد ۱۶۰ تا ۲۱۵)، کلیات حدود و زنا و لواط و تفخیذ و مساحقه و قوادی و شرب خمر و محاربه و افساد فی‌الارض و بغی (مواد ۲۱۷ تا ۲۸۷) و باب قصاص از سه نوع جنایت و راهکار تشخیص (مواد ۲۸۹ تا ۲۹۲ و ۶۱۶) تا اشتباه در هدف و هویت و ترک فعل (نکته‌های ۲۶۷ تا ۲۷۷)، جنایات متعدد و سرایت به نفس (مواد ۲۹۳ تا ۳۰۰)، شرایط عمومی قصاص و درجات دین و مهدورالدم و جنین و مستی (مواد ۳۰۱ تا ۳۱۱) و قسامه و لوث و لوث مردد و علم اجمالی (مواد ۳۱۲ تا ۳۳۷)، ادامهٔ قصاص و عاقله و دیات کامل (مواد ۳۳۸ تا ۷۲۸)، جرایم علیه معنویت و آبرو (توهین، قذف، افترا، نشر اکاذیب)، جرایم اموال و کلاهبرداری و خیانت در امانت و سرقت و چک، رشا و ارتشا و ربا و پولشویی، جرایم امنیتی و جعل و کارکنان دولت و آسایش عمومی و اخلاق عمومی و قمار و تکدی و رانندگی و جرایم رایانه‌ای کامل (ق.ج.ر ۱۳۸۸) و جرم سیاسی و سلاح و قاچاق و تأمین مالی تروریسم و اسیدپاشی و شرکت سهامی و نیروهای مسلح — همراه کارگاه کامل تست‌های ۱ تا ۱۳۰ خودِ جزوه و کوئیزهای متراکم تألیفی.\n\nدر پایان هر مبحث، «منبع و مستندات همان جلسه» (صفحات جزوه و مواد و رأی‌های مربوط) درج شده است.',
   icon: 'Gavel',
   accent: 'navy',
   origin: 'built-in',
-  sourceLabel: 'جزوهٔ تدریس رایگان کلاس جزا — احمد غفوری (صفحات ۱–۴۵۰ از ۹۸۴)',
+  sourceLabel: 'جزوهٔ تدریس رایگان کلاس جزا — احمد غفوری (دورهٔ کامل: صفحات ۱ تا ۹۸۴)',
   chapters: [
     {
       id: 'jg-c1', order: 1,
@@ -325,6 +373,294 @@ export const tadrisJaza1: Course = {
       title: 'قسامه (۲)؛ تعدد، لوث مردد و علم اجمالی',
       subtitle: 'مواد ۳۲۳ تا ۳۳۷: فاضل دیه، اقرار به انفراد، لوث مردد و جدول‌های علم اجمالی',
       lessons: [lessonJG140, lessonJG141, lessonJG142, lessonJG143],
+    },
+    {
+      id: 'jg-c45', order: 45,
+      title: 'پایان باب قسامه؛ نصاب قسامه و سوگند',
+      subtitle: 'مواد ۳۳۶ تا ۳۵۰: نصاب قسامهٔ قتل و عضو، سوگند شاکی و متهم و اعتبار قسامه',
+      lessons: [lessonJG144, lessonJG145, lessonJG146, lessonJG147],
+    },
+    {
+      id: 'jg-c46', order: 46,
+      title: 'ولیّ دم، ورثه و تنازع در قصاص',
+      subtitle: 'مواد ۳۵۱ تا ۳۶۷: ورثه و صغیر/مجنون، مقام رهبری، قاتل از ورثه و اختلاف اولیاء',
+      lessons: [lessonJG148, lessonJG149, lessonJG150, lessonJG151],
+    },
+    {
+      id: 'jg-c47', order: 47,
+      title: 'قصاص شرکا و محاسبهٔ فاضل دیه',
+      subtitle: 'مواد ۳۶۸ تا ۳۷۴: اوصاف متفاوت شرکا، تنازع در سلب حیات و فرمول فاضل دیه',
+      lessons: [lessonJG152, lessonJG153],
+    },
+    {
+      id: 'jg-c48', order: 48,
+      title: 'تقسیم دیه میان قاتلین و تفاوت دیه‌ها',
+      subtitle: 'نکته‌های ۳۱۸ تا ۳۲۱ (صفحات ۴۷۹ تا ۴۸۴ جزوه)',
+      lessons: [lessonJG154, lessonJG155, lessonJG156, lessonJG157],
+    },
+    {
+      id: 'jg-c49', order: 49,
+      title: 'پرداخت پیش از قصاص و اکراه در جنایت',
+      subtitle: 'نکته‌های ۳۲۲ تا ۳۲۴ (صفحات ۴۸۵ تا ۴۸۹ جزوه)',
+      lessons: [lessonJG158, lessonJG159, lessonJG160, lessonJG161],
+    },
+    {
+      id: 'jg-c50', order: 50,
+      title: 'تغلیظ دیه و قصاص عضو',
+      subtitle: 'مواد ۳۸۴ تا ۳۹۸: چند مقتول، ماه‌های حرام، مراتب قصاص عضو و سالم/ناقص/ناسالم',
+      lessons: [lessonJG162, lessonJG163, lessonJG164, lessonJG165],
+    },
+    {
+      id: 'jg-c51', order: 51,
+      title: 'قصاص عضو؛ تساوی و مواد ویژه',
+      subtitle: 'نکته‌های ۳۲۸ تا ۳۳۶ (صفحات ۵۰۱ تا ۵۰۹ جزوه)',
+      lessons: [lessonJG166, lessonJG167, lessonJG168, lessonJG169],
+    },
+    {
+      id: 'jg-c52', order: 52,
+      title: 'صاحبان حق قصاص و فاضل دیه',
+      subtitle: 'مواد ۴۲۲ تا ۴۳۵: غایبان، ترکه و گذشت حین اجرا',
+      lessons: [lessonJG170, lessonJG171, lessonJG172, lessonJG173],
+    },
+    {
+      id: 'jg-c53', order: 53,
+      title: 'عدم دسترسی به جانی و اجرای قصاص',
+      subtitle: 'مواد ۴۳۵ تا ۴۴۷ + اجرای قصاص نفس و عضو',
+      lessons: [lessonJG174, lessonJG175, lessonJG176, lessonJG177],
+    },
+    {
+      id: 'jg-c54', order: 54,
+      title: 'آغاز کتاب دیات',
+      subtitle: 'مواد ۴۴۸ تا ۴۶۳: کلیات، اثبات دیه و مسئول پرداخت',
+      lessons: [lessonJG178, lessonJG179],
+    },
+    {
+      id: 'jg-c55', order: 55,
+      title: 'عاقله، علم اجمالی و دیه از بیت‌المال',
+      subtitle: 'مواد ۴۶۴ تا ۴۹۱ + رأی وحدت رویهٔ ۷۹۰ و مهلت پرداخت دیه',
+      lessons: [lessonJG180, lessonJG181, lessonJG182, lessonJG183],
+    },
+    {
+      id: 'jg-c56', order: 56,
+      title: 'موجبات ضمان؛ مباشرت و تسبیب',
+      subtitle: 'مواد ۴۹۲ تا ۵۲۲: پزشک، ارعاب، رانندگی، معابر، دیوار و متصرف حیوان',
+      lessons: [lessonJG184, lessonJG185, lessonJG186, lessonJG187],
+    },
+    {
+      id: 'jg-c57', order: 57,
+      title: 'خسارت‌های دیه؛ برخورد و تعدد عوامل',
+      subtitle: 'مواد ۵۲۳ تا ۵۳۷ (صفحات ۵۵۱ تا ۵۵۷ جزوه)',
+      lessons: [lessonJG188, lessonJG189, lessonJG190, lessonJG191],
+    },
+    {
+      id: 'jg-c58', order: 58,
+      title: 'تعدد جنایات و تداخل دیه',
+      subtitle: 'مواد ۵۳۸ تا ۵۴۸ (صفحات ۵۵۷ تا ۵۶۱ جزوه)',
+      lessons: [lessonJG192, lessonJG193, lessonJG194],
+    },
+    {
+      id: 'jg-c59', order: 59,
+      title: 'مقادیر دیه',
+      subtitle: 'مواد ۵۴۹ تا ۵۶۷ با آرای وحدت رویه (صفحات ۵۶۲ تا ۵۶۷ جزوه)',
+      lessons: [lessonJG195, lessonJG196, lessonJG197, lessonJG198],
+    },
+    {
+      id: 'jg-c60', order: 60,
+      title: 'دیه در حوادث و تداخل دیات',
+      subtitle: 'مواد ۵۲۳ تا ۵۵۲: حیوانات، تصادف، گودال، دیهٔ زن و خنثی و صندوق تأمین خسارات',
+      lessons: [lessonJG199, lessonJG200, lessonJG201],
+    },
+    {
+      id: 'jg-c61', order: 61,
+      title: 'دیهٔ اعضا، پیوند عضو و جراحات',
+      subtitle: 'مواد ۵۵۳ تا ۵۷۵ + ۶۷۱ تا ۶۸۱ و ۷۰۹-۷۱۱: اقلیت‌های دینی، استخوان، عقل و جدول جراحات',
+      lessons: [lessonJG202, lessonJG203, lessonJG204],
+    },
+    {
+      id: 'jg-c62', order: 62,
+      title: 'پایان باب دیه و جرایم معنوی',
+      subtitle: 'دیهٔ جنین و جنایت بر میت؛ توهین، سب‌النبی، افترا و قذف',
+      lessons: [lessonJG205, lessonJG206, lessonJG207, lessonJG208, lessonJG209],
+    },
+    {
+      id: 'jg-c63', order: 63,
+      title: 'نشر اکاذیب؛ کلاهبرداری و انتقال مال غیر',
+      subtitle: 'مواد ۶۹۸ و ۷۴۶، مادهٔ ۱ قانون تشدید و قانون انتقال مال غیر؛ نکته‌های ۳۷۰ تا ۳۹۶',
+      lessons: [lessonJG210, lessonJG211, lessonJG212, lessonJG213],
+    },
+    {
+      id: 'jg-c64', order: 64,
+      title: 'جرایم مشابه کلاهبرداری',
+      subtitle: 'معامله معارض، سوءاستفاده از ضعف نفس، تدلیس و کلاهبرداری ثبت/تجاری/رایانه‌ای',
+      lessons: [lessonJG214, lessonJG215, lessonJG216, lessonJG217],
+    },
+    {
+      id: 'jg-c65', order: 65,
+      title: 'خیانت در امانت و اختلاس',
+      subtitle: 'نکته‌های ۴۰۱ تا ۴۲۶: مادهٔ ۶۷۴، سفیدمهر، اختلاس و تصرف غیرقانونی',
+      lessons: [lessonJG218, lessonJG219, lessonJG220, lessonJG221],
+    },
+    {
+      id: 'jg-c66', order: 66,
+      title: 'کارگاه تست ۷۷ و ۷۸؛ خیانت خاص؛ سرقت حدی',
+      subtitle: 'تست‌های ۷۷ و ۷۸ با تحلیل؛ نکته‌های ۴۲۷ تا ۴۴۹ و حرز و هتک حرز',
+      lessons: [lessonJG222, lessonJG223, lessonJG224, lessonJG225],
+    },
+    {
+      id: 'jg-c67', order: 67,
+      title: 'سرقت (۵): پایان حد و سرقت مشدد',
+      subtitle: 'مواد ۲۶۸ تا ۲۷۸ و ۶۵۱ تا ۶۶۰؛ نکته‌های ۴۵۱ تا ۴۶۷',
+      lessons: [lessonJG226, lessonJG227, lessonJG228, lessonJG229],
+    },
+    {
+      id: 'jg-c68', order: 68,
+      title: 'پایان سرقت و آغاز قانون صدور چک',
+      subtitle: 'مواد ۶۶۱ تا ۶۶۷ و ۷۴۰؛ چک بلامحل و مواد ۳، ۵ و ۱۲',
+      lessons: [lessonJG230, lessonJG231, lessonJG232, lessonJG233],
+    },
+    {
+      id: 'jg-c69', order: 69,
+      title: 'ادامهٔ چک و آغاز رشا و ارتشا',
+      subtitle: 'نکته‌های ۴۸۱ تا ۴۸۹: حساب مسدود، مهلت ۶+۶ ماه، تضامن و سند تعهدآور',
+      lessons: [lessonJG234, lessonJG235, lessonJG236, lessonJG237],
+    },
+    {
+      id: 'jg-c70', order: 70,
+      title: 'ارتشا در قانون تشدید؛ اعمال نفوذ و ربا',
+      subtitle: 'مواد ۵۸۸ تا ۵۹۵ + پورسانت و اخلال‌گران؛ ربا (مادهٔ ۵۹۵) و تکدی',
+      lessons: [lessonJG238, lessonJG239, lessonJG240, lessonJG241],
+    },
+    {
+      id: 'jg-c71', order: 71,
+      title: 'تحصیل مال نامشروع، پولشویی و کارگاه تست ۸۰-۸۵',
+      subtitle: 'قانون تحصیل مال نامشروع ۱۳۹۸ + پولشویی + کارگاه تست‌های رسمی ۸۰ تا ۸۵',
+      lessons: [lessonJG242, lessonJG243, lessonJG244, lessonJG245],
+    },
+    {
+      id: 'jg-c72', order: 72,
+      title: 'کارگاه تست‌های رسمی جرایم مالی (۸۶ تا ۱۰۵)',
+      subtitle: 'حل مستند تست‌های ۸۶ تا ۱۰۵ (ارشد، دکتری، قضاوت، وکالت) + آغاز جرایم امنیت',
+      lessons: [lessonJG246, lessonJG247, lessonJG248, lessonJG249],
+    },
+    {
+      id: 'jg-c73', order: 73,
+      title: 'جرایم علیه امنیت داخلی و خارجی (۲)',
+      subtitle: 'مواد ۵۰۰ تا ۵۱۷: تبلیغ علیه نظام، جاسوسی، مواضع ممنوعه و سوءقصد',
+      lessons: [lessonJG250, lessonJG251, lessonJG252, lessonJG253],
+    },
+    {
+      id: 'jg-c74', order: 74,
+      title: 'قلب سکه و آغاز باب جعل',
+      subtitle: 'مواد ۵۱۸ تا ۵۲۲ + جعل مادی و معنوی (مادهٔ ۵۳۴)',
+      lessons: [lessonJG254, lessonJG255, lessonJG256, lessonJG257],
+    },
+    {
+      id: 'jg-c75', order: 75,
+      title: 'جعل معنوی، شرایط جعل و سند مجعول',
+      subtitle: 'نکته‌های ۵۵۵ تا ۵۸۶؛ مواد ۵۲۳ تا ۵۳۰ (صفحات ۷۵۱ تا ۷۶۳ جزوه)',
+      lessons: [lessonJG258, lessonJG259, lessonJG260, lessonJG261],
+    },
+    {
+      id: 'jg-c76', order: 76,
+      title: 'جعل اوراق رسمی و کارگاه تست ۱۰۶-۱۰۹',
+      subtitle: 'مواد ۵۳۱ تا ۵۴۱ و ۷۴۷-۷۴۸ + تست‌های ۱۰۶ تا ۱۰۹',
+      lessons: [lessonJG262, lessonJG263, lessonJG264, lessonJG265, lessonJG266],
+    },
+    {
+      id: 'jg-c77', order: 77,
+      title: 'کارگاه تست‌های ۱۱۰-۱۱۸؛ اسناد اماکن دولتی و فرار محبوسین',
+      subtitle: 'مواد ۵۴۱ تا ۵۵۲ + کارگاه تست‌های ۱۱۰ تا ۱۱۸',
+      lessons: [lessonJG267, lessonJG268, lessonJG269, lessonJG270],
+    },
+    {
+      id: 'jg-c78', order: 78,
+      title: 'اخفای مقصرین، عناوین غیرمجاز و آثار تاریخی',
+      subtitle: 'مواد ۵۵۳ تا ۵۷۴ + استفادهٔ غیرمجاز از عناوین علمی',
+      lessons: [lessonJG271, lessonJG272, lessonJG273, lessonJG274],
+    },
+    {
+      id: 'jg-c79', order: 79,
+      title: 'جرایم کارکنان دولت (۱)',
+      subtitle: 'مواد ۵۷۵ تا ۶۰۲: مباشر/آمر، اذیت و آزار، شنود و حبس غیرقانونی',
+      lessons: [lessonJG275, lessonJG276, lessonJG277, lessonJG278],
+    },
+    {
+      id: 'jg-c80', order: 80,
+      title: 'عدم اعلام جرم، تمرد، تبانی و نزاع',
+      subtitle: 'مواد ۶۰۶ تا ۶۱۵ + مادهٔ ۶۰۷ و نسخ‌های قانون کاهش حبس',
+      lessons: [lessonJG279, lessonJG280, lessonJG281, lessonJG282],
+    },
+    {
+      id: 'jg-c81', order: 81,
+      title: 'آسایش عمومی، آدم‌ربایی و قاچاق انسان',
+      subtitle: 'مواد ۶۱۶ تا ۶۲۱ + قاچاق انسان؛ نکته‌های ۶۴۲ تا ۶۵۹',
+      lessons: [lessonJG283, lessonJG284, lessonJG285, lessonJG286],
+    },
+    {
+      id: 'jg-c82', order: 82,
+      title: 'اطفال و اموات، اخلاق عمومی و افشای سرّ',
+      subtitle: 'مواد ۶۳۱ تا ۶۴۸ + مادهٔ ۷۴۵؛ نکته‌های ۶۶۰ تا ۶۷۵',
+      lessons: [lessonJG287, lessonJG288, lessonJG289, lessonJG290],
+    },
+    {
+      id: 'jg-c83', order: 83,
+      title: 'شهادت دروغ، تهدید، ورشکستگی و احراق',
+      subtitle: 'مواد ۶۴۹-۶۵۰، ۶۶۸-۶۷۸؛ نکته‌های ۶۷۶ تا ۶۹۸',
+      lessons: [lessonJG291, lessonJG292, lessonJG293, lessonJG294],
+    },
+    {
+      id: 'jg-c84', order: 84,
+      title: 'تلف اموال، محیط زیست، منازل، مشروبات و قمار',
+      subtitle: 'مواد ۶۷۹ تا ۷۰۵؛ رأی‌های ۷۳۶ و ۷۷۸ و نسخ ضمنی ۶۹۶',
+      lessons: [lessonJG295, lessonJG296, lessonJG297, lessonJG298],
+    },
+    {
+      id: 'jg-c85', order: 85,
+      title: 'قمار و شرط‌بندی',
+      subtitle: 'مواد ۷۰۵ تا ۷۰۸ اصلاحی ۱۴۰۱؛ نکته‌های ۷۱۴ تا ۷۲۱',
+      lessons: [lessonJG299, lessonJG300, lessonJG301, lessonJG302],
+    },
+    {
+      id: 'jg-c86', order: 86,
+      title: 'تکدی، رانندگی و آغاز جرایم رایانه‌ای',
+      subtitle: 'مواد ۷۰۹ تا ۷۳۲؛ نکته‌های ۷۲۲ تا ۷۳۱',
+      lessons: [lessonJG303, lessonJG304, lessonJG305, lessonJG306],
+    },
+    {
+      id: 'jg-c87', order: 87,
+      title: 'جرایم رایانه‌ای (ادامه)',
+      subtitle: 'مواد ۷۳۳ تا ۷۴۵: جعل رایانه‌ای، تخریب، سرقت، کلاهبرداری و محتویات مبتذل',
+      lessons: [lessonJG307, lessonJG308, lessonJG309, lessonJG310],
+    },
+    {
+      id: 'jg-c88', order: 88,
+      title: 'جرایم رایانه‌ای (پایان) + کارگاه تست ۱۱۹ و ۱۲۰',
+      subtitle: 'مواد ۷۴۶ تا ۷۵۵ + پهنای باند؛ تست‌های ۱۱۹ و ۱۲۰',
+      lessons: [lessonJG311, lessonJG312, lessonJG313, lessonJG314],
+    },
+    {
+      id: 'jg-c89', order: 89,
+      title: 'کارگاه تست‌های ۱۲۱ تا ۱۳۰ و جرم سیاسی',
+      subtitle: 'کارگاه رسمی جرایم رایانه‌ای + قانون جرم سیاسی؛ نکته‌های ۷۴۶ تا ۷۴۸',
+      lessons: [lessonJG315, lessonJG316, lessonJG317, lessonJG318],
+    },
+    {
+      id: 'jg-c90', order: 90,
+      title: 'جرم سیاسی؛ مواد مخدر و مادهٔ ۴۵؛ قاچاق',
+      subtitle: 'مواد ۴ تا ۶ جرم سیاسی + سلاح (مادهٔ ۴۵) + مادهٔ ۶۷ قاچاق',
+      lessons: [lessonJG319, lessonJG320, lessonJG321, lessonJG322],
+    },
+    {
+      id: 'jg-c91', order: 91,
+      title: 'پایان قاچاق؛ تأمین مالی تروریسم؛ آمر به معروف',
+      subtitle: 'مادهٔ ۷۲ قاچاق + قانون تأمین مالی تروریسم + آمران به معروف',
+      lessons: [lessonJG323, lessonJG324, lessonJG325, lessonJG326],
+    },
+    {
+      id: 'jg-c92', order: 92,
+      title: 'اسیدپاشی؛ شرکت سهامی؛ نیروهای مسلح و جمع‌بندی',
+      subtitle: 'اسیدپاشی ۱۳۹۸ + مواد ۲۴۳ تا ۲۶۹ تجارت + نیروهای مسلح + جمع‌بندی دورهٔ ۹۸۴ صفحه',
+      lessons: [lessonJG327, lessonJG328, lessonJG329, lessonJG330],
     },
   ],
 };
