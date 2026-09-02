@@ -98,6 +98,52 @@ export function CourseView({ id }: { id: string }) {
   );
 }
 
+/* ─── توضیحات دوره — پاراگراف‌بندی مرتب + بولت + جمع‌شدن برای متن‌های بلند ── */
+
+function CourseDescription({ text }: { text: string }) {
+  const blocks = React.useMemo(
+    () => text.split(/\n/).map((l) => l.trim()).filter(Boolean),
+    [text],
+  );
+  // متن‌های بلند به‌صورت جمع‌شده شروع می‌شوند تا سربرگ دوره شلوغ نشود
+  const isLong = text.length > 420 || blocks.length > 8;
+  const [expanded, setExpanded] = React.useState(false);
+
+  const renderBlock = (line: string, i: number) => {
+    const m = /^([•\-*–])\s*/.exec(line);
+    if (m) {
+      return (
+        <div key={i} className="flex items-start gap-2">
+          <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-bronze/80" />
+          <span>{line.slice(m[0].length)}</span>
+        </div>
+      );
+    }
+    // خط‌هایی که فقط «تیتر بخش» هستند و با «:» تمام می‌شوند — کمی پررنگ‌تر
+    if (line.endsWith(":") && line.length < 40) {
+      return <p key={i} className="pt-1 font-bold text-foreground/80">{line}</p>;
+    }
+    return <p key={i}>{line}</p>;
+  };
+
+  return (
+    <div className="text-sm leading-relaxed text-muted-foreground">
+      <div className={`space-y-1.5 ${isLong && !expanded ? "line-clamp-5" : ""}`}>
+        {blocks.map(renderBlock)}
+      </div>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-2 inline-flex items-center gap-1 rounded-lg text-xs font-bold text-bronze transition-colors hover:bg-bronze/10"
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+          {expanded ? "بستن توضیحات" : "مشاهدهٔ کل توضیحات"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ─── بدنهٔ صفحهٔ دوره — مشترک بین دورهٔ محلی و پیش‌نمایش سروری ─────────── */
 
 function CourseBody({
@@ -143,7 +189,7 @@ function CourseBody({
           </span>
           <div className="flex-1 space-y-1">
             <h1 className="text-2xl font-bold">{course.title}</h1>
-            <p className="text-sm leading-relaxed text-muted-foreground">{course.description}</p>
+            <CourseDescription text={course.description} />
             {course.sourceLabel && (
               <p className="pt-1 text-xs text-bronze">منبع: {course.sourceLabel}</p>
             )}
