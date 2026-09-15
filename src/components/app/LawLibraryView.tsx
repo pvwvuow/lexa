@@ -44,11 +44,13 @@ function withFull(law: LawCode, full: FullLawData | null): LawCode {
 }
 
 // ─── نشان‌گذاری مواد (localStorage) ──────────────────────────────────────────
-const MARKS_KEY = "hh-law-marks";
+const MARKS_KEY = "lexa-law-marks";
+/** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی */
+const LEGACY_MARKS_KEY = "hh-law-marks";
 
 function readMarks(): string[] {
   try {
-    const raw = window.localStorage.getItem(MARKS_KEY);
+    const raw = window.localStorage.getItem(MARKS_KEY) ?? window.localStorage.getItem(LEGACY_MARKS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
     return Array.isArray(arr) ? arr.slice(0, 400) : [];
   } catch {
@@ -290,14 +292,14 @@ function LawReader({ law }: { law: LawCode }) {
 
   React.useEffect(() => {
     try {
-      const saved = Number(window.localStorage.getItem("hh-law-font"));
+      const saved = Number(window.localStorage.getItem("lexa-law-font") ?? window.localStorage.getItem("hh-law-font"));
       if (saved >= 14 && saved <= 24) setFont(saved);
     } catch {}
   }, []);
   const setFontPersist = (v: number) => {
     const clamped = Math.min(24, Math.max(14, v));
     setFont(clamped);
-    try { window.localStorage.setItem("hh-law-font", String(clamped)); } catch {}
+    try { window.localStorage.setItem("lexa-law-font", String(clamped)); } catch {}
   };
 
   const tokens = React.useMemo(

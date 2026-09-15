@@ -4,6 +4,20 @@ import type { Course } from '@/lib/law/types';
 import { todayISO, daysBetween } from '@/lib/fa';
 import type { SyncSnapshot, SyncLessonProgress } from '@/lib/auth-shared';
 
+// ─── مهاجرت یک‌بارهٔ برند: انتقال دادهٔ persist از کلید قدیمی به کلید جدید ──────
+// نام اپ از «همیار حقوق» به Lexa تغییر کرد؛ اگر کلید جدید خالی باشد و کلید
+// قدیمی موجود باشد، دادهٔ کاربر (پیشرفت، جزئات، دوره‌ها و…) حفظ می‌شود.
+if (typeof window !== 'undefined') {
+  try {
+    const NEW_KEY = 'lexa-store-v1';
+    const OLD_KEY = 'hamyar-hoghough-v1';
+    if (!window.localStorage.getItem(NEW_KEY)) {
+      const legacy = window.localStorage.getItem(OLD_KEY);
+      if (legacy) window.localStorage.setItem(NEW_KEY, legacy);
+    }
+  } catch { /* مرورگر خصوصی — بی‌خیال */ }
+}
+
 // ─── تنظیمات هوش مصنوعی ──────────────────────────────────────────────────────
 export type AiProvider = 'builtin' | 'gemini' | 'openai';
 
@@ -343,7 +357,7 @@ export const useApp = create<AppState>()(
       },
     }),
     {
-      name: 'hamyar-hoghough-v1',
+      name: 'lexa-store-v1',
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         progress: s.progress,

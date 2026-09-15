@@ -92,7 +92,7 @@ export function AccountArea() {
               {u.role === "admin"
                 ? "مدیر سامانه"
                 : u.role === "teacher"
-                  ? "استاد همیار حقوق"
+                  ? "استاد Lexa"
                   : `عضو از ${new Date(u.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })}`}
             </p>
             <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-muted-foreground/80">

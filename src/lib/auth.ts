@@ -6,7 +6,7 @@ import type { PublicUser } from "@/lib/auth-shared";
 
 const scryptAsync = promisify(scrypt);
 
-export const SESSION_COOKIE = "hh_session";
+export const SESSION_COOKIE = "lexa_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // ۳۰ روز
 
 // ─── رمز عبور (scrypt با نمک تصادفی) ─────────────────────────────────────────
@@ -100,14 +100,14 @@ let adminEnsured = false;
 /**
  * اطمینان از وجود حساب مدیر. اطلاعات اولیه از متغیرهای محیطی
  * ADMIN_USERNAME / ADMIN_PASSWORD خوانده می‌شود؛ در غیر این صورت مقادیر
- * پیش‌فرض «admin / hamyar@1404» ساخته می‌شود.
+ * پیش‌فرض «admin / lexa@1404» ساخته می‌شود.
  */
 export async function ensureAdmin(): Promise<void> {
   if (adminEnsured) return;
   const envU = process.env.ADMIN_USERNAME?.trim();
   const envP = process.env.ADMIN_PASSWORD;
   const username = envU && envU.length >= 3 ? envU : "admin";
-  const password = envP && envP.length >= 6 ? envP : "hamyar@1404";
+  const password = envP && envP.length >= 6 ? envP : "lexa@1404";
   try {
     const existing = await db.user.findFirst({ where: { role: "admin" } });
     if (!existing) {
@@ -115,6 +115,14 @@ export async function ensureAdmin(): Promise<void> {
         data: { username, passwordHash: await hashPassword(password), role: "admin" },
       });
       console.log(`[auth] حساب مدیر ساخته شد → ${username}`);
+    } else if (!envP && (await verifyPassword("hamyar@1404", existing.passwordHash))) {
+      // مهاجرت یک‌بارهٔ برند: اگر رمز مدیر هنوز پیش‌فرض قدیمی «hamyar@1404» است،
+      // بی‌صدا به پیش‌فرض جدید «lexa@1404» به‌روزرسانی می‌شود تا ورود قطع نشود.
+      await db.user.update({
+        where: { id: existing.id },
+        data: { passwordHash: await hashPassword(password) },
+      });
+      console.log("[auth] رمز پیش‌فرض مدیر به «lexa@1404» مهاجرت یافت");
     }
     adminEnsured = true;
   } catch (e) {

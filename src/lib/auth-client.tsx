@@ -35,7 +35,7 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-const PERSIST_KEY = "hamyar-hoghough-v1";
+const PERSIST_KEY = "lexa-store-v1";
 
 /** هیدرات کتابخانهٔ دوره‌های اساتیدی که کاربر افزوده است + لیست حذف‌شده‌های داخلی */
 export async function refreshLibrary() {
@@ -66,7 +66,7 @@ function backupGuestBlob() {
       (((st.customCourses as unknown[]) ?? []).length > 0);
     if (!hasData) return;
     localStorage.setItem(
-      "hamyar-guest-backup-v1",
+      "lexa-guest-backup-v1",
       JSON.stringify({ savedAt: new Date().toISOString(), data: parsed })
     );
   } catch {}

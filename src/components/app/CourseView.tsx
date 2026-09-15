@@ -267,7 +267,7 @@ function CourseBody({
                   teacher: {
                     id: (course as Course & { _teacherId?: string })._teacherId ?? "",
                     username: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "",
-                    displayName: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "همیار حقوق",
+                    displayName: (course as Course & { _ownerUsername?: string })._ownerUsername ?? "Lexa",
                     avatarUrl: (course as Course & { _ownerAvatar?: string | null })._ownerAvatar,
                   },
                 }}

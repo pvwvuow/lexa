@@ -27,7 +27,7 @@ export function OfflineSettings() {
   return (
     <div className="space-y-5">
       <p className="text-sm leading-relaxed text-muted-foreground">
-        همیار حقوق را روی دستگاه نصب کن و مطالب دلخواهت را ذخیره کن تا بدون اینترنت هم در دسترس بمانند.
+        Lexa را روی دستگاه نصب کن و مطالب دلخواهت را ذخیره کن تا بدون اینترنت هم در دسترس بمانند.
       </p>
       <InstallCard />
       <DesignPackCard />
@@ -49,7 +49,7 @@ function InstallCard() {
     setBusy(true); setMsg("");
     try {
       const r = await install();
-      if (r === "accepted") setMsg("نصب شد! همیار حقوق حالا مثل یک برنامهٔ واقعی روی دستگاه توست.");
+      if (r === "accepted") setMsg("نصب شد! Lexa حالا مثل یک برنامهٔ واقعی روی دستگاه توست.");
       else if (r === "dismissed") setMsg("نصب لغو شد؛ هر وقت خواستی دوباره اینجا می‌توانی نصب کنی.");
     } finally {
       setBusy(false);
@@ -63,7 +63,7 @@ function InstallCard() {
       {installed ? (
         <p className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm font-bold text-success">
           <CheckCircle2 className="h-4.5 w-4.5 shrink-0" />
-          همیار حقوق روی همین دستگاه نصب است؛ از صفحهٔ اصلی گوشی یا دسکتاپت بازش کن.
+          Lexa روی همین دستگاه نصب است؛ از صفحهٔ اصلی گوشی یا دسکتاپت بازش کن.
         </p>
       ) : inApp ? (
         <p className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-400/10 px-4 py-3 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
@@ -79,7 +79,7 @@ function InstallCard() {
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-45"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            نصب همیار حقوق روی همین دستگاه
+            نصب Lexa روی همین دستگاه
           </button>
           <span className="text-xs text-muted-foreground">پنجرهٔ نصب مرورگر باز می‌شود؛ «نصب» را بزن.</span>
         </div>

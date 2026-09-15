@@ -68,7 +68,7 @@ export function AuthDialog({
           <DialogHeader className="space-y-1 text-start">
             <DialogTitle className="flex items-center gap-2 font-display text-lg font-bold">
               <ShieldCheck className="h-5 w-5 text-bronze-foreground/90" />
-              حساب کاربری همیار حقوق
+              حساب کاربری Lexa
             </DialogTitle>
             <p className="text-xs leading-relaxed opacity-85">
               با ساخت حساب، همهٔ پیشرفت شما امن در پایگاه داده ذخیره و برای همیشه نگه‌داری می‌شود.
