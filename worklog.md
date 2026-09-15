@@ -1054,3 +1054,22 @@ Work Log:
 
 Stage Summary:
 - اکنون هر ۱۱ دورهٔ آمادهٔ اپ توضیح ساختاریافتهٔ یکدست دارد (معرفی کوتاه + بولت سرفصل برنزی)؛ رندر CourseDescription در CourseView همه را مدیریت می‌کند و متن‌های بلند خودکار جمع می‌شوند. محتوای جلسات دست نخورد.
+
+---
+Task ID: 54
+Agent: main (Super Z)
+Task: «اسم برنامه رو به lexa تغییر بده کلا در همه بخش» + پوش و کامیت پروژه روی github.com/pvwvuow/lexa
+
+Work Log:
+- تغییر برند کامل «همیار حقوق» → «Lexa» در ۲۵ فایل: هدر/منو/فوتر AppShell، AuthDialog، AdminView، TeachersView، OfflineSettings، PublicLibraryView، CourseView، SettingsView، AccountArea، DashboardView («اساتید Lexa»)، ai/prompts.ts، law/types.ts.
+- layout.tsx (title/applicationName/appleWebApp) و manifest.webmanifest (name/short_name) → «Lexa — استاد حقوقی هوشمند» / «Lexa»؛ package.json name → lexa.
+- sw.js: VERSION hh-pwa-v27 → lexa-pwa-v28؛ DESIGN_VERSION 1.6.6 → 1.6.7 (src/lib/offline.ts).
+- مهاجرت‌های بدون‌افت داده: zustand persist hamyar-hoghough-v1 → lexa-store-v1 (کپی خودکار کلید قدیمی)، IndexedDB hamyar-offline-db → lexa-offline-db (migrateLegacyOfflineDb یک‌باره با indexedDB.databases() + پاک‌سازی انبار قدیمی)، کلیدهای hh-theme/hh-nav/hh-feed-seen/hh-law-marks/hh-law-font/hh-design-meta-v1/hh-autoupdate-v1 → lexa-* با fallback خواندن کلید قدیمی.
+- auth: کوکی hh_session → lexa_session (کاربران یک‌بار لاگین مجدد)، رمز پیش‌فرض admin hamyar@1404 → lexa@1404 با مهاجرت بی‌صدای rehash در ensureAdmin (اگر هش قدیمی جور شد، به جدید به‌روز می‌شود).
+- بیلد: ابتدا OOM kill به‌خاطر next dev سرگردان (۱.۵GB) → kill پردازه‌ها → بیلد موفق؛ start-prod.sh (PROD_READY)؛ home/feed 200؛ sw.js سروشده lexa-pwa-v28؛ HTML صفر مورد «همیار»؛ لاگین admin/lexa@1404 موفق + لاگ مهاجرت رمز.
+- QA مرورگر (۳۹۰×۸۴۴): رندر سالم، ۶ مورد «Lexa» در بدنه، بدون برند قدیم؛ اسکرین‌شات lexa-rebrand-mob.png.
+- پوش گیت‌هاب: push اول رد شد — backups/hamyar-git-003.bundle (۱۳۸MB) از حد ۱۰۰MB گیت‌هاب عبور می‌کرد → git-filter-repo پاک‌سازی تاریخچه + .gitignore برای backups/*.bundle → پوش موفق main → main (head: e907009).
+
+Stage Summary:
+- اپ حالا با هویت کامل «Lexa» کار می‌کند (UI، PWA، متادیتا، کلیدهای ذخیره‌سازی، کوکی و رمز مدیر) و همهٔ مهاجرت‌ها بدون از دست رفتن دادهٔ کاربر انجام می‌شوند. مخزن github.com/pvwvuow/lexa با تاریخچهٔ تمیز (بدون bundle ۱۳۸MB) و remote تنظیم‌شده آماده است.
+- نکتهٔ باز (ادامهٔ همین Task از پیام قبلی): دانلود PDF ۱۷۳MB جزوه‌های تلگرام (dl.updltel.ir/7a259975675) در میانه راه به‌دلیل قطعی ابزار متوقف ماند؛ chunkهای اول در scripts/extracted/newbooks/chunks هستند و باید دانلود موازی (scripts/parallel_download.sh) ادامه یابد و سپس طبق الگوی جزوهٔ جزا (۵۰ صفحه/جلسه + کوئیز + کارگاه تست) ingest شود.
