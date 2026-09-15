@@ -54,7 +54,7 @@ export function TeachersView() {
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><GraduationCap className="h-6 w-6" /></span>
-            اساتید همیار حقوق
+            اساتید Lexa
           </h1>
           <p className="mt-1.5 max-w-lg text-sm leading-relaxed text-muted-foreground">
             استادت را دنبال کن؛ مطالب آموزشی‌اش را در فید خانه ببین و اگر دورهٔ آنلاینی ساخت،

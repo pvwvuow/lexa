@@ -267,7 +267,7 @@ function GeneralSettings() {
               {u.role === "admin" ? (
                 <><ShieldCheck className="h-3.5 w-3.5 text-bronze" /> مدیر سامانه</>
               ) : u.role === "teacher" ? (
-                <><GraduationCap className="h-3.5 w-3.5 text-bronze" /> استاد همیار</>
+                <><GraduationCap className="h-3.5 w-3.5 text-bronze" /> استاد Lexa</>
               ) : (
                 <>دانشجو</>
               )}
@@ -617,7 +617,7 @@ function OfflineSettings() {
               onClick={() => {
                 if (canInstall) {
                   void install().then((r) => {
-                    if (r === "accepted") setInstallMsg("✓ نصب شد — آیکون «همیار حقوق» کنار بقیهٔ برنامه‌هاست.");
+                    if (r === "accepted") setInstallMsg("✓ نصب شد — آیکون «Lexa» کنار بقیهٔ برنامه‌هاست.");
                     if (r === "dismissed") setInstallMsg("نصب لغو شد؛ هر وقت خواستی دوباره این‌جا در دسترس است.");
                   });
                 } else {
@@ -768,7 +768,7 @@ function OfflineSettings() {
                       )}
                     </span>
                     <span className="mt-0.5 block text-[10.5px] text-muted-foreground">
-                      {m.kind === "post" ? "مطلب" : m.kind === "builtin" ? "دورهٔ آمادهٔ همیار حقوق" : "دورهٔ آنلاین استاد"} · ذخیره در {faDateTime(m.savedAt)}
+                      {m.kind === "post" ? "مطلب" : m.kind === "builtin" ? "دورهٔ آمادهٔ Lexa" : "دورهٔ آنلاین استاد"} · ذخیره در {faDateTime(m.savedAt)}
                     </span>
                   </span>
                   {outdated && online && (
@@ -895,7 +895,7 @@ function InstallGuideDialog({
                 { icon: ExternalLink, text: <>سایت را در مرورگر <b>Safari</b> باز کن — نه داخل تلگرام یا اینستاگرام.</> },
                 { icon: Share, text: <>از پایینِ صفحه دکمهٔ <b>«هم‌رسانی»</b> (مربع با فلش رو به بالا) را بزن.</> },
                 { icon: SquarePlus, text: <>در فهرست، <b>«افزودن به صفحهٔ اصلی»</b> را انتخاب کن (اگر نبود، ردیف آیکون‌ها را به چپ بکش).</> },
-                { text: <>روی <b>«افزودن»</b> بزن — آیکون «همیار حقوق» کنار بقیهٔ برنامه‌ها می‌نشیند و مثل اپ واقعی تمام‌صفحه باز می‌شود.</> },
+                { text: <>روی <b>«افزودن»</b> بزن — آیکون «Lexa» کنار بقیهٔ برنامه‌ها می‌نشیند و مثل اپ واقعی تمام‌صفحه باز می‌شود.</> },
               ]}
             />
           )}
@@ -912,7 +912,7 @@ function InstallGuideDialog({
                 { icon: ChromeIcon, text: <>لینک را در <b>کروم</b> یا مرورگر سامسونگ باز کن — نه داخل تلگرام یا اینستاگرام.</> },
                 { icon: Share, text: <>سایت یک بار کامل بالا بیاید، بعد <b>منوی سه‌نقطهٔ ‌⋮</b> بالای مرورگر را بزن.</> },
                 { icon: SquarePlus, text: <>گزینهٔ <b>«نصب برنامه»</b> یا <b>«افزودن به صفحهٔ اصلی»</b> را انتخاب کن.</> },
-                { text: <>تأیید کن — آیکون «همیار حقوق» کنار بقیهٔ برنامه‌ها می‌نشیند.</> },
+                { text: <>تأیید کن — آیکون «Lexa» کنار بقیهٔ برنامه‌ها می‌نشیند.</> },
               ]}
             />
           )}
@@ -926,7 +926,7 @@ function InstallGuideDialog({
             <InstallSteps
               steps={[
                 { icon: Monitor, text: <>در نوار آدرس مرورگر دنبال آیکون <b>⊕ (نصب)</b> بگرد — معمولاً کنار آدرس سایت است.</> },
-                { text: <>روی آن بزن و <b>«نصب»</b> را تأیید کن؛ اگر آیکون نبود، منوی سه‌نقطهٔ مرورگر ← «نصب همیار حقوق».</> },
+                { text: <>روی آن بزن و <b>«نصب»</b> را تأیید کن؛ اگر آیکون نبود، منوی سه‌نقطهٔ مرورگر ← «نصب Lexa».</> },
                 { text: <>برنامه در پنجرهٔ مستقل باز می‌شود و آیکونش کنار بقیهٔ برنامه‌های رایانه‌ات است.</> },
               ]}
             />

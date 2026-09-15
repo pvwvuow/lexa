@@ -240,7 +240,7 @@ export function DashboardView() {
         </SectionSlider>
       )}
 
-      {/* ═══ اساتید همیار — پیشنهاد اینستاگرامی ═══ */}
+      {/* ═══ اساتید Lexa — پیشنهاد اینستاگرامی ═══ */}
       <TeacherSuggestions />
 
       <section className="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -885,7 +885,7 @@ function ToTeacherProfile({
   );
 }
 
-/* ═══ اساتید همیار — پیشنهاد اینستاگرامی داخل همان چارچوب اسلایدر ═══════ */
+/* ═══ اساتید Lexa — پیشنهاد اینستاگرامی داخل همان چارچوب اسلایدر ═══════ */
 
 export function TeacherSuggestions() {
   const { teachers, loading, toggleFollow } = useSocial();
@@ -902,7 +902,7 @@ export function TeacherSuggestions() {
 
   if (loading && !teachers.length) {
     return (
-      <SectionSlider icon={GraduationCap} title="اساتید همیار" ariaLabel="اساتید همیار">
+      <SectionSlider icon={GraduationCap} title="اساتید Lexa" ariaLabel="اساتید Lexa">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="min-w-[188px] shrink-0 animate-pulse rounded-2xl border border-border bg-card p-4 pt-5 shadow-card">
             <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted" />
@@ -922,9 +922,9 @@ export function TeacherSuggestions() {
   return (
     <SectionSlider
       icon={GraduationCap}
-      title="اساتید همیار"
+      title="اساتید Lexa"
       hint="روی آواتار بزن تا فعالیت کاملش را ببینی"
-      ariaLabel="اساتید همیار"
+      ariaLabel="اساتید Lexa"
       action={
         <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
           دیدن همه ←

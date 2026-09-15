@@ -265,7 +265,7 @@ function BuiltinCourseCard({ c }: { c: Course }) {
           <button onClick={() => navigate({ view: "course", id: c.id })} className="block w-full truncate text-start font-bold hover:text-bronze">{c.title}</button>
           <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>
           <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-bronze/10 px-2 py-0.5 text-[9.5px] font-bold text-bronze">
-            <Sparkles className="h-3 w-3" /> دورهٔ آمادهٔ همیار حقوق
+            <Sparkles className="h-3 w-3" /> دورهٔ آمادهٔ Lexa
           </p>
         </div>
         <span className="shrink-0">
@@ -280,7 +280,7 @@ function BuiltinCourseCard({ c }: { c: Course }) {
               description: c.description ?? "",
               icon: c.icon,
               lessonsCount: lessonsN,
-              teacher: { id: "", username: "", displayName: "همیار حقوق" },
+              teacher: { id: "", username: "", displayName: "Lexa" },
             }}
           />
         </span>
@@ -357,7 +357,7 @@ export function PublicLibraryView() {
           کتابخانهٔ عمومی
         </h1>
         <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          دوره‌های آمادهٔ خودِ همیار حقوق + آنچه اساتید منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه.
+          دوره‌های آمادهٔ خودِ Lexa + آنچه اساتید منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه.
           هر چیزی را خواستی به بخش مطالعهٔ خودت اضافه یا حذف کن؛ حتی دوره‌هایی که هنوز در حال آماده‌سازی‌اند.
         </p>
       </header>
@@ -400,7 +400,7 @@ export function PublicLibraryView() {
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5 text-bronze" /> دوره‌های آماده ({fa(builtinCourses.length)})</h2>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            جزوات رسمی همیار حقوق بر پایهٔ جزوه‌های معتبر دانشگاهی — خودت انتخاب می‌کنی کدام را به «کتابخانهٔ من»
+            جزوات رسمی Lexa بر پایهٔ جزوه‌های معتبر دانشگاهی — خودت انتخاب می‌کنی کدام را به «کتابخانهٔ من»
             بیفزایی؛ افزودن و حذف هر لحظه آزاد است و پیشرفت، تست و یادداشت‌هایت همیشه محفوظ می‌ماند.
           </p>
           <div className="grid gap-3 md:grid-cols-2">

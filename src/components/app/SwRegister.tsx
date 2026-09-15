@@ -35,8 +35,8 @@ export function SwRegister() {
         return;
       }
       try {
-        if (sessionStorage.getItem("hh-sw-refresh") === "1") return;
-        sessionStorage.setItem("hh-sw-refresh", "1");
+        if (sessionStorage.getItem("lexa-sw-refresh") === "1") return;
+        sessionStorage.setItem("lexa-sw-refresh", "1");
       } catch { /* حالت خصوصی مرورگر — بی‌خیال گارد */ }
       reloading = true;
       window.location.reload();
@@ -48,7 +48,7 @@ export function SwRegister() {
   // پرچم گاردِ رفرش پس از چند ثانیه پاک می‌شود تا آپگریدهای بعدیِ همان تب هم کار کنند
   React.useEffect(() => {
     const t = window.setTimeout(() => {
-      try { sessionStorage.removeItem("hh-sw-refresh"); } catch {}
+      try { sessionStorage.removeItem("lexa-sw-refresh"); } catch {}
     }, 15_000);
     return () => window.clearTimeout(t);
   }, []);

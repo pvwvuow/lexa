@@ -186,7 +186,7 @@ export function AppShell() {
   React.useEffect(() => {
     setMounted(true);
     try {
-      if (window.localStorage.getItem("hh-nav") === "rail") setMode("rail");
+      if ((window.localStorage.getItem("lexa-nav") ?? window.localStorage.getItem("hh-nav")) === "rail") setMode("rail");
     } catch {}
   }, []);
 
@@ -195,17 +195,17 @@ export function AppShell() {
   // در زیرصفحه‌ها منو خودکار جمع می‌شود تا تمرکز روی محتوا بماند
   React.useEffect(() => {
     if (!mounted) return;
-    setMode((m) => (isSubPage ? "rail" : m === "rail" && window.localStorage.getItem("hh-nav") !== "rail" ? "expanded" : m));
+    setMode((m) => (isSubPage ? "rail" : m === "rail" && (window.localStorage.getItem("lexa-nav") ?? window.localStorage.getItem("hh-nav")) !== "rail" ? "expanded" : m));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubPage, mounted]);
 
   function expandNav() {
     setMode("expanded");
-    try { window.localStorage.setItem("hh-nav", "expanded"); } catch {}
+    try { window.localStorage.setItem("lexa-nav", "expanded"); } catch {}
   }
   function collapseNav() {
     setMode("rail");
-    try { window.localStorage.setItem("hh-nav", "rail"); } catch {}
+    try { window.localStorage.setItem("lexa-nav", "rail"); } catch {}
   }
 
   // ── مقصد پیش‌فرض فهرست مطالعه: آخرین درسی که کاربر در آن بوده ──
@@ -234,7 +234,7 @@ export function AppShell() {
   if (!mounted) {
     return (
       <div className="grid min-h-screen place-items-center bg-background">
-        <div className="flex items-center gap-3 text-bronze"><Scale className="h-6 w-6 animate-pulse" /><span className="font-bold">همیار حقوق</span></div>
+        <div className="flex items-center gap-3 text-bronze"><Scale className="h-6 w-6 animate-pulse" /><span className="font-bold">Lexa</span></div>
       </div>
     );
   }
@@ -398,7 +398,7 @@ export function AppShell() {
                   <Scale className="h-4.5 w-4.5" />
                 </span>
                 <span className="hidden leading-tight sm:block">
-                  <span className="block text-[15px] font-extrabold tracking-tight text-white">همیار حقوق</span>
+                  <span className="block text-[15px] font-extrabold tracking-tight text-white">Lexa</span>
                   <span className="block text-[9.5px] font-semibold text-bronze">استاد حقوقی هوشمند</span>
                 </span>
               </button>
@@ -474,7 +474,7 @@ export function AppShell() {
 
         {/* فوتر دسکتاپ */}
         <footer className="mt-auto hidden border-t border-border/70 py-4 text-center text-xs leading-relaxed text-muted-foreground lg:block">
-          همیار حقوق — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
+          Lexa — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
         {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass): بلور/اشباع + برق نور و لبهٔ روشن */}
@@ -500,7 +500,7 @@ export function AppShell() {
             <SheetHeader className="p-0 pb-3 text-start">
               <SheetTitle className="flex items-center gap-2.5 text-base">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
-                منوی همیار حقوق
+                منوی Lexa
               </SheetTitle>
             </SheetHeader>
             <div className="flex flex-1 flex-col gap-1">
@@ -552,7 +552,7 @@ export function AppShell() {
               <SideItem icon={Settings} label="تنظیمات و پروفایل" rail={false} active={current === "settings"} onClick={() => go({ view: "settings" })} />
             </div>
             <div className="mt-2 flex items-center justify-between border-t border-border/70 pt-3">
-              <span className="text-[11px] text-muted-foreground">همیار حقوق</span>
+              <span className="text-[11px] text-muted-foreground">Lexa</span>
               <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <SyncHint collapsed />

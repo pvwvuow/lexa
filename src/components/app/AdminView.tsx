@@ -518,7 +518,7 @@ export function AdminView() {
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-bronze text-primary-foreground shadow-card">
               <ShieldCheck className="h-6 w-6" />
             </span>
-            پنل مدیریت همیار حقوق
+            پنل مدیریت Lexa
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             فهرست کاربران، عملکرد مطالعاتی، بازخوردهای دانشجویان و داده‌های ذخیره‌شدهٔ هر نفر — هیچ داده‌ای هرگز حذف نمی‌شود.

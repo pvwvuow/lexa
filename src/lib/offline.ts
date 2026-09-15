@@ -12,9 +12,11 @@
 import * as React from "react";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.6.6";
+export const DESIGN_VERSION = "1.6.7";
 
-const DESIGN_META_KEY = "hh-design-meta-v1";
+const DESIGN_META_KEY = "lexa-design-meta-v1";
+/** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی حفظ شده است */
+const LEGACY_META_KEY = "hh-design-meta-v1";
 /** کلید بستهٔ قدیمی (یک‌جا) — فقط برای مهاجرت به سیستم آیتمی */
 const LEGACY_PACK_KEY = "hh-offline-pack-v1";
 
@@ -26,7 +28,7 @@ export interface DesignMeta {
 export function getDesignMeta(): DesignMeta | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(DESIGN_META_KEY);
+    const raw = localStorage.getItem(DESIGN_META_KEY) ?? localStorage.getItem(LEGACY_META_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as DesignMeta;
   } catch {
@@ -54,7 +56,9 @@ export function designPackOutdated(): boolean {
 
 /* ═══ انبار آیتمی مطالب/دوره‌های ذخیره‌شده — IndexedDB ══════════════════════ */
 
-const DB_NAME = "hamyar-offline-db";
+const DB_NAME = "lexa-offline-db";
+/** نام قدیمی انبار (برند پیشین) — برای مهاجرت یک‌بارهٔ محتوا */
+const LEGACY_DB_NAME = "hamyar-offline-db";
 const STORE = "items";
 
 export type OfflineKind = "post" | "tcourse" | "builtin";
@@ -146,6 +150,57 @@ function idbRun<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBR
 
 function keyOf(kind: OfflineKind, id: string): string {
   return `${kind}:${id}`;
+}
+
+/**
+ * مهاجرت یک‌بارهٔ انبار آفلاین از نام قدیمی («همیار حقوق») به نام جدید (Lexa).
+ * مطالب ذخیره‌شدهٔ کاربر بی‌صدا کپی می‌شوند و انبار قدیمی پاک می‌شود.
+ * فقط یک‌بار اجرا می‌شود؛ در نبود پشتیبانی مرورگر بی‌خیال می‌شود.
+ */
+async function migrateLegacyOfflineDb(): Promise<void> {
+  try {
+    if (typeof indexedDB === "undefined" || typeof localStorage === "undefined") return;
+    if (!("databases" in indexedDB)) return;
+    if (localStorage.getItem("lexa-idb-migrated") === "1") return;
+    const dbs = await indexedDB.databases();
+    if (!dbs?.some((d) => d.name === LEGACY_DB_NAME)) {
+      localStorage.setItem("lexa-idb-migrated", "1");
+      return;
+    }
+    const legacy = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open(LEGACY_DB_NAME, 1);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (legacy.objectStoreNames.contains(STORE)) {
+      const items = await new Promise<OfflineItem[]>((resolve, reject) => {
+        const tx = legacy.transaction(STORE, "readonly");
+        const rq = tx.objectStore(STORE).getAll();
+        rq.onsuccess = () => resolve((rq.result ?? []) as OfflineItem[]);
+        rq.onerror = () => reject(rq.error);
+      });
+      if (items.length) {
+        const nw = await openDb();
+        await new Promise<void>((resolve, reject) => {
+          const tx = nw.transaction(STORE, "readwrite");
+          const os = tx.objectStore(STORE);
+          for (const it of items) {
+            if (it && it.kind && it.id) os.put(it, keyOf(it.kind, it.id));
+          }
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error ?? new Error("مهاجرت IndexedDB ناتمام ماند"));
+        });
+        nw.close();
+      }
+    }
+    legacy.close();
+    indexedDB.deleteDatabase(LEGACY_DB_NAME);
+    localStorage.setItem("lexa-idb-migrated", "1");
+  } catch { /* مهاجرت اختیاری است — هر خطا نادیده گرفته می‌شود */ }
+}
+if (typeof window !== "undefined") {
+  try { void migrateLegacyOfflineDb(); } catch {}
 }
 
 /* ── کش سبک وضعیت‌ها + اعلان تغییر بین کامپوننت‌ها ── */
@@ -438,7 +493,7 @@ async function migrateLegacyPack(): Promise<void> {
  *   ۳) مطالب/دوره‌های اساتیدی که روی سرور تغییر کرده‌اند (یک‌به‌یک)
  * برای فشار نیاوردن به شبکه، حداکثر هر ۴۵ دقیقه یک‌بار اجرا می‌شود.
  * ──────────────────────────────────────────────────────────────────────── */
-const AUTOUPDATE_KEY = "hh-autoupdate-v1";
+const AUTOUPDATE_KEY = "lexa-autoupdate-v1";
 let autoUpdateStarted = false;
 let autoUpdateRunning = false;
 
@@ -472,7 +527,7 @@ async function runAutoUpdate(): Promise<void> {
   if (typeof navigator !== "undefined" && !navigator.onLine) return;
   autoUpdateRunning = true;
   try {
-    const last = Number(localStorage.getItem(AUTOUPDATE_KEY) || 0);
+    const last = Number(localStorage.getItem(AUTOUPDATE_KEY) || localStorage.getItem("hh-autoupdate-v1") || 0);
     const designOutdated = designPackOutdated();
     if (!designOutdated && Date.now() - last < 45 * 60 * 1000) return;
 

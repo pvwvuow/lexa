@@ -7,16 +7,19 @@ import { Sun, Moon, Droplets } from "lucide-react";
 /* ─── سیستم تم سه‌حالته: روز / شب / شیشه‌ای (liquid glass کامل) ──────────────
    - «شب» با کلاس dark روی html (مثل قبل)
    - «شیشه‌ای» با کلاس theme-glass روی html — پالت روشنِ شفاف + والپاپر آۆرایی
-   - کلید hh-theme در localStorage منبع حقیقت است؛ کلید theme (next-themes)
+   - کلید lexa-theme در localStorage منبع حقیقت است (کلید قدیمی hh-theme هم
+     به‌عنوان پس‌حق خوانده می‌شود تا مهاجرت بی‌صدا باشد)؛ کلید theme (next-themes)
      همگام نگه داشته می‌شود تا toast ها و اسکریپت اولیه هم一致 بمانند. */
 
 export type AppTheme = "light" | "dark" | "glass";
 
-const THEME_KEY = "hh-theme";
+const THEME_KEY = "lexa-theme";
+/** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی */
+const LEGACY_THEME_KEY = "hh-theme";
 
 export function readStoredTheme(): AppTheme {
   try {
-    const t = localStorage.getItem(THEME_KEY) ?? localStorage.getItem("theme");
+    const t = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY) ?? localStorage.getItem("theme");
     if (t === "dark") return "dark";
     if (t === "glass") return "glass";
     return "light";

@@ -12,10 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "./common";
 
-const SEEN_KEY = "hh-feed-seen";
+const SEEN_KEY = "lexa-feed-seen";
+const LEGACY_SEEN_KEY = "hh-feed-seen";
 
 function readSeen(): number {
-  try { return Number(window.localStorage.getItem(SEEN_KEY)) || 0; } catch { return 0; }
+  try { return Number(window.localStorage.getItem(SEEN_KEY) ?? window.localStorage.getItem(LEGACY_SEEN_KEY)) || 0; } catch { return 0; }
 }
 
 export function FeedBell() {
