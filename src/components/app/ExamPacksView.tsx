@@ -5,7 +5,7 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import {
   ClipboardList, FileText, Clock3, GraduationCap, House, Library,
-  CheckCircle2, XCircle, Target, Sparkles, Award, Eye,
+  CheckCircle2, XCircle, Target, Sparkles, Award, Eye, Scale, ChevronLeft,
 } from "lucide-react";
 import {
   examPacks, getExamPack, examTypes,
@@ -71,6 +71,32 @@ export function ExamPackCard({ pack, showExam = true }: { pack: ExamPack; showEx
 }
 
 /* ═══ مرکز بسته‌ها — در تب «بسته‌های آزمون» مرکز آزمون ═══ */
+/* ═══ بنر ورود به هاب اختصاصی آزمون وکالت ═══ */
+function VokalatBanner() {
+  const vokalat = React.useMemo(() => examPacks.filter((p) => p.examSlug === "vokalat"), []);
+  if (vokalat.length === 0) return null;
+  const totalQ = vokalat.reduce((s, p) => s + p.questions.length, 0);
+  return (
+    <button
+      onClick={() => navigate({ view: "quiz", id: "vokalat" })}
+      className="group relative w-full overflow-hidden rounded-2xl border border-bronze/40 bg-gradient-to-l from-bronze/[0.14] via-bronze/[0.05] to-transparent p-4 text-start shadow-card transition-all hover:border-bronze/70 sm:p-5"
+    >
+      <span aria-hidden className="absolute -end-10 -top-10 h-32 w-32 rounded-full bg-bronze/10 blur-2xl transition-opacity group-hover:opacity-150" />
+      <div className="relative flex items-center gap-4">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#d9b877] via-bronze to-[#8a6a30] text-[#132018] shadow-card transition-transform duration-200 group-hover:scale-105">
+          <Scale className="h-6 w-6" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10.5px] font-bold text-bronze">بخش اختصاصی · دفترچه‌های واقعی اسکودا</p>
+          <h3 className="mt-0.5 font-display text-[15px] font-extrabold">آزمون وکالت — سؤال‌به‌سؤال با کلید رسمی</h3>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{fa(vokalat.length)} دفترچه · {fa(totalQ)} سؤال واقعی با پاسخ تشریحی ماده‌به‌ماده</p>
+        </div>
+        <ChevronLeft className="h-5 w-5 shrink-0 text-bronze transition-transform duration-200 group-hover:-translate-x-1" />
+      </div>
+    </button>
+  );
+}
+
 export function ExamPackHub({ onUseLibrary }: { onUseLibrary?: () => void }) {
   const [type, setType] = React.useState<string>("ALL");
   const types = React.useMemo(() => examTypes(), []);
@@ -90,6 +116,9 @@ export function ExamPackHub({ onUseLibrary }: { onUseLibrary?: () => void }) {
           </button>
         )}
       </div>
+
+      {/* ═══ ورود اختصاصی به آزمون وکالت ═══ */}
+      <VokalatBanner />
 
       {/* فیلتر نوع آزمون */}
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">

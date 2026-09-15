@@ -58,8 +58,125 @@ import { mcqJazaGhafoori2 } from "./exam-packs/mcq-jaza-ghafoori-2";
 import { descJazaGhafoori2 } from "./exam-packs/desc-jaza-ghafoori-2";
 import { mcqJazaGhafoori3 } from "./exam-packs/mcq-jaza-ghafoori-3";
 import { descJazaGhafoori3 } from "./exam-packs/desc-jaza-ghafoori-3";
+// دفترچه‌های واقعی آزمون وکالت (اسکودا) — استخراج از منابع ایرانی (اختبار)
+import { vokalat1388Madani } from "./exam-packs/mcq-vokalat-1388-madani";
+import { vokalat1388Dadresi } from "./exam-packs/mcq-vokalat-1388-dadresi";
+import { vokalat1388Tejarat } from "./exam-packs/mcq-vokalat-1388-tejarat";
+import { vokalat1388Osool } from "./exam-packs/mcq-vokalat-1388-osool";
+import { vokalat1388Jaza } from "./exam-packs/mcq-vokalat-1388-jaza";
+import { vokalat1388Keyfri } from "./exam-packs/mcq-vokalat-1388-keyfri";
+import { vokalatMadani1399 } from "./exam-packs/mcq-vokalat-madani-1399";
+import { vokalatOsool98 } from "./exam-packs/mcq-vokalat-osool-98";
+
+/** اسلاگ آزمون وکالت — برای هاب اختصاصی */
+export const VOKALAT_SLUG = "vokalat";
 
 export const examPacks: ExamPack[] = [
+  // ═══ دفترچه‌های واقعی آزمون وکالت (اسکودا) — سوالات اصیل با کلید رسمی/تحلیلی ═══
+  {
+    id: "pack-vokalat-1388-madani",
+    title: "دفترچهٔ واقعی ۱۳۸۸ — حقوق مدنی",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "حقوق مدنی",
+    description:
+      "سوالات ۱ تا ۲۰ درس حقوق مدنی دفترچهٔ رسمی آزمون وکالت ۱۳۸۸ اسکودا (کانون وکلای دادگستری): رهن، بیع کلی، خیارات، اجاره مال مشاع، حواله، ضمان، ارث، شرط نتیجه و علم اجمالی — با کلید رسمی و پاسخ تشریحی ماده‌به‌ماده.",
+    minutes: 30,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalat1388Madani,
+  },
+  {
+    id: "pack-vokalat-1388-dadresi",
+    title: "دفترچهٔ واقعی ۱۳۸۸ — آیین دادرسی مدنی",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "آیین دادرسی مدنی",
+    description:
+      "سوالات ۲۱ تا ۴۰ درس آیین دادرسی مدنی دفترچهٔ رسمی آزمون وکالت ۱۳۸۸: ایرادات، اعتراض ثالث، دستور موقت، تأمین خواسته، جلب ثالث، کارشناسی، واخواهی و اعاده دادرسی — با کلید رسمی و تشریح مواد ق.آ.د.م.",
+    minutes: 30,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalat1388Dadresi,
+  },
+  {
+    id: "pack-vokalat-1388-tejarat",
+    title: "دفترچهٔ واقعی ۱۳۸۸ — حقوق تجارت",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "حقوق تجارت",
+    description:
+      "سوالات ۴۱ تا ۶۰ درس حقوق تجارت دفترچهٔ رسمی آزمون وکالت ۱۳۸۸: چک و سفته و برات، دفاتر تجاری، شرکت سهامی، ورشکستگی و قرارداد ارفاقی، قائم‌مقام تجارتی و حمل و نقل — با کلید رسمی و تشریح مواد ق.ت.",
+    minutes: 30,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalat1388Tejarat,
+  },
+  {
+    id: "pack-vokalat-1388-osool",
+    title: "دفترچهٔ واقعی ۱۳۸۸ — اصول استنباط",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "اصول فقه",
+    description:
+      "سوالات ۶۱ تا ۸۰ درس اصول استنباط حقوق اسلامی دفترچهٔ رسمی آزمون وکالت ۱۳۸۸: مخصص و تخصیص، حکم واقعی اولی و ثانوی، اصالة عدم و الصحه، مفهوم غایت و علم اجمالی — با کلید رسمی و تحلیل اصولی.",
+    minutes: 30,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalat1388Osool,
+  },
+  {
+    id: "pack-vokalat-1388-jaza",
+    title: "دفترچهٔ واقعی ۱۳۸۸ — حقوق جزا",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "حقوق جزا",
+    description:
+      "سوالات ۸۱ تا ۱۰۰ درس جزای عمومی و اختصاصی دفترچهٔ رسمی آزمون وکالت ۱۳۸۸: شبه‌عمد، معاذیر تخفیف، تعلیق، اختلاس، معامله معارض، ربا، سرقت مشدد و تخلیه اطلاعاتی — با کلید رسمی و تشریح مواد ق.م.ا.",
+    minutes: 30,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalat1388Jaza,
+  },
+  {
+    id: "pack-vokalat-1388-keyfri",
+    title: "دفترچهٔ واقعی ۱۳۸۸ — آیین دادرسی کیفری",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "آیین دادرسی کیفری",
+    description:
+      "سوالات درس آیین دادرسی کیفری دفترچهٔ رسمی آزمون وکالت ۱۳۸۸ (سوال ۱۱۲ که رسماً حذف شد، لحاظ نگردیده): قرارهای تأمین، صلاحیت دادگاه‌ها، هیئت منصفه، مرور زمان و تعقیب — با کلید رسمی و تشریح.",
+    minutes: 28,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalat1388Keyfri,
+  },
+  {
+    id: "pack-vokalat-madani-1399",
+    title: "دفترچهٔ واقعی ۱۳۹۹ — حقوق مدنی",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "حقوق مدنی",
+    description:
+      "۲۰ سوال درس حقوق مدنی آزمون وکالت ۱۳۹۹ (اسکودا): بیمه اجباری، پیش‌فروش ساختمان، رد ترکه، تعارض اسناد، حق ارتفاق، طلاق بیماری و حق مولف — کلید بر اساس تحلیل مواد قانونی تنظیم شده است.",
+    minutes: 30,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalatMadani1399,
+  },
+  {
+    id: "pack-vokalat-osool-98",
+    title: "دفترچهٔ واقعی ۱۳۹۸ — اصول استنباط (تحلیلی)",
+    exam: "آزمون وکالت",
+    examSlug: "vokalat",
+    branch: "اصول فقه",
+    description:
+      "سوالات درس اصول استنباط آزمون وکالت ۱۳۹۸ اسکودا همراه با پاسخ‌های تحلیلی — تزاحم، قیاس اولویت، شهرت، علم اجمالی، قرائن معتبره و شک در حیات — تحلیل به سبک درسنامه.",
+    minutes: 25,
+    passMark: 60,
+    kind: "mcq",
+    questions: vokalatOsool98,
+  },
   {
     id: "pack-tadris-jaza-mcq3",
     title: "دفترچهٔ تستی — تدریس جزا ۳ (صفحات ۱۰۱ تا ۱۵۰)",
