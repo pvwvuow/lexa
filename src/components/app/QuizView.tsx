@@ -18,6 +18,7 @@ import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { AIThinking, Donut, ProgressBar, EmptyState } from "./common";
+import { VokalatHub } from "./VokalatHub";
 import { ExamPackHub, ExamPackRoute } from "./ExamPacksView";
 
 const KEYS = ["a", "b", "c", "d"] as const;
@@ -271,6 +272,9 @@ export function QuizView({ id }: { id?: string }) {
 
   // دفترچهٔ آزمون آماده — صفحهٔ اجرای اختصاصی خودش را دارد
   if (packId) return <ExamPackRoute packId={packId} />;
+
+  // هاب اختصاصی «آزمون وکالت» — مسیر #/quiz/vokalat
+  if (id === "vokalat") return <VokalatHub />;
 
   if (!pool.length && phase === "setup" && !genBusy && tab === "library")
     return (

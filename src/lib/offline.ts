@@ -12,7 +12,7 @@
 import * as React from "react";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.6.7";
+export const DESIGN_VERSION = "1.7.0";
 
 const DESIGN_META_KEY = "lexa-design-meta-v1";
 /** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی حفظ شده است */
