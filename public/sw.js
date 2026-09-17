@@ -21,7 +21,7 @@
  * v3 — رفع «آفلاین باز نمی‌شود»: کش دارایی‌های ارجاع‌شده در HTML پوسته + timeout race
  * برای برگشت سریع به کش در نبود اینترنت + پس‌افت ناوبری با ignoreSearch.
  */
-const VERSION = "lexa-pwa-v29";
+const VERSION = "lexa-pwa-v31";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
@@ -235,6 +235,11 @@ self.addEventListener("fetch", (event) => {
 
   if (!isSameOriginGet(req)) return;
   const url = new URL(req.url);
+
+  // ── به‌روزرسانی درون‌برنامه‌ای محتوا (مانیفست و بسته‌ها) — شبکهٔ خالص ──
+  // سیستم updater خودش کش دارد (localStorage + IndexedDB) و باید همیشه
+  // نسخهٔ واقعی مخزن را ببیند؛ مداخلهٔ SW اینجا باعث تعلیق fetch می‌شود.
+  if (url.pathname.startsWith("/updates/")) return;
 
   // ── داده‌های زندهٔ سرور: هیچ‌وقت کش نمی‌شوند (جز متن کامل قوانین و جلدها) ──
   if (url.pathname.startsWith("/api/")) {

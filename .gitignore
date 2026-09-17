@@ -66,3 +66,15 @@ db/*.db-journal
 db/*.db-wal
 db/*.db-shm
 backups/*.bundle
+
+# ─── Electron build outputs (سنگین — بیش از حد مجاز گیت‌هاب) ───
+download/electron/linux-unpacked/
+download/electron/win-unpacked/
+download/electron/.icon-ico/
+download/electron/*.AppImage
+download/electron/*.zip
+download/electron/*.exe
+download/electron/builder-debug.yml
+download/electron/latest-linux.yml
+download/electron/latest.yml
+electron/build/icon.ico
