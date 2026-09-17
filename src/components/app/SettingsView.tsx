@@ -8,6 +8,7 @@ import {
   WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
   RefreshCw, TriangleAlert, FileText, BookOpen, Wrench,
   Share, SquarePlus, Copy, Check, Apple, Chrome as ChromeIcon, Monitor, ExternalLink,
+  PackageCheck, PackageOpen, CloudDownload,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp } from "@/lib/store";
@@ -23,9 +24,15 @@ import {
   type DesignMeta, type OfflineItemMeta, type OfflineCardPost, type OfflineCardCourse,
 } from "@/lib/offline";
 import { useOnlineStatus } from "@/lib/offline";
+import {
+  initContentPacks, checkForUpdates, cachedManifest, lastCheckAt,
+  listInstalledPacks, installPack, removePack, installAllOutdated, buildStatuses,
+  kindLabel,
+  type UpdateManifest, type PackStatus, type InstalledPack,
+} from "@/lib/updater";
 import { UserAvatar } from "./common";
 
-type Tab = "general" | "ai" | "offline";
+type Tab = "general" | "ai" | "content" | "offline";
 
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("general");
@@ -38,8 +45,8 @@ export function SettingsView() {
       </header>
 
       {/* زبانه‌ها */}
-      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-muted/50 p-1">
-        {([["general", "عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot], ["offline", "آفلاین و نصب", WifiOff]] as const).map(([k, t, Ico]) => (
+      <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1 sm:grid-cols-4">
+        {([["general", "عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot], ["content", "به‌روزرسانی محتوا", PackageCheck], ["offline", "آفلاین و نصب", WifiOff]] as const).map(([k, t, Ico]) => (
           <button
             key={k}
             role="tab"
@@ -54,7 +61,7 @@ export function SettingsView() {
         ))}
       </div>
 
-      {tab === "general" ? <GeneralSettings /> : tab === "ai" ? <AiSettings /> : <OfflineSettings />}
+      {tab === "general" ? <GeneralSettings /> : tab === "ai" ? <AiSettings /> : tab === "content" ? <ContentUpdates /> : <OfflineSettings />}
     </div>
   );
 }
@@ -448,6 +455,247 @@ function Field({
 
 // جلوگیری از هشدار unused برای Upload در پیکربندی‌های مختلف eslint
 void Upload;
+
+/* ═══ زبانهٔ به‌روزرسانی محتوا — بسته‌های برخط بدون نصب نسخهٔ جدید ═════════ */
+
+function ContentUpdates() {
+  const online = useOnlineStatus();
+
+  const [checking, setChecking] = React.useState(false);
+  const [manifest, setManifest] = React.useState<UpdateManifest | null>(() => cachedManifest());
+  const [installed, setInstalled] = React.useState<InstalledPack[]>([]);
+  const [lastCheck, setLastCheck] = React.useState<number>(() => lastCheckAt());
+  const [err, setErr] = React.useState("");
+  const [msg, setMsg] = React.useState("");
+  const [rowBusy, setRowBusy] = React.useState("");
+  const [allBusy, setAllBusy] = React.useState(false);
+
+  const refreshInstalled = React.useCallback(async () => {
+    setInstalled(await listInstalledPacks());
+  }, []);
+
+  React.useEffect(() => {
+    void refreshInstalled();
+  }, [refreshInstalled]);
+
+  const statuses: PackStatus[] = React.useMemo(
+    () => (manifest ? buildStatuses(manifest, installed) : []),
+    [manifest, installed],
+  );
+
+  const pending = statuses.filter((s) => !s.installed || s.outdated);
+
+  async function check() {
+    setChecking(true);
+    setErr("");
+    setMsg("");
+    try {
+      const m = await checkForUpdates();
+      setManifest(m);
+      setLastCheck(lastCheckAt());
+      setMsg("بررسی انجام شد — لیست بسته‌های موجود تازه شد.");
+      setTimeout(() => setMsg(""), 4000);
+    } catch (e) {
+      setErr(
+        e instanceof Error
+          ? `دریافت مانیفست ناموفق بود (${e.message}). اتصال اینترنت را بررسی کن — منابع jsDelivr و گیت‌هاب به‌ترتیب امتحان می‌شوند.`
+          : "دریافت مانیفست ناموفق بود.",
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function doInstall(st: PackStatus) {
+    setRowBusy(st.meta.id);
+    setErr("");
+    setMsg("");
+    try {
+      await installPack(st.meta);
+      await refreshInstalled();
+      setMsg(`✓ «${st.meta.title}» نصب شد — بسته‌ها بلافاصله در اپ فعال‌اند.`);
+    } catch (e) {
+      setErr(e instanceof Error ? `نصب ناموفق بود: ${e.message}` : "نصب ناموفق بود.");
+    } finally {
+      setRowBusy("");
+    }
+  }
+
+  async function doRemove(st: PackStatus) {
+    setRowBusy(st.meta.id);
+    setMsg("");
+    setErr("");
+    try {
+      await removePack(st.meta.id);
+      await refreshInstalled();
+      setMsg("بسته حذف شد و محتوایش از اپ برداشته شد.");
+    } catch {
+      setErr("حذف بسته ناموفق بود.");
+    } finally {
+      setRowBusy("");
+    }
+  }
+
+  async function installAll() {
+    setAllBusy(true);
+    setErr("");
+    setMsg("");
+    try {
+      const n = await installAllOutdated(statuses);
+      await refreshInstalled();
+      setMsg(`✓ ${faNum(n)} بسته نصب/به‌روزرسانی شد.`);
+    } finally {
+      setAllBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <h2 className="mb-2 flex items-center gap-2 font-bold">
+          <PackageCheck className="h-5 w-5 text-bronze" /> به‌روزرسانی محتوا
+        </h2>
+        <p className="text-[12.5px] leading-relaxed text-muted-foreground">
+          دوره‌ها و دفترچه‌های آزمون تازه، بدون نیاز به نصب نسخهٔ جدید برنامه از مخزن Lexa دانلود و نصب می‌شوند.
+          بسته‌ها روی همین دستگاه (IndexedDB) ذخیره می‌شوند، آفلاین هم کار می‌کنند و با حذف، از اپ برداشته می‌شوند.
+        </p>
+
+        {/* وضعیت آخرین بررسی */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background/60 px-4 py-3">
+          <div className="text-xs text-muted-foreground">
+            <p>
+              آخرین بررسی:{" "}
+              <b className="text-foreground">
+                {lastCheck ? faDateTime(lastCheck) : "هنوز بررسی نشده"}
+              </b>
+            </p>
+            {manifest && (
+              <p className="mt-0.5">
+                نسخهٔ کاتالوگ برخط: <b className="text-foreground" dir="ltr">{manifest.version}</b>
+                {" "}· {faNum(manifest.packs.length)} بسته
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => void check()}
+            disabled={checking || !online}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-bronze/10 px-3.5 py-2 text-xs font-bold text-bronze transition-colors hover:bg-bronze/20 disabled:opacity-45"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
+            {checking ? "در حال بررسی…" : "بررسی به‌روزرسانی"}
+          </button>
+        </div>
+        {!online && (
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <CloudOff className="h-3.5 w-3.5" /> آفلاینی — بسته‌های نصب‌شده سر جایشان هستند؛ برای بررسی نیاز به اینترنت است.
+          </p>
+        )}
+
+        {(msg || err) && (
+          <p className={`mt-3 rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${err ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"}`}>
+            {err || msg}
+          </p>
+        )}
+
+        {/* دکمهٔ نصب همه */}
+        {manifest && pending.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bronze/30 bg-bronze/5 px-4 py-3">
+            <p className="text-xs font-bold text-bronze">
+              {faNum(pending.length)} بستهٔ آمادهٔ نصب/به‌روزرسانی
+            </p>
+            <button
+              onClick={() => void installAll()}
+              disabled={allBusy || !online}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-bronze px-3.5 py-2 text-xs font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-45"
+            >
+              {allBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CloudDownload className="h-3.5 w-3.5" />}
+              نصب همه
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* فهرست بسته‌ها */}
+      {manifest ? (
+        <section className="space-y-3">
+          {statuses.map((st) => {
+            const busy = rowBusy === st.meta.id;
+            return (
+              <article
+                key={st.meta.id}
+                className="rounded-2xl border border-border bg-card p-4 shadow-card"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-bold">{st.meta.title}</h3>
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                        {kindLabel(st.meta.kind)}
+                      </span>
+                      <span dir="ltr" className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                        v{st.meta.version}
+                      </span>
+                    </div>
+                    {st.meta.description && (
+                      <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{st.meta.description}</p>
+                    )}
+                    <p className="mt-2 flex items-center gap-1.5 text-[11px] font-bold">
+                      {!st.installed ? (
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
+                          <PackageOpen className="h-3.5 w-3.5" /> نصب نشده
+                        </span>
+                      ) : st.outdated ? (
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <RefreshCw className="h-3.5 w-3.5" /> نسخهٔ جدید موجود است
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> نصب شده — به‌روز
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    {!st.installed || st.outdated ? (
+                      <button
+                        onClick={() => void doInstall(st)}
+                        disabled={busy || !online}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-bronze/10 px-3 py-1.5 text-xs font-bold text-bronze transition-colors hover:bg-bronze/20 disabled:opacity-45"
+                      >
+                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                        {st.installed ? "به‌روزرسانی" : "نصب"}
+                      </button>
+                    ) : null}
+                    {st.installed && (
+                      <button
+                        onClick={() => void doRemove(st)}
+                        disabled={busy}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-bold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-45"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> حذف
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm leading-relaxed text-muted-foreground">
+          هنوز کاتالوگی دریافت نشده است. دکمهٔ «بررسی به‌روزرسانی» را بزن — اگر اینترنت داری ولی خطا تکرار شد،
+          احتمالاً مخزن موقتاً در دسترس نیست؛ بعداً دوباره تلاش کن.
+        </p>
+      )}
+
+      <p className="rounded-xl bg-muted/60 px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">
+        منبع بسته‌ها: پوشهٔ <span dir="ltr">updates/</span> مخزن رسمی Lexa در گیت‌هاب — ابتدا از
+        <span dir="ltr"> jsDelivr </span> دریافت می‌شود و در خطا از خود گیت‌هاب. هیچ محتوایی خارج از کاتالوگ رسمی نصب نمی‌شود.
+      </p>
+    </div>
+  );
+}
 
 function OfflineSettings() {
   const auth = useAuth();

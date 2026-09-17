@@ -1090,3 +1090,26 @@ Work Log:
 
 Stage Summary:
 - بخش «آزمون وکالت» با دفترچه‌های واقعی اسکودا (۱۳۸۸ با کلید رسمی، ۱۳۹۸ تحلیلی، ۱۳۹۹ تحلیلی) و ۳ دفترچهٔ نمونهٔ قبلی راه‌اندازی شد؛ ورود از بنر اختصاصی مرکز آزمون یا مستقیم #/quiz/vokalat. ساختار اجرا (زمان‌سنج، شافل، ثبت تلاش‌ها در ProgressView) از موتور موجود ExamPackRunner به ارث رسیده است.
+
+---
+Task ID: 56
+Agent: main (Super Z)
+Task: «نسخهٔ Electron دسکتاپ + سیستم آپدیت درون‌برنامه‌ای دلتا — سپس bump نسخه‌ها، بیلد، start-prod، اسکرین‌شات QA، کامیت و پوش»
+
+Work Log:
+- کلون مخزن pvwvuow/lexa از گیت‌هاب (head b807ba1) در lexa-repo/؛ bun install کامل (۱۰۳۴ پکیج).
+- کار ۱ (Electron): electron/main.js ساخته شد — سرور استاندالون Next (.next/standalone/server.js) با process.execPath و ELECTRON_RUN_AS_NODE=1 روی پورت آزاد (net server listen(0)) اجرا و تا HTTP 200 صبر می‌شود؛ پنجرهٔ اسپلش «در حال راه‌اندازی Lexa…» سپس پنجرهٔ اصلی ۱۲۸۰×۸۲۰؛ لینک‌های بیرونی به shell.openExternal، گارد will-navigate، single-instance lock، kill سرور در before-quit. باینری الکترون خودش Node می‌شود — هیچ پیش‌نیازی روی دستگاه کاربر نیست.
+- پیکربندی electron-builder.yml: appId ir.lexa.app، خروجی download/electron/، asar:false (سرور Next به fs واقعی نیاز دارد)، فایل‌ها = electron/main.js + .next/standalone/** بدون node_modules بیرونی (استاندالون خودکفاست)؛ آیکون ۵۱۲ و .ico از public/icons/pwa-512.png تولید شد. package.json: main/description/author + اسکریپت‌های electron:dev و electron:build + devDeps electron@38.8.6 و electron-builder@26.15.3.
+- خروجی‌ها: Lexa-0.3.0.AppImage (۱۳۸MB لینوکس) + Lexa-0.3.0-win.zip (۱۵۱MB ویندوز) در download/electron/؛ کپی تحویل در /home/z/my-project/download/electron/. آرتیفکت‌های سنگین در .gitignore (سقف ۱۰۰MB گیت‌هاب).
+- تست دود (scripts/electron_smoke_test.sh زیر Xvfb): سرور داخلی روی 127.0.0.1:44425 با HTTP 200 و عنوان Lexa بالا آمد؛ unhandledRejection هنگام خروج هندل شد و بیلد نهایی دوباره گرفته شد.
+- کار ۲ (آپدیت دلتا): src/lib/updater.ts — تایپ‌های UpdateManifest/UpdatePackMeta/InstalledPack؛ دریافت مانیفست با زنجیرهٔ fallback (jsDelivr → raw.githubusercontent → مسیر محلی /updates/) با timeout ۱۲s و سقف ۵MB؛ IndexedDB با نام db «lexa-content-db» و استور «lexa-content-packs»؛ نصب/ارتقا/حذف بسته با اعتبارسنجی ساختاری (Course: id/title/chapters، ExamPack: id/kind/questions)؛ ادغام: دوره‌ها → upsertCourse در استور zustand، دفترچه‌ها → registerDynamicExamPack (push به آرایهٔ examPacks با رجیستری dynamicPackIds — باندلی‌ها دست‌نخورده)؛ initContentPacks در استارتاپ (SwRegister) بسته‌های نصب‌شده را هیدرات و مانیفست را بی‌صدا کش می‌کند.
+- updates/ در ریشهٔ مخزن: manifest.json (v1.0.0) + دو بستهٔ واقعی نمونه: pack-online-madani-mcq-01.json (۱۰ تست مدنی با پاسخ تشریحی ماده‌به‌ماده) و course-online-mabani-course-01.json (مینی‌دورهٔ ۶بخشی «عقد و ایقاع» با کوئیز) — هر دو با پوشهٔ payload. آینهٔ public/updates/ برای fallback خودمیزبان (مهم برای کاربران ایران).
+- SettingsView: زبانهٔ چهارم «به‌روزرسانی محتوا» (grid-cols-2 در موبایل/۴ در دسکتاپ) با کارت وضعیت (آخرین بررسی/نسخهٔ کاتالوگ)، دکمهٔ «بررسی به‌روزرسانی»، «نصب همه»، کارت هر بسته با بج نوع/نسخه و وضعیت «نصب نشده/نسخهٔ جدید موجود/نصب شده — به‌روز» + دکمهٔ نصب/به‌روزرسانی/حذف.
+- باگ مهم کشف و رفع شد: SW پوسته (networkFirstNeverAbort) روی fetchهای /updates/* تعلیق ایجاد می‌کرد → pass-through خالص برای /updates/ در sw.js (lexa-pwa-v30→v31) + DESIGN_VERSION 1.7.0→1.8.0 + نسخهٔ اپ 0.2.1→0.3.0.
+- بیلد موفق استاندالون + tsc صفر خطا در src/؛ start-prod روی :3000 (HTTP 200).
+- QA مرورگر (agent-browser، دسکتاپ ۱۳۶۶×۸۵۰ و موبایل ۳۹۰×۸۴۴): زبانهٔ جدید با کاتالوگ ۲ بسته، «نصب همه» → پیام «✓ ۲ بسته نصب/به‌روزرسانی شد»، بج «نصب شده — به‌روز»، IndexedDB هر دو رکورد (course+examPack v1.0.0)، دفترچهٔ برخط در مرکز آزمون (#/quiz) و مینی‌دورهٔ برخط در فهرست «آموختن» (#/learn) ظاهر شدند؛ صفر خطای کنسول. اسکرین‌شات‌ها: qa/qa-030v2-*.png.
+
+Stage Summary:
+- Lexa حالا سه کانال توزیع دارد: وب (PWA)، دسکتاپ لینوکس (AppImage) و دسکتاپ ویندوز (zip) — همه از یک استاندالون واحد با ELECTRON_RUN_AS_NODE.
+- محتوای آموزشی جدید بدون انتشار نسخهٔ جدید اپ قابل افزودن است: کافی است JSON بسته در updates/packs/ و ردیفش در updates/manifest.json پوش شود؛ کاربر از تب «به‌روزرسانی محتوا» نصب می‌کند (jsDelivr → GitHub → خودِ سرور اپ). ذخیره در IndexedDB «lexa-content-packs» و ادغام خودکار در هر استارتاپ.
+- نکتهٔ عملیاتی: با هر تغییر در updates/، آینهٔ public/updates/ را هم همگام کنید (کپی همان پوشه).

@@ -3,10 +3,13 @@
 // ثبت سرویس‌ورکر + پرچم آفلاین سراسری + موتور به‌روزرسانی خودکار نسخهٔ آفلاین — بدون رندر بصری
 import * as React from "react";
 import { useServiceWorkerRegistration, startOfflineAutoUpdate } from "@/lib/offline";
+import { initContentPacks } from "@/lib/updater";
 
 export function SwRegister() {
   useServiceWorkerRegistration();
   startOfflineAutoUpdate();
+  // بسته‌های محتوایی نصب‌شده (دوره‌ها/دفترچه‌ها) را در استارتاپ در اپ ادغام می‌کند
+  void initContentPacks();
 
   // بررسی دوره‌ای نسخهٔ سرویس‌ورکر — تا اپ تازه (مثلاً نصب‌شدهٔ PWA) هم خودش را آپدیت کند
   React.useEffect(() => {

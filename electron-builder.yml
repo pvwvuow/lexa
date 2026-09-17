@@ -1,0 +1,51 @@
+# ─── Lexa — پیکربندی electron-builder ──────────────────────────────────────
+# خروجی‌ها در پوشهٔ download/electron ساخته می‌شوند:
+#   لینوکس → AppImage
+#   ویندوز → zip (قابل استخراج و اجرا — بدون نیاز به نصب‌کننده)
+#
+# نکته: برنامه سرور استاندالون Next را داخل خودش دارد
+# (.next/standalone) و با ELECTRON_RUN_AS_NODE آن را اجرا می‌کند؛
+# بنابراین node_modules بیرونی به هیچ وجه لازم نیست و کنار گذاشته می‌شود.
+appId: ir.lexa.app
+productName: Lexa
+copyright: © 2026 Lexa
+
+directories:
+  output: download/electron
+  buildResources: electron/build
+
+files:
+  - electron/main.js
+  - .next/standalone/**/*
+  - package.json
+  - "!node_modules/**"
+  - "!**/node_modules/.cache/**"
+  - "!**/.next/cache/**"
+  - "!download/**"
+  - "!qa/**"
+  - "!shots/**"
+  - "!backups/**"
+  - "!tests/**"
+  - "!upload/**"
+  - "!tool-results/**"
+
+# سرور Next به fs واقعی نیاز دارد (خواندن صفحات/داده‌های .next/server)
+asar: false
+
+compression: maximum
+
+linux:
+  target:
+    - AppImage
+  category: Education
+  icon: electron/build/icon.png
+  synopsis: استاد حقوقی هوشمند
+  description: Lexa — مرجع آمادگی آزمون‌های حقوقی با هوش مصنوعی، دفترچه‌های آزمون و کتابخانهٔ قانون
+
+win:
+  target:
+    - zip
+  icon: electron/build/icon.png
+
+# آرتیفکت‌های شمارندهٔ بیلد در مخزن ذخیره نشوند
+# (پوشهٔ خروجی در .gitignore هم هست)

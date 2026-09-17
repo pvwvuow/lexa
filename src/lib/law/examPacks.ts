@@ -349,3 +349,40 @@ export function examTypes(): { slug: string; label: string; count: number }[] {
 export function packQuestionCount(p: ExamPack): number {
   return p.questions.length;
 }
+
+/* ─── بسته‌های پویا — به‌روزرسانی درون‌برنامه‌ای محتوا (src/lib/updater.ts) ──
+ * دفترچه‌های نصب‌شده از بسته‌های برخط، در همین آرایهٔ examPacks ادغام می‌شوند
+ * تا همهٔ صفحات موجود (کتابخانهٔ آزمون، هاب وکالت، اجرا، پیشرفت) بدون تغییر
+ * آن‌ها را ببینند. شناسه‌ها در dynamicPackIds ثبت می‌شوند تا هنگام حذف یا
+ * ارتقای بسته، فقط همین‌ها دست‌خوش شوند و بسته‌های باندلی دست‌نخورده بمانند.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+const dynamicPackIds = new Set<string>();
+
+/** افزودن (یا ارتقای) یک دفترچهٔ پویا — اگر با بستهٔ باندلی تزاید داشت، پذیرفته نمی‌شود */
+export function registerDynamicExamPack(p: ExamPack): boolean {
+  if (!p?.id) return false;
+  const bundled = examPacks.some((x) => x.id === p.id && !dynamicPackIds.has(x.id));
+  if (bundled) return false; // شناسهٔ محتوای رسمی — جایگزینی ممنوع
+  if (dynamicPackIds.has(p.id)) {
+    // ارتقای نسخه: نسخهٔ قبلی همین پک پویا حذف و نسخهٔ تازه جای آن می‌نشیند
+    const i = examPacks.findIndex((x) => x.id === p.id);
+    if (i >= 0) examPacks.splice(i, 1);
+  }
+  dynamicPackIds.add(p.id);
+  examPacks.push(p);
+  return true;
+}
+
+/** حذف یک دفترچهٔ پویا — بسته‌های باندلی هرگز حذف نمی‌شوند */
+export function unregisterDynamicExamPack(id: string): void {
+  if (!dynamicPackIds.has(id)) return;
+  const i = examPacks.findIndex((x) => x.id === id);
+  if (i >= 0) examPacks.splice(i, 1);
+  dynamicPackIds.delete(id);
+}
+
+/** آیا این دفترچه از بستهٔ برخط نصب شده است؟ */
+export function isDynamicPack(id: string): boolean {
+  return dynamicPackIds.has(id);
+}
