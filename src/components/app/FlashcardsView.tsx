@@ -7,6 +7,7 @@ import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
 import { fa } from "@/lib/fa";
+import { startLibraryWarmup } from "@/lib/law/texts";
 
 function buildDeck(): Flashcard[] {
   const st0 = useApp.getState();
@@ -44,15 +45,41 @@ export function FlashcardsView() {
   const [pos, setPos] = React.useState(0);
   const [flipped, setFlipped] = React.useState(false);
   const [stats, setStats] = React.useState({ known: 0, review: 0 });
+  /** گرم‌کن کتابخانه در پس‌زمینه — کارت‌های بیشتر به‌تدریج از متون تازه‌لود می‌آید */
+  const [warming, setWarming] = React.useState(false);
 
-  React.useEffect(() => {
+  const rebuildDeck = React.useCallback(() => {
     const d = buildDeck();
     setDeck(d);
     setOrder(d.map((_, idx) => idx));
+  }, []);
+
+  React.useEffect(() => {
+    rebuildDeck();
     setPos(0);
     setStats({ known: 0, review: 0 });
-    void custom;
-  }, [custom]);
+    // محتوای جلسه‌ها برای فلش‌کارت لازم است — گرم‌کن آرام و پس‌زمینه‌ای کتابخانه
+    let alive = true;
+    setWarming(true);
+    const lessons = () => {
+      const st0 = useApp.getState();
+      return mergeVisible(st0).flatMap((c) => c.chapters.flatMap((ch) => ch.lessons));
+    };
+    startLibraryWarmup(lessons)
+      .then(() => {
+        if (!alive) return;
+        setWarming(false);
+        // اگر کاربر هنوز کارت نزده، صف با کارت‌های تازه بازسازی می‌شود
+        setPos((p) => {
+          if (p === 0) rebuildDeck();
+          return p;
+        });
+      })
+      .catch(() => alive && setWarming(false));
+    return () => {
+      alive = false;
+    };
+  }, [custom, rebuildDeck]);
 
   const finished = deck.length > 0 && pos >= order.length;
 
@@ -71,7 +98,11 @@ export function FlashcardsView() {
   }
 
   if (deck.length === 0)
-    return <div className="mx-auto max-w-xl px-4 py-20 text-center text-muted-foreground">کارت‌ها در حال آماده‌سازی هستند…</div>;
+    return (
+      <div className="mx-auto max-w-xl px-4 py-20 text-center text-muted-foreground">
+        {warming ? "کارت‌ها از کتابخانه در حال آماده‌سازی هستند…" : "هنوز کارتی برای مرور نیست — اول چند جلسه را بخوان."}
+      </div>
+    );
 
   const card = deck[order[Math.min(pos, order.length - 1)]];
 
@@ -80,6 +111,7 @@ export function FlashcardsView() {
       <header className="space-y-1 text-center">
         <h1 className="text-xl font-bold">مرور سریع با فلش‌کارت</h1>
         <p className="font-display text-sm text-muted-foreground">{finished ? "صف امروز تمام شد" : `کارت ${fa(pos + 1)} از ${fa(order.length)} — باقی‌مانده: ${fa(order.length - pos)}`} — بلدها: {fa(stats.known)} | نیازمند مرور: {fa(stats.review)}</p>
+        {warming && <p className="text-[11px] text-bronze/80">در حال افزودن کارت‌های بیشتر از کتابخانه…</p>}
       </header>
 
       <div className="flip-scene h-80 cursor-pointer select-none" onClick={() => !finished && setFlipped(!flipped)}>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale,
   Timer, Flag, GraduationCap, ClipboardList, ArrowLeft, ArrowRight, Shuffle,
-  Library, Target, House,
+  Library, Target, House, Loader2,
 } from "lucide-react";
 import type { QuizQuestion } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -17,6 +17,7 @@ import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { lessonToContextText } from "@/lib/law/lessonText";
+import { ensureLessonContent, ensureLessonsContent, isLazyLesson, useTextsVersion } from "@/lib/law/texts";
 import { AIThinking, Donut, ProgressBar, EmptyState } from "./common";
 import { VokalatHub } from "./VokalatHub";
 import { ExamPackHub, ExamPackRoute } from "./ExamPacksView";
@@ -46,6 +47,9 @@ export function QuizView({ id }: { id?: string }) {
   const complete = useApp((s) => s.completeLesson);
   const touchStreak = useApp((s) => s.touchStreak);
 
+  // نسخهٔ رجیستری متون — با هر آب‌رسانی، استخر سؤال تازه می‌شود
+  const textsVer = useTextsVersion();
+
   // منبع سؤالات — کل کتابخانه (داخلی + وارداتی)
   const all: Course[] = React.useMemo(
     () => mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins }),
@@ -56,7 +60,8 @@ export function QuizView({ id }: { id?: string }) {
     if (!id) return null;
     for (const c of all) for (const ch of c.chapters) {
       const l = ch.lessons.find((x) => x.id === id);
-      if (l && l.quiz.length > 0) return { course: c, chapter: ch, lesson: l as Lesson };
+      // qCount از متادیتا می‌آید — بدون لود محتوا هم می‌دانیم این جلسه سؤال دارد
+      if (l && (l.qCount ?? l.quiz.length) > 0) return { course: c, chapter: ch, lesson: l as Lesson };
     }
     return null;
   }, [id, all]);
@@ -72,7 +77,7 @@ export function QuizView({ id }: { id?: string }) {
 
   // ── انتخاب دامنه در مرکز آزمون ──
   const flatAll = React.useMemo(() => flattenAll(all), [all]);
-  const readyFlat = React.useMemo(() => flatAll.filter((f) => f.lesson.status !== "ai-pending" && f.lesson.quiz.length > 0), [flatAll]);
+  const readyFlat = React.useMemo(() => flatAll.filter((f) => f.lesson.status !== "ai-pending" && (f.lesson.qCount ?? f.lesson.quiz.length) > 0), [flatAll]);
 
   const [scopeCourse, setScopeCourse] = React.useState<string>("ALL");
   const [picked, setPicked] = React.useState<Set<string>>(() => new Set());
@@ -95,7 +100,15 @@ export function QuizView({ id }: { id?: string }) {
   );
 
   // استخر سؤال
-  const lessonBase: QuizQuestion[] = React.useMemo(() => (ctx ? [...ctx.lesson.quiz] : []), [ctx]);
+  const lessonBase: QuizQuestion[] = React.useMemo(() => (ctx ? [...ctx.lesson.quiz] : []), [ctx, textsVer]);
+
+  /** تعداد سؤال‌های دامنه از متادیتا — بدون هیچ دانلودی */
+  const metaPoolCount = React.useMemo(() => {
+    if (!hubActive) return ctx ? (ctx.lesson.qCount ?? ctx.lesson.quiz.length) : 0;
+    let n = 0;
+    for (const f of readyFlat) if (picked.has(f.lesson.id)) n += f.lesson.qCount ?? f.lesson.quiz.length;
+    return n;
+  }, [hubActive, ctx, readyFlat, picked]);
 
   const hubStats = React.useMemo(() => {
     let questions = 0;
@@ -105,14 +118,14 @@ export function QuizView({ id }: { id?: string }) {
     const weakList = weakTopics();
     for (const f of readyFlat) {
       if (!picked.has(f.lesson.id)) continue;
-      questions += f.lesson.quiz.length;
+      questions += f.lesson.qCount ?? f.lesson.quiz.length;
       for (const q of f.lesson.quiz) if (q.topic && weakList.includes(q.topic)) weakQuestions += 1;
       courses.add(f.course.id);
       chapters.add(f.chapter.id);
     }
     return { questions, weakQuestions, lessons: picked.size, courses: courses.size, chapters: chapters.size };
     // weakTopics() خواندن مستقیم localStorage است؛ با weakVer دستی تازه می‌شود
-  }, [readyFlat, picked, weakVer]);
+  }, [readyFlat, picked, weakVer, textsVer]);
 
   const basePool: QuizQuestion[] = React.useMemo(() => {
     if (hubActive) {
@@ -124,7 +137,7 @@ export function QuizView({ id }: { id?: string }) {
       return weakOnly ? qs.filter((q) => q.topic && weakTopics().includes(q.topic)) : qs;
     }
     return lessonBase;
-  }, [hubActive, readyFlat, picked, weakOnly, lessonBase, weakVer]);
+  }, [hubActive, readyFlat, picked, weakOnly, lessonBase, weakVer, textsVer]);
 
   /** استخر تولیدشدهٔ استاد — تا وقتی جایگزین نشده، مبنای آزمون است */
   const [aiPool, setAiPool] = React.useState<QuizQuestion[] | null>(null);
@@ -150,14 +163,16 @@ export function QuizView({ id }: { id?: string }) {
 
   const [genBusy, setGenBusy] = React.useState(false);
   const [genErr, setGenErr] = React.useState("");
+  /** آماده‌سازی استخر: بارگیری محتوای جلسات دامنه هنگام شروع آزمون */
+  const [prepare, setPrepare] = React.useState<{ busy: boolean; done: number; total: number }>({ busy: false, done: 0, total: 0 });
 
   React.useEffect(() => {
     setPhase("setup");
     setAiPool(null);
     setGenErr("");
-    setCount(pool.length ? Math.min(5, pool.length) : 5);
+    setCount(metaPoolCount ? Math.min(5, metaPoolCount) : 5);
      
-  }, [id, hubActive, basePool.length]);
+  }, [id, hubActive, metaPoolCount]);
 
   // زمان‌سنج
   React.useEffect(() => {
@@ -185,7 +200,7 @@ export function QuizView({ id }: { id?: string }) {
 
   const toggleChapter = (lessons: Lesson[]) =>
     setPicked((p) => {
-      const ids = lessons.filter((l) => l.status !== "ai-pending" && l.quiz.length > 0).map((l) => l.id);
+      const ids = lessons.filter((l) => l.status !== "ai-pending" && (l.qCount ?? l.quiz.length) > 0).map((l) => l.id);
       const allIn = ids.every((i) => p.has(i));
       const n = new Set(p);
       ids.forEach((i) => (allIn ? n.delete(i) : n.add(i)));
@@ -198,12 +213,10 @@ export function QuizView({ id }: { id?: string }) {
   };
 
   const pickWeakScope = () => {
-    // کل کتابخانه‌ای که سؤال ضعیف دارد؛ بدون توجه به فیلتر درس
+    // کل کتابخانه به‌عنوان دامنه؛ فیلتر واقعیِ ضعیف‌ها بعد از بارگیری محتوا در شروع آزمون انجام می‌شود
     setScopeCourse("ALL");
     setWeakOnly(true);
-    const list = weakTopics();
-    const target = readyFlat.filter((f) => f.lesson.quiz.some((q) => q.topic && list.includes(q.topic))).map((f) => f.lesson.id);
-    setPicked(new Set(target.length ? target : readyFlat.map((f) => f.lesson.id)));
+    setPicked(new Set(readyFlat.map((f) => f.lesson.id)));
   };
 
   function startQuiz(poolOverride?: QuizQuestion[]) {
@@ -218,6 +231,33 @@ export function QuizView({ id }: { id?: string }) {
     setPhase("run");
   }
 
+  /** شروع با اطمینان از بارگیری محتوای دامنه — سؤال‌ها به‌محض فشار دکمه از شبکه/کش می‌آیند */
+  async function startPrepared() {
+    touchStreak();
+    const targets = hubActive
+      ? readyFlat.filter((f) => picked.has(f.lesson.id)).map((f) => f.lesson)
+      : ctx ? [ctx.lesson] : [];
+    const pending = targets.filter((l) => isLazyLesson(l) && l.quiz.length === 0);
+    if (pending.length) {
+      setPrepare({ busy: true, done: 0, total: pending.length });
+      await ensureLessonsContent(pending, 6);
+      setPrepare({ busy: false, done: 0, total: 0 });
+    }
+    // استخر را از محتوای تازه‌آب‌شده می‌سازیم (مم مستقیم از آبجکت‌ها، نه مموی رندر فعلی)
+    const qs: QuizQuestion[] = [];
+    for (const f of readyFlat) {
+      if (hubActive && !picked.has(f.lesson.id)) continue;
+      if (!hubActive && ctx && f.lesson.id !== ctx.lesson.id) continue;
+      for (const q of f.lesson.quiz) qs.push(q);
+    }
+    const poolNow = weakOnly ? qs.filter((q) => q.topic && weakTopics().includes(q.topic)) : qs;
+    if (!poolNow.length) {
+      setGenErr("سؤالی در این دامنه بارگیری نشد؛ اتصال اینترنت را بررسی کن و دوباره تلاش کن.");
+      return;
+    }
+    startQuiz(poolNow);
+  }
+
   async function generateMore() {
     setGenBusy(true); setGenErr("");
     try {
@@ -226,6 +266,8 @@ export function QuizView({ id }: { id?: string }) {
       const registry: string[] = [];
 
       if (!hubActive && ctx) {
+        // متن جلسه باید حاضر باشد — اگر لود تنبل، اول بیار
+        await ensureLessonContent(ctx.lesson);
         const ground = lessonToContextText(ctx.lesson.sections, 5000);
         content = ground.text;
         registry.push(...ground.lawRegistry);
@@ -234,6 +276,7 @@ export function QuizView({ id }: { id?: string }) {
         // چند جلسهٔ منتخب به ترتیب کتاب تا سقف ~۷۲۰۰ کاراکتر
         const chosen = readyFlat.filter((f) => picked.has(f.lesson.id));
         if (!chosen.length) throw new Error("جلسهٔ آماده‌ای در دامنه نیست؛ اول جلسه را تدریس کن.");
+        await ensureLessonsContent(chosen.slice(0, 8).map((f) => f.lesson));
         for (const f of chosen) {
           if (content.length >= 7200) break;
           const g = lessonToContextText(f.lesson.sections, 2400);
@@ -276,7 +319,7 @@ export function QuizView({ id }: { id?: string }) {
   // هاب اختصاصی «آزمون وکالت» — مسیر #/quiz/vokalat
   if (id === "vokalat") return <VokalatHub />;
 
-  if (!pool.length && phase === "setup" && !genBusy && tab === "library")
+  if (!pool.length && phase === "setup" && !genBusy && tab === "library" && metaPoolCount === 0 && !prepare.busy)
     return (
       <div className="mx-auto max-w-2xl px-4 py-16">
         <EmptyState
@@ -355,7 +398,7 @@ export function QuizView({ id }: { id?: string }) {
 
   /* ═══ صفحهٔ تنظیمات آزمون ═══ */
   if (phase === "setup") {
-    const countOptions = [5, 10, 20, pool.length].filter((v, i, arr) => v > 0 && v <= pool.length && arr.indexOf(v) === i);
+    const countOptions = [5, 10, 20, metaPoolCount].filter((v, i, arr) => v > 0 && v <= metaPoolCount && arr.indexOf(v) === i);
     return (
       <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-24 pt-6 sm:px-6">
         {/* تب‌های مرکز آزمون — دفترچه‌های آماده یا آزمون دلخواه از کتابخانهٔ خودت */}
@@ -400,7 +443,10 @@ export function QuizView({ id }: { id?: string }) {
               </button>
             )}
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{fa(pool.length)} سؤال در دامنهٔ «{scopeLine()}» آماده است.</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            {fa(metaPoolCount)} سؤال در دامنهٔ «{scopeLine()}» ثبت است
+            {!hubActive && ctx && isLazyLesson(ctx.lesson) && ctx.lesson.quiz.length === 0 && " — سؤال‌ها هنگام شروع آزمون بارگیری می‌شوند"}.
+          </p>
         </motion.header>
 
         {/* ── دامنهٔ سؤال ── */}
@@ -471,7 +517,7 @@ export function QuizView({ id }: { id?: string }) {
                                   >
                                     <Tick state={on ? "on" : "off"} small />
                                     <span className={`flex-1 truncate text-[12px] ${on ? "font-medium text-foreground" : "text-muted-foreground"}`}>{l.title}</span>
-                                    <span className="shrink-0 text-[10px] font-bold text-bronze/80">{fa(l.quiz.length)} سؤال</span>
+                                    <span className="shrink-0 text-[10px] font-bold text-bronze/80">{fa(l.qCount ?? l.quiz.length)} سؤال</span>
                                   </button>
                                 </li>
                               );
@@ -484,7 +530,7 @@ export function QuizView({ id }: { id?: string }) {
                 </details>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">خلاصهٔ دامنه: {fa(hubStats.lessons)} جلسه از {fa(hubStats.courses)} کتاب — {fa(basePool.length)} سؤال پایه</p>
+            <p className="text-[11px] text-muted-foreground">خلاصهٔ دامنه: {fa(hubStats.lessons)} جلسه از {fa(hubStats.courses)} کتاب — {fa(metaPoolCount)} سؤال</p>
           </section>
         )}
 
@@ -527,7 +573,7 @@ export function QuizView({ id }: { id?: string }) {
                     aria-pressed={count === v}
                     className={`rounded-full border px-4 py-1.5 font-display text-[13px] font-bold transition-colors ${count === v ? "border-bronze bg-bronze/15 text-bronze" : "border-border bg-background text-muted-foreground hover:border-bronze/50"}`}
                   >
-                    {v === pool.length && pool.length !== 5 && pool.length !== 10 && pool.length !== 20 ? `همه (${fa(v)})` : fa(v)}
+                    {v === metaPoolCount && v !== 5 && v !== 10 && v !== 20 ? `همه (${fa(v)})` : fa(v)}
                   </button>
                 ))}
               </div>
@@ -568,13 +614,20 @@ export function QuizView({ id }: { id?: string }) {
           </div>
         </section>
 
-        {/* شروع */}
+        {/* شروع — محتوای دامنه به‌محض فشار دکمه بارگیری و آزمون آغاز می‌شود */}
         <button
-          onClick={() => startQuiz()}
-          disabled={pool.length === 0}
+          onClick={() => void startPrepared()}
+          disabled={metaPoolCount === 0 || prepare.busy}
           className="w-full rounded-2xl bg-primary px-6 py-4 font-display text-base font-bold text-primary-foreground shadow-card transition-all duration-200 hover:-translate-y-px hover:brightness-110 active:scale-[.99] disabled:opacity-50"
         >
-          شروع آزمون — {fa(Math.min(count, pool.length))} سؤال
+          {prepare.busy ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              در حال دریافت سؤال‌ها ({fa(prepare.done)}/{fa(prepare.total)})…
+            </span>
+          ) : (
+            `شروع آزمون — ${fa(Math.min(count, metaPoolCount))} سؤال`
+          )}
         </button>
 
         {/* تولید سؤال تازه با هوش مصنوعی */}

@@ -6,10 +6,10 @@ pkill -f "standalone/server.js" 2>/dev/null
 pkill -f "next-server" 2>/dev/null
 fuser -k 3000/tcp 2>/dev/null
 sleep 1
-cd /home/z/my-project
+cd "$(dirname "$0")/.."
 cp -r public .next/standalone/public 2>/dev/null
 cp -r .next/static .next/standalone/.next/static 2>/dev/null
-nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/server.js >> /home/z/my-project/prod.log 2>&1 < /dev/null &
+nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/server.js >> "$HOME/lexa-prod.log" 2>&1 < /dev/null &
 disown
 for i in $(seq 1 20); do
   sleep 1

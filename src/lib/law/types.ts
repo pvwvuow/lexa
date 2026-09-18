@@ -58,6 +58,11 @@ export interface Lesson {
   sections: LessonSection[];
   quiz: QuizQuestion[];
   minutes?: number;
+  /** نسخهٔ محتوای تنبل — فقط جلسات داخلی (باندل سبک) آن را دارند؛
+   *  متن و سؤال به‌محض نیاز از texts/<id>.json بارگیری و همین‌جا آب‌رسانی می‌شود */
+  v?: string;
+  /** تعداد سؤال‌ها وقتی محتوا هنوز لود نشده (برای نشان‌ها بدون دانلود) */
+  qCount?: number;
 }
 
 export interface Chapter {

@@ -1113,3 +1113,22 @@ Stage Summary:
 - Lexa حالا سه کانال توزیع دارد: وب (PWA)، دسکتاپ لینوکس (AppImage) و دسکتاپ ویندوز (zip) — همه از یک استاندالون واحد با ELECTRON_RUN_AS_NODE.
 - محتوای آموزشی جدید بدون انتشار نسخهٔ جدید اپ قابل افزودن است: کافی است JSON بسته در updates/packs/ و ردیفش در updates/manifest.json پوش شود؛ کاربر از تب «به‌روزرسانی محتوا» نصب می‌کند (jsDelivr → GitHub → خودِ سرور اپ). ذخیره در IndexedDB «lexa-content-packs» و ادغام خودکار در هر استارتاپ.
 - نکتهٔ عملیاتی: با هر تغییر در updates/، آینهٔ public/updates/ را هم همگام کنید (کپی همان پوشه).
+
+---
+Task ID: 58
+Agent: main (Super Z)
+Task: لود تنبل متون درس‌ها — متن و سؤال هر جلسه به‌محض باز شدن از شبکه بارگیری شود، نه دانلود یک‌جای همهٔ متون.
+
+Work Log:
+- سنجش: کل محتوای ۱۱ دورهٔ داخلی 3.46MB بود (sections 2.2MB + quiz 1.26MB؛ دورهٔ تدریس جزا با ۳۳۰ جلسه سنگین‌ترین) — همگی به‌صورت import استاتیک در باندل کلاینت.
+- جداسازی منبع: courses/index.ts ← courses-full.ts (منبع کامل؛ فقط خوراک مولد) + index.ts جدید (فقط re-export متادیتا).
+- مولد scripts/build-lesson-texts.mjs (bun): ۴۱۵ فایل public/texts/<lessonId>.json = {id, v(hash djb2), sections, quiz} + generated-meta.ts (درخت بدون محتوا + v و qCount؛ ۱۲۲KB) + manifest.json. پاک‌سازی فایل‌های یتیم. به scripts.build زنجیره شد تا متادیتا هیچ‌وقت عقب نماند.
+- هسته: src/lib/law/texts.ts — زنجیرهٔ self ← jsDelivr ← raw (برخلاف updater، سرور خود اپ اولویت دارد چون نسخهٔ محتوایش همیشه با اپ هم‌خوان است)؛ اعتبارسنجی v؛ کش IndexedDB «lexa-texts-db»؛ آب‌رسانی in-place روی آبجکت Lesson (الگوی رجیستری داینامیک examPacks) + شمارندهٔ نسخه با useSyncExternalStore؛ ensureLessonContent / ensureLessonsContent / ensureChapterContent (همزمانی محدود) / startLibraryWarmup (گرم‌کن تدریجی برای فلش‌کارت) / clearTextsCache.
+- types.ts: فیلدهای v و qCount اختیاری به Lesson؛ دوره‌های وارداتی (بدون v) کاملاً دست‌نخورده.
+- UI: LearnView (گیت + اسکلت هشت‌بخشی + خطا/تلاش دوباره)، CourseView (پیش‌بارگیری به‌محض باز شدن آکاردئون فصل + نشان «در حال دریافت متن»)، QuizView (شمارنده‌ها از متادیتا؛ استخر سؤال هنگام فشار دکمهٔ شروع با پیشرفت n/m؛ pickWeakScope و generateMore سازگار شدند)، CaseStudyView (اسکلت کوتاه)، FlashcardsView (گرم‌کن پس‌زمینه‌ای + بازسازی صف)، GlobalSearch (بازسازی ایندکس با هر آب‌رسانی)، StudyListView/PublicLibraryView (نشان‌های qCount)، offline.ts (ذخیرهٔ آفلاین builtin اول محتوا را کامل می‌کند).
+- sw.js: pass-through «/texts/» مثل «/updates/» + lexa-pwa-v32؛ DESIGN_VERSION 1.9.0؛ اپ 0.4.0؛ start-prod.sh قابل‌حمل شد (cd نسبی + لاگ در ~).
+- QA (Playwright): ۱۳/۱۳ سبز — صفر درخواست /texts/ در استارتاپ و صفحهٔ دوره؛ باز کردن فصل ۳ مدنی ۴ = دقیقاً ۶ فایل همان فصل؛ جلسه از پیش‌بارگیری بدون درخواست تازه؛ ورود مستقیم = فقط فایل همان جلسه؛ رفرش = کش IndexedDB با صفر شبکه؛ مرکز آزمون = شمارندهٔ متادیتایی بدون دانلود؛ شروع آزمون = دریافت سؤال‌های همان جلسه و اجرا؛ بدون خطای کنسول/۵۰۰. اسکریپت‌ها: scripts/qa58-lazy-texts.js و qa58b-quiz-start.js.
+
+Stage Summary:
+- باندل کلاینت از ~3.5MB محتوای درس سبک شد به ۱۲۲KB متادیتا؛ متون/سؤال‌ها on-demand به‌محض باز کردن فصل/جلسه/آزمون لود و تا ابد در IndexedDB کش می‌شوند.
+- نسخهٔ بعدی دسکتاپ باید دوباره بسته‌بندی شود (AppImage/win-zip) تا public/texts داخل پکیج برود — خودِ build الان این کار را می‌کند.

@@ -8,6 +8,7 @@ import { mergeAll, mergeVisible } from "@/lib/books";
 import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { lessonToContextText } from "@/lib/law/lessonText";
+import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { AIThinking, EmptyState } from "./common";
 
 interface Feedback { strengths: string[]; gaps: string[]; verdict: string; suggestedOutline: string[] }
@@ -31,6 +32,9 @@ export function CaseStudyView({ id }: { id?: string }) {
   const exampleSection = ctx?.lesson.sections.find((s) => s.type === "example");
   const caseText =
     exampleSection?.body ?? "پروندهٔ فرضی پیشفرض: خانمی چکی به مبلغ دویست میلیون تومان دریافت کرده که در صیاد ثبت نشده و برگشت خورده است؛ صادرکننده مدعی است چک بابت وام ضمانت بوده است. تحلیل کنید.";
+
+  // گیت لود تنبل — متن جلسه باید برای نقد استاد آماده باشد
+  const textState = useLessonContent(ctx?.lesson);
 
   const [answer, setAnswer] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -66,6 +70,23 @@ export function CaseStudyView({ id }: { id?: string }) {
         <h1 className="flex items-center gap-2 text-xl font-bold"><FolderOpen className="h-6 w-6 text-bronze" /> کیس‌استادی — تحلیل پرونده فرضی</h1>
         <p className="mt-1 text-xs text-muted-foreground">{ctx ? `${ctx.course.title} — ${ctx.lesson.title}` : "تمرین تحلیلی آزاد"} — یادآوری: این ابزار آموزشی است، جایگزین مشاوره حقوقی نیست.</p>
       </header>
+
+      {/* متن جلسه هنوز نرسیده — اسکلت کوتاه + دکمه تلاش */}
+      {ctx && isLazyLesson(ctx.lesson) && ctx.lesson.sections.length === 0 && textState !== "ready" && (
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <div className="animate-pulse space-y-2.5">
+            <div className="h-3 w-4/5 rounded bg-muted" />
+            <div className="h-3 w-3/5 rounded bg-muted" />
+            <div className="h-3 w-2/5 rounded bg-muted/70" />
+          </div>
+          {textState === "error" && (
+            <div className="mt-4 flex items-center gap-2">
+              <p className="text-xs text-destructive">دریافت متن جلسه ناموفق بود.</p>
+              <button onClick={() => void ensureLessonContent(ctx.lesson)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-bronze hover:border-bronze">تلاش دوباره</button>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* متن پرونده با ظاهر «پروندهٔ رسمی» */}
       <section className="law-box rounded-2xl p-6">
