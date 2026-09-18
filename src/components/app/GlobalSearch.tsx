@@ -10,6 +10,7 @@ import type { Course } from "@/lib/law/types";
 import { LAW_CODES, type LawCode, type LawBook } from "@/lib/law/statutes";
 import { fetchFullLaws } from "./LawLibraryView";
 import { CourseIcon, UserAvatar } from "./common";
+import { useTextsVersion } from "@/lib/law/texts";
 
 /* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
 function norm(s: string): string {
@@ -174,6 +175,13 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
       .finally(() => setTeachersLoading(false));
      
   }, [open]);
+
+  // با آب‌رسانی محتوای تازه (لود تنبل) شاخص غنی‌تر می‌شود — تا وقتی جست‌وجو باز است
+  const textsVer = useTextsVersion();
+  React.useEffect(() => {
+    if (!open || !indexReady) return;
+    setIndex(buildIndex(courses));
+  }, [textsVer]);
 
   const hits: Hit[] = React.useMemo(() => {
     if (!indexReady || !index) return [];

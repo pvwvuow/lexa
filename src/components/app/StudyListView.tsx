@@ -177,8 +177,8 @@ export function StudyListView() {
                                 )}
                                 <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium group-hover:text-primary">{l.title}</span>
                                 <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground"><Timer className="h-3 w-3" />{fa(l.minutes ?? 15)}′</span>
-                                {l.quiz.length > 0 && (
-                                  <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground"><ClipboardList className="h-3 w-3" />{fa(l.quiz.length)}</span>
+                                {(l.qCount ?? l.quiz.length) > 0 && (
+                                  <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground"><ClipboardList className="h-3 w-3" />{fa(l.qCount ?? l.quiz.length)}</span>
                                 )}
                               </button>
                             </li>

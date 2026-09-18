@@ -239,7 +239,7 @@ function BuiltinCourseCard({ c }: { c: Course }) {
   const chaptersN = c.chapters.length;
   const lessonsN = c.chapters.reduce((n, x) => n + x.lessons.length, 0);
   const quizN = c.chapters.reduce(
-    (n, x) => n + x.lessons.reduce((m, l) => m + (l.quiz?.length ?? 0), 0),
+    (n, x) => n + x.lessons.reduce((m, l) => m + (l.qCount ?? l.quiz?.length ?? 0), 0),
     0,
   );
   const p = builtinPercent(c, progress);

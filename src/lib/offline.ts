@@ -10,9 +10,11 @@
  *    کاربر با یک دانلود مجدد، نسخهٔ آفلاینش را آپدیت کند.
  * ──────────────────────────────────────────────────────────────────────────── */
 import * as React from "react";
+import { ensureLessonsContent } from "@/lib/law/texts";
+import type { Lesson } from "@/lib/law/types";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.8.0";
+export const DESIGN_VERSION = "1.9.0";
 
 const DESIGN_META_KEY = "lexa-design-meta-v1";
 /** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی حفظ شده است */
@@ -368,13 +370,17 @@ export async function downloadCourseOffline(card: OfflineCardCourse): Promise<bo
 }
 
 /**
- * ذخیرهٔ دورهٔ آمادهٔ اپ — محتوا در باندل برنامه است و شبکه نمی‌خواهد؛
- * ذخیره فقط آن را در فهرست «مطالب آفلاین من» ثبت می‌کند تا کاربر مطمئن شود
- * بدون اینترنت هم در دسترس است. اگر تامنیل داشته باشد در کش SW هم می‌رود.
+ * ذخیرهٔ دورهٔ آمادهٔ اپ — محتوای جلسه‌ها از نسخهٔ تنبل بارگیری و بعد کل دوره
+ * در IndexedDB ثبت می‌شود تا بدون اینترنت هم در دسترس باشد.
+ * اگر تامنیل داشته باشد در کش SW هم می‌رود.
  */
 export async function downloadBuiltinCourseOffline(card: OfflineCardCourse, course: unknown): Promise<boolean> {
   const prev = setBusy("builtin", card.id);
   try {
+    // متن/سؤال جلسه‌ها اکنون تنبل است — پیش از ذخیره، همهٔ جلسات دوره بارگیری می‌شوند
+    const chapters = (course as { chapters?: { lessons?: Lesson[] }[] } | null)?.chapters ?? [];
+    const lessons = chapters.flatMap((ch) => ch.lessons ?? []);
+    if (lessons.length) await ensureLessonsContent(lessons, 6);
     const item: OfflineItem = {
       kind: "builtin",
       id: card.id,

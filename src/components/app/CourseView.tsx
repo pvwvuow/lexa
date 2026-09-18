@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth-client";
 import { useTargetRating } from "@/lib/social-client";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
+import { ensureChapterContent, isLazyLesson, peekTextState, useTextsVersion } from "@/lib/law/texts";
 
 const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
 
@@ -163,6 +164,16 @@ function CourseBody({
   const owner = (course as Course & { _ownerUsername?: string })._ownerUsername;
   const ownerAvatar = (course as Course & { _ownerAvatar?: string | null })._ownerAvatar;
   const status = (course as Course & { _status?: string })._status;
+
+  // نسخهٔ رجیستری متون — با هر آب‌رسانی، نشان‌های لودینگ تازه می‌شوند
+  useTextsVersion();
+
+  // «به‌محض باز کردن فصل» — پیش‌بارگیری متن/سؤال همهٔ جلسات همان فصل
+  React.useEffect(() => {
+    if (!openCh) return;
+    const ch = course.chapters.find((x) => x.id === openCh);
+    if (ch) void ensureChapterContent(ch);
+  }, [openCh, course]);
 
   // امتیاز ستاره‌ای برای دوره‌های استاد — از هر جای برنامه قابل رأی دادن است
   const rate = useTargetRating("tcourse", isRemote ? course.id : null);
@@ -350,8 +361,11 @@ function CourseBody({
                             <span className="block truncate font-medium group-hover:text-primary">{l.title}</span>
                             <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                               <span className="inline-flex items-center gap-1"><Timer className="h-3 w-3" />{fa(l.minutes ?? 15)} دقیقه</span>
-                              {!aiPending && l.quiz.length > 0 && (
-                                <span className="inline-flex items-center gap-1"><ClipboardList className="h-3 w-3" />{fa(l.quiz.length)} تست</span>
+                              {!aiPending && (l.qCount ?? l.quiz.length) > 0 && (
+                                <span className="inline-flex items-center gap-1"><ClipboardList className="h-3 w-3" />{fa(l.qCount ?? l.quiz.length)} تست</span>
+                              )}
+                              {!aiPending && isLazyLesson(l) && l.sections.length === 0 && peekTextState(l.id) === "loading" && (
+                                <span className="inline-flex items-center gap-1 text-bronze"><Loader2 className="h-3 w-3 animate-spin" />در حال دریافت متن</span>
                               )}
                               {aiPending && (
                                 <span className="inline-flex items-center gap-1 text-bronze"><Sparkles className="h-3 w-3" />تولید هوشمند هنگام ورود</span>

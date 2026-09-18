@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
-  MoreHorizontal, CheckCircle2,
+  MoreHorizontal, CheckCircle2, AlertCircle, Loader2,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -17,6 +17,7 @@ import { navigate } from "@/lib/router";
 import { askAi } from "@/lib/aiClient";
 import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
+import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
 
@@ -68,6 +69,9 @@ export function LearnView({ id }: { id: string }) {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
      
   }, [id]);
+
+  // ── گیت لود تنبل محتوا: متن جلسه‌های داخلی به‌محض باز شدن از شبکه می‌آید ──
+  const textState = useLessonContent(ctx?.lesson);
 
   if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
 
@@ -253,6 +257,55 @@ export function LearnView({ id }: { id: string }) {
           </button>
         )}
         {aiErr && <p className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{aiErr}</p>}
+      </div>
+    );
+  }
+
+  // ─── لود تنبل: متن هنوز از شبکه نرسیده ───
+  if (isLazyLesson(lesson) && lesson.sections.length === 0 && textState !== "ready") {
+    return (
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[186px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
+        <main className="min-w-0">
+          <header className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+            <p className="text-xs font-medium text-bronze">{course.title} · فصل {fa(chapter.order)}</p>
+            <h1 className="mt-1.5 text-xl font-bold leading-relaxed sm:text-2xl">{lesson.title}</h1>
+            <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+              {textState === "error" ? (
+                <>
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <span>دریافت متن جلسه ناموفق بود — اتصال اینترنت را بررسی کن.</span>
+                  <button
+                    onClick={() => void ensureLessonContent(lesson)}
+                    className="ms-auto inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 font-semibold text-bronze hover:border-bronze"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> تلاش دوباره
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-bronze" />
+                  <span>در حال دریافت متن جلسه…</span>
+                </>
+              )}
+            </div>
+          </header>
+          {/* اسکلت بخش‌ها — تا متن برسد؛ شکل‌ها همان بخش‌های هشت‌گانهٔ تدریس است */}
+          <div className="space-y-6" aria-busy="true" aria-label="در حال بارگذاری متن جلسه">
+            {[92, 78, 64].map((w, i) => (
+              <div key={i} className="animate-pulse rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-full bg-muted" />
+                  <div className="h-3.5 rounded bg-muted" style={{ width: `${w * 0.45}%` }} />
+                </div>
+                <div className="space-y-2.5">
+                  <div className="h-3 rounded bg-muted" style={{ width: `${w}%` }} />
+                  <div className="h-3 rounded bg-muted" style={{ width: `${Math.max(30, w - 14)}%` }} />
+                  <div className="h-3 rounded bg-muted/70" style={{ width: `${Math.max(24, w - 28)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
