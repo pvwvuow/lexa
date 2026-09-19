@@ -1132,3 +1132,24 @@ Work Log:
 Stage Summary:
 - باندل کلاینت از ~3.5MB محتوای درس سبک شد به ۱۲۲KB متادیتا؛ متون/سؤال‌ها on-demand به‌محض باز کردن فصل/جلسه/آزمون لود و تا ابد در IndexedDB کش می‌شوند.
 - نسخهٔ بعدی دسکتاپ باید دوباره بسته‌بندی شود (AppImage/win-zip) تا public/texts داخل پکیج برود — خودِ build الان این کار را می‌کند.
+
+---
+Task ID: 1
+Agent: main (Super Z)
+Task: سبک‌سازی نصب‌کنندهٔ دسکتاپ — حذف متون از باندل و دریافت برخط از گیت‌هاب + ریلیز v0.4.0
+
+Work Log:
+- بازسازی محیط از گیت‌هاب (ورک‌اسپیس ریست شده بود)؛ e734316 (lazy-load) از قبل روی main بود
+- electron/main.js: نشانگر LexaPack/1 در userAgentFallback فقط وقتی app.isPackaged
+- src/lib/law/texts.ts: IS_PACKAGED_DESKTOP با UA مارکر → پرش از self-origin در دسکتاپ نصب‌شده
+- electron-builder.yml: استثنای !.next/standalone/public/texts/** + electronLanguages [en-US, fa]
+- npm install + rebuild postinstall های مسدودشده + prisma generate؛ build-lesson-texts (415 فایل، 3.48MB) و next build
+- electron-builder بار اول تایم‌اوت حین دانلود دیست (کش کامل شد)؛ بار دوم zip ویندوز بی‌صدا مرد → zip دستی از win-unpacked با zip -9 (۴۱ ثانیه، سالم)
+- QA: استخراج AppImage و win-unpacked → بدون texts/ ، فقط ۲ لوکال، متادیتای باندل v=7dc5f1f1 == فایل گیت‌هاب؛ سرور پکیج با ELECTRON_RUN_AS_NODE بالا آمد (/ 200، /texts/cp-l11.json 404)؛ jsDelivr 200؛ unzip -t بدون خطا
+- فایل‌های regenerateشده (manifest/generated-meta فقط timestamp) به حالت قبل بازگشت؛ push شد e75b454
+- ریلیز v0.4.0 با اسکریپت scripts/create-release-v040.py (SHA کامل لازم بود، short SHA رد شد) — ۳asset آپلود شد
+
+Stage Summary:
+- نصب‌کننده‌ها: AppImage ‏186→120MB (‎-35%)، win.zip ‏236→193MB (‎-18%)؛ checksums-v0.4.0.txt
+- دسکتاپ حالا متون را لحظهٔ باز شدن فصل از گیت‌هاب می‌گیرد و در IndexedDB کش می‌کند
+- ریلیز: https://github.com/pvwvuow/lexa/releases/tag/v0.4.0 (latest، draft=false)
