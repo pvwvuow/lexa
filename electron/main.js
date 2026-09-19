@@ -17,6 +17,12 @@ const path = require("path");
 
 app.setName("Lexa");
 
+// نشانگر «نصب‌شده» در UserAgent — رندرر با آن می‌فهمد متون در باندل نیستند
+// و باید مستقیم از گیت‌هاب (jsDelivr/raw) بیایند؛ در حالت dev اثری ندارد
+if (app.isPackaged) {
+  app.userAgentFallback = `${app.userAgentFallback} LexaPack/1`;
+}
+
 // هشدارهای بی‌ضررِ فسخ Promise در زمان بستن پنجره/خروج — لاگ را تمیز نگه می‌دارد
 process.on("unhandledRejection", (err) => {
   const msg = err instanceof Error ? err.message : String(err);

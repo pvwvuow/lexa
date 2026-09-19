@@ -21,6 +21,9 @@ files:
   - "!node_modules/**"
   - "!**/node_modules/.cache/**"
   - "!**/.next/cache/**"
+  # متون درس‌ها داخل نصب‌کنندهٔ دسکتاپ نیست — در همان لحظهٔ باز کردن فصل
+  # از گیت‌هاب (jsDelivr/raw) گرفته و در IndexedDB کش می‌شوند (src/lib/law/texts.ts)
+  - "!.next/standalone/public/texts/**"
   - "!download/**"
   - "!qa/**"
   - "!shots/**"
@@ -28,6 +31,11 @@ files:
   - "!tests/**"
   - "!upload/**"
   - "!tool-results/**"
+
+# فقط لوکال‌های موردنیاز الکترون — بقیهٔ ۵۳ زبان (~۸MB) از باندل حذف می‌شوند
+electronLanguages:
+  - en-US
+  - fa
 
 # سرور Next به fs واقعی نیاز دارد (خواندن صفحات/داده‌های .next/server)
 asar: false
