@@ -6,10 +6,12 @@
  * گرفته و در IndexedDB کش می‌شود — نه دانلود یک‌جای کل متون.
  *
  * زنجیرهٔ منابع (اولین پاسخ سالم برنده است):
- *   ۱) سرور خود اپ  /texts/<id>.json   — همیشه با نسخهٔ اپ هم‌خوان است
+ *   ۱) سرور خود اپ  /texts/<id>.json   — فقط وب/دِو (در پکیج دسکتاپ متون نیست)
  *   ۲) jsDelivr CDN                    — کش سراسری سریع
  *   ۳) raw.githubusercontent           — fallback رسمی
  * سالم = فایل JSON با v برابر نسخهٔ داخل باندل؛ در غیر این صورت منبع بعدی.
+ * دسکتاپ پکیج‌شده با نشانگر «LexaPack/1» در UserAgent شناسایی می‌شود (electron/main.js)
+ * و مستقیم از گیت‌هاب می‌گیرد — باندل نصب‌کننده سبک می‌ماند و محتوا از مخزن تازه می‌آید.
  *
  * آب‌رسانی (hydration): محتوای دریافتی روی همان آبجکت Lesson باندل نوشته می‌شود
  * (الگوی رجیستری داینامیک examPacks) و شمارندهٔ نسخه، مشترک‌های React را
@@ -31,12 +33,19 @@ const MAX_TEXT_BYTES = 5 * 1024 * 1024;
 /** همزمانی پیش‌فرض پیش‌بارگیری فصل */
 const PREFETCH_CONCURRENCY = 4;
 
+/** دسکتاپ نصب‌شده (نه دِو) — متون در باندل نیست؛ خودسرور را نپرس */
+const IS_PACKAGED_DESKTOP =
+  typeof navigator !== "undefined" && /LexaPack\/1/.test(navigator.userAgent);
+
 function sourceUrls(lessonId: string): string[] {
-  return [
-    `/texts/${encodeURIComponent(lessonId)}.json`,
-    `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/public/texts/${encodeURIComponent(lessonId)}.json`,
-    `https://raw.githubusercontent.com/${REPO}/${BRANCH}/public/texts/${encodeURIComponent(lessonId)}.json`,
-  ];
+  const file = `${encodeURIComponent(lessonId)}.json`;
+  const urls: string[] = [];
+  if (!IS_PACKAGED_DESKTOP) urls.push(`/texts/${file}`);
+  urls.push(
+    `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/public/texts/${file}`,
+    `https://raw.githubusercontent.com/${REPO}/${BRANCH}/public/texts/${file}`,
+  );
+  return urls;
 }
 
 /* ─── IndexedDB — کش محتوا ──────────────────────────────────────────────────── */
