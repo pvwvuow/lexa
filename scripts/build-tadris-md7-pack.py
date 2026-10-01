@@ -14,12 +14,12 @@ from tadris_md7_s1_content import SECTIONS, QUIZ
 ROOT = "/home/z/my-project"
 PACK_DIR = os.path.join(ROOT, "updates/packs")
 MIRROR_DIR = os.path.join(ROOT, "public/updates")
-PACK_FILE = "packs/course-tadris-madani7-ghayebi-01.json"
+PACK_FILE = "packs/course-tadris-madani7-ghayebi-02.json"
 PACK_PATH = os.path.join(PACK_DIR, os.path.basename(PACK_FILE))
 
 COURSE_ID = "course-tadris-madani7-ghayebi"
 PACK_ID = "content-pack-tadris-madani7-ghayebi-01"
-PACK_VERSION = "1.0.0"
+PACK_VERSION = "1.0.2"
 
 payload = {
     "id": COURSE_ID,
