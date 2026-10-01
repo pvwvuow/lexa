@@ -1153,3 +1153,21 @@ Stage Summary:
 - نصب‌کننده‌ها: AppImage ‏186→120MB (‎-35%)، win.zip ‏236→193MB (‎-18%)؛ checksums-v0.4.0.txt
 - دسکتاپ حالا متون را لحظهٔ باز شدن فصل از گیت‌هاب می‌گیرد و در IndexedDB کش می‌کند
 - ریلیز: https://github.com/pvwvuow/lexa/releases/tag/v0.4.0 (latest، draft=false)
+
+---
+Task ID: 58
+Agent: main (Super Z)
+Task: سینک با گیت‌هاب + حساب ابری ساپابیس (ثبت‌نام/ورود/سینک کامل داده) + حذف ترازوی اسپلش
+
+Work Log:
+- کشف ریست کانتینر (Oct 1): فایل‌های جلسهٔ قبل (ساپابیس/الکترون دستی) از دست رفته بود؛ local عقب‌مانده از origin/main (v0.4.0 شامل دسکتاپ اینستالر + lazy-load + updater از چت دیگر).
+- git reset --hard origin/main → همگام با v0.4.0؛ سپس بازسازی سمت ما: حذف svg ترازو از اسپلش تمام‌صفحه AppShell (نه آیکون + کارت‌ها که اشتباهی حذف شده بود و برگردانده شد).
+- src/lib/supabase-config.ts + supabase.ts (REST خالص: signup/signin/logout/refresh/push/pull روی lexa_state) با آدرس و کلید پروژهٔ کاربر.
+- CloudSyncCard.tsx: فرم ورود/ثبت‌نام ایمیل، وضعیت، «همگام‌سازی روی ابر» (کل فروشگاه + weakTopics + lawMarks) و «بازیابی از ابر» با تأیید؛ سیم‌کشی در تب عمومی تنظیمات؛ DESIGN_VERSION 1.9.0→1.9.1، sw v32→v33.
+- اسکیمای ساپابیس توسط کاربر در SQL Editor اجرا شد (lexa_state/lexa_profiles + RLS) — REST چک شد: 200.
+- بیلد اول OOM(137) → kill next dev/next-server سرگردان → بیلد OK؛ start-prod: PROD_READY، home 200، sw سروشده v33، ساپابیس 200.
+- QA پلی‌رایت: تنظیمات → لاگین admin → کارت «حساب ابری و سینک» رندر (دکمه‌های سینک پس از ورود ابری)؛ صفر خطای کنسول.
+- کامیت ec85ef7 و پوش موفق.
+
+Stage Summary:
+- حساب ابری ساپابیس فعال شد: کاربران ثبت‌نام/ورود می‌کنند و کل داده (پیشرفت، کتابخانه، تلاش‌ها، تنظیمات) روی ابر می‌رود و برمی‌گردد. دسکتاپ/آپدیتر از v0.4.0 (چت موازی) سر جایش است.
