@@ -15,7 +15,8 @@ directories:
   buildResources: electron/build
 
 files:
-  - electron/main.js
+  # main.js (بوت‌استرپ) + main-core.js (منطق اصلی) + preload.js + app-updater.js
+  - "electron/*.js"
   - .next/standalone/**/*
   - package.json
   - "!node_modules/**"

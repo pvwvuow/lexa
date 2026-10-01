@@ -32,6 +32,7 @@ import {
 } from "@/lib/updater";
 import { UserAvatar } from "./common";
 import { CloudSyncCard } from "./CloudSyncCard";
+import { AppUpdateCard } from "./AppUpdateCard";
 
 type Tab = "general" | "ai" | "content" | "offline";
 
@@ -47,7 +48,7 @@ export function SettingsView() {
 
       {/* زبانه‌ها */}
       <div role="tablist" aria-label="بخش‌های تنظیمات" className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/50 p-1 sm:grid-cols-4">
-        {([["general", "عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot], ["content", "به‌روزرسانی محتوا", PackageCheck], ["offline", "آفلاین و نصب", WifiOff]] as const).map(([k, t, Ico]) => (
+        {([["general", "عمومی", UserIcon], ["ai", "هوش مصنوعی", Bot], ["content", "به‌روزرسانی‌ها", PackageCheck], ["offline", "آفلاین و نصب", WifiOff]] as const).map(([k, t, Ico]) => (
           <button
             key={k}
             role="tab"
@@ -554,6 +555,9 @@ function ContentUpdates() {
 
   return (
     <div className="space-y-5">
+      {/* به‌روزرسانی خودِ برنامهٔ دسکتاپ — فقط در الکترون رندر می‌شود */}
+      <AppUpdateCard />
+
       <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <h2 className="mb-2 flex items-center gap-2 font-bold">
           <PackageCheck className="h-5 w-5 text-bronze" /> به‌روزرسانی محتوا
