@@ -1,2 +1,2 @@
-42907d67235d0728ae5a2266faa9ad72aeb4634e03bf89ef1b5f7427c828e20f  download/electron/Lexa-0.4.0.AppImage
-e8858bb552bafe97939586fa8ef27b3a9c9fe0282dbd9c6664bed192f67f25b3  download/electron/Lexa-0.4.0-win.zip
+3c8c9775b45269f7cc98790aa05a0a59579c33a454bcf25ae9b66e58fe2619a0  Lexa-0.6.0-linux.AppImage
+4e1651f42cc835bd044eda2e4f34e3c15be41f1fae688f0c5f7edd1c9820588f  Lexa-0.6.0-win.zip
