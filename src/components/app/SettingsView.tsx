@@ -31,6 +31,7 @@ import {
   type UpdateManifest, type PackStatus, type InstalledPack,
 } from "@/lib/updater";
 import { UserAvatar } from "./common";
+import { CloudSyncCard } from "./CloudSyncCard";
 
 type Tab = "general" | "ai" | "content" | "offline";
 
@@ -321,6 +322,8 @@ function GeneralSettings() {
           </div>
         </form>
       </section>
+
+      <CloudSyncCard />
 
       <p className="flex items-start gap-2 rounded-2xl bg-accent p-4 text-xs leading-relaxed text-muted-foreground">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
