@@ -1,0 +1,2 @@
+42907d67235d0728ae5a2266faa9ad72aeb4634e03bf89ef1b5f7427c828e20f  download/electron/Lexa-0.4.0.AppImage
+e8858bb552bafe97939586fa8ef27b3a9c9fe0282dbd9c6664bed192f67f25b3  download/electron/Lexa-0.4.0-win.zip
