@@ -143,6 +143,8 @@ model UserBlob {
   customCoursesJson  String   @default("[]")
   lastLocationJson   String   @default("{}")
   streakJson         String   @default("{}")
+  // نشان‌های (هایلایت) درس‌ها — JSON: { [lessonId]: LessonMark[] }
+  marksJson          String   @default("{}")
   // سیاست جدید: حساب تازه با کتابخانهٔ خالی شروع می‌کند (همهٔ دوره‌های آماده در BuiltinHidden ثبت
   // می‌شوند و کاربر خودش از «دوره‌های آماده» اضافه می‌کند). حساب‌های قدیمی seeded=false می‌مانند
   // و همان رفتار قبلی (همه‌پیش‌فرض) دارند.

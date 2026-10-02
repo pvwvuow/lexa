@@ -24,6 +24,7 @@ import {
   type DesignMeta, type OfflineItemMeta, type OfflineCardPost, type OfflineCardCourse,
 } from "@/lib/offline";
 import { useOnlineStatus } from "@/lib/offline";
+import { IS_APK } from "@/lib/app-mode";
 import {
   initContentPacks, checkForUpdates, cachedManifest, lastCheckAt,
   listInstalledPacks, installPack, removePack, installAllOutdated, buildStatuses,
@@ -102,9 +103,15 @@ function GeneralSettings() {
 
   if (!u) {
     return (
-      <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-        برای داشتن پروفایل، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو یا حساب بساز.
-      </p>
+      <div className="space-y-4">
+        {/* در نسخهٔ اندروید، حساب ابری ساپابیس همان حساب کاربر است — همیشه در دسترس */}
+        {IS_APK ? <CloudSyncCard /> : null}
+        {!IS_APK && (
+          <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+            برای داشتن پروفایل، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو یا حساب بساز.
+          </p>
+        )}
+      </div>
     );
   }
 
@@ -337,7 +344,9 @@ function GeneralSettings() {
 /* ═══ زبانهٔ هوش مصنوعی (همان تنظیمات قبلی) ═════════════════════════════════ */
 
 const PROVIDERS: { key: AiProvider; title: string; desc: string; hint: string }[] = [
-  { key: "builtin", title: "استاد داخلی (پیشفرض)", desc: "بدون نیاز به هیچ کلیدی؛ آمادهٔ استفاده", hint: "" },
+  ...(!IS_APK
+    ? [{ key: "builtin" as AiProvider, title: "استاد داخلی (پیشفرض)", desc: "بدون نیاز به هیچ کلیدی؛ آمادهٔ استفاده", hint: "" }]
+    : []),
   { key: "gemini", title: "Google Gemini", desc: "با کلید API گوگل؛ مثل gemini-2.0-flash", hint: "کلید را از aistudio.google.com بگیر" },
   { key: "openai", title: "سازگار با OpenAI", desc: "هر سرویس با آدرس /v1/chat/completions (OpenAI، GPT، DeepSeek، القلب و…)", hint: "آدرس پایه مثل https://api.openai.com/v1" },
 ];

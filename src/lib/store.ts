@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Course } from '@/lib/law/types';
 import { todayISO, daysBetween } from '@/lib/fa';
-import type { SyncSnapshot, SyncLessonProgress } from '@/lib/auth-shared';
+import type { SyncSnapshot, SyncLessonProgress, LessonMarkSync } from '@/lib/auth-shared';
 
 // ─── مهاجرت یک‌بارهٔ برند: انتقال دادهٔ persist از کلید قدیمی به کلید جدید ──────
 // نام اپ از «همیار حقوق» به Lexa تغییر کرد؛ اگر کلید جدید خالی باشد و کلید
@@ -55,6 +55,10 @@ export interface ExamAttempt {
   usedSec: number;   // زمان مصرف‌شده (ثانیه)
 }
 
+// ─── نشان (هایلایت) کاربر روی متن درس ─────────────────────────────
+export type LessonMark = LessonMarkSync;
+export type MarkColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
+
 interface AppState {
   progress: Record<string, LessonProgress>;
   streak: { count: number; lastDate: string };
@@ -69,6 +73,13 @@ interface AppState {
   lastLocation: { courseId?: string; lessonId?: string };
   /** تاریخچهٔ اجرای دفترچه‌های آزمون — کلید = شناسهٔ بسته (pack-*) */
   examAttempts: Record<string, ExamAttempt[]>;
+  /** نشان‌های (هایلایت) متن درس‌ها — کلید = شناسهٔ جلسه */
+  marks: Record<string, LessonMark[]>;
+
+  /** افزودن نشان جدید یا تغییر رنگ نشان موجود (همان متن در همان بخش) */
+  applyMark(lessonId: string, mark: Omit<LessonMark, 'createdAt'> & { createdAt?: number }): void;
+  /** حذف یک نشان با شناسه */
+  removeMark(lessonId: string, markId: string): void;
 
   touchStreak(): void;
   openLesson(lessonId: string): void;
@@ -107,6 +118,24 @@ export const useApp = create<AppState>()(
       ai: DEFAULT_AI,
       lastLocation: {},
       examAttempts: {},
+      marks: {},
+
+      applyMark(lessonId, mark) {
+        const list = get().marks[lessonId] ?? [];
+        const at = typeof mark.createdAt === 'number' ? mark.createdAt : Date.now();
+        // همان متن در همان بخش → تغییر رنگ همان نشان (نه تکرار)
+        const existing = list.find((m) => m.secId === mark.secId && m.text === mark.text);
+        const next: LessonMark = existing
+          ? { ...existing, color: mark.color, occ: mark.occ ?? existing.occ }
+          : { ...mark, createdAt: at };
+        const others = list.filter((m) => (existing ? m.id !== existing.id : true));
+        set({ marks: { ...get().marks, [lessonId]: [next, ...others].slice(0, 300) } });
+      },
+
+      removeMark(lessonId, markId) {
+        const list = (get().marks[lessonId] ?? []).filter((m) => m.id !== markId);
+        set({ marks: { ...get().marks, [lessonId]: list } });
+      },
 
       touchStreak() {
         const s = get().streak;
@@ -217,7 +246,7 @@ export const useApp = create<AppState>()(
 
       reset() {
         set({
-          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {}, examAttempts: {},
+          progress: {}, streak: { count: 0, lastDate: '' }, activity: [], customCourses: [], tBooks: [], hiddenBuiltins: [], notes: {}, lastLocation: {}, examAttempts: {}, marks: {},
         });
       },
 
@@ -297,7 +326,20 @@ export const useApp = create<AppState>()(
         // دوره‌های داخلی حذف‌شده: اتحاد محلی و سرور — چیزی ناپدید نمی‌شود
         const hiddenBuiltins = [...new Set([...cur.hiddenBuiltins, ...((snap.hiddenBuiltins ?? []) as string[])])];
 
-        set({ progress, notes, activity, streak, customCourses, lastLocation, hiddenBuiltins });
+        // نشان‌ها: اتحاد بر اساس شناسه؛ نسخهٔ جدیدتر (createdAt بیشتر) برنده است
+        const marks: Record<string, LessonMark[]> = {};
+        const markKeys = new Set([...Object.keys(cur.marks), ...Object.keys(snap.marks ?? {})]);
+        for (const lid of markKeys) {
+          const byId = new Map<string, LessonMark>();
+          for (const m of [...(cur.marks[lid] ?? []), ...(((snap.marks ?? {})[lid] ?? []) as LessonMark[])]) {
+            if (!m?.id || typeof m.text !== 'string') continue;
+            const prev = byId.get(m.id);
+            if (!prev || (m.createdAt ?? 0) >= (prev.createdAt ?? 0)) byId.set(m.id, m);
+          }
+          if (byId.size) marks[lid] = [...byId.values()];
+        }
+
+        set({ progress, notes, activity, streak, customCourses, lastLocation, hiddenBuiltins, marks });
       },
 
       /**
@@ -352,8 +394,14 @@ export const useApp = create<AppState>()(
         const lastLocation = (snap.lastLocation ?? {}) as AppState["lastLocation"];
         // ورود به حساب موجود: لیست سرور مقدس است (بدون ادغام) — نه پیوست و نه حذف
         const hiddenBuiltins = [...new Set(((snap.hiddenBuiltins ?? []) as string[]).filter((x) => typeof x === 'string'))];
+        const marks: Record<string, LessonMark[]> = {};
+        for (const [lid, list] of Object.entries(snap.marks ?? {})) {
+          if (!Array.isArray(list)) continue;
+          const clean = list.filter((m) => m && typeof m.id === 'string' && typeof m.text === 'string');
+          if (clean.length) marks[lid] = clean as LessonMark[];
+        }
 
-        set({ progress, notes, activity, streak, customCourses, lastLocation, hiddenBuiltins });
+        set({ progress, notes, activity, streak, customCourses, lastLocation, hiddenBuiltins, marks });
       },
     }),
     {
@@ -369,6 +417,7 @@ export const useApp = create<AppState>()(
         ai: s.ai,
         lastLocation: s.lastLocation,
         examAttempts: s.examAttempts,
+        marks: s.marks,
       }),
     },
   ),
@@ -392,6 +441,7 @@ export function buildSyncSnapshot(s: {
   lastLocation: Record<string, string>;
   streak: { count: number; lastDate: string };
   hiddenBuiltins?: string[];
+  marks?: Record<string, LessonMarkSync[]>;
 }): SyncSnapshot {
   const progress: Record<string, SyncLessonProgress> = {};
   const quizAttempts: { lessonId: string; date: string; score: number }[] = [];
@@ -414,6 +464,7 @@ export function buildSyncSnapshot(s: {
     lastLocation: s.lastLocation as Record<string, unknown>,
     streak: s.streak as unknown as Record<string, unknown>,
     hiddenBuiltins: s.hiddenBuiltins ?? [],
+    marks: s.marks ?? {},
   };
 }
 

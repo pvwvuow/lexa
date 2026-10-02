@@ -115,6 +115,25 @@ function getFreePort() {
 /* ─── اجرای سرور استاندالون با الکترون‌به‌عنوان‌نود ───────────────────────── */
 
 function startServer(port) {
+  // ─── دیتابیس محلی کاربر ──────────────────────────────────────────────────
+  // پکیج دسکتاپ فایل db ندارد (db/ بیرون .next/standalone است) و AppImage
+  // فقط-خواندنی است؛ بنابراین دیتابیس در userData نگهداری می‌شود. بار اول،
+  // قالب خالیِ دارای همهٔ جداول (template.db — محصول بیلد) کپی می‌شود تا
+  // ثبت‌نام/ورود/سینک از همان اجرای نخست کار کند.
+  const userDb = path.join(app.getPath("userData"), "lexa.db");
+  try {
+    if (!fs.existsSync(userDb)) {
+      const tpl = path.join(SERVER_DIR, "lexa-template.db");
+      if (fs.existsSync(tpl)) {
+        fs.mkdirSync(path.dirname(userDb), { recursive: true });
+        fs.copyFileSync(tpl, userDb);
+        if (!IS_PACKAGED) console.log("[lexa-electron] db seeded from template:", userDb);
+      }
+    }
+  } catch (e) {
+    console.error("[lexa-electron] db seed failed:", e && e.message);
+  }
+
   // ELECTRON_RUN_AS_NODE = الکترون دقیقاً مثل Node.js خالص رفتار می‌کند
   const env = {
     ...process.env,
@@ -122,6 +141,8 @@ function startServer(port) {
     NODE_ENV: "production",
     PORT: String(port),
     HOSTNAME: "127.0.0.1",
+    // دیتابیس SQLite در پروفایل کاربر — مسیر ویندوز باید اسلش رو به جلو داشته باشد
+    DATABASE_URL: "file:" + userDb.replace(/\\/g, "/"),
     // کش هر کاربر داخل پروفایل خودش
     XDG_CACHE_HOME: path.join(app.getPath("userData"), "cache"),
   };

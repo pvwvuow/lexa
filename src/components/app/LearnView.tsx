@@ -20,9 +20,88 @@ import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
+const EMPTY_MARKS: import("@/lib/store").LessonMark[] = [];
+
+/** نوار ابزار شناور نشان‌گذاری — پنج رنگ + حذف */
+function MarkToolbar({
+  mode, rect, lessonId, markId, text, secId, occ, onDone,
+}: {
+  mode: "new" | "edit";
+  rect: { top: number; bottom: number; centerX: number };
+  lessonId: string;
+  markId?: string;
+  text?: string;
+  secId?: string;
+  occ?: number;
+  onDone: () => void;
+}) {
+  const applyMark = useApp((s) => s.applyMark);
+  const removeMark = useApp((s) => s.removeMark);
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
+  const boxRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const x = Math.min(Math.max(12, rect.centerX - w / 2), window.innerWidth - w - 12);
+    const y = rect.top > h + 66 ? rect.top - h - 8 : rect.bottom + 8;
+    setPos({ x, y });
+  }, [rect]);
+
+  function pick(color: string) {
+    if (!isMarkColor(color)) return;
+    if (mode === "new" && text && secId) {
+      applyMark(lessonId, { id: Math.random().toString(36).slice(2) + Date.now().toString(36), secId, text, color, occ });
+      try { window.getSelection()?.removeAllRanges(); } catch {}
+    } else if (mode === "edit" && markId) {
+      applyMark(lessonId, { id: markId, secId: secId ?? "", text: text ?? "", color, occ });
+    }
+    onDone();
+  }
+
+  return (
+    <div
+      ref={boxRef}
+      className="fixed z-[90] flex items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-card"
+      style={{ visibility: pos ? "visible" : "hidden", left: pos?.x ?? 0, top: pos?.y ?? 0 }}
+      onMouseDown={(e) => e.preventDefault()}
+      data-mark-toolbar="1"
+      role="toolbar"
+      aria-label="نشان‌گذاری متن"
+    >
+      {mode === "new" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">نشان کن:</span>}
+      {Object.entries(MARK_COLORS).map(([key, c]) => (
+        <button
+          key={key}
+          onClick={() => pick(key)}
+          title="رنگ نشان"
+          aria-label={`نشان با رنگ ${key}`}
+          className="h-7 w-7 rounded-full border border-black/10 transition-transform hover:scale-110 active:scale-95"
+          style={{ background: c.dot, boxShadow: `inset 0 -3px 6px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.18)` }}
+        />
+      ))}
+      {mode === "edit" && markId && (
+        <>
+          <span className="mx-0.5 h-5 w-px bg-border" />
+          <button
+            onClick={() => { removeMark(lessonId, markId); onDone(); }}
+            className="grid h-7 w-7 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10"
+            title="حذف نشان"
+            aria-label="حذف نشان"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function LearnView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
@@ -36,6 +115,20 @@ export function LearnView({ id }: { id: string }) {
   const notes = notesAll[id] ?? EMPTY_NOTES;
   const addNote = useApp((s) => s.addNote);
   const removeNote = useApp((s) => s.removeNote);
+
+  // ── نشان‌گذاری متن ──
+  const marksAll = useApp((s) => s.marks);
+  const marksForLesson = marksAll[id] ?? EMPTY_MARKS;
+  const articleRef = React.useRef<HTMLElement | null>(null);
+  const [markBar, setMarkBar] = React.useState<
+    | null
+    | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number }
+    | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number }
+  >(null);
+  const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
+    const host = el?.closest("[data-sec-id]") ?? null;
+    return { secEl: host, secId: host?.getAttribute("data-sec-id") ?? null };
+  }, []);
 
   // ── یافتن جلسه و دوره ──
   let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
@@ -72,6 +165,92 @@ export function LearnView({ id }: { id: string }) {
 
   // ── گیت لود تنبل محتوا: متن جلسه‌های داخلی به‌محض باز شدن از شبکه می‌آید ──
   const textState = useLessonContent(ctx?.lesson);
+
+  // ── رندر نشان‌های ذخیره‌شده روی DOM (بعد از هر تغییر مرتبط) ──
+  React.useLayoutEffect(() => {
+    const root = articleRef.current;
+    if (!root) return;
+    const sectionEls = new Map<string, Element>();
+    root.querySelectorAll("[data-sec-id]").forEach((el) => {
+      const sid = el.getAttribute("data-sec-id");
+      if (sid) sectionEls.set(sid, el);
+    });
+    if (!sectionEls.size) return;
+    applyMarksToSections(sectionEls, marksForLesson);
+  }); // بدون آرگومان — بعد از هر رندر، idempotent است
+
+  // ── تشخیص انتخاب متن → نوار ابزار نشان‌گذاری ──
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function check() {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      const anchor = range.startContainer.parentElement ?? null;
+      const root = articleRef.current;
+      if (!anchor || !root || !root.contains(anchor)) return;
+      if (!isSelectableNode(anchor)) return;
+      const { secEl, secId } = secIdOf(anchor);
+      if (!secEl || !secId) return;
+      const located = locateSelection(secEl, range);
+      if (!located) return;
+      const r = range.getBoundingClientRect();
+      if (!r || (!r.width && !r.height)) return;
+      setMarkBar({
+        mode: "new",
+        rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
+        text: located.text,
+        secId,
+        occ: located.occ,
+      });
+    }
+    function onChange() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        setMarkBar((cur) => (cur?.mode === "new" ? null : cur));
+        check();
+      }, 260);
+    }
+    function onPointerDown(e: Event) {
+      const t = e.target as Element | null;
+      if (t?.closest?.("[data-mark-toolbar]")) return;
+      setMarkBar(null);
+    }
+    function onScroll() {
+      setMarkBar(null);
+    }
+    document.addEventListener("selectionchange", onChange);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      document.removeEventListener("selectionchange", onChange);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [secIdOf]);
+
+  // ── کلیک روی نشان موجود → نوار ویرایش/حذف ──
+  function handleArticleClick(e: React.MouseEvent) {
+    const target = e.target as Element;
+    const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
+    if (!mk) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return; // کاربر در حال انتخاب است — دخالت نکن
+    const mid = mk.dataset.mid;
+    if (!mid) return;
+    const mark = marksForLesson.find((m) => m.id === mid);
+    if (!mark) return;
+    const r = mk.getBoundingClientRect();
+    setMarkBar({
+      mode: "edit",
+      markId: mid,
+      secId: mark.secId,
+      text: mark.text,
+      occ: mark.occ,
+      rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
+    });
+  }
 
   if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
 
@@ -352,13 +531,20 @@ export function LearnView({ id }: { id: string }) {
         </header>
 
         {/* بخش‌های تدریس */}
-        <article className="space-y-6" style={{ display: tab === "teach" ? undefined : "none" }}>
+        <article
+          key={id}
+          ref={articleRef}
+          className="space-y-6"
+          style={{ display: tab === "teach" ? undefined : "none" }}
+          onClick={handleArticleClick}
+        >
           {sections.slice(0, visibleCount).map((s, i) => {
             const meta = SECTION_META[s.type];
             return (
               <motion.section
                 key={s.id}
                 id={`sec-${i}`}
+                data-sec-id={s.id}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
@@ -481,6 +667,31 @@ export function LearnView({ id }: { id: string }) {
       </main>
 
       {Sidebar}
+
+      {/* نوار ابزار نشان‌گذاری متن — پنج رنگ یا ویرایش/حذف نشان موجود */}
+      {markBar && markBar.mode === "new" && (
+        <MarkToolbar
+          mode="new"
+          rect={markBar.rect}
+          lessonId={id}
+          text={markBar.text}
+          secId={markBar.secId}
+          occ={markBar.occ}
+          onDone={() => setMarkBar(null)}
+        />
+      )}
+      {markBar && markBar.mode === "edit" && (
+        <MarkToolbar
+          mode="edit"
+          rect={markBar.rect}
+          lessonId={id}
+          markId={markBar.markId}
+          secId={markBar.secId}
+          text={markBar.text}
+          occ={markBar.occ}
+          onDone={() => setMarkBar(null)}
+        />
+      )}
 
       {/* گفت‌وگوی بازخورد: انتقاد → تحلیل AI نسبت به جزوه → ثبت پیشنهاد برای مدیر */}
       <FeedbackDialog

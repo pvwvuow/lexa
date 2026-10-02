@@ -39,6 +39,7 @@ import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
+import { IS_APK } from "@/lib/app-mode";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type NavMode = "expanded" | "rail";
@@ -133,6 +134,20 @@ function lessonPctOf(course: Course, progress: Record<string, { status?: string 
     else if (progress[l.id]) done += 0.5;
   });
   return pct(done, Math.max(1, flat.length));
+}
+
+/** بخش‌های سرورمحور در نسخهٔ اندروید (اکسپورت ایستا) در دسترس نیستند */
+function ApkUnavailable({ title }: { title: string }) {
+  return (
+    <div className="mx-auto max-w-xl px-6 py-16 text-center">
+      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-bronze/10 text-2xl">📱</div>
+      <h1 className="mb-2 text-lg font-bold">{title}</h1>
+      <p className="text-sm leading-loose text-muted-foreground">
+        این بخش به سرور مرکزی Lexa وصل است و در نسخهٔ اندروید فعلاً در دسترس نیست.
+        برای شبکهٔ اساتید و کتابخانهٔ عمومی، نسخهٔ وب یا دسکتاپ را باز کن.
+      </p>
+    </div>
+  );
 }
 
 export function AppShell() {
@@ -326,11 +341,11 @@ export function AppShell() {
         <SideItem icon={NotebookTabs} label="تست و آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
-        <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+        {!IS_APK && <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />}
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
-        <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+        {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
         {/* افزودن کتاب فقط برای مدیر */}
         {auth.user?.role === "admin" && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
@@ -413,10 +428,12 @@ export function AppShell() {
                 <div className={searchDocked ? "hidden" : "md:hidden"}>
                   <GlobalSearch courses={courses} variant="icon" />
                 </div>
-                <FeedBell />
-                <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
-                  <AccountArea />
-                </span>
+                {!IS_APK && <FeedBell />}
+                {!IS_APK && (
+                  <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
+                    <AccountArea />
+                  </span>
+                )}
                 {/* دکمهٔ طلایی تم — چرخهٔ روز/شب/شیشه‌ای؛ جای دکمهٔ منوی حذف‌شده در موبایل */}
                 <span className="inline-flex">
                   <ThemeToggle />
@@ -461,15 +478,15 @@ export function AppShell() {
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
-          {route.view === "import" && <ImportView />}
-          {route.view === "teachers" && <TeachersView />}
-          {route.view === "studio" && <StudioView />}
-          {route.view === "write" && <StudioWriteView kind={route.kind} id={route.id} />}
-          {route.view === "post" && <PostView id={route.id} />}
-          {route.view === "library" && <PublicLibraryView />}
+          {route.view === "import" && (IS_APK ? <ApkUnavailable title="افزودن کتاب" /> : <ImportView />)}
+          {route.view === "teachers" && (IS_APK ? <ApkUnavailable title="اساتید و مقالات" /> : <TeachersView />)}
+          {route.view === "studio" && (IS_APK ? <ApkUnavailable title="اتاق استاد" /> : <StudioView />)}
+          {route.view === "write" && (IS_APK ? <ApkUnavailable title="نوشتن مطلب" /> : <StudioWriteView kind={route.kind} id={route.id} />)}
+          {route.view === "post" && (IS_APK ? <ApkUnavailable title="مطلب استاد" /> : <PostView id={route.id} />)}
+          {route.view === "library" && (IS_APK ? <ApkUnavailable title="کتابخانهٔ عمومی" /> : <PublicLibraryView />)}
           {route.view === "law" && <LawLibraryView id={route.id} />}
-          {route.view === "teacher" && <TeacherProfileView id={route.id} />}
-          {route.view === "admin" && <AdminView />}
+          {route.view === "teacher" && (IS_APK ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
+          {route.view === "admin" && (IS_APK ? <ApkUnavailable title="پنل مدیریت" /> : <AdminView />)}
         </main>
 
         {/* فوتر دسکتاپ */}
@@ -489,7 +506,7 @@ export function AppShell() {
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage && current !== "quiz"} onClick={dockTadriss} />
             <DockBtn icon={NotebookTabs} label="آزمون" active={current === "quiz"} onClick={() => go({ view: "quiz" })} />
-            <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
+            <DockBtn icon={LibraryBig} label="کتابخانه" active={IS_APK ? current === "law" : ["library", "law"].includes(current)} onClick={() => go(IS_APK ? { view: "law" } : { view: "library" })} />
             <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
           </div>
         </nav>
@@ -537,9 +554,9 @@ export function AppShell() {
               )}
               <SideItem icon={NotebookTabs} label="تست و آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
               <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
-              <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
+              {!IS_APK && <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />}
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
-              <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+              {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
               {auth.user?.role === "teacher" && (
                 <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}

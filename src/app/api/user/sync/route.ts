@@ -189,12 +189,29 @@ export async function POST(req: NextRequest) {
     const storedCount = Number((streakVal as { count?: number }).count ?? 0);
     if (incomingCount > storedCount && snap.streak) streakVal = snap.streak;
 
+    // ── نشان‌ها (هایلایت) — ادغام بر اساس شناسه؛ نسخهٔ جدیدتر برنده است ──
+    let storedMarks: Record<string, { id: string; createdAt?: number }[]> = {};
+    try { storedMarks = JSON.parse(blob.marksJson) as typeof storedMarks; } catch {}
+    const mergedMarks: Record<string, unknown[]> = {};
+    const markLessonIds = new Set([...Object.keys(storedMarks), ...Object.keys(snap.marks ?? {})]);
+    for (const lid of markLessonIds) {
+      const byId = new Map<string, Record<string, unknown>>();
+      for (const raw of [...(storedMarks[lid] ?? []), ...((snap.marks ?? {})[lid] ?? [])]) {
+        const m = raw as { id?: string; createdAt?: number; text?: unknown };
+        if (!m || typeof m.id !== "string" || typeof m.text !== "string") continue;
+        const prev = byId.get(m.id);
+        if (!prev || (Number(m.createdAt) || 0) >= (Number(prev.createdAt) || 0)) byId.set(m.id, m as Record<string, unknown>);
+      }
+      if (byId.size) mergedMarks[lid] = [...byId.values()];
+    }
+
     await db.userBlob.update({
       where: { userId: user.id },
       data: {
         customCoursesJson: JSON.stringify(mergedCourses).slice(0, 4_000_000),
         lastLocationJson: JSON.stringify(lastLocation),
         streakJson: JSON.stringify(streakVal),
+        marksJson: JSON.stringify(mergedMarks).slice(0, 2_000_000),
       },
     });
 

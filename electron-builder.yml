@@ -25,6 +25,12 @@ files:
   # متون درس‌ها داخل نصب‌کنندهٔ دسکتاپ نیست — در همان لحظهٔ باز کردن فصل
   # از گیت‌هاب (jsDelivr/raw) گرفته و در IndexedDB کش می‌شوند (src/lib/law/texts.ts)
   - "!.next/standalone/public/texts/**"
+  # ⚠️ امنیت داده — هرگز در پکیج عمومی نباید بیایند (دیتابیس واقعی/بکاپ/محیط)
+  - "!.next/standalone/db/**"
+  - "!.next/standalone/backups/**"
+  - "!.next/standalone/data/**"
+  - "!.next/standalone/upload/**"
+  - "!.next/standalone/.env*"
   - "!download/**"
   - "!qa/**"
   - "!shots/**"

@@ -852,3 +852,22 @@ textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   .search-dock-in { animation: none; }
 }
+
+/* ─── نشان‌های (هایلایت) متن درس ──────────────────────────────────────────── */
+mark.lexa-mark {
+  background: var(--mk-bg, rgba(250, 204, 21, 0.4));
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.5px 2px;
+  margin: 0 -1px;
+  cursor: pointer;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: filter 0.15s ease;
+}
+mark.lexa-mark:hover {
+  filter: brightness(1.08) saturate(1.1);
+}
+.dark mark.lexa-mark {
+  filter: saturate(0.92);
+}

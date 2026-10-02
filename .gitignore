@@ -78,3 +78,5 @@ download/electron/builder-debug.yml
 download/electron/latest-linux.yml
 download/electron/latest.yml
 electron/build/icon.ico
+download/android/*.apk
+download/electron/*.apk
