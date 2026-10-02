@@ -115,9 +115,35 @@ function getFreePort() {
 /* ─── اجرای سرور استاندالون با الکترون‌به‌عنوان‌نود ───────────────────────── */
 
 function startServer(port) {
+  // ─── دیتابیس و آپلودها مالِ خودِ کاربر ───
+  // در پکیج‌شده، DATABASE_URL به پروفایل کاربر (userData/lexa.db) می‌رود؛
+  // بار اول از قالب پاکت‌شدهٔ الکترون/seed.db (فقط اسکیما، بدون هیچ داده‌ای)
+  // کپی می‌شود. این‌طوری دادهٔ کاربر:
+  //   ۱) هرگز داخل باندل نصب نیست (حریم خصوصی)
+  //   ۲) با آپدیت دلتا بازنویسی/پاک نمی‌شود
+  // در حالت توسعه (.env پروژه) رفتار قبلی دست‌نخورده می‌ماند.
+  const extraEnv = {};
+  if (IS_PACKAGED) {
+    const userDataDir = app.getPath("userData");
+    const userDb = path.join(userDataDir, "lexa.db");
+    const seedDb = path.join(APP_ROOT, "electron", "seed.db");
+    if (!fs.existsSync(userDb) && fs.existsSync(seedDb)) {
+      try {
+        fs.mkdirSync(userDataDir, { recursive: true });
+        fs.copyFileSync(seedDb, userDb);
+      } catch (e) {
+        console.error("[lexa-electron] seed db copy failed:", e && e.message);
+      }
+    }
+    extraEnv.DATABASE_URL = "file:" + userDb.replace(/\\/g, "/");
+    extraEnv.LEXA_UPLOADS_DIR = path.join(userDataDir, "uploads");
+    extraEnv.LEXA_DESKTOP = "1"; // data-guard در دسکتاپ بی‌معناست
+  }
+
   // ELECTRON_RUN_AS_NODE = الکترون دقیقاً مثل Node.js خالص رفتار می‌کند
   const env = {
     ...process.env,
+    ...extraEnv,
     ELECTRON_RUN_AS_NODE: "1",
     NODE_ENV: "production",
     PORT: String(port),

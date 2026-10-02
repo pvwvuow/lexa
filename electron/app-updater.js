@@ -40,6 +40,10 @@ const EXCLUDES = [
   /^\.next\/standalone\/\.next\/cache\//,
   /(^|\/)node_modules\/\.cache\//,
   /^public\/texts\//, // متون برخط — هرگز داخل باندل نیستند
+  /^\.next\/standalone\/db\//, // دیتابیس هر کاربر در userData است — هرگز در باندل/دلتا نیست
+  /^\.next\/standalone\/data\/uploads\//, // آپلودهای محلی کاربر (data/laws-full.json می‌ماند)
+  /^\.next\/standalone\/backups\//, // پشتیبان‌های محلی
+  /^\.next\/standalone\/\.env(\..*)?$/, // محیط ماشین توسعه — در دسکتاپ env از main-core می‌آید
   /^\.lexa-install\.json$/,
   /^\.staging/,
   /^\.base-incomplete$/,

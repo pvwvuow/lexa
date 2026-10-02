@@ -102,7 +102,8 @@ async function backupCycle(): Promise<void> {
     await db.$queryRawUnsafe(`VACUUM INTO '${SNAPSHOT}'`);
     copyFileSync(SNAPSHOT, SAFETY);
 
-    // کامیت بی‌صدا فقط اگر چیزی تغییر کرده باشد
+    // ⚠️ امنیت: مخزن اصلی عمومی است — دیتابیس هرگز آنجا کامیت نمی‌شود.
+    // بکاپ پایدار فقط به مخزن «خصوصی» lexa-data می‌رود (بقا در برابر ریست محیط).
     await new Promise<void>((resolve) => {
       const files = ["db/custom.db", "backups/db-snapshot.db", "backups/db-safety.db", "data"];
       execFile(
@@ -118,12 +119,22 @@ async function backupCycle(): Promise<void> {
             if (!diffErr) return resolve(); // کد ۰ = بدون تغییر
             execFile(
               "git",
-              ["-C", ROOT, "commit", "--quiet", "-m", `db-guard(سرور): اسنپ‌شوت خودکار داده‌ها (${new Date().toISOString().slice(0, 16)})`],
+              ["-C", ROOT, "commit", "--quiet", "-m", `db-guard: اسنپ‌شوت داده‌ها (${new Date().toISOString().slice(0, 16)})`],
               { timeout: 60_000 },
               (cErr) => {
-                if (cErr) console.error(`${LOG} git commit ناموفق:`, cErr.message);
-                else console.log(`${LOG} اسنپ‌شوت کامیت شد ✅`);
-                resolve();
+                if (cErr) return resolve();
+                // فقط به مخزن خصوصی پوش شود — هرگز به origin عمومی
+                execFile("git", ["-C", ROOT, "remote", "get-url", "backup"], { timeout: 10_000 }, (rErr) => {
+                  if (rErr) {
+                    console.error(`${LOG} مخزن خصوصی backup تنظیم نیست — فقط کامیت محلی`);
+                    return resolve();
+                  }
+                  execFile("git", ["-C", ROOT, "push", "backup", "HEAD:data"], { timeout: 120_000 }, (pErr) => {
+                    if (pErr) console.error(`${LOG} push backup ناموفق:`, pErr.message);
+                    else console.log(`${LOG} اسنپ‌شات به مخزن خصوصی پوش شد ✅`);
+                    resolve();
+                  });
+                });
               },
             );
           });
@@ -141,6 +152,8 @@ export function startDataGuard(): void {
   try {
     // در فاز build اجرا نشود
     if (process.env.NEXT_PHASE === "phase-production-build") return;
+    // در دسکتاپ (الکترون) بکاپ/کامیت گیت معنا ندارد — دیتابیس هر کاربر در userData خودش است
+    if (process.env.LEXA_DESKTOP === "1") return;
     void bootSelfHeal();
     // اولین بکاپ بعد از ۹۰ ثانیه، سپس هر ۵ دقیقه
     setTimeout(() => void backupCycle(), 90_000).unref();

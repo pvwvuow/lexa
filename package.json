@@ -1,13 +1,13 @@
 {
   "name": "lexa",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Lexa — استاد حقوقی هوشمند: مرجع آمادگی آزمون‌های حقوقی با هوش مصنوعی",
   "author": "Lexa Team <lexa@users.noreply.github.com>",
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "bun scripts/build-lesson-texts.mjs && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "bun scripts/build-lesson-texts.mjs && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && rm -rf .next/standalone/{download,src,scripts,qa,shots,tests,skills,tool-results,upload,updates,assets,db,backups,electron,electron-builder.yml,supabase-schema.sql,prisma}",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "electron:dev": "electron electron/main.js",
