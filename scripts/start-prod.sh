@@ -13,7 +13,7 @@ rm -rf .next/standalone/public .next/standalone/.next/static
 cp -r public .next/standalone/public
 cp -r .next/static .next/standalone/.next/static
 # دیتابیس واقعی سرور — صریح ست می‌شود تا به .env استندالون (که دیگر کپی نمی‌شود) وابسته نباشد
-nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 DATABASE_URL="file:$PWD/db/custom.db" node .next/standalone/server.js >> "$HOME/lexa-prod.log" 2>&1 < /dev/null &
+nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 DATABASE_URL="file:$PWD/db/custom.db" LEXA_UPLOADS_DIR="$PWD/data/uploads" node .next/standalone/server.js >> "$HOME/lexa-prod.log" 2>&1 < /dev/null &
 disown
 for i in $(seq 1 20); do
   sleep 1

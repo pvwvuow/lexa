@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { avatarsDir } from "@/lib/media-paths";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
@@ -11,7 +12,7 @@ import { rateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const UPLOAD_DIR = path.join(process.cwd(), "data", "uploads", "avatars");
+const UPLOAD_DIR = avatarsDir();
 const MAX_BYTES = 2 * 1024 * 1024; // ۲ مگابایت
 
 const MIME_EXT: Record<string, string> = {

@@ -167,6 +167,8 @@ function startServer(port) {
     HOSTNAME: "127.0.0.1",
     // دیتابیس SQLite در پروفایل کاربر — مسیر ویندوز باید اسلش رو به جلو داشته باشد
     DATABASE_URL: "file:" + userDb.replace(/\\/g, "/"),
+    LEXA_UPLOADS_DIR: path.join(app.getPath("userData"), "uploads"),
+    LEXA_DESKTOP: "1", // data-guard در دسکتاپ بی‌معناست
     // کش هر کاربر داخل پروفایل خودش
     XDG_CACHE_HOME: path.join(app.getPath("userData"), "cache"),
   };

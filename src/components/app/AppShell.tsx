@@ -41,7 +41,7 @@ import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
 import { IS_APK } from "@/lib/app-mode";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { MobileMenuDrawer } from "./MobileMenuDrawer";
 
 type NavMode = "expanded" | "rail";
 
@@ -200,65 +200,6 @@ export function AppShell() {
   // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [drawerStudy, setDrawerStudy] = React.useState(false);
-  // تصویر لحظه‌ای باز/بسته بودن منو برای شنونده‌های لمسی (بدون وابستگی به effect)
-  const drawerOpenRef = React.useRef(false);
-  React.useEffect(() => { drawerOpenRef.current = drawerOpen; }, [drawerOpen]);
-
-  // ── سوایپ منوی کشویی (موبایل): کشیدن از لبهٔ راست صفحه به سمت چپ منو را باز
-  //    می‌کند و کشیدن به سمت راست (وقتی منو باز است) آن را می‌بندد. ──
-  React.useEffect(() => {
-    const EDGE = 44;   // نوار لبهٔ راست برای شروع سوایپِ بازکردن
-    const ZONE = 390;  // ناحیهٔ منو برای سوایپِ بستن
-    const DIST = 64;   // حداقل جابه‌جایی افقی معتبر
-    let x0 = 0, y0 = 0, t0 = 0;
-
-    const inScrollableX = (el: EventTarget | null): boolean => {
-      let n: HTMLElement | null = el instanceof Element ? (el as HTMLElement) : null;
-      let hops = 0;
-      while (n && hops++ < 6) {
-        const ox = window.getComputedStyle(n).overflowX;
-        if (ox === "auto" || ox === "scroll") return true;
-        n = n.parentElement;
-      }
-      return false;
-    };
-
-    const onStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) { x0 = 0; return; }
-      const t = e.touches[0];
-      x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (!x0) return;
-      const sx = x0, sy = y0, st = t0;
-      x0 = 0; y0 = 0;
-      const t = e.changedTouches[0];
-      const dx = t.clientX - sx;
-      const dy = t.clientY - sy;
-      // باید افقیِ محکم و کوتاه باشد تا با اسکرول عمودی و لمس‌های عادی قاطی نشود
-      if (Math.abs(dx) < DIST || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-      if (Date.now() - st > 900) return;
-      if (window.innerWidth >= 1024) return; // دسکتاپ: سایدبار همیشه هست
-      if (!drawerOpenRef.current) {
-        // باز کردن: شروع از لبهٔ راست و کشیدن به چپ — روی نوارهای اسکرول‌شوندهٔ افقی نه
-        if (dx < 0 && sx >= window.innerWidth - EDGE && !inScrollableX(e.target)) setDrawerOpen(true);
-      } else {
-        // بستن: کشیدن به راست داخل ناحیهٔ منو
-        if (dx > 0 && sx >= window.innerWidth - ZONE) setDrawerOpen(false);
-      }
-    };
-
-    const onCancel = () => { x0 = 0; };
-    document.addEventListener("touchstart", onStart, { passive: true });
-    document.addEventListener("touchend", onEnd, { passive: true });
-    document.addEventListener("touchcancel", onCancel, { passive: true });
-    return () => {
-      document.removeEventListener("touchstart", onStart);
-      document.removeEventListener("touchend", onEnd);
-      document.removeEventListener("touchcancel", onCancel);
-    };
-  }, []);
-
   React.useEffect(() => {
     setMounted(true);
     try {
@@ -272,7 +213,6 @@ export function AppShell() {
   React.useEffect(() => {
     if (!mounted) return;
     setMode((m) => (isSubPage ? "rail" : m === "rail" && (window.localStorage.getItem("lexa-nav") ?? window.localStorage.getItem("hh-nav")) !== "rail" ? "expanded" : m));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubPage, mounted]);
 
   function expandNav() {
@@ -571,15 +511,12 @@ export function AppShell() {
           </div>
         </nav>
 
-        {/* ═══ منوی کشویی موبایل — کامل معادل سایدبار دسکتاپ ═══ */}
-        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <SheetContent side="right" className="flex w-[290px] flex-col gap-0 overflow-y-auto p-4 sm:w-[320px]">
-            <SheetHeader className="p-0 pb-3 text-start">
-              <SheetTitle className="flex items-center gap-2.5 text-base">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
-                منوی Lexa
-              </SheetTitle>
-            </SheetHeader>
+        {/* ═══ منوی کشویی موبایل — باز شدن فوری + درگ زندهٔ ۱:۱ ═══ */}
+        <MobileMenuDrawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <div className="flex items-center gap-2.5 pb-3 text-base font-semibold">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
+            منوی Lexa
+          </div>
             <div className="flex flex-1 flex-col gap-1">
               <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
               <SideItem icon={ListTree} label="فهرست مطالعه" rail={false} active={current === "study"} onClick={() => go({ view: "study" })} />
@@ -638,8 +575,7 @@ export function AppShell() {
             <p className="mt-1.5 text-center text-[10px] leading-relaxed text-muted-foreground/60">
               راه دیگر: کشیدن از لبهٔ راست صفحه به چپ منو را باز می‌کند و کشیدن به راست، می‌بندد.
             </p>
-          </SheetContent>
-        </Sheet>
+        </MobileMenuDrawer>
       </div>
     </div>
   );
