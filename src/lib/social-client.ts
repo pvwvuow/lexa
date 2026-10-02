@@ -61,7 +61,11 @@ async function jf<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
-  const data = await res.json().catch(() => ({}));
+  // ⚠️ سرور محلی Capacitor برای مسیرهای ناموجود (مثل /api/* در APK) صفحهٔ
+  // 404.html را با status 200 برمی‌گرداند؛ بدون این گارد، HTML به‌جای JSON
+  // «پاسخ سالم» پنداشته می‌شود و فیلدهای undefined به state می‌روند (کرش رندر).
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  const data = ct.includes("json") ? await res.json().catch(() => ({})) : {};
   if (!res.ok) throw new Error((data as { error?: string }).error ?? "خطای ارتباط با سرور.");
   return data as T;
 }
@@ -103,10 +107,11 @@ export function useSocial() {
     setLoading(true);
     try {
       const s = await jf<{ teachers: SuggestionItem[] }>("/api/social/suggestions");
-      setTeachers(s.teachers);
+      // گارد دفاعی — state هرگز undefined نمی‌شود (هر طور پاسخ خراب/غیرJSON برگردد)
+      setTeachers(Array.isArray(s?.teachers) ? s.teachers : []);
       const f = await jf<{ posts: FeedPost[]; showingAll?: boolean }>("/api/social/feed");
-      setFeed(f.posts);
-      setShowingAll(!!f.showingAll);
+      setFeed(Array.isArray(f?.posts) ? f.posts : []);
+      setShowingAll(!!f?.showingAll);
     } catch {
       /* در محیط آفلاین بی‌صدا */
     } finally {

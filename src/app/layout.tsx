@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/app/theme-provider";
 import { SwRegister } from "@/components/app/SwRegister";
-import { compatScript, errorOverlayScript } from "@/lib/compat-script";
+import { compatScript, errorOverlayScript, apkApiShimScript } from "@/lib/compat-script";
 
 const IS_APK = process.env.NEXT_PUBLIC_APP_MODE === "apk";
 
@@ -31,7 +31,8 @@ export default function RootLayout({
       <head>
         {/* پلی‌فیل‌های سازگاری — باید قبل از همهٔ چانک‌ها اجرا شود (WebView قدیمی) */}
         <script dangerouslySetInnerHTML={{ __html: compatScript }} />
-        {/* اورلی خطای قابل‌گزارش فقط در APK — کاربر devtools ندارد */}
+        {/* اورلی خطا + شیم /api برای APK — کاربر devtools ندارد و سرور محلی 200+HTML برمی‌گرداند */}
+        {IS_APK ? <script dangerouslySetInnerHTML={{ __html: apkApiShimScript }} /> : null}
         {IS_APK ? <script dangerouslySetInnerHTML={{ __html: errorOverlayScript }} /> : null}
         {/* اعمال زودهنگام تم (روز/شب/شیشه‌ای) قبل از اولین رنگ‌آمیزی — بدون فلش */}
         <script

@@ -111,6 +111,36 @@ try{
 })();
 `;
 
+/* شیم API فقط برای APK — سرور محلی Capacitor برای /api/* صفحهٔ 404.html را
+ * با status 200 برمی‌گرداند؛ هر کلاینت fetch‌ای آن را «موفق» می‌پنداشت و
+ * فیلدهای undefined به state می‌رفت (کرش رندر). این شیم هر /api/* نسبی را
+ * به 404 JSON واقعی تبدیل می‌کند تا همهٔ هوک‌ها مسیر آفلاین/خطا را بروند. */
+export const apkApiShimScript = `(function(){
+"use strict";
+if (!window.fetch) return;
+var raw = window.fetch.bind(window);
+function isApi(u){
+  try{
+    if (typeof u !== "string") { if (u && u.url) u = u.url; else return false; }
+    if (u.indexOf("/api/") === 0 || u === "/api") return true;
+    if (u.indexOf("https://localhost/api/") === 0 || u.indexOf("http://localhost/api/") === 0) return true;
+    return false;
+  }catch(e){ return false; }
+}
+window.fetch = function(input, init){
+  try{
+    if (isApi(input)) {
+      var r = new Response(JSON.stringify({ error: "offline-apk" }),
+        { status: 404, headers: { "Content-Type": "application/json" } });
+      return Promise.resolve(r);
+    }
+  }catch(e){}
+  return raw(input, init);
+};
+})();
+
+`;
+
 /* اورلی خطای قابل‌گزارش — فقط بیلد APK (کاربر devtools ندارد؛ خطا باید دیده شود) */
 export const errorOverlayScript = `(function(){
 "use strict";

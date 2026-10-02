@@ -26,7 +26,7 @@ const PASS = "Qa08" + STAMP + "!";
     const r = await fetch("/sw.js");
     return ((await r.text()).match(/lexa-pwa-v\d+/) || ["?"])[0];
   });
-  assert(swVer === "lexa-pwa-v36", "سرویس‌ورکر v36 سرو می‌شود", swVer);
+  assert(swVer === "lexa-pwa-v37", "سرویس‌ورکر v36 سرو می‌شود", swVer);
 
   console.log("[۲] ساخت حساب سروری تازه (ورود / ثبت‌نام)");
   await page.goto(BASE + "/#/", { waitUntil: "networkidle", timeout: 45000 });
