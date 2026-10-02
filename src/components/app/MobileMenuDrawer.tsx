@@ -53,9 +53,12 @@ export function MobileMenuDrawer({ open, onOpenChange, label = "منو", childre
   const hideTimerRef = React.useRef<number | null>(null);
   const dragRef = React.useRef<DragInfo | null>(null);
   const openRef = React.useRef(open);
-  openRef.current = open;
   const onOpenChangeRef = React.useRef(onOpenChange);
-  onOpenChangeRef.current = onOpenChange;
+  // همگام‌سازی refs در فاز کامیت (نه رندر) — پیش از اثر settle اجرا می‌شود
+  React.useLayoutEffect(() => {
+    openRef.current = open;
+    onOpenChangeRef.current = onOpenChange;
+  }, [open, onOpenChange]);
 
   /** نوشتن مستقیم موقعیت روی DOM — بدون رندر مجدد، برای درگ روان */
   const applyProgress = React.useCallback((p: number) => {

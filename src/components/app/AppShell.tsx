@@ -39,7 +39,7 @@ import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { MobileMenuDrawer } from "./MobileMenuDrawer";
 
 type NavMode = "expanded" | "rail";
 
@@ -196,7 +196,6 @@ export function AppShell() {
   React.useEffect(() => {
     if (!mounted) return;
     setMode((m) => (isSubPage ? "rail" : m === "rail" && (window.localStorage.getItem("lexa-nav") ?? window.localStorage.getItem("hh-nav")) !== "rail" ? "expanded" : m));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubPage, mounted]);
 
   function expandNav() {
@@ -494,15 +493,12 @@ export function AppShell() {
           </div>
         </nav>
 
-        {/* ═══ منوی کشویی موبایل — کامل معادل سایدبار دسکتاپ ═══ */}
-        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <SheetContent side="right" className="flex w-[290px] flex-col gap-0 overflow-y-auto p-4 sm:w-[320px]">
-            <SheetHeader className="p-0 pb-3 text-start">
-              <SheetTitle className="flex items-center gap-2.5 text-base">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
-                منوی Lexa
-              </SheetTitle>
-            </SheetHeader>
+        {/* ═══ منوی کشویی موبایل — باز شدن فوری + درگ زندهٔ ۱:۱ ═══ */}
+        <MobileMenuDrawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <div className="flex items-center gap-2.5 pb-3 text-base font-semibold">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
+            منوی Lexa
+          </div>
             <div className="flex flex-1 flex-col gap-1">
               <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
               <SideItem icon={ListTree} label="فهرست مطالعه" rail={false} active={current === "study"} onClick={() => go({ view: "study" })} />
@@ -558,8 +554,7 @@ export function AppShell() {
                 <SyncHint collapsed />
               </div>
             </div>
-          </SheetContent>
-        </Sheet>
+        </MobileMenuDrawer>
       </div>
     </div>
   );
