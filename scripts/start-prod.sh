@@ -9,7 +9,8 @@ sleep 1
 cd "$(dirname "$0")/.."
 cp -r public .next/standalone/public 2>/dev/null
 cp -r .next/static .next/standalone/.next/static 2>/dev/null
-nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/server.js >> "$HOME/lexa-prod.log" 2>&1 < /dev/null &
+# دیتابیس واقعی سرور — صریح ست می‌شود تا به .env استندالون (که دیگر کپی نمی‌شود) وابسته نباشد
+nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 DATABASE_URL="file:$PWD/db/custom.db" node .next/standalone/server.js >> "$HOME/lexa-prod.log" 2>&1 < /dev/null &
 disown
 for i in $(seq 1 20); do
   sleep 1
