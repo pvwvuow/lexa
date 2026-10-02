@@ -1,0 +1,553 @@
+/* ─── Lexa — فرآیند اصلی Electron (منطق اصلی) ───────────────────────────────
+ * معماری: همان سرور استاندالون Next.js که در نسخهٔ وب هم استفاده می‌شود،
+ * با «همان باینری الکترون» در حالت ELECTRON_RUN_AS_NODE به‌عنوان Node اجرا
+ * می‌شود — یعنی روی دستگاه کاربر نه Node.js لازم است و نه هیچ پیش‌نیاز دیگر.
+ *
+ *  ۱) یک پورت آزاد رزرو می‌شود (بدون تصادم با سرویس‌های دیگر)
+ *  ۲) ‎.next/standalone/server.js روی همان پورت بالا می‌آید (127.0.0.1)
+ *  ۳) تا HTTP آماده شود، پنجره با صفحهٔ «در حال راه‌اندازی» باز می‌ماند
+ *  ۴) پنجرهٔ اصلی به سرور محلی وصل می‌شود؛ لینک‌های بیرونی به مرورگر سیستم
+ *  ۵) به‌روزرسانی درون‌برنامه‌ای دلتا (app-updater.js) از طریق IPC در دسترس
+ *     رندرر است — فقط فایل‌های تغییریافته دانلود و در لایهٔ appdata اعمال
+ *     می‌شوند؛ پس از نصب، برنامه خودکار راه‌اندازی مجدد می‌شود.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+const { app, BrowserWindow, shell, dialog, ipcMain, net } = require("electron");
+const { spawn } = require("child_process");
+const http = require("http");
+const netNode = require("net");
+const path = require("path");
+const fs = require("fs");
+const { createUpdater } = require("./app-updater");
+
+app.setName("Lexa");
+
+// نشانگر «نصب‌شده» در UserAgent — رندرر با آن می‌فهمد متون در باندل نیستند
+// و باید مستقیم از گیت‌هاب (jsDelivr/raw) بیایند؛ در حالت dev اثری ندارد
+if (app.isPackaged) {
+  app.userAgentFallback = `${app.userAgentFallback} LexaPack/1`;
+}
+
+// هشدارهای بی‌ضررِ فسخ Promise در زمان بستن پنجره/خروج — لاگ را تمیز نگه می‌دارد
+process.on("unhandledRejection", (err) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("Object has been destroyed")) return;
+  console.error("[lexa-electron] unhandled:", msg);
+});
+
+/* ─── مسیرها ──────────────────────────────────────────────────────────────── */
+
+// در پکیج‌شده: resources/app/.next/standalone — در توسعه: ریشهٔ مخزن
+const IS_PACKAGED = app.isPackaged;
+const APP_ROOT = path.join(__dirname, "..");
+const SERVER_DIR = path.join(APP_ROOT, ".next", "standalone");
+const SERVER_JS = path.join(SERVER_DIR, "server.js");
+
+// اگر منطق از لایهٔ appdata بار شده باشد، این true است (پس از آپدیت درون‌برنامه‌ای)
+const RUNNING_FROM_APPDATA = (() => {
+  try {
+    if (!IS_PACKAGED) return false;
+    const ad = path.join(app.getPath("userData"), "appdata");
+    return APP_ROOT === ad || APP_ROOT.startsWith(ad + path.sep);
+  } catch {
+    return false;
+  }
+})();
+
+// نسخهٔ واقعیِ در حال اجرا: package.json کنار همین منطق (در appdata به‌روز شده)
+// app.getVersion() همیشه نسخهٔ باندل نصب‌شدهٔ اصلی را می‌دهد و بعد از آپدیت کهنه می‌ماند
+const APP_VERSION = (() => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(APP_ROOT, "package.json"), "utf8"));
+    if (pkg && typeof pkg.version === "string" && pkg.version) return pkg.version;
+  } catch {
+    /* بی‌اثر */
+  }
+  return app.getVersion();
+})();
+
+/* ─── وضعیت سرور ─────────────────────────────────────────────────────────── */
+
+let serverProc = null;
+let win = null;
+let quitting = false;
+let updating = false; // حین اعمال آپدیت، پیام «سرور متوقف شد» نشان داده نشود
+let autoRestartTimer = null;
+let currentPort = 0; // برای بالا‌آوردن دوبارهٔ سرور پس از شکست اعمال آپدیت
+
+/* ─── موتور به‌روزرسانی دلتا ──────────────────────────────────────────────── */
+
+const updater = createUpdater({
+  baseDir: APP_ROOT,
+  userData: app.getPath("userData"),
+  pkgVersion: APP_VERSION,
+  // net.fetch → همان پروکسی/تنظیمات شبکهٔ سیستم عامل (مهم برای کاربران پشت فیلتر)
+  fetchImpl: (u, o) => net.fetch(u, o),
+  env: process.env,
+  log: (...a) => console.log("[lexa-updater]", ...a),
+  beforeCommit: () => {
+    // فایل‌های سرور در حال تعویض‌اند — سرور باید اول بسته شود
+    updating = true;
+    if (serverProc) {
+      try {
+        serverProc.kill();
+      } catch {
+        /* بی‌اثر */
+      }
+      serverProc = null;
+    }
+  },
+});
+
+/* ─── پورت آزاد ──────────────────────────────────────────────────────────── */
+
+function getFreePort() {
+  return new Promise((resolve, reject) => {
+    const srv = netNode.createServer();
+    srv.unref();
+    srv.on("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const port = srv.address().port;
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
+/* ─── اجرای سرور استاندالون با الکترون‌به‌عنوان‌نود ───────────────────────── */
+
+function startServer(port) {
+  // ─── دیتابیس محلی کاربر ──────────────────────────────────────────────────
+  // پکیج دسکتاپ فایل db ندارد (db/ بیرون .next/standalone است) و AppImage
+  // فقط-خواندنی است؛ بنابراین دیتابیس در userData نگهداری می‌شود. بار اول،
+  // قالب خالیِ دارای همهٔ جداول (template.db — محصول بیلد) کپی می‌شود تا
+  // ثبت‌نام/ورود/سینک از همان اجرای نخست کار کند.
+  const userDb = path.join(app.getPath("userData"), "lexa.db");
+  try {
+    if (!fs.existsSync(userDb)) {
+      const tpl = path.join(SERVER_DIR, "lexa-template.db");
+      if (fs.existsSync(tpl)) {
+        fs.mkdirSync(path.dirname(userDb), { recursive: true });
+        fs.copyFileSync(tpl, userDb);
+        if (!IS_PACKAGED) console.log("[lexa-electron] db seeded from template:", userDb);
+      }
+    } else {
+      // خودترمیمی: فایل موجود ولی بی‌سرِ SQLite (خالی/ناقص/خراب) → پشتیبان‌گیری و
+      // کپی دوبارهٔ قالب تا ثبت‌نام/ورود کار نشکند. (اگر سر SQLite معتبر باشد،
+      // ساختنِ جدول‌های جاافتاده خودِ سرور با ensureSchema انجام می‌دهد.)
+      const fd = fs.openSync(userDb, "r");
+      const head = Buffer.alloc(16);
+      let ok = false;
+      try {
+        const read = fs.readSync(fd, head, 0, 16, 0);
+        ok = read === 16 && head.toString("latin1").startsWith("SQLite format 3");
+      } finally {
+        fs.closeSync(fd);
+      }
+      if (!ok) {
+        const bak = userDb + ".corrupt-" + Date.now();
+        fs.renameSync(userDb, bak);
+        console.log("[lexa-electron] db has no sqlite header — backed up to:", bak);
+        const tpl = path.join(SERVER_DIR, "lexa-template.db");
+        if (fs.existsSync(tpl)) {
+          fs.copyFileSync(tpl, userDb);
+          console.log("[lexa-electron] db re-seeded from template");
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[lexa-electron] db seed failed:", e && e.message);
+  }
+
+  // ELECTRON_RUN_AS_NODE = الکترون دقیقاً مثل Node.js خالص رفتار می‌کند
+  const env = {
+    ...process.env,
+    ELECTRON_RUN_AS_NODE: "1",
+    NODE_ENV: "production",
+    PORT: String(port),
+    HOSTNAME: "127.0.0.1",
+    // دیتابیس SQLite در پروفایل کاربر — مسیر ویندوز باید اسلش رو به جلو داشته باشد
+    DATABASE_URL: "file:" + userDb.replace(/\\/g, "/"),
+    // کش هر کاربر داخل پروفایل خودش
+    XDG_CACHE_HOME: path.join(app.getPath("userData"), "cache"),
+  };
+
+  serverProc = spawn(process.execPath, [SERVER_JS], {
+    env,
+    cwd: SERVER_DIR,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+
+  serverProc.stdout.on("data", (d) => {
+    if (!IS_PACKAGED) process.stdout.write(`[lexa-server] ${d}`);
+  });
+  serverProc.stderr.on("data", (d) => {
+    if (!IS_PACKAGED) process.stderr.write(`[lexa-server] ${d}`);
+  });
+  serverProc.on("exit", () => {
+    serverProc = null;
+    if (updating) return; // حین آپدیت بسته شده — پیام خطا نده
+    // اگر سرور ناخواسته مرد و پنجره هنوز باز است، کاربر را در جریان بگذار
+    if (!quitting && win && !win.isDestroyed()) {
+      win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(
+        `<body style="font-family:sans-serif;background:#faf7f2;display:grid;place-items:center;height:100vh;margin:0" dir="rtl"><div style="text-align:center"><h2 style="color:#8a6d3b">سرور Lexa متوقف شد</h2><p style="color:#666">برنامه را ببند و دوباره باز کن.</p></div></body>`
+      )}`).catch(() => {});
+    }
+  });
+}
+
+/** تا سرور HTTP جواب بدهد صبر کن — حداکثر ۴۵ ثانیه */
+function waitForServer(port, timeoutMs = 45_000) {
+  const started = Date.now();
+  return new Promise((resolve, reject) => {
+    const tryOnce = () => {
+      const req = http.get({ host: "127.0.0.1", port, path: "/", timeout: 2500 }, (res) => {
+        res.resume();
+        resolve();
+      });
+      req.on("error", () => retry());
+      req.on("timeout", () => {
+        req.destroy();
+        retry();
+      });
+    };
+    const retry = () => {
+      if (Date.now() - started > timeoutMs) {
+        reject(new Error("سرور Lexa در زمان معقول آماده نشد"));
+        return;
+      }
+      setTimeout(tryOnce, 400);
+    };
+    tryOnce();
+  });
+}
+
+/* ─── پنجره‌ها ────────────────────────────────────────────────────────────── */
+
+const SPLASH = (line1, line2) =>
+  `data:text/html;charset=utf-8,${encodeURIComponent(
+    `<body style="font-family:Tahoma,'Segoe UI',sans-serif;background:linear-gradient(135deg,#faf7f2,#f3ead8);display:grid;place-items:center;height:100vh;margin:0" dir="rtl"><div style="text-align:center"><div style="font-size:42px;font-weight:800;color:#8a6d3b;letter-spacing:1px">Lexa</div><p style="color:#7c6f5a;font-size:14px;margin-top:14px">${line1}</p><p style="color:#a89c85;font-size:11px;margin-top:6px">${line2}</p></div></body>`
+  )}`;
+
+function sendUpdateEvent(payload) {
+  try {
+    if (win && !win.isDestroyed()) win.webContents.send("lexa:update:event", payload);
+  } catch {
+    /* پنجره بسته شده */
+  }
+}
+
+function createMainWindow(port) {
+  win = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 940,
+    minHeight: 600,
+    show: false,
+    autoHideMenuBar: true,
+    backgroundColor: "#faf7f2",
+    title: "Lexa — استاد حقوقی هوشمند",
+    icon: path.join(APP_ROOT, "public", "icons", "icon-192.png"),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+
+  win.once("ready-to-show", () => win.show());
+
+  // لینک‌های بیرونی → مرورگر سیستم؛ داخل برنامه فقط همین origin
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (e, url) => {
+    const allowed = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
+    const inApp = allowed.some((o) => url === o || url.startsWith(o + "/"));
+    if (!inApp && /^https?:/i.test(url)) {
+      e.preventDefault();
+      void shell.openExternal(url);
+    }
+  });
+
+  win.loadURL(`http://127.0.0.1:${port}`).catch(() => {
+    try {
+      if (win && !win.isDestroyed()) {
+        win.loadURL(SPLASH("اتصال به سرور محلی برقرار نشد", "برنامه را ببند و دوباره باز کن")).catch(() => {});
+      }
+    } catch { /* پنجره حین خروج از بین رفته — بی‌اثر */ }
+  });
+
+  win.on("closed", () => {
+    win = null;
+  });
+}
+
+/* ─── IPC به‌روزرسانی ─────────────────────────────────────────────────────── */
+
+let applying = false;
+
+ipcMain.handle("lexa:update:status", () => ({
+  desktop: true,
+  platform: process.platform,
+  version: APP_VERSION,
+  fromAppdata: RUNNING_FROM_APPDATA,
+  feedOverride: !!process.env.LEXA_UPDATE_FEED,
+}));
+
+ipcMain.handle("lexa:update:check", async () => {
+  return updater.check();
+});
+
+ipcMain.handle("lexa:update:apply", async () => {
+  if (applying) throw new Error("یک به‌روزرسانی قبلاً در جریان است");
+  applying = true;
+  const send = (progress) => sendUpdateEvent({ type: "apply:progress", ...progress });
+  try {
+    const res = await updater.apply(send);
+    sendUpdateEvent({ type: "apply:done", version: res.version });
+    // اگر رندرر خودش restart نزد، حداکثر ۸ ثانیه بعد برنامه دوباره باز می‌شود
+    if (autoRestartTimer) clearTimeout(autoRestartTimer);
+    autoRestartTimer = setTimeout(() => {
+      try {
+        app.relaunch();
+        app.exit(0);
+      } catch { /* بی‌اثر */ }
+    }, 8_000);
+    return res;
+  } catch (e) {
+    sendUpdateEvent({ type: "apply:error", message: (e && e.message) || "خطای نامشخص" });
+    // سرور در beforeCommit بسته شد — با شکست اعمال، دوباره بالا می‌آوریم تا کاربر
+    // با نسخهٔ فعلی (سالم) سرِ کار بماند؛ لاگ کامل در کنسول.
+    console.error("[lexa-updater] apply failed:", e && e.message);
+    try {
+      updating = false;
+      if (!quitting && currentPort && !serverProc) {
+        startServer(currentPort);
+        await waitForServer(currentPort);
+        if (win && !win.isDestroyed()) {
+          win.loadURL(`http://127.0.0.1:${currentPort}`).catch(() => {});
+        }
+      }
+    } catch { /* تلاش مجدد ناموفق — کاربر برنامه را باز می‌کند */ }
+    throw e;
+  } finally {
+    applying = false;
+  }
+});
+
+ipcMain.handle("lexa:update:restart", () => {
+  try {
+    app.relaunch();
+  } finally {
+    app.exit(0);
+  }
+});
+
+/* ─── بررسی خودکار بی‌صدا + جریان QA ─────────────────────────────────────── */
+
+async function silentCheck() {
+  try {
+    const check = await updater.check();
+    if (check.available) {
+      console.log("[lexa-updater] update available:", check.remoteVersion);
+      sendUpdateEvent({ type: "check", check });
+    }
+  } catch {
+    /* آفلاین — بی‌خیال */
+  }
+}
+
+/**
+ * ترمیم خودکار لایهٔ appdata پس از بوت — پادزهر «Application error» بعد از آپدیت.
+ * اگر محتوای نصب با مانیفستِ ثبت‌شده‌اش نخواند (نصب نیمه‌کاره/خراب‌شده — آنتی‌ویروس،
+ * دیسک پر، قطع برق وسط کامیت)، بوت‌استرپ به باندل سالم برمی‌گردد و این‌جا لایهٔ
+ * appdata بی‌صدا از نو ساخته و پس از موفقیت برنامه ری‌استارت می‌شود.
+ * قفل ۳۰ دقیقه‌ای: اگر ترمیم قبلی موفق نشد، در هر بوت دوباره تلاش نمی‌کنیم.
+ */
+async function backgroundRepair() {
+  if (!IS_PACKAGED) return;
+  try {
+    const ad = path.join(app.getPath("userData"), "appdata");
+    const inst = path.join(ad, ".lexa-install.json");
+    if (!fs.existsSync(inst)) return; // appdata اصلاً وجود ندارد — کاری نیست
+    const lockFile = path.join(app.getPath("userData"), "repair-attempt.json");
+    try {
+      const prev = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+      if (prev && typeof prev.at === "number" && Date.now() - prev.at < 30 * 60 * 1000) {
+        console.log("[lexa-electron] repair skipped — cooldown active");
+        return;
+      }
+    } catch { /* قفل نیست */ }
+
+    const v = await updater.verifyLocal();
+    if (v.ok) return;
+    console.warn("[lexa-electron] appdata layer BROKEN:", v.broken.join(" | "));
+    try { fs.writeFileSync(lockFile, JSON.stringify({ at: Date.now(), broken: v.broken })); } catch {}
+    sendUpdateEvent({ type: "repair:start", broken: v.broken });
+
+    const send = (p) => sendUpdateEvent({ type: "apply:progress", ...p });
+    updating = true; // حین ترمیم، مرگ سرور لایهٔ خراب پیام خطا ندهد — پایانش ری‌استارت است
+    const res = await updater.apply(send, { rebuildBase: true });
+    console.log("[lexa-electron] repair applied:", res.version);
+    sendUpdateEvent({ type: "repair:done", version: res.version });
+    setTimeout(() => {
+      try {
+        app.relaunch();
+        app.exit(0);
+      } catch { /* بی‌اثر */ }
+    }, 2500);
+  } catch (e) {
+    console.error("[lexa-electron] auto-repair failed:", e && e.message);
+    sendUpdateEvent({ type: "repair:failed", message: (e && e.message) || "خطای نامشخص" });
+  }
+}
+
+/** LEXA_UPDATE_QA=1 → چک/اعمال خودکار برای تست انتها-به-انتها (بدون UI) */
+async function runQaUpdateFlow() {
+  const qfile = path.join(app.getPath("userData"), "qa-update-result.json");
+  const mark = (obj) => {
+    try {
+      fs.writeFileSync(qfile, JSON.stringify(obj, null, 2));
+    } catch { /* بی‌اثر */ }
+  };
+  try {
+    if (RUNNING_FROM_APPDATA) {
+      // نمونهٔ دوم پس از ری‌استارت — اثبات اینکه لایهٔ appdata ترجیح داده شد
+      mark({
+        phase: "relaunched-from-appdata",
+        version: APP_VERSION,
+        appRoot: APP_ROOT,
+        at: new Date().toISOString(),
+      });
+      setTimeout(() => app.exit(0), 1200);
+      return;
+    }
+    const check = await updater.check();
+    console.log("[qa] check:", JSON.stringify(check));
+    if (!check.available) {
+      mark({ phase: "check-not-available", check });
+      setTimeout(() => app.exit(0), 800);
+      return;
+    }
+    const res = await updater.apply((p) => console.log("[qa] progress:", JSON.stringify(p)));
+    console.log("[qa] applied:", JSON.stringify(res));
+    mark({ phase: "applied", ...res });
+    app.relaunch();
+    setTimeout(() => app.exit(0), 600);
+  } catch (e) {
+    console.error("[qa] FAILED:", e && e.message);
+    mark({ phase: "error", message: String((e && e.message) || e) });
+    setTimeout(() => app.exit(0), 1200);
+  }
+}
+
+/* ─── چرخهٔ عمر برنامه ────────────────────────────────────────────────────── */
+
+/** چسبیدن به قفل تک‌نمونه‌ای — در QA پس از ری‌استارت، نمونهٔ قبلی ممکن است تازه بسته شده باشد */
+function acquireLock() {
+  if (app.requestSingleInstanceLock()) return Promise.resolve(true);
+  if (process.env.LEXA_UPDATE_QA !== "1") return Promise.resolve(false);
+  return new Promise((resolve) => {
+    let tries = 0;
+    const poll = setInterval(() => {
+      tries += 1;
+      if (app.requestSingleInstanceLock()) {
+        clearInterval(poll);
+        resolve(true);
+      } else if (tries > 30) {
+        clearInterval(poll);
+        resolve(false);
+      }
+    }, 500);
+  });
+}
+
+function bootApp() {
+  app.on("second-instance", () => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+
+  app.whenReady().then(async () => {
+    try {
+      if (!IS_PACKAGED) {
+        console.log("[lexa-electron] dev mode — standalone:", SERVER_JS);
+      }
+      const port = await getFreePort();
+      currentPort = port;
+      startServer(port);
+
+      // پنجره با صفحهٔ راه‌اندازی باز می‌شود تا کاربر صفحهٔ خالی نبیند
+      win = new BrowserWindow({
+        width: 1280,
+        height: 820,
+        minWidth: 940,
+        minHeight: 600,
+        show: true,
+        autoHideMenuBar: true,
+        backgroundColor: "#faf7f2",
+        title: "Lexa",
+        icon: path.join(APP_ROOT, "public", "icons", "icon-192.png"),
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          spellcheck: false,
+          preload: path.join(__dirname, "preload.js"),
+        },
+      });
+      win.loadURL(SPLASH("در حال راه‌اندازی Lexa…", "سرور محلی چند لحظه‌ای بالا می‌آید")).catch(() => {});
+
+      await waitForServer(port);
+
+      // همان پنجره به اپ اصلی وصل می‌شود — بدون باز و بسته شدن دوباره
+      createMainWindow(port);
+
+      // بررسی بی‌صدای آپدیت پس از بالا آمدن کامل + ترمیم خودکار لایهٔ خراب
+      if (process.env.LEXA_NO_AUTOCHECK !== "1") {
+        setTimeout(() => void silentCheck(), 6_000);
+      }
+      setTimeout(() => void backgroundRepair(), 10_000);
+      if (process.env.LEXA_UPDATE_QA === "1") {
+        setTimeout(() => void runQaUpdateFlow(), 5_000);
+      }
+    } catch (err) {
+      dialog.showErrorBox(
+        "Lexa — خطای راه‌اندازی",
+        "سرور داخلی برنامه راه‌اندازی نشد.\n" + (err && err.message ? err.message : String(err)),
+      );
+      app.quit();
+    }
+  });
+
+  app.on("window-all-closed", () => {
+    app.quit();
+  });
+
+  app.on("before-quit", () => {
+    quitting = true;
+    if (autoRestartTimer) {
+      clearTimeout(autoRestartTimer);
+      autoRestartTimer = null;
+    }
+    if (serverProc) {
+      try {
+        serverProc.kill();
+      } catch { /* بی‌اثر */ }
+      serverProc = null;
+    }
+  });
+}
+
+void (async () => {
+  const locked = await acquireLock();
+  if (!locked) {
+    app.quit();
+    return;
+  }
+  bootApp();
+})();
