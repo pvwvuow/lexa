@@ -23,8 +23,8 @@ const up = createUpdater({
   console.log("currentVersion:", c.currentVersion, "→ remoteVersion:", c.remoteVersion);
   console.log("tag:", c.tag, "| filesChanged:", c.filesChanged, "| deletes:", c.deletes);
   console.log("bytesChanged:", (c.bytesChanged / 1e6).toFixed(1), "MB");
-  if (c.remoteVersion === "0.7.0" && c.available) {
-    console.log("VERDICT: ✓ کلاینت 0.6.0 نسخهٔ جدید را می‌بیند (چندمنبعی کار می‌کند)");
+  if (c.remoteVersion === "0.8.0" && c.available) {
+    console.log("VERDICT: ✓ کلاینت 0.6.0 نسخهٔ 0.8.0 را می‌بیند (چندمنبعی کار می‌کند)");
   } else {
     console.log("VERDICT: ✗ مشکل!");
     process.exit(1);
