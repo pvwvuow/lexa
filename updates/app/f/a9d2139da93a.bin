@@ -5,20 +5,6 @@
   "description": "Lexa — استاد حقوقی هوشمند: مرجع آمادگی آزمون‌های حقوقی با هوش مصنوعی",
   "author": "Lexa Team <lexa@users.noreply.github.com>",
   "main": "electron/main.js",
-  "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "bun scripts/build-lesson-texts.mjs && next build && rm -rf .next/standalone/db .next/standalone/backups .next/standalone/data .next/standalone/upload .next/standalone/.env* && rm -rf .next/standalone/.next/static .next/standalone/public && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && rm -f .next/standalone/lexa-template.db && DATABASE_URL=file:$PWD/.next/standalone/lexa-template.db bunx prisma db push --skip-generate && find .next/standalone -type l -delete && echo SYMLINKS_CLEANED && echo TEMPLATE_DB_OK",
-    "build:apk": "bun scripts/build-lesson-texts.mjs && NEXT_PUBLIC_APP_MODE=apk next build",
-    "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
-    "lint": "eslint .",
-    "electron:dev": "electron electron/main.js",
-    "electron:build": "electron-builder --linux AppImage --win zip",
-    "db:push": "prisma db push --accept-data-loss",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
-    "texts": "bun scripts/build-lesson-texts.mjs"
-  },
   "dependencies": {
     "@capacitor/android": "^7",
     "@capacitor/core": "^7",
@@ -89,19 +75,5 @@
     "z-ai-web-dev-sdk": "^0.0.18",
     "zod": "^4.0.2",
     "zustand": "^5.0.6"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^7",
-    "@tailwindcss/postcss": "^4",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "bun-types": "^1.3.4",
-    "electron": "^38.2.0",
-    "electron-builder": "^26.0.12",
-    "eslint": "^9",
-    "eslint-config-next": "^16.1.1",
-    "tailwindcss": "^4",
-    "tw-animate-css": "^1.3.5",
-    "typescript": "^5"
   }
 }

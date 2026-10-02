@@ -15,18 +15,25 @@ import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { IS_APK } from "@/lib/app-mode";
 import { AuthDialog } from "./AuthDialog";
-import { CloudAccountArea } from "./CloudAuth";
+import { CloudAccountArea, CloudAuthDialog } from "./CloudAuth";
+import { sbUser, onAuthChange, type SbUser } from "@/lib/supabase";
 import { UserAvatar } from "./common";
 
 /** بخش حساب کاربری در هدر: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب.
- *  در APK حساب از نوع «ابری» است (CloudAccountArea) چون APK سرور محلی ندارد. */
+ *  «حساب، حساب است» — حساب ابری (ساپابیس) روی همهٔ پلتفرم‌ها اول است: ثبت‌نام یک‌بار،
+ *  پیشرفت روی موبایل و کامپیوتر یکی. APK فقط حساب ابری دارد؛ حساب سروری محلی برای
+ *  اساتید/مدیریت با دکمهٔ فرعی در دسترس می‌ماند. */
 export function AccountArea() {
   const auth = useAuth();
+  const [cloudUser, setCloudUser] = React.useState<SbUser | null>(() => sbUser());
+  React.useEffect(() => onAuthChange(() => setCloudUser(sbUser())), []);
   const [open, setOpen] = React.useState(false);
+  const [localOpen, setLocalOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [leaving, setLeaving] = React.useState(false);
 
-  if (IS_APK) return <CloudAccountArea />;
+  // APK یا نشست ابری فعال → منوی ابری
+  if (IS_APK || cloudUser) return <CloudAccountArea />;
 
   if (auth.status === "loading") {
     return <span aria-hidden className="inline-block h-10 w-10 animate-pulse rounded-xl bg-muted" />;
@@ -39,14 +46,24 @@ export function AccountArea() {
         {/* دکمهٔ فیبر کربن — بافت تاریک بافته‌ای با لبهٔ براق و درخشش برنز */}
         <button
           onClick={() => setOpen(true)}
-          title="ورود یا ساخت حساب کاربری"
+          title="حساب ابری: ثبت‌نام یک‌بار، همگام روی همهٔ دستگاه‌ها"
           className="btn-carbon inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-bold text-bronze"
         >
           <span className="btn-carbon-glow" aria-hidden />
           <LogIn className="relative z-10 h-[18px] w-[18px]" />
           <span className="relative z-10 hidden sm:inline">ورود / ثبت‌نام</span>
         </button>
-        <AuthDialog open={open} onOpenChange={setOpen} />
+        {/* حساب سروری محلی — مسیر فرعی برای اساتید و مدیریت */}
+        <button
+          onClick={() => setLocalOpen(true)}
+          title="ورود با حساب سروری (اساتید و مدیریت سامانه)"
+          aria-label="ورود با حساب سروری"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze"
+        >
+          <ShieldCheck className="h-[18px] w-[18px]" />
+        </button>
+        <CloudAuthDialog open={open} onOpenChange={setOpen} />
+        <AuthDialog open={localOpen} onOpenChange={setLocalOpen} />
       </>
     );
   }

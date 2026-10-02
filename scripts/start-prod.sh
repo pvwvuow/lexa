@@ -7,8 +7,11 @@ pkill -f "next-server" 2>/dev/null
 fuser -k 3000/tcp 2>/dev/null
 sleep 1
 cd "$(dirname "$0")/.."
-cp -r public .next/standalone/public 2>/dev/null
-cp -r .next/static .next/standalone/.next/static 2>/dev/null
+# ⚠️ cp -r داخل پوشهٔ موجود = تو در تو شدن (public/public و static/static) —
+# منشأ آشغال مانیفست و کرش آپدیتر. اول پاک، بعد کپی:
+rm -rf .next/standalone/public .next/standalone/.next/static
+cp -r public .next/standalone/public
+cp -r .next/static .next/standalone/.next/static
 # دیتابیس واقعی سرور — صریح ست می‌شود تا به .env استندالون (که دیگر کپی نمی‌شود) وابسته نباشد
 nohup setsid env PORT=3000 HOSTNAME=0.0.0.0 DATABASE_URL="file:$PWD/db/custom.db" node .next/standalone/server.js >> "$HOME/lexa-prod.log" 2>&1 < /dev/null &
 disown

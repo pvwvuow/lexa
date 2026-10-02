@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import {
   sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState,
-  collectLocal, applyLocal, onAuthChange, type SbUser,
+  collectLocal, onAuthChange, type SbUser,
 } from "@/lib/supabase";
+import { adoptCloudBlob, forceApplyCloudBlob } from "@/lib/cloud-sync";
 
 type Tab = "login" | "register";
 
@@ -48,21 +49,30 @@ export function CloudAuthDialog({
     }
   }, [open, initialTab]);
 
-  const valid = /.+@.+\..+/.test(email.trim()) && password.length >= 6;
-
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
-    if (busy || !valid) return;
+    if (busy) return;
     setError(null);
     setInfo(null);
+    // اعتبارسنجی این‌جا انجام می‌شود نه با disabled دکمه — دکمهٔ همیشه‌فعال تا
+    // کاربر با کلیک، پیام دقیق خطا را ببیند (مشکل «دکمهٔ روشن نمی‌شود» در موبایل)
+    const em = email.trim();
+    if (!/.+@.+\..+/.test(em)) {
+      setError("ایمیل معتبر نیست — نمونه: name@example.com");
+      return;
+    }
+    if (password.length < 6) {
+      setError("رمز عبور باید دست‌کم ۶ نویسه باشد.");
+      return;
+    }
     if (tab === "register" && password !== confirm) {
       setError("تکرار رمز عبور با رمز اصلی یکسان نیست.");
       return;
     }
     setBusy(true);
     const err = tab === "login"
-      ? await sbSignIn(email.trim(), password)
-      : await sbSignUp(email.trim(), password);
+      ? await sbSignIn(em, password)
+      : await sbSignUp(em, password);
     setBusy(false);
     if (err) {
       setError(err);
@@ -79,12 +89,13 @@ export function CloudAuthDialog({
     setPassword("");
     const { err: pullErr, data } = await sbPullState();
     if (!pullErr && data) {
-      const done = applyLocal(data as Record<string, unknown>);
-      if (done.length) {
-        // دادهٔ ابر جایگزین شد — اپ با وضعیت حساب بارگذاری می‌شود
+      if (adoptCloudBlob(data)) {
+        // دادهٔ ابر (تازه‌تر) جایگزین شد — اپ با وضعیت حساب بارگذاری می‌شود
         setTimeout(() => window.location.reload(), 350);
         return;
       }
+      onOpenChange(false);
+      return;
     }
     // ابر خالی بود یا دریافت نشد → دادهٔ همین دستگاه به ابر می‌رود
     await sbPushState(collectLocal());
@@ -127,7 +138,7 @@ export function CloudAuthDialog({
           ))}
         </div>
 
-        <form onSubmit={submit} className="space-y-4 p-6">
+        <form onSubmit={submit} noValidate className="space-y-4 p-6">
           <label className="block space-y-1.5">
             <span className="text-xs font-bold text-muted-foreground">ایمیل</span>
             <div className="relative">
@@ -136,13 +147,12 @@ export function CloudAuthDialog({
                 type="email"
                 dir="ltr"
                 autoCapitalize="off"
-                autoComplete={tab === "login" ? "email" : "email"}
+                autoComplete="email"
                 inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full rounded-xl border border-border bg-background px-4 py-2.5 pe-10 text-start text-sm shadow-inner outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-bronze"
-                required
               />
             </div>
           </label>
@@ -159,8 +169,6 @@ export function CloudAuthDialog({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="دست‌کم ۶ نویسه"
                 className="w-full rounded-xl border border-border bg-background px-4 py-2.5 pe-10 text-start text-sm shadow-inner outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-bronze"
-                required
-                minLength={6}
               />
             </div>
           </label>
@@ -178,8 +186,6 @@ export function CloudAuthDialog({
                   onChange={(e) => setConfirm(e.target.value)}
                   placeholder="همان رمز را دوباره بنویسید"
                   className="w-full rounded-xl border border-border bg-background px-4 py-2.5 pe-10 text-start text-sm shadow-inner outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-bronze"
-                  required
-                  minLength={6}
                 />
               </div>
             </label>
@@ -204,7 +210,7 @@ export function CloudAuthDialog({
           {/* دکمهٔ اصلی فیبر کربن — هم‌شکل دیالوگ دسکتاپ */}
           <button
             type="submit"
-            disabled={busy || !valid}
+            disabled={busy}
             className="btn-carbon inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-bronze disabled:opacity-60"
           >
             <span className="btn-carbon-glow" aria-hidden />
@@ -252,8 +258,8 @@ export function CloudAccountArea() {
     setBusy("");
     if (err) { setNote("دریافت از ابر ناموفق بود"); return; }
     if (!data) { setNote("روی ابر هنوز داده‌ای نداری"); return; }
-    const done = applyLocal(data as Record<string, unknown>);
-    if (done.length) setTimeout(() => window.location.reload(), 300);
+    const done = forceApplyCloudBlob(data);
+    if (done) setTimeout(() => window.location.reload(), 300);
     else setNote("دادهٔ ابر خالی بود");
   }
 

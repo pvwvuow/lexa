@@ -27,6 +27,7 @@ import { ImportView } from "./ImportView";
 import { CourseIcon } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
 import { AccountArea, SyncHint } from "./AccountArea";
+import { useCloudAutoSync } from "@/lib/cloud-sync";
 import { AdminView } from "./AdminView";
 import { TeachersView } from "./TeachersView";
 import { StudioView } from "./StudioView";
@@ -153,6 +154,7 @@ function ApkUnavailable({ title }: { title: string }) {
 export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
+  useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
   const online = useOnlineStatus();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);

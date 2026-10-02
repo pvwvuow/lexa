@@ -11,6 +11,7 @@ import { LAW_CODES, type LawCode, type LawBook } from "@/lib/law/statutes";
 import { fetchFullLaws } from "./LawLibraryView";
 import { CourseIcon, UserAvatar } from "./common";
 import { useTextsVersion } from "@/lib/law/texts";
+import { IS_APK } from "@/lib/app-mode";
 
 /* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
 function norm(s: string): string {
@@ -396,7 +397,9 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               {!hasQuery ? (
                 <div className="space-y-4 px-2 pb-3 pt-3">
                   <p className="text-center text-xs leading-6 text-muted-foreground">
-                    همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام استاد، پروفایلش را هم پیدا می‌کنی.
+                    {IS_APK
+                      ? "همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — همان لحظه شروع کن."
+                      : "همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام استاد، پروفایلش را هم پیدا می‌کنی."}
                   </p>
                   {teachers.length > 0 && (
                     <div className="space-y-2">
@@ -432,6 +435,14 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
                   چیزی پیدا نشد؛ با کلمهٔ دیگری امتحان کن.
                   <br />
                   <span className="text-[11px] opacity-80">نام ماده (مثلاً «ماده ۲۲۰») یا کلیدواژهٔ بحث را امتحان کن.</span>
+                  {IS_APK && (
+                    <>
+                      <br />
+                      <span className="mt-1 block text-[11px] opacity-80">
+                        جستجوی جلسه‌ها و مواد قانونی کامل است؛ بخش اساتید فقط در نسخهٔ وب/دسکتاپ در دسترس است.
+                      </span>
+                    </>
+                  )}
                 </p>
               ) : (
                 <>

@@ -32,12 +32,13 @@ const PASS = "Qa09" + STAMP + "!";
     const r = await fetch("/sw.js");
     return ((await r.text()).match(/lexa-pwa-v\d+/) || ["?"])[0];
   });
-  assert(swVer === "lexa-pwa-v38", "سرویس‌ورکر v38 سرو می‌شود", swVer);
+  assert(swVer === "lexa-pwa-v39", "سرویس‌ورکر v39 سرو می‌شود", swVer);
 
-  console.log("[۲] ساخت حساب سروری تازه (ورود / ثبت‌نام)");
+  console.log("[۲] ساخت حساب سروری تازه (ورود / ثبت‌نام — دکمهٔ فرعی سپر: حساب سروری)");
   await page.goto(BASE + "/#/", { waitUntil: "networkidle", timeout: 45000 });
   await page.waitForTimeout(1200);
-  await page.locator('button:has-text("ورود / ثبت‌نام")').first().click({ timeout: 8000 });
+  // از 0.9.1: دکمهٔ اصلی = حساب ابری (ساپابیس)؛ حساب سروری محلی پشت دکمهٔ فرعی سپر است
+  await page.locator('button[aria-label="ورود با حساب سروری"]').first().click({ timeout: 8000 });
   await page.waitForSelector("form input", { timeout: 6000 });
   await page.locator('[role="tab"]:has-text("ثبت‌نام")').first().click().catch(() => {});
   await page.waitForTimeout(400);
@@ -58,7 +59,7 @@ const PASS = "Qa09" + STAMP + "!";
   await page.waitForTimeout(600);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(1200);
-  await page.locator('button:has-text("ورود / ثبت‌نام")').first().click({ timeout: 8000 }).catch(() => {});
+  await page.locator('button[aria-label="ورود با حساب سروری"]').first().click({ timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(600);
   const dialogOpen = await page.locator("form input:not([type=password])").first().isVisible().catch(() => false);
   if (dialogOpen) {
