@@ -852,3 +852,93 @@ textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   .search-dock-in { animation: none; }
 }
+
+/* ─── نشان‌های (هایلایت) متن درس ──────────────────────────────────────────── */
+mark.lexa-mark {
+  background: var(--mk-bg, rgba(250, 204, 21, 0.4));
+  color: inherit;
+  border-radius: 3px;
+  padding: 0.5px 2px;
+  margin: 0 -1px;
+  cursor: pointer;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: filter 0.15s ease;
+}
+mark.lexa-mark:hover {
+  filter: brightness(1.08) saturate(1.1);
+}
+.dark mark.lexa-mark {
+  filter: saturate(0.92);
+}
+
+/* ─── پروفایل کارایی موبایل (perf-lite) — نسخهٔ اندروید/APK ─────────────────
+   WebView گوشی‌های میانه/کهنه با backdrop-filter (بلور زندهٔ پشت سطوح) در
+   هر فریم اسکرول زیر بار می‌رود؛ داک ثابت پایین با blur(20px) روی کل عرض
+   صفحه بدترین حالت است و حس «سنگینی برنامه» می‌سازد. در APK کلاس perf-lite
+   روی <html> می‌نشیند:
+     • همهٔ بلورهای پشت‌صحنه به پس‌زمینهٔ تقریباً جامد تبدیل می‌شوند
+     • هاله‌های تزئینی blur-xl/2xl/3xl حذف می‌شوند (هیچ ورودی عملکردی نیستند)
+     • انیمیشن‌های بی‌وقفه خاموش می‌شوند
+     • بخش‌های درس با content-visibility تنبل‌رندر می‌شوند (اسکرول روان)
+   روی PC و دسکتاپ هیچ اثری ندارد — همان ظاهر کامل قبلی. */
+.perf-lite [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+}
+.perf-lite [class*="blur-xl"],
+.perf-lite [class*="blur-2xl"],
+.perf-lite [class*="blur-3xl"] {
+  display: none !important;
+}
+.perf-lite .lg-dock,
+.perf-lite .lg-panel,
+.perf-lite .lg-card,
+.perf-lite .feed-card,
+.perf-lite .lg-skeleton {
+  backdrop-filter: none !important;
+}
+.perf-lite .lg-dock {
+  background: rgb(250 250 248 / 0.98);
+  box-shadow: 0 12px 28px -14px rgb(10 22 17 / 0.38);
+}
+.perf-lite.dark .lg-dock {
+  background: rgb(24 33 29 / 0.98);
+  box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.55);
+}
+/* پنل جستجو (تنها مصرف‌کنندهٔ lg-panel) در اندروید — ماتِ تقریباً جامد.
+   بدون blur زنده، محتوای پشت صفحهٔ جستجو دیگر سِرنمی‌خورد و متن همیشه خوانا می‌ماند. */
+.perf-lite .lg-panel {
+  background: rgb(250 250 248 / 0.99);
+  box-shadow: 0 12px 28px -14px rgb(10 22 17 / 0.38);
+}
+.perf-lite.dark .lg-panel {
+  background: rgb(24 33 29 / 0.99);
+  box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.55);
+}
+/* نوار شمارندهٔ نتیجه داخل جستجو — روی پنل مات، ته‌رنگ یکدست به‌جای شیشه */
+.perf-lite .search-count-bar {
+  background: rgb(255 255 255 / 0.72);
+}
+.perf-lite.dark .search-count-bar {
+  background: rgb(255 255 255 / 0.06);
+}
+.perf-lite.theme-glass .bg-card,
+.perf-lite.theme-glass .bg-popover,
+.perf-lite.theme-glass .bg-sidebar {
+  backdrop-filter: none !important;
+  background-color: rgb(255 255 255 / 0.94) !important;
+}
+.perf-lite .progress-sheen {
+  animation: none;
+}
+.perf-lite .teach-body p {
+  line-height: 1.95;
+}
+/* رندر تنبل بخش‌های درس — خارج از دید رندر نمی‌شود؛ اسکرول محتوای بلند سبک می‌شود */
+.perf-lite [data-sec-id] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+.perf-lite * {
+  -webkit-tap-highlight-color: transparent;
+}

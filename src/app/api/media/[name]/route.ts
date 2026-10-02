@@ -3,12 +3,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { avatarsDir } from "@/lib/media-paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BASE = avatarsDir();
+const BASE = path.join(process.cwd(), "data", "uploads", "avatars");
 
 const EXT_TYPE: Record<string, string> = {
   png: "image/png",

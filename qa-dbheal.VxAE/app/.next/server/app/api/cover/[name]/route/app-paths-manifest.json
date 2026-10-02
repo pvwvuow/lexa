@@ -1,0 +1,3 @@
+{
+  "/api/cover/[name]/route": "app/api/cover/[name]/route.js"
+}

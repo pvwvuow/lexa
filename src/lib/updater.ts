@@ -11,9 +11,6 @@
  *        دوره‌ها → customCourses (استور zustand)
  *        دفترچه‌ها → آرایهٔ examPacks (ماژول law/examPacks)
  *   ۴) حذف بسته، هم از IndexedDB و هم از ادغام پاک می‌کند.
- *   ۵) دروس عمومی (بسته‌های kind=course) خودکار نصب می‌شوند — کاربر بدون نصب
- *      دستی، این دوره‌ها را در کتابخانهٔ خود دارد؛ حذف دستیِ کاربر محترم است و
- *      بستهٔ حذف‌شده دیگر خودکار برنمی‌گردد (تا نسخهٔ جدید منتشر شود).
  * ─────────────────────────────────────────────────────────────────────── */
 
 import type { Course } from "@/lib/law/types";
@@ -62,11 +59,6 @@ export interface UpdatePackMeta {
   file: string;
   /** اندازهٔ تقریبی به بایت (اختیاری، برای نمایش) */
   size?: number;
-  /**
-   * نصب خودکار؟ پیش‌فرض: بسته‌های kind=course خودکار نصب می‌شوند (دروس عمومی)
-   * مگر اینجا صریحاً false باشد. دفترچه‌های آزمون هرگز خودکار نصب نمی‌شوند.
-   */
-  auto?: boolean;
 }
 
 export interface UpdateManifest {
@@ -101,46 +93,6 @@ export const CONTENT_PACKS_STORE = "lexa-content-packs"; // استور IndexedDB
 const CONTENT_DB_NAME = "lexa-content-db";
 const LAST_CHECK_KEY = "lexa-updates-last-check";
 const MANIFEST_CACHE_KEY = "lexa-updates-manifest";
-/** بسته‌هایی که کاربر دستی حذف کرده — دیگر خودکار نصب نمی‌شوند */
-const PACKS_DISMISSED_KEY = "lexa-packs-dismissed-v1";
-
-/* ─── فهرست ردشده‌ها (حذف دستی بستهٔ خودکار) ─────────────────────────────── */
-
-function getDismissedPacks(): Set<string> {
-  try {
-    const raw = localStorage.getItem(PACKS_DISMISSED_KEY);
-    const arr = raw ? (JSON.parse(raw) as unknown) : [];
-    return new Set(Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
-/** کلید ردشدن — شناسه + نسخه؛ انتشار نسخهٔ جدید، نصب خودکار را دوباره فعال می‌کند */
-function dismissedKey(id: string, version: string): string {
-  return `${id}@${version}`;
-}
-
-function markPackDismissed(id: string, version: string): void {
-  try {
-    const s = getDismissedPacks();
-    s.add(dismissedKey(id, version));
-    localStorage.setItem(PACKS_DISMISSED_KEY, JSON.stringify([...s]));
-  } catch {}
-}
-
-function clearPackDismissed(id: string): void {
-  try {
-    const s = getDismissedPacks();
-    const kept = [...s].filter((k) => !k.startsWith(`${id}@`));
-    if (kept.length !== s.size) localStorage.setItem(PACKS_DISMISSED_KEY, JSON.stringify(kept));
-  } catch {}
-}
-
-/** آیا این بسته واجد نصب خودکار است؟ (فقط دوره‌های عمومی) */
-function isAutoInstallable(meta: UpdatePackMeta): boolean {
-  return meta.kind === "course" && meta.auto !== false;
-}
 
 /* ─── IndexedDB — لایهٔ ذخیرهٔ بسته‌ها ────────────────────────────────────── */
 
@@ -301,8 +253,6 @@ function unmergeFromApp(inst: InstalledPack) {
  * دانلود JSON → اعتبارسنجی → ذخیره در IndexedDB → ادغام در اپ
  */
 export async function installPack(meta: UpdatePackMeta): Promise<InstalledPack> {
-  // نصب صریح (دستی یا خودکار) — از فهرست ردشده‌ها خارج می‌شود
-  clearPackDismissed(meta.id);
   const file = await fetchJsonWithFallback<unknown>(meta.file);
   const payload = (file && typeof file === "object" && "payload" in (file as Record<string, unknown>))
     ? (file as { payload: unknown }).payload
@@ -339,34 +289,6 @@ export async function removePack(packId: string): Promise<void> {
     const mod = await import("@/lib/law/examPacks");
     mod.unregisterDynamicExamPack(inst.contentId);
   }
-  // بستهٔ دوره‌ای خودکارنصب‌شونده که کاربر دستی حذف کرد — دیگر خودکار برنگردد
-  if (inst && isAutoInstallable(inst.meta)) markPackDismissed(packId, inst.meta.version);
-}
-
-/**
- * نصب خودکار دروس عمومی: هر بستهٔ kind=course مانیفست که نصب نشده (یا نسخه‌اش
- * عقب است) در پس‌زمینه نصب می‌شود تا کتابخانهٔ همهٔ کاربران — حساب تازه یا قدیم —
- * بدون هیچ نصب دستی، این دوره‌ها را داشته باشد.
- */
-async function autoInstallCoursePacks(m: UpdateManifest): Promise<number> {
-  const dismissed = getDismissedPacks();
-  const installed = await listInstalledPacks();
-  const byId = new Map(installed.map((p) => [p.meta.id, p]));
-  let n = 0;
-  for (const meta of m.packs) {
-    if (!isAutoInstallable(meta)) continue;
-    if (dismissed.has(dismissedKey(meta.id, meta.version))) continue;
-    const inst = byId.get(meta.id);
-    // نصب‌شده و به‌روز → کاری نکن
-    if (inst && inst.meta.version === meta.version) continue;
-    try {
-      await installPack(meta);
-      n += 1;
-    } catch {
-      /* آفلاین یا منابع در دسترس نیست — در استارت بعدی دوباره تلاش می‌شود */
-    }
-  }
-  return n;
 }
 
 /** وضعیت هر بستهٔ مانیفست نسبت به نصب‌شده‌ها */
@@ -407,9 +329,53 @@ export async function installAllOutdated(statuses: PackStatus[]): Promise<number
 
 let started = false;
 
+/** کلید کلید‌زرخشک نصب خودکار — اگر «off» باشد رفتار قدیمی (نصب دستی) می‌ماند */
+const AUTO_INSTALL_KEY = "lexa-auto-packs";
+
+export function autoInstallEnabled(): boolean {
+  try {
+    return localStorage.getItem(AUTO_INSTALL_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setAutoInstallEnabled(v: boolean): void {
+  try {
+    localStorage.setItem(AUTO_INSTALL_KEY, v ? "on" : "off");
+  } catch { /* حالت خصوصی مرورگر */ }
+}
+
+/**
+ * بسته‌های تازه/عقب‌ماندهٔ مانیفست را بی‌صدا نصب می‌کند (کتابخانه/دفترچه‌ها
+ * بدون مراجعهٔ کاربر به تنظیمات، خودشان اضافه می‌شوند — رفتار پیش‌فرض از 0.9.0).
+ */
+async function autoInstallFromManifest(m: UpdateManifest): Promise<number> {
+  if (!autoInstallEnabled() || !m.packs.length) return 0;
+  const installed = await listInstalledPacks();
+  const byId = new Map(installed.map((p) => [p.meta.id, p]));
+  let n = 0;
+  for (const meta of m.packs) {
+    const cur = byId.get(meta.id);
+    if (cur && cur.meta.version === meta.version) continue; // نصب و به‌روز
+    try {
+      await installPack(meta);
+      n += 1;
+    } catch {
+      /* هر بسته مستقل است — خطای یکی بقیه را متوقف نمی‌کند */
+    }
+  }
+  if (n > 0) {
+    try {
+      window.dispatchEvent(new CustomEvent("lexa-packs-autoinstalled", { detail: { count: n } }));
+    } catch { /* بی‌اثر */ }
+  }
+  return n;
+}
+
 /**
  * در استارتاپ اپ: بسته‌های نصب‌شده را ادغام می‌کند و در پس‌زمینه مانیفست را
- * برای «نشان به‌روزرسانی موجود» کش می‌کند. چندبار صدا زدنش بی‌ضرر است.
+ * می‌گیرد و بسته‌های تازه/عقب‌مانده را «خودکار» نصب می‌کند. چندبار صدا زدنش بی‌ضرر است.
  */
 export async function initContentPacks(): Promise<void> {
   if (started || typeof window === "undefined") return;
@@ -423,9 +389,9 @@ export async function initContentPacks(): Promise<void> {
     /* IndexedDB در دسترس نیست — بی‌خیال */
   }
 
-  // ۲) بررسی بی‌صدای مانیفست برای کش و نشانگر تنظیمات + نصب خودکار دروس عمومی
+  // ۲) بررسی بی‌صدای مانیفست + نصب خودکار بسته‌های تازه (جزوه/تدریس بدون تنظیمات)
   void checkForUpdates()
-    .then((m) => autoInstallCoursePacks(m))
+    .then((m) => autoInstallFromManifest(m))
     .catch(() => {
       /* آفلاین یا مخزن در دسترس نیست — مشکلی نیست */
     });

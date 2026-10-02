@@ -57,6 +57,36 @@ if (!fs.existsSync(path.join(dir, "package.json")) || !fs.existsSync(path.join(d
 console.log(`اسکن «${dir}» …`);
 const t0 = Date.now();
 const files = await scanDir(dir);
+// ⚠️ entryهای symlink هرگز وارد مانیفست نشوند — نه محتوایی برای دانلود دارند
+// نه موتورهای قدیمی (0.6/0.7 روی دستگاه کاربر) تحملشان را دارند (باگ ویندوز).
+let droppedLinks = 0;
+for (const [p, e] of [...files]) {
+  if (String(e.h).startsWith("link:")) { files.delete(p); droppedLinks++; }
+}
+if (droppedLinks) console.log(`${droppedLinks} symlink از مانیفست حذف شد (دانلودشدنی نیستند)`);
+
+// دِدوپ هم‌هش‌ها — موتور قدیمی (0.6.0) bin استیج را با rename «مصرف» می‌کند؛
+// دو entry هم‌هش در یک دلتا = ENOENT روی rename دوم (کرش واقعی کاربران).
+// برای هر هش فقط مسیر کانونی می‌ماند (مسیرهای alias مثل segments/pages حذف می‌شوند؛
+// سرور استندالون در نبودشان همان مسیر را خودش رندر می‌کند — فقط کندتر در اولین کلیک).
+function aliasScore(p) {
+  let s = 0;
+  if (p.includes(".segments/")) s -= 10;
+  if (/\/pages\/(404|500)\.html$/.test(p)) s -= 5;
+  return s;
+}
+const byHash = new Map();
+for (const [p, e] of files) {
+  if (!byHash.has(e.h)) byHash.set(e.h, []);
+  byHash.get(e.h).push(p);
+}
+let droppedDup = 0;
+for (const [, paths] of byHash) {
+  if (paths.length < 2) continue;
+  paths.sort((a, b) => (aliasScore(b) - aliasScore(a)) || (a < b ? -1 : 1));
+  for (const p of paths.slice(1)) { files.delete(p); droppedDup++; }
+}
+if (droppedDup) console.log(`${droppedDup} entry هم‌هش (alias) از مانیفست حذف شد — ایمنی موتورهای قدیمی`);
 let totalBytes = 0;
 for (const e of files.values()) totalBytes += e.s;
 console.log(

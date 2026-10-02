@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/app/theme-provider";
 import { SwRegister } from "@/components/app/SwRegister";
+import { compatScript, errorOverlayScript, apkApiShimScript } from "@/lib/compat-script";
+
+const IS_APK = process.env.NEXT_PUBLIC_APP_MODE === "apk";
 
 export const metadata: Metadata = {
   title: "Lexa — استاد حقوقی هوشمند",
@@ -24,8 +27,15 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
+    // perf-lite: پروفایل کارایی موبایل — در APK بلورها/انیمیشن‌های سنگین خاموش
+    // می‌شوند تا اسکرول و رندر روی WebView گوشی سبک بماند (globals.css)
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={IS_APK ? "perf-lite" : undefined}>
       <head>
+        {/* پلی‌فیل‌های سازگاری — باید قبل از همهٔ چانک‌ها اجرا شود (WebView قدیمی) */}
+        <script dangerouslySetInnerHTML={{ __html: compatScript }} />
+        {/* اورلی خطا + شیم /api برای APK — کاربر devtools ندارد و سرور محلی 200+HTML برمی‌گرداند */}
+        {IS_APK ? <script dangerouslySetInnerHTML={{ __html: apkApiShimScript }} /> : null}
+        {IS_APK ? <script dangerouslySetInnerHTML={{ __html: errorOverlayScript }} /> : null}
         {/* اعمال زودهنگام تم (روز/شب/شیشه‌ای) قبل از اولین رنگ‌آمیزی — بدون فلش */}
         <script
           dangerouslySetInnerHTML={{

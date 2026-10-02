@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,91733,i=>{"use strict";i.i(99320);var s=i.i(42668);i.s(["builtinCourses",()=>s.builtinCourses])}]);

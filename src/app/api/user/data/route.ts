@@ -68,10 +68,12 @@ export async function GET() {
     let customCourses: unknown[] = [];
     let lastLocation: Record<string, unknown> = {};
     let streak: Record<string, unknown> = {};
+    let marks: Record<string, unknown> = {};
     if (blob) {
       try { customCourses = JSON.parse(blob.customCoursesJson); } catch {}
       try { lastLocation = JSON.parse(blob.lastLocationJson); } catch {}
       try { streak = JSON.parse(blob.streakJson); } catch {}
+      try { marks = JSON.parse(blob.marksJson); } catch {}
     }
 
     return NextResponse.json({
@@ -83,6 +85,7 @@ export async function GET() {
         lastLocation,
         streak,
         hiddenBuiltins: hiddenBuiltins.map((h) => h.courseId),
+        marks,
       },
     });
   } catch (e) {

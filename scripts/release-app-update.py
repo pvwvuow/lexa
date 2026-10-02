@@ -59,21 +59,14 @@ assets = [
     (f"{OUT_DIR}/Lexa-{VERSION}.AppImage", f"Lexa-{VERSION}-linux.AppImage", "application/x-appimage"),
     (f"{OUT_DIR}/Lexa-{VERSION}-win.zip", f"Lexa-{VERSION}-win.zip", "application/zip"),
     (f"{OUT_DIR}/checksums.txt", f"checksums-{VERSION}.txt", "text/plain"),
+    (f"download/android/Lexa-{VERSION}.apk", f"Lexa-{VERSION}-android.apk", "application/vnd.android.package-archive"),
 ]
-missing = [a[0] for a in assets if not os.path.exists(a[0])]
-# اسم فایل‌های بیلد ممکن است با نسخهٔ قدیمی ساخته شده باشد — جستجوی انعطافی
-if missing:
-    found = {}
-    for f in os.listdir(OUT_DIR):
-        if f.endswith(".AppImage"): found["appimage"] = f
-        if f.endswith("-win.zip"): found["zip"] = f
-    print(f"⚠ فایل‌های منتظر: {missing}")
-    print(f"  فایل‌های موجود در {OUT_DIR}: {found}")
-    print("  اگر بیلد جدید نسخهٔ جدید نیست، اول: bun run build && bun run electron:build")
-    if input("ادامه با همین فایل‌ها؟ (y/N) ").lower() != "y":
-        sys.exit(1)
-    if "appimage" in found: assets[0] = (f"{OUT_DIR}/{found['appimage']}", assets[0][1], assets[0][2])
-    if "zip" in found: assets[1] = (f"{OUT_DIR}/{found['zip']}", assets[1][1], assets[1][2])
+assets = [a for a in assets if os.path.exists(a[0])]
+missing_check = [a for a in assets if not os.path.exists(a[0])]
+if len(assets) < 3:
+    print("✗ فایل‌های کافی برای ریلیز نیست:", [a[0] for a in assets]); sys.exit(1)
+apk_present = any(a[1].endswith(".apk") for a in assets)
+print("assetها:", [a[1] for a in assets], "| APK:", apk_present)
 
 # ۳) مانیفست + استیج دلتا
 print("\n── ساخت مانیفست و دلتا ──")

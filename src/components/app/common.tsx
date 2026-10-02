@@ -76,7 +76,7 @@ export function LawBox({ laws }: { laws: LawRef[] }) {
             <LawBadge law={l} />
             <span className="text-[10px] font-medium tracking-wide text-muted-foreground/70">نصّ صریح قانون</span>
           </figcaption>
-          <blockquote className="law-text relative z-10 text-[19px] leading-[2.1] text-foreground/90">{l.text}</blockquote>
+          <blockquote className="law-text relative z-10 text-[15.5px] leading-[1.9] text-foreground/90 sm:text-[19px] sm:leading-[2.1]">{l.text}</blockquote>
         </figure>
       ))}
     </div>
@@ -327,17 +327,17 @@ export function TermCard({ item, index }: { item: TermItem; index?: number }) {
               <span className="-rotate-45 text-[11.5px] font-bold leading-none text-bronze">{fa(index)}</span>
             </span>
           )}
-          <h4 className="min-w-0 break-words font-display text-[17px] font-bold text-bronze">{item.term}</h4>
+          <h4 className="min-w-0 break-words font-display text-[15.5px] font-bold text-bronze sm:text-[17px]">{item.term}</h4>
         </div>
         <div aria-hidden className="ornament-rule mb-3 opacity-80" />
-        <p className="font-body text-[16px] leading-[1.9] text-foreground/95">{item.text}</p>
+        <p className="font-body text-[15px] leading-[1.85] text-foreground/95 sm:text-[16px] sm:leading-[1.9]">{item.text}</p>
         {item.subs && item.subs.length > 0 && (
           <ul className="mt-3 space-y-2.5 border-t border-dashed border-bronze/25 pt-3">
             {item.subs.map((sub, k) => (
               <li key={k} className="flex gap-2.5">
                 <span aria-hidden className="mt-[13px] h-1.5 w-1.5 shrink-0 rotate-45 rounded-[1.5px] bg-bronze/70" />
-                <span className="font-body min-w-0 flex-1 text-[15.5px] leading-[1.85] text-foreground/90">
-                  {sub.term && <strong className="font-display text-[15.5px] text-primary">{sub.term}: </strong>}
+                <span className="font-body min-w-0 flex-1 text-[14.5px] leading-[1.8] text-foreground/90 sm:text-[15.5px]">
+                  {sub.term && <strong className="font-display text-[14.5px] text-primary sm:text-[15.5px]">{sub.term}: </strong>}
                   {sub.text}
                 </span>
               </li>
@@ -363,10 +363,10 @@ export function StepList({ items }: { items: string[] }) {
             <span className="relative z-10 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-bronze/45 bg-card text-[13.5px] font-bold text-bronze shadow-card">
               {fa(i + 1)}
             </span>
-            <span className="font-body min-w-0 flex-1 rounded-xl border border-border bg-muted/45 px-4 py-3 text-[16px] leading-[1.85] transition-colors duration-150 hover:bg-accent/50">
+            <span className="font-body min-w-0 flex-1 rounded-xl border border-border bg-muted/45 px-3.5 py-2.5 text-[15px] leading-[1.8] transition-colors duration-150 hover:bg-accent/50 sm:px-4 sm:py-3 sm:text-[16px] sm:leading-[1.85]">
               {parsed.term ? (
                 <>
-                  <strong className="font-display text-[16px] text-primary">{parsed.term}: </strong>
+                  <strong className="font-display text-[15px] text-primary sm:text-[16px]">{parsed.term}: </strong>
                   {parsed.text}
                 </>
               ) : t}
@@ -383,7 +383,7 @@ function PlainList({ items }: { items: string[] }) {
   return (
     <ul className="space-y-2.5">
       {items.map((b, j) => (
-        <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-2 text-[16px] leading-[1.85] transition-colors hover:border-bronze/50 hover:bg-muted/40">
+        <li key={j} className="flex gap-2.5 rounded-xl border-e-2 border-transparent px-3 py-2 text-[15px] leading-[1.8] transition-colors hover:border-bronze/50 hover:bg-muted/40 sm:text-[16px] sm:leading-[1.85]">
           <span aria-hidden className="mt-[15px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] bg-bronze/80" />
           <span className="font-body">{b}</span>
         </li>
@@ -442,11 +442,11 @@ export function SummarySheet({ items }: { items: string[] }) {
               {i > 0 && <span aria-hidden className="absolute inset-x-1 top-0 h-px bg-gradient-to-l from-transparent via-border to-transparent" />}
               <div className="flex gap-4">
                 {/* عدد آویزان — بدون قاب، فقط رقم سایه‌دار */}
-                <span aria-hidden className="pointer-events-none w-8 shrink-0 select-none pt-1 text-center font-display text-[26px] font-bold leading-none text-bronze/35 transition-colors duration-200 group-hover:text-bronze/60" style={{ fontVariantNumeric: "normal" }}>
+                <span aria-hidden className="pointer-events-none w-8 shrink-0 select-none pt-1 text-center font-display text-[22px] font-bold leading-none text-bronze/35 transition-colors duration-200 group-hover:text-bronze/60 sm:text-[26px]" style={{ fontVariantNumeric: "normal" }}>
                   {fa(i + 1)}
                 </span>
                 <div className="min-w-0 flex-1 pt-0.5">
-                  {it.term && <p className="mb-1 font-display text-[16.5px] font-bold tracking-wide text-primary">{it.term}</p>}
+                  {it.term && <p className="mb-1 font-display text-[15px] font-bold tracking-wide text-primary sm:text-[16.5px]">{it.term}</p>}
                   {hidden ? (
                     <button
                       onClick={() => reveal(i)}
@@ -457,7 +457,7 @@ export function SummarySheet({ items }: { items: string[] }) {
                       <span className="text-[13px] font-medium text-bronze">جمله را از حفظ بگو، بعد برای مقایسه بازش کن</span>
                     </button>
                   ) : (
-                    <p className={`font-body whitespace-pre-line text-[16.5px] leading-[1.9] text-foreground/95 transition-opacity duration-300`}>{it.text}</p>
+                    <p className={`font-body whitespace-pre-line text-[15px] leading-[1.8] text-foreground/95 transition-opacity duration-300 sm:text-[16.5px] sm:leading-[1.9]`}>{it.text}</p>
                   )}
                 </div>
               </div>
@@ -501,7 +501,7 @@ export function BodyRich({ text }: { text: string }) {
           const flush = (key: string) => {
             if (buf.length)
               rendered.push(
-                <p key={key} className="whitespace-pre-line text-[20px] leading-[2.15] text-foreground/95">
+                <p key={key} className="whitespace-pre-line text-[15.5px] leading-[1.9] sm:text-[18px] sm:leading-[2.05] md:text-[20px] md:leading-[2.15] text-foreground/95">
                   {buf.join("\n")}
                 </p>,
               );
@@ -576,14 +576,14 @@ export function KeyNotesSheet({ items }: { items: string[] }) {
                 <span aria-hidden className={`mt-[11px] h-2 w-2 shrink-0 rotate-45 rounded-[2px] ${acc.dot}`} />
                 <div className="min-w-0 flex-1">
                   {it.term && (
-                    <p className={`font-display mb-0.5 text-[15.5px] font-bold tracking-wide ${acc.term}`}>{it.term}</p>
+                    <p className={`font-display mb-0.5 text-[14.5px] font-bold tracking-wide ${acc.term} sm:text-[15.5px]`}>{it.term}</p>
                   )}
-                  <p className="whitespace-pre-line font-body text-[16px] leading-[1.85] text-foreground/95">{it.text}</p>
+                  <p className="whitespace-pre-line font-body text-[14.5px] leading-[1.8] text-foreground/95 sm:text-[16px] sm:leading-[1.85]">{it.text}</p>
                   {it.subs?.map((sub, k) => (
-                    <p key={k} className="mt-1 flex gap-2 ps-4 text-[17px] leading-[1.9] text-muted-foreground">
+                    <p key={k} className="mt-1 flex gap-2 ps-4 text-[15px] leading-[1.8] text-muted-foreground sm:text-[17px]">
                       <span aria-hidden className={`mt-[13px] h-1.5 w-1.5 shrink-0 rotate-45 rounded-[1.5px] ${acc.dot} opacity-70`} />
                       <span>
-                        {sub.term && <strong className="font-display text-[15px]">{sub.term}: </strong>}
+                        {sub.term && <strong className="font-display text-[14px] sm:text-[15px]">{sub.term}: </strong>}
                         {sub.text}
                       </span>
                     </p>
@@ -665,7 +665,7 @@ export function ImportantNote({ variant = "warn", label, children }: {
           <p className="font-display mb-0.5 text-[12px] font-extrabold tracking-wide" style={{ color: cvar }}>
             {label ?? st.fallbackLabel}
           </p>
-          <div className="whitespace-pre-line font-body text-[16px] leading-[1.85] text-foreground/95">{children}</div>
+          <div className="whitespace-pre-line font-body text-[15px] leading-[1.8] text-foreground/95 sm:text-[16px] sm:leading-[1.85]">{children}</div>
         </div>
       </div>
     </aside>
@@ -720,15 +720,18 @@ export function SectionBody({ s, decorativeHeadless }: { s: LessonSection; decor
       {s.bullets && s.bullets.length > 0 && <BulletsZone section={s} />}
 
       {s.table && (
+        // روی موبایل جدول به‌جای بریده‌شدن، اسکرول افقی می‌گیرد (رفع المان ناجور اندروید)
         <div className="mt-4 overflow-hidden rounded-xl border border-border shadow-card">
-          <table className="w-full min-w-[520px] text-sm">
-            <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
-            <tbody>
-              {s.table.rows.map((r, k) => (
-                <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead><tr className="bg-primary text-primary-foreground">{s.table.headers.map((h, k) => <th key={k} className="px-4 py-3 text-start font-display text-[13px] font-semibold">{h}</th>)}</tr></thead>
+              <tbody>
+                {s.table.rows.map((r, k) => (
+                  <tr key={k} className="border-t border-border odd:bg-muted/35 hover:bg-accent/60">{r.map((c, m) => <td key={m} className={`px-4 py-3 align-top leading-[1.85] ${m === 0 ? "font-semibold text-primary" : ""}`}>{c}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

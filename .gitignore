@@ -78,13 +78,6 @@ download/electron/builder-debug.yml
 download/electron/latest-linux.yml
 download/electron/latest.yml
 electron/build/icon.ico
-
-# ─── حریم خصوصی (۱۱ مهر ۱۴۰۵): دادهٔ کاربران هرگز در مخزن عمومی ───
-# مخزن عمومی فقط کد؛ داده (db/بکاپ/آپلودها) در مخزن خصوصی lexa-data
-# بکاپ دوره‌ای خودکار: data-guard → remote «backup»
-/db/
-/backups/
-/data/uploads/
-.env
-.env.*
-!/public/texts/
+download/android/*.apk
+download/electron/*.apk
+download/electron/squashfs-root/

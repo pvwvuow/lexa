@@ -230,6 +230,69 @@ const up5 = createUpdater(common); // فید سالم برگشت
 const r2 = await up5.apply(() => {});
 assert(r2.ok === true && r2.version === "0.5.1", "تلاش بعدی موفق (resume)");
 
+/* ۷) هم‌هش‌ها — کرش واقعی کاربران 0.6.0 (ENOENT روی rename دوم) */
+console.log("\n[۷] دو مسیر هم‌هش در یک دلتا — apply باید سبز شود (copyFile)");
+const NEXT2 = path.join(TMP, "next2");
+await fsp.cp(NEXT, NEXT2, { recursive: true, verbatimSymlinks: true });
+await fsp.writeFile(
+  path.join(NEXT2, "package.json"),
+  JSON.stringify({ name: "lexa", version: "0.5.2" }),
+);
+const BM = "// buildManifest v0.5.2 — " + "b".repeat(180) + "\n";
+const BID = "QAdupHashBuildId01";
+for (const rel of [
+  `.next/standalone/.next/static/${BID}/_buildManifest.js`,
+  `.next/standalone/.next/static/static/${BID}/_buildManifest.js`, // مسیر آشغال همانند 0.8/0.9.0
+]) {
+  await fsp.mkdir(path.join(NEXT2, rel, ".."), { recursive: true });
+  await fsp.writeFile(path.join(NEXT2, rel), BM);
+}
+const FEED2 = path.join(TMP, "updates2", "app");
+await fsp.mkdir(path.join(FEED2, "f"), { recursive: true });
+const files2 = await scanDir(NEXT2);
+const manifest2 = manifestFromScan(files2, {
+  version: "0.5.2",
+  tag: "app-v0.5.2",
+  notes: "QA هم‌هش",
+  generatedAt: new Date().toISOString(),
+  history: [],
+});
+// تزریق entry آشغال با همان هش (شبیه‌سازی مانیفست‌های تولیدشده قبل از دِدوپ)
+const realPath = `.next/standalone/.next/static/${BID}/_buildManifest.js`;
+const junkPath = `.next/standalone/.next/static/static/${BID}/_buildManifest.js`;
+manifest2.files[junkPath] = [...manifest2.files[realPath]];
+await fsp.writeFile(path.join(FEED2, "manifest.json"), JSON.stringify(manifest2));
+for (const [p, e] of files2) {
+  if (String(e.h).startsWith("link:")) continue;
+  const dest = path.join(FEED2, "f", e.h.slice(0, 12) + ".bin");
+  if (!fs.existsSync(dest)) await fsp.copyFile(path.join(NEXT2, p), dest);
+}
+const serve2 = await new Promise((resolve) => {
+  const s = http.createServer(async (req, res) => {
+    // موتور همیشه «updates/app/…» را می‌چسباند — ما به updates2/app نگاشت می‌کنیم
+    const rel = decodeURIComponent((req.url || "").split("?")[0]).replace(/^\/+/, "").replace(/^updates\/app\//, "updates2/app/");
+    try { res.writeHead(200); res.end(await fsp.readFile(path.join(TMP, rel))); }
+    catch { res.writeHead(404); res.end("nf"); }
+  });
+  s.listen(0, "127.0.0.1", () => resolve({ s, port: s.address().port }));
+});
+const UD2 = path.join(TMP, "userdata2");
+const up6 = createUpdater({
+  baseDir: NEXT2,
+  userData: UD2,
+  pkgVersion: "0.5.1",
+  env: { LEXA_UPDATE_FEED: `http://127.0.0.1:${serve2.port}` },
+  log: () => {},
+});
+const r3 = await up6.apply(() => {});
+assert(r3.ok === true && r3.version === "0.5.2", "apply با entryهای هم‌هش موفق شد", JSON.stringify(r3));
+const ad2 = path.join(UD2, "appdata");
+const cReal = await fsp.readFile(path.join(ad2, realPath), "utf8");
+const cJunk = await fsp.readFile(path.join(ad2, junkPath), "utf8");
+assert(cReal === BM && cJunk === BM, "هر دو مسیر هم‌هش درست نوشته شدند");
+assert(!(fs.existsSync(path.join(ad2, ".staging"))), "staging پاک شد (سناریوی ۷)");
+serve2.s.close();
+
 srv.close();
 console.log("\n" + "─".repeat(60));
 console.log(`نتیجه: ${passed} ✓ / ${failed} ✗`);

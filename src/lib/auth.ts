@@ -1,7 +1,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
-import { db } from "@/lib/db";
+import { db, dbReady } from "@/lib/db";
 import type { PublicUser } from "@/lib/auth-shared";
 
 const scryptAsync = promisify(scrypt);
@@ -49,6 +49,7 @@ export interface SessionUser extends PublicUser {
 
 /** خواندن کاربر جاری از کوکی؛ در صورت یافتن، lastSeenAt را به‌روز می‌کند */
 export async function getSessionUser(): Promise<SessionUser | null> {
+  await dbReady(); // خودترمیمی اسکیما — اگر دیتابیس بی‌جدول باشد اول ساخته می‌شود
   const jar = await cookies();
   const raw = jar.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
@@ -104,6 +105,7 @@ let adminEnsured = false;
  */
 export async function ensureAdmin(): Promise<void> {
   if (adminEnsured) return;
+  await dbReady(); // خودترمیمی اسکیما — پیش از هر پرس‌وجوی حساب مدیر
   const envU = process.env.ADMIN_USERNAME?.trim();
   const envP = process.env.ADMIN_PASSWORD;
   const username = envU && envU.length >= 3 ? envU : "admin";

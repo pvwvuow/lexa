@@ -18,6 +18,16 @@ export interface SyncLessonProgress {
   markedReview?: boolean;
 }
 
+/** نشان (هایلایت) یک کاربر روی یک تکه‌متن از یک بخش درس */
+export interface LessonMarkSync {
+  id: string;
+  secId: string; // شناسهٔ بخش درس
+  text: string; // متن نرمال‌شدهٔ انتخاب‌شده
+  color: string; // کلید رنگ: yellow | green | blue | pink | orange
+  occ?: number; // اندیس وقوع در بخش (برای تکرارِ عبارت)
+  createdAt: number;
+}
+
 export interface SyncSnapshot {
   /** شناسهٔ جلسه → وضعیت */
   progress?: Record<string, SyncLessonProgress>;
@@ -34,6 +44,8 @@ export interface SyncSnapshot {
   streak?: Record<string, unknown>;
   /** دوره‌های داخلی که کاربر از کتابخانه حذف کرده — فقط افزودنی */
   hiddenBuiltins?: string[];
+  /** نشان‌های درس‌ها — شناسهٔ جلسه → فهرست نشان‌ها (ادغام بر اساس id) */
+  marks?: Record<string, LessonMarkSync[]>;
 }
 
 // ─── قواعد نام کاربری و رمز عبور ──────────────────────────────────────────────

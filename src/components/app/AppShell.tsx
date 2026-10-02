@@ -27,6 +27,7 @@ import { ImportView } from "./ImportView";
 import { CourseIcon } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
 import { AccountArea, SyncHint } from "./AccountArea";
+import { useCloudAutoSync } from "@/lib/cloud-sync";
 import { AdminView } from "./AdminView";
 import { TeachersView } from "./TeachersView";
 import { StudioView } from "./StudioView";
@@ -39,7 +40,8 @@ import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
-import { MobileMenuDrawer } from "./MobileMenuDrawer";
+import { IS_APK } from "@/lib/app-mode";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type NavMode = "expanded" | "rail";
 
@@ -79,10 +81,11 @@ function SideItem({
   );
 }
 
-function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; active?: boolean; onClick: () => void }) {
+function DockBtn({ icon: Icon, label, active, onClick, title }: { icon: React.ComponentType<{ className?: string }>; label: string; active?: boolean; onClick: () => void; title?: string }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       aria-current={active ? "page" : undefined}
       className={`relative flex flex-col items-center gap-0.5 rounded-[24px] border px-2 py-2 text-[10px] font-semibold transition-all duration-200 ${
         active
@@ -135,9 +138,24 @@ function lessonPctOf(course: Course, progress: Record<string, { status?: string 
   return pct(done, Math.max(1, flat.length));
 }
 
+/** بخش‌های سرورمحور در نسخهٔ اندروید (اکسپورت ایستا) در دسترس نیستند */
+function ApkUnavailable({ title }: { title: string }) {
+  return (
+    <div className="mx-auto max-w-xl px-6 py-16 text-center">
+      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-bronze/10 text-2xl">📱</div>
+      <h1 className="mb-2 text-lg font-bold">{title}</h1>
+      <p className="text-sm leading-loose text-muted-foreground">
+        این بخش به سرور مرکزی Lexa وصل است و در نسخهٔ اندروید فعلاً در دسترس نیست.
+        برای شبکهٔ اساتید و کتابخانهٔ عمومی، نسخهٔ وب یا دسکتاپ را باز کن.
+      </p>
+    </div>
+  );
+}
+
 export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
+  useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
   const online = useOnlineStatus();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
@@ -182,6 +200,64 @@ export function AppShell() {
   // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [drawerStudy, setDrawerStudy] = React.useState(false);
+  // تصویر لحظه‌ای باز/بسته بودن منو برای شنونده‌های لمسی (بدون وابستگی به effect)
+  const drawerOpenRef = React.useRef(false);
+  React.useEffect(() => { drawerOpenRef.current = drawerOpen; }, [drawerOpen]);
+
+  // ── سوایپ منوی کشویی (موبایل): کشیدن از لبهٔ راست صفحه به سمت چپ منو را باز
+  //    می‌کند و کشیدن به سمت راست (وقتی منو باز است) آن را می‌بندد. ──
+  React.useEffect(() => {
+    const EDGE = 44;   // نوار لبهٔ راست برای شروع سوایپِ بازکردن
+    const ZONE = 390;  // ناحیهٔ منو برای سوایپِ بستن
+    const DIST = 64;   // حداقل جابه‌جایی افقی معتبر
+    let x0 = 0, y0 = 0, t0 = 0;
+
+    const inScrollableX = (el: EventTarget | null): boolean => {
+      let n: HTMLElement | null = el instanceof Element ? (el as HTMLElement) : null;
+      let hops = 0;
+      while (n && hops++ < 6) {
+        const ox = window.getComputedStyle(n).overflowX;
+        if (ox === "auto" || ox === "scroll") return true;
+        n = n.parentElement;
+      }
+      return false;
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) { x0 = 0; return; }
+      const t = e.touches[0];
+      x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!x0) return;
+      const sx = x0, sy = y0, st = t0;
+      x0 = 0; y0 = 0;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      // باید افقیِ محکم و کوتاه باشد تا با اسکرول عمودی و لمس‌های عادی قاطی نشود
+      if (Math.abs(dx) < DIST || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+      if (Date.now() - st > 900) return;
+      if (window.innerWidth >= 1024) return; // دسکتاپ: سایدبار همیشه هست
+      if (!drawerOpenRef.current) {
+        // باز کردن: شروع از لبهٔ راست و کشیدن به چپ — روی نوارهای اسکرول‌شوندهٔ افقی نه
+        if (dx < 0 && sx >= window.innerWidth - EDGE && !inScrollableX(e.target)) setDrawerOpen(true);
+      } else {
+        // بستن: کشیدن به راست داخل ناحیهٔ منو
+        if (dx > 0 && sx >= window.innerWidth - ZONE) setDrawerOpen(false);
+      }
+    };
+
+    const onCancel = () => { x0 = 0; };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchend", onEnd, { passive: true });
+    document.addEventListener("touchcancel", onCancel, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onCancel);
+    };
+  }, []);
 
   React.useEffect(() => {
     setMounted(true);
@@ -196,6 +272,7 @@ export function AppShell() {
   React.useEffect(() => {
     if (!mounted) return;
     setMode((m) => (isSubPage ? "rail" : m === "rail" && (window.localStorage.getItem("lexa-nav") ?? window.localStorage.getItem("hh-nav")) !== "rail" ? "expanded" : m));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubPage, mounted]);
 
   function expandNav() {
@@ -324,12 +401,12 @@ export function AppShell() {
         {/* تست و آزمون — یک ورود یکتا: تست از کتابخانه + دفترچه‌های آماده در دو تب داخل همان صفحه */}
         <SideItem icon={NotebookTabs} label="تست و آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
-        {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
+        {/* کتابخانهٔ عمومی — دوره‌های آماده (آفلاین) + مطالب اساتید — در اندروید هم فعال */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
-        <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+        {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
         {/* افزودن کتاب فقط برای مدیر */}
         {auth.user?.role === "admin" && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
@@ -412,7 +489,8 @@ export function AppShell() {
                 <div className={searchDocked ? "hidden" : "md:hidden"}>
                   <GlobalSearch courses={courses} variant="icon" />
                 </div>
-                <FeedBell />
+                {!IS_APK && <FeedBell />}
+                {/* حساب — در APK هم دیده می‌شود (حساب ابری) تا ثبت‌نام/ورود موبایل کار کند */}
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
                 </span>
@@ -460,15 +538,15 @@ export function AppShell() {
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
-          {route.view === "import" && <ImportView />}
-          {route.view === "teachers" && <TeachersView />}
-          {route.view === "studio" && <StudioView />}
-          {route.view === "write" && <StudioWriteView kind={route.kind} id={route.id} />}
-          {route.view === "post" && <PostView id={route.id} />}
+          {route.view === "import" && (IS_APK ? <ApkUnavailable title="افزودن کتاب" /> : <ImportView />)}
+          {route.view === "teachers" && (IS_APK ? <ApkUnavailable title="اساتید و مقالات" /> : <TeachersView />)}
+          {route.view === "studio" && (IS_APK ? <ApkUnavailable title="اتاق استاد" /> : <StudioView />)}
+          {route.view === "write" && (IS_APK ? <ApkUnavailable title="نوشتن مطلب" /> : <StudioWriteView kind={route.kind} id={route.id} />)}
+          {route.view === "post" && (IS_APK ? <ApkUnavailable title="مطلب استاد" /> : <PostView id={route.id} />)}
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
-          {route.view === "teacher" && <TeacherProfileView id={route.id} />}
-          {route.view === "admin" && <AdminView />}
+          {route.view === "teacher" && (IS_APK ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
+          {route.view === "admin" && (IS_APK ? <ApkUnavailable title="پنل مدیریت" /> : <AdminView />)}
         </main>
 
         {/* فوتر دسکتاپ */}
@@ -489,16 +567,19 @@ export function AppShell() {
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage && current !== "quiz"} onClick={dockTadriss} />
             <DockBtn icon={NotebookTabs} label="آزمون" active={current === "quiz"} onClick={() => go({ view: "quiz" })} />
             <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
-            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
+            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} title="منو — با کشیدن از لبهٔ راست صفحه هم باز می‌شود" />
           </div>
         </nav>
 
-        {/* ═══ منوی کشویی موبایل — باز شدن فوری + درگ زندهٔ ۱:۱ ═══ */}
-        <MobileMenuDrawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <div className="flex items-center gap-2.5 pb-3 text-base font-semibold">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
-            منوی Lexa
-          </div>
+        {/* ═══ منوی کشویی موبایل — کامل معادل سایدبار دسکتاپ ═══ */}
+        <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <SheetContent side="right" className="flex w-[290px] flex-col gap-0 overflow-y-auto p-4 sm:w-[320px]">
+            <SheetHeader className="p-0 pb-3 text-start">
+              <SheetTitle className="flex items-center gap-2.5 text-base">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
+                منوی Lexa
+              </SheetTitle>
+            </SheetHeader>
             <div className="flex flex-1 flex-col gap-1">
               <SideItem icon={Home} label="خانه" rail={false} active={current === "home"} onClick={() => go({ view: "home" })} />
               <SideItem icon={ListTree} label="فهرست مطالعه" rail={false} active={current === "study"} onClick={() => go({ view: "study" })} />
@@ -535,7 +616,7 @@ export function AppShell() {
               <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
-              <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />
+              {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
               {auth.user?.role === "teacher" && (
                 <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}
@@ -554,7 +635,11 @@ export function AppShell() {
                 <SyncHint collapsed />
               </div>
             </div>
-        </MobileMenuDrawer>
+            <p className="mt-1.5 text-center text-[10px] leading-relaxed text-muted-foreground/60">
+              راه دیگر: کشیدن از لبهٔ راست صفحه به چپ منو را باز می‌کند و کشیدن به راست، می‌بندد.
+            </p>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ import { ensureLessonsContent } from "@/lib/law/texts";
 import type { Lesson } from "@/lib/law/types";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.9.3";
+export const DESIGN_VERSION = "1.9.9";
 
 const DESIGN_META_KEY = "lexa-design-meta-v1";
 /** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی حفظ شده است */
@@ -583,6 +583,9 @@ async function runAutoUpdate(): Promise<void> {
 /** شروع موتور به‌روزرسانی خودکار — یک بار در سطح برنامه (SwRegister) */
 export function startOfflineAutoUpdate(): void {
   if (typeof window === "undefined" || autoUpdateStarted) return;
+  // ── APK: زیرساخت SW/بستهٔ طراحی معنا ندارد — همه‌چیز لوکال است؛ آپدیت
+  // محتوای اضافی از مسیر بسته‌های محتوایی (initContentPacks) انجام می‌شود.
+  if (process.env.NEXT_PUBLIC_APP_MODE === "apk") return;
   autoUpdateStarted = true;
   window.setTimeout(() => void runAutoUpdate(), 10_000);
   window.addEventListener("online", () => void runAutoUpdate());
@@ -596,6 +599,24 @@ export function useServiceWorkerRegistration() {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
+    // ── APK: سرویس‌ورکر ممنوع ──
+    // در APK همهٔ assetها لوکال اند؛ SW نه سودی دارد نه ریسکی جز سرویس‌کردن
+    // محتوای کهنهٔ نسخهٔ قبلی (Webview data بعد از نصب APK جدید باقی می‌ماند و
+    // HTML/چانک قدیمی از کش روی APK جدید سرو می‌شود → کرش/رفتار عجیب).
+    // هر SW/کش باقی‌مانده از نسخه‌های قبل هم پاک می‌شود.
+    if (process.env.NEXT_PUBLIC_APP_MODE === "apk") {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => Promise.all(regs.map((r) => r.unregister().catch(() => {}))))
+        .catch(() => {});
+      if (typeof caches !== "undefined") {
+        caches
+          .keys()
+          .then((keys) => Promise.all(keys.map((k) => caches.delete(k).catch(() => {}))))
+          .catch(() => {});
+      }
+      return;
+    }
     const url = "/sw.js";
     if (navigator.serviceWorker.controller?.scriptURL.endsWith(url)) return;
     navigator.serviceWorker.register(url).catch(() => {

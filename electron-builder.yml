@@ -25,19 +25,12 @@ files:
   # متون درس‌ها داخل نصب‌کنندهٔ دسکتاپ نیست — در همان لحظهٔ باز کردن فصل
   # از گیت‌هاب (jsDelivr/raw) گرفته و در IndexedDB کش می‌شوند (src/lib/law/texts.ts)
   - "!.next/standalone/public/texts/**"
-  # دادهٔ واقعی هرگز داخل نصب‌کننده نیست (حریم خصوصی):
-  #   دیتابیس/آپلودها/پشتیبان‌ها/‏.env ماشین توسعه — دیتابیسِ هر کاربر
-  # در userData ساخته می‌شود (main-core.js ← seed.db فقط-اسکیما)
+  # ⚠️ امنیت داده — هرگز در پکیج عمومی نباید بیایند (دیتابیس واقعی/بکاپ/محیط)
   - "!.next/standalone/db/**"
-  - "!.next/standalone/data/uploads/**"
   - "!.next/standalone/backups/**"
-  - "!.next/standalone/.env"
-  - "!.next/standalone/.env.*"
-  # دفاع دوم: هرگز هیچ دایرکتوری غیرضروری مخزن داخل باندل نرود
-  - "!.next/standalone/{download,src,scripts,qa,shots,tests,skills,tool-results,upload,updates,assets,db,backups,prisma}/**"
-  - "!.next/standalone/{electron-builder.yml,supabase-schema.sql}"
-  # قالب دیتابیس خالی برای ساخت دیتابیسِ هر کاربر در بار اول
-  - "electron/seed.db"
+  - "!.next/standalone/data/**"
+  - "!.next/standalone/upload/**"
+  - "!.next/standalone/.env*"
   - "!download/**"
   - "!qa/**"
   - "!shots/**"

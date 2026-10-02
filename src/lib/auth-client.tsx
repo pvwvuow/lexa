@@ -99,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastLocation: state.lastLocation as unknown as Record<string, string>,
         streak: state.streak,
         hiddenBuiltins: state.hiddenBuiltins,
+        marks: state.marks as never,
       });
       const res = await fetch("/api/user/sync", {
         method: "POST",
@@ -246,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return { ok: false, error: data.error ?? "خطای ناشناخته." };
       } catch {
-        return { ok: false, error: "ارتباط با سرور برقرار نشد." };
+        return { ok: false, error: "ارتباط با سرور برنامه برقرار نشد — چند لحظه بعد دوباره تلاش کن. (مطالعه و پیشرفتِ آفلاین کار می‌کند و بعداً سینک می‌شود.)" };
       }
     },
     [afterAuth]
@@ -265,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return { ok: false, error: data.error ?? "خطای ناشناخته." };
       } catch {
-        return { ok: false, error: "ارتباط با سرور برقرار نشد." };
+        return { ok: false, error: "ارتباط با سرور برنامه برقرار نشد — چند لحظه بعد دوباره تلاش کن. (مطالعه و پیشرفتِ آفلاین کار می‌کند و بعداً سینک می‌شود.)" };
       }
     },
     [afterAuth]
@@ -289,8 +290,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hiddenBuiltins: [],
       notes: {},
       lastLocation: {},
+      examAttempts: {},
+      marks: {},
     });
     try { localStorage.removeItem("hoh_weak_topics"); } catch {}
+    try { localStorage.removeItem("lexa-law-marks"); } catch {}
     useApp.getState().setTBooks([]);
     userRef.current = null;
     setUser(null);
@@ -313,7 +317,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         return { ok: true };
       } catch {
-        return { ok: false, error: "ارتباط با سرور برقرار نشد." };
+        return { ok: false, error: "ارتباط با سرور برنامه برقرار نشد — چند لحظه بعد دوباره تلاش کن. (مطالعه و پیشرفتِ آفلاین کار می‌کند و بعداً سینک می‌شود.)" };
       }
     },
     [],

@@ -1,0 +1,670 @@
+/* ─── Lexa — موتور به‌روزرسانی دلتای برنامه (فایل‌به‌فایل) ───────────────────
+ *
+ * هدف: کاربر به‌جای دانلود کل ۱۷۰ مگابایت، فقط فایل‌های تغییریافته را می‌گیرد.
+ *
+ * معماری:
+ *   • مانیفست هر نسخه در مخزن: updates/app/manifest.json
+ *     { schema, version, tag, generatedAt, notes, history, files: { relPath: [sha256, size] } }
+ *   • محتوای فایل‌های تغییریافته، به‌صورت «محو content-addressed» در مخزن:
+ *     updates/app/f/<sha256 اول ۱۲ کاراکتر>.bin  ← تغییرناپذیر و قابل کش CDN
+ *   • منبع دانلود: اول jsDelivr (تگ ایمیبل → بدون مشکل کش) بعد raw.githubusercontent
+ *   • اعمال آپدیت روی «لایهٔ appdata» (userData/appdata) — نه روی مسیر فقط-خواندنی
+ *     AppImage؛ بوت‌استرپ main.js نسخهٔ appdata را ترجیح می‌دهد.
+ *   • این ماژول «خالص» است (فقط Node — بدون electron) تا خارج از الکترون هم
+ *     قابل تست باشد؛ main-core فقط IPC و رویدادها را به آن وصل می‌کند.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+"use strict";
+
+const fs = require("fs");
+const fsp = fs.promises;
+const path = require("path");
+const crypto = require("crypto");
+
+/* ─── ثابت‌ها ─────────────────────────────────────────────────────────────── */
+
+const REPO = "pvwvuow/lexa";
+const FEED_DIR = "updates/app";
+
+/** مهلت دریافت مانیفست (ms) */
+const MANIFEST_TIMEOUT = 15_000;
+/** مهلت دریافت هر فایل (ms) */
+const FILE_TIMEOUT = 45_000;
+/** سقف حجم هر فایل — ۲۴ مگابایت (محافظت از حافظه؛ بزرگ‌ترین فایل بیلد ~۱۷MB) */
+const MAX_FILE_BYTES = 24 * 1024 * 1024;
+/** تعداد دانلود موازی */
+const DL_CONCURRENCY = 3;
+
+/** چیزهایی که نه در مانیفست می‌آیند و نه در کپی پایه — باید همه‌جا یکسان باشد */
+const EXCLUDES = [
+  /^\.next\/standalone\/\.next\/cache\//,
+  /(^|\/)node_modules\/\.cache\//,
+  /^public\/texts\//, // متون برخط — هرگز داخل باندل نیستند
+  /^\.next\/standalone\/\.next\/static\/static\//, // آشغال cp-داخل-پوشهٔ موجود — هرگز سرو نمی‌شود
+  /^\.next\/standalone\/public\/public\//, // آشغال مشابه برای public
+  /^\.lexa-install\.json$/,
+  /^\.staging/,
+  /^\.base-incomplete$/,
+  /^\.commit-in-progress$/,
+  /^node_modules\//, // node_modules ریشه (فقط در محیط توسعه وجود دارد)
+  /(^|\/)\.DS_Store$/,
+  /(^|\/)Thumbs\.db$/,
+];
+
+function excluded(rel) {
+  return EXCLUDES.some((re) => re.test(rel));
+}
+
+/* ─── ابزارهای عمومی ──────────────────────────────────────────────────────── */
+
+function sha256File(p) {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash("sha256");
+    const s = fs.createReadStream(p);
+    s.on("data", (d) => h.update(d));
+    s.on("end", () => resolve(h.digest("hex")));
+    s.on("error", reject);
+  });
+}
+
+/** ۱۲ کاراکتر اول هش — نام فایل در مخزن */
+function h12(hash) {
+  return String(hash).slice(0, 12);
+}
+
+/** مقایسهٔ semver ساده — مثبت یعنی a جدیدتر */
+function cmpVersion(a, b) {
+  const pa = String(a || "0").split("-")[0].split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b || "0").split("-")[0].split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1;
+  }
+  return 0;
+}
+
+/** اسکن یک پوشهٔ اپ → Map از relPath به { h, s } (h برای سیم‌لینک: "link:target") */
+async function scanDir(root) {
+  const out = new Map();
+  async function walk(dir, rel) {
+    const items = await fsp.readdir(dir, { withFileTypes: true });
+    for (const it of items) {
+      const r = rel ? rel + "/" + it.name : it.name;
+      if (excluded(r)) continue;
+      const p = path.join(dir, it.name);
+      if (it.isSymbolicLink()) {
+        const t = await fsp.readlink(p);
+        out.set(r, { h: "link:" + t, s: 0 });
+      } else if (it.isDirectory()) {
+        await walk(p, r);
+      } else if (it.isFile()) {
+        const [h, st] = await Promise.all([sha256File(p), fsp.stat(p)]);
+        out.set(r, { h, s: st.size });
+      }
+    }
+  }
+  await walk(root, "");
+  return out;
+}
+
+/** ساخت شیء مانیفست از خروجی scanDir */
+function manifestFromScan(files, { version, tag, notes = "", generatedAt, history = [] }) {
+  const o = {};
+  for (const [p, e] of files) o[p] = [e.h, e.s];
+  return {
+    schema: 1,
+    version: String(version),
+    tag: String(tag || ""),
+    generatedAt: generatedAt || new Date().toISOString(),
+    notes,
+    history,
+    files: o,
+  };
+}
+
+function filesMap(m) {
+  return new Map(Object.entries(m.files || {}).map(([p, e]) => [p, { h: e[0], s: e[1] || 0 }]));
+}
+
+/** اعتبارسنجی ساختاری مانیفست */
+function validateManifest(m) {
+  if (!m || typeof m !== "object") return false;
+  if (m.schema !== 1) return false;
+  if (typeof m.version !== "string" || !m.version) return false;
+  if (typeof m.tag !== "string") return false;
+  if (!m.files || typeof m.files !== "object" || Array.isArray(m.files)) return false;
+  return true;
+}
+
+/** مسیر امن — جلوگیری از path traversal در مانیفست دریافتی */
+function safeJoin(base, rel) {
+  const norm = path.posix.normalize(String(rel));
+  if (
+    norm.startsWith("/") ||
+    norm.startsWith("..") ||
+    norm.includes("\\") ||
+    norm.split("/").includes("..") ||
+    !norm.length
+  ) {
+    throw new Error("مسیر نامعتبر در مانیفست: " + rel);
+  }
+  return path.join(base, norm);
+}
+
+/** استخر کوچک اجرای موازی با توقف سریع در اولین خطا */
+async function pool(n, items, worker) {
+  let i = 0;
+  let firstErr = null;
+  async function run() {
+    while (i < items.length && !firstErr) {
+      const idx = i++;
+      try {
+        await worker(items[idx], idx);
+      } catch (e) {
+        if (!firstErr) firstErr = e;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, n) }, run));
+  if (firstErr) throw firstErr;
+}
+
+/* ─── موتور ──────────────────────────────────────────────────────────────── */
+
+/**
+ * @param {object} ctx
+ *   baseDir     — مسیر اپ نصب‌شده (resources/app) یا ریشهٔ پروژه در توسعه
+ *   userData    — پوشهٔ دادهٔ کاربر (appdata و کش مانیفست آنجا ساخته می‌شوند)
+ *   pkgVersion  — نسخهٔ باندل (app.getVersion())
+ *   fetchImpl   — اختیاری (پیش‌فرض global fetch؛ main-core تابع net.fetch می‌دهد)
+ *   env         — process.env (پشتیبانی از LEXA_UPDATE_FEED برای فید آزمایشی)
+ *   log         — تابع لاگ
+ *   onFetch     — قلاب تست (هر URL درخواست‌شده)
+ *   beforeCommit— قلاب قبل از جایگزینی فایل‌ها (توقف سرور در main-core)
+ */
+function createUpdater(ctx) {
+  const log = ctx.log || (() => {});
+  const fetchImpl = ctx.fetchImpl || ((u, o) => fetch(u, o));
+  const env = ctx.env || {};
+
+  const appdataDir = () => path.join(ctx.userData, "appdata");
+
+  async function exists(p) {
+    try {
+      await fsp.stat(p);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /* ── منابع دانلود ── */
+
+  function manifestUrls() {
+    const feed = env.LEXA_UPDATE_FEED;
+    if (feed) return [feed.replace(/\/+$/, "") + "/" + FEED_DIR + "/manifest.json"];
+    return [
+      // jsDelivr — سریع و در دسترس؛ اسکریپت ریلیز بعد از هر انتشار کشش را purge می‌کند
+      `https://cdn.jsdelivr.net/gh/${REPO}@main/${FEED_DIR}/manifest.json`,
+      // raw — همیشه تازه؛ fallback رسمی
+      `https://raw.githubusercontent.com/${REPO}/main/${FEED_DIR}/manifest.json`,
+    ];
+  }
+
+  function fileUrls(tag, hash) {
+    const feed = env.LEXA_UPDATE_FEED;
+    const name = h12(hash) + ".bin";
+    if (feed) return [feed.replace(/\/+$/, "") + "/" + FEED_DIR + "/f/" + name];
+    return [
+      // تگ ایمیبل هر ریلیز → محتوای تغییرناپذیر → کش CDN همیشه معتبر
+      `https://cdn.jsdelivr.net/gh/${REPO}@${tag}/${FEED_DIR}/f/${name}`,
+      `https://raw.githubusercontent.com/${REPO}/${tag}/${FEED_DIR}/f/${name}`,
+    ];
+  }
+
+  async function fetchBuffer(url, timeoutMs) {
+    if (ctx.onFetch) ctx.onFetch(url);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetchImpl(url, { signal: ctrl.signal, redirect: "follow" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const len = Number(res.headers.get("content-length") || 0);
+      if (len && len > MAX_FILE_BYTES) throw new Error("حجم فایل بیش از حد مجاز است");
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > MAX_FILE_BYTES) throw new Error("حجم فایل بیش از حد مجاز است");
+      return buf;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  /**
+   * کشف آخرین تگ ریلیز از خود github.com (بدون واسطهٔ CDN) — پادزهر
+   * «کش کهنهٔ jsDelivr @main» روی برخی edgeهای منطقه‌ای:
+   * 1) api.github.com releases → tag_name اولین ریلیز v… → app-v…
+   * 2) releases.atom → اولین تگ v… (وقتی API محدود/مسدود است)
+   * مانیفستِ تگ ایمیبل محتوای تغییرناپذیر دارد — همیشه دقیق و تازه.
+   */
+  async function discoverLatestTag() {
+    const urls = [
+      `https://api.github.com/repos/${REPO}/releases?per_page=5`,
+      `https://github.com/${REPO}/releases.atom`,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      const u = urls[i];
+      try {
+        const txt = Buffer.from(await fetchBuffer(u, MANIFEST_TIMEOUT)).toString("utf8");
+        if (i === 0) {
+          const arr = JSON.parse(txt);
+          if (Array.isArray(arr)) {
+            for (const r of arr) {
+              const t = r && r.tag_name;
+              if (r && !r.draft && !r.prerelease && typeof t === "string" && /^v\d/.test(t)) {
+                return "app-" + t;
+              }
+            }
+          }
+        } else {
+          const m = txt.match(/releases\/tag\/(v\d[\w.\-]*)/);
+          if (m && m[1]) return "app-" + m[1];
+        }
+      } catch (e) {
+        log("tag discovery failed:", u, e && e.message);
+      }
+    }
+    return null;
+  }
+
+  async function fetchManifest() {
+    // فید آزمایشی/محلی (LEXA_UPDATE_FEED — تست/QA): فقط همین منبع؛ بدون
+    // کشف تگ و منابع عمومی — وگرنه مانیفست پرودِ واقعی تست را می‌بلعد.
+    if (env.LEXA_UPDATE_FEED) {
+      const u = manifestUrls()[0];
+      const m = JSON.parse(Buffer.from(await fetchBuffer(u, MANIFEST_TIMEOUT)).toString("utf8"));
+      if (!validateManifest(m)) throw new Error("ساختار مانیفست نامعتبر است");
+      return m;
+    }
+
+    // چند منبع دریافت و «تازه‌ترین» انتخاب می‌شود — jsDelivr @main ممکن است
+    // در برخی edgeها کهنه باشد؛ مانیفست تگ ایمیبل همیشه معتبر و تازه است.
+    let lastErr = null;
+    const results = [];
+
+    const tryFetch = async (u, label) => {
+      try {
+        const m = JSON.parse(Buffer.from(await fetchBuffer(u, MANIFEST_TIMEOUT)).toString("utf8"));
+        if (!validateManifest(m)) throw new Error("ساختار مانیفست نامعتبر است");
+        results.push(m);
+        return m;
+      } catch (e) {
+        lastErr = e;
+        log("manifest fetch failed:", label, u, e && e.message);
+        return null;
+      }
+    };
+
+    // هر سه منبع موازی — بدترین حالت هم به اندازهٔ یک تایم‌اوت طول می‌کشد
+    await Promise.all([
+      tryFetch(manifestUrls()[0], "@main"), // jsDelivr @main — مسیر سریع
+      // کشف تگ از github.com → مانیفست ایمیبل تگ (پادزهر کش کهنهٔ @main)
+      discoverLatestTag().then((tag) =>
+        tag ? tryFetch(`https://cdn.jsdelivr.net/gh/${REPO}@${tag}/${FEED_DIR}/manifest.json`, tag) : null,
+      ),
+      tryFetch(manifestUrls()[1], "raw@main"), // fallback رسمی (همیشه تازه)
+    ]);
+
+    if (!results.length) {
+      throw new Error(
+        "دریافت مانیفست به‌روزرسانی ناموفق بود" +
+          (lastErr && lastErr.message ? ` (${lastErr.message})` : ""),
+      );
+    }
+    let best = results[0];
+    for (const m of results) {
+      if (cmpVersion(m.version, best.version) > 0) best = m;
+    }
+    return best;
+  }
+
+  /* ── وضعیت محلی ── */
+
+  /** appdata فقط وقتی معتبر است که نصبِ کاملِ ثبت‌شده داشته باشد و از باندل عقب نباشد */
+  async function isAppdataValid(ad) {
+    if (!(await exists(path.join(ad, ".lexa-install.json")))) return false;
+    if (await exists(path.join(ad, ".base-incomplete"))) return false;
+    if (await exists(path.join(ad, ".commit-in-progress"))) return false;
+    try {
+      const m = JSON.parse(await fsp.readFile(path.join(ad, ".lexa-install.json"), "utf8"));
+      return validateManifest(m) && cmpVersion(m.version, ctx.pkgVersion) >= 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * آیا کپی پایهٔ appdata «سالم ولی بدون نشان نصب» است؟ (تلاش قبلی حین دانلود
+   * شکسته — دوباره ۱۷۰MB کپی نکن؛ ادامهٔ دلتا کافی است.) اگر commit نیمه‌کاره
+   * مانده باشد (.commit-in-progress) usable نیست — محتوایش ترکیبی است → کپی پایهٔ نو.
+   */
+  async function hasUsableBase(ad) {
+    if (!(await exists(ad))) return false;
+    if (await exists(path.join(ad, ".base-incomplete"))) return false;
+    if (await exists(path.join(ad, ".commit-in-progress"))) return false;
+    return exists(path.join(ad, "package.json"));
+  }
+
+  /**
+   * مانیفست محلی: اول appdata (نسخهٔ نصب‌شده)، بعد کش باندل، وگرنه اسکن کامل
+   * (اسکن ~۱۷۰MB چند ثانیه طول می‌کشد و یک‌بار در userData کش می‌شود).
+   */
+  async function ensureLocalManifest() {
+    const ad = appdataDir();
+    if (await isAppdataValid(ad)) {
+      const m = JSON.parse(await fsp.readFile(path.join(ad, ".lexa-install.json"), "utf8"));
+      return { dir: ad, version: m.version, files: filesMap(m) };
+    }
+
+    const cache = path.join(ctx.userData, `bundled-manifest-${ctx.pkgVersion}.json`);
+    if (await exists(cache)) {
+      try {
+        const m = JSON.parse(await fsp.readFile(cache, "utf8"));
+        if (validateManifest(m)) return { dir: ctx.baseDir, version: m.version, files: filesMap(m) };
+      } catch {
+        /* کش خراب — دوباره می‌سازیم */
+      }
+    }
+
+    log("scanning bundled app for first time…");
+    const files = await scanDir(ctx.baseDir);
+    const m = manifestFromScan(files, {
+      version: ctx.pkgVersion,
+      generatedAt: new Date().toISOString(),
+    });
+    try {
+      await fsp.mkdir(ctx.userData, { recursive: true });
+      await fsp.writeFile(cache, JSON.stringify(m));
+    } catch (e) {
+      log("manifest cache write failed:", e && e.message);
+    }
+    return { dir: ctx.baseDir, version: ctx.pkgVersion, files };
+  }
+
+  function computeDiff(localFiles, remote) {
+    const toDownload = [];
+    const toDelete = [];
+    for (const [p, e] of Object.entries(remote.files)) {
+      const rh = String(e[0]);
+      // ⚠️ symlinkها دانلودشدنی نیستند (URL محتوایی ندارند) — در ویندوز هم symlink
+      // از زیپ به‌صورت فایل واقعی استخراج می‌شود و هشش هرگز با link: یکسان نیست؛
+      // اگر دانلود می‌شد (URL بی‌معنی link:...bin) کل آپدیت شکست می‌خورد.
+      // بی‌خیالشان می‌شویم: همیشه بهترین‌تلاش ساخت در commit/کپی پایه انجام می‌شود.
+      if (rh.startsWith("link:")) continue;
+      const l = localFiles.get(p);
+      if (!l || String(l.h) !== rh) toDownload.push({ p, h: rh, s: e[1] || 0 });
+    }
+    for (const p of localFiles.keys()) {
+      if (!remote.files[p]) toDelete.push(p);
+    }
+    return { toDownload, toDelete };
+  }
+
+  /* ── API عمومی ── */
+
+  async function check() {
+    const remote = await fetchManifest();
+    const local = await ensureLocalManifest();
+    const diff = computeDiff(local.files, remote);
+    const c = cmpVersion(remote.version, local.version);
+    const bytesChanged = diff.toDownload.reduce((a, e) => a + e.s, 0);
+    return {
+      available: c > 0 || (c === 0 && diff.toDownload.length > 0),
+      currentVersion: local.version,
+      remoteVersion: remote.version,
+      notes: remote.notes || "",
+      generatedAt: remote.generatedAt || "",
+      filesChanged: diff.toDownload.length,
+      bytesChanged,
+      deletes: diff.toDelete.length,
+      tag: remote.tag || "",
+    };
+  }
+
+  /** کپی پایه: بار اول آپدیت، کل اپ از مسیر فقط-خواندنی به appdata کپی می‌شود */
+  async function prepareBase(ad, localFiles, ev) {
+    await fsp.rm(ad, { recursive: true, force: true });
+    await fsp.mkdir(ad, { recursive: true });
+    await fsp.writeFile(path.join(ad, ".base-incomplete"), new Date().toISOString());
+
+    const total = [...localFiles.values()].reduce((a, e) => a + e.s, 0);
+    let copied = 0;
+    let lastEmit = 0;
+    const src = ctx.baseDir;
+
+    async function walk(dir, rel) {
+      const items = await fsp.readdir(dir, { withFileTypes: true });
+      for (const it of items) {
+        const r = rel ? rel + "/" + it.name : it.name;
+        if (excluded(r)) continue;
+        const sp = path.join(dir, it.name);
+        const dp = safeJoin(ad, r);
+        if (it.isSymbolicLink()) {
+          const t = await fsp.readlink(sp);
+          await fsp.mkdir(path.dirname(dp), { recursive: true });
+          try {
+            await fsp.symlink(t, dp);
+          } catch (e) {
+            log("symlink copy skipped:", r, e && e.message);
+          }
+        } else if (it.isDirectory()) {
+          await fsp.mkdir(dp, { recursive: true });
+          await walk(sp, r);
+        } else if (it.isFile()) {
+          await fsp.mkdir(path.dirname(dp), { recursive: true });
+          await fsp.copyFile(sp, dp);
+          copied += localFiles.get(r)?.s ?? 0;
+          const now = Date.now();
+          if (now - lastEmit > 120) {
+            lastEmit = now;
+            ev({ phase: "base", copiedBytes: copied, totalBytes: total });
+          }
+        }
+      }
+    }
+    await walk(src, "");
+    await fsp.rm(path.join(ad, ".base-incomplete"), { force: true });
+    ev({ phase: "base", copiedBytes: total, totalBytes: total });
+  }
+
+  async function validStage(stagePath, hash, size) {
+    if (!(await exists(stagePath))) return false;
+    try {
+      const st = await fsp.stat(stagePath);
+      if (size && st.size !== size) return false;
+      return (await sha256File(stagePath)) === hash;
+    } catch {
+      return false;
+    }
+  }
+
+  async function downloadToFile(urls, dest, hash, size) {
+    let lastErr = null;
+    for (const u of urls) {
+      try {
+        const buf = await fetchBuffer(u, FILE_TIMEOUT);
+        const actual = crypto.createHash("sha256").update(buf).digest("hex");
+        if (actual !== hash) throw new Error("هش فایل مطابقت ندارد");
+        if (size && buf.length !== size) throw new Error("حجم فایل مطابقت ندارد");
+        await fsp.writeFile(dest, buf);
+        return;
+      } catch (e) {
+        lastErr = e;
+        log("download failed:", u, e && e.message);
+      }
+    }
+    throw new Error(
+      `دانلود «${path.basename(String(lastErr && lastErr.message ? urls[0] : ""))}» ناموفق بود — ` +
+        (lastErr && lastErr.message ? lastErr.message : "منابع در دسترس نیستند"),
+    );
+  }
+
+  /**
+   * اجرای کامل آپدیت. onEvent با پیشرفت مرحله‌ای صدا زده می‌شود:
+   *   { phase: "prepare" }
+   *   { phase: "base", copiedBytes, totalBytes }              — فقط بار اول
+   *   { phase: "download", filesDone, filesTotal, bytesDone, bytesTotal, currentFile? }
+   *   { phase: "commit", filesDone, filesTotal }
+   */
+  async function apply(onEvent) {
+    const ev = (e) => {
+      try {
+        onEvent && onEvent(e);
+      } catch {
+        /* رندرر مهم نیست */
+      }
+    };
+
+    ev({ phase: "prepare" });
+    const remote = await fetchManifest();
+    const local = await ensureLocalManifest();
+    const ad = appdataDir();
+
+    // ۱) لایهٔ appdata — اگر معتبر نیست ولی کپی پایهٔ سالمی از تلاش قبلی هست،
+    // کپی پایهٔ ۱۷۰MB از نو ساخته نمی‌شود؛ فقط دلتا ادامه پیدا می‌کند
+    if (!(await isAppdataValid(ad)) && !(await hasUsableBase(ad))) {
+      await prepareBase(ad, local.files, ev);
+    }
+
+    // ۲) تفاوت نسخهٔ نصب‌شده در appdata با مانیفست ریموت
+    let localFiles;
+    if (local.dir === ad) {
+      localFiles = local.files;
+    } else {
+      // appdata تازه از باندل کپی شده — محتوایش عیناً همان است
+      localFiles = local.files;
+    }
+    const diff = computeDiff(localFiles, remote);
+    if (!diff.toDownload.length && !diff.toDelete.length) {
+      await fsp.writeFile(
+        path.join(ad, ".lexa-install.json"),
+        JSON.stringify({ ...remote, appliedAt: new Date().toISOString() }),
+      );
+      return { ok: true, version: remote.version, appdataDir: ad, changed: 0 };
+    }
+
+    // ۳) دانلود محتواشده در staging — پاک نمی‌شود تا تلاش بعدی از سر گرفته شود
+    const st = path.join(ad, ".staging");
+    await fsp.mkdir(st, { recursive: true });
+
+    const bytesTotal = diff.toDownload.reduce((a, e) => a + e.s, 0);
+    let filesDone = 0;
+    let bytesDone = 0;
+    ev({ phase: "download", filesDone: 0, filesTotal: diff.toDownload.length, bytesDone: 0, bytesTotal });
+
+    // دِدوپ بر اساس هش — دو مسیر با محتوای یکسان (مثل aliasهای Next) نباید دو بار
+    // دانلود/استیج شوند؛ نام فایل استیج از h12(هش) است و نوشتن هم‌زمان روی یک مسیر
+    // خرابی/رفت‌وبرگشت بی‌مورد می‌سازد. (منشأ کرش ENOENT کاربران 0.6.0)
+    const seenHash = new Set();
+    const toFetch = diff.toDownload.filter((f) => {
+      const k = String(f.h);
+      if (seenHash.has(k)) return false;
+      seenHash.add(k);
+      return true;
+    });
+
+    await pool(DL_CONCURRENCY, toFetch, async (f) => {
+      const stagePath = path.join(st, h12(f.h) + ".bin");
+      if (!(await validStage(stagePath, f.h, f.s))) {
+        await downloadToFile(fileUrls(remote.tag, f.h), stagePath, f.h, f.s);
+      }
+      filesDone += 1;
+      bytesDone += f.s;
+      ev({
+        phase: "download",
+        filesDone,
+        filesTotal: diff.toDownload.length,
+        bytesDone,
+        bytesTotal,
+        currentFile: f.p,
+      });
+    });
+
+    // ۴) جایگزینی — سرور اول بسته می‌شود، فایل‌ها اتمی (rename) جابه‌جا می‌شوند
+    const commitTotal = diff.toDownload.length + diff.toDelete.length;
+    ev({ phase: "commit", filesDone: 0, filesTotal: commitTotal });
+    if (ctx.beforeCommit) {
+      try {
+        await ctx.beforeCommit();
+      } catch (e) {
+        log("beforeCommit hook:", e && e.message);
+      }
+    }
+    await fsp.writeFile(path.join(ad, ".commit-in-progress"), new Date().toISOString());
+    try {
+      let done = 0;
+      for (const f of diff.toDownload) {
+        const target = safeJoin(ad, f.p);
+        await fsp.rm(target, { force: true, recursive: true });
+        await fsp.mkdir(path.dirname(target), { recursive: true });
+        if (String(f.h).startsWith("link:")) {
+          try {
+            await fsp.symlink(f.h.slice(5), target);
+          } catch (e) {
+            log("symlink create skipped:", f.p, e && e.message);
+          }
+        } else {
+          // copyFile به‌جای rename — bin استیج «مصرف» نمی‌شود؛ چند مسیر با
+          // محتوای یکسان (هم‌هش) می‌توانند از یک bin مشترک کپی شوند.
+          const stagePath = path.join(st, h12(f.h) + ".bin");
+          if (!(await exists(stagePath))) {
+            // استیج گم شده (مثلاً پاک‌شدگی دستی) — یک بار همان فایل را همین‌جا می‌گیریم
+            log("stage missing at commit, refetch:", f.p);
+            await fsp.mkdir(st, { recursive: true });
+            await downloadToFile(fileUrls(remote.tag, f.h), stagePath, f.h, f.s);
+          }
+          await fsp.copyFile(stagePath, target);
+        }
+        done += 1;
+        ev({ phase: "commit", filesDone: done, filesTotal: commitTotal });
+      }
+      for (const p of diff.toDelete) {
+        await fsp.rm(safeJoin(ad, p), { force: true, recursive: true });
+        done += 1;
+        ev({ phase: "commit", filesDone: done, filesTotal: commitTotal });
+      }
+      await fsp.writeFile(
+        path.join(ad, ".lexa-install.json"),
+        JSON.stringify({ ...remote, appliedAt: new Date().toISOString() }),
+      );
+    } finally {
+      await fsp.rm(path.join(ad, ".commit-in-progress"), { force: true });
+    }
+    // فقط در موفقیت staging پاک می‌شود — در خطا برای ازسرگیری می‌ماند
+    await fsp.rm(st, { recursive: true, force: true });
+
+    return { ok: true, version: remote.version, appdataDir: ad, changed: diff.toDownload.length };
+  }
+
+  return {
+    check,
+    apply,
+    appdataDir,
+    isAppdataValid,
+    hasUsableBase,
+    ensureLocalManifest,
+    fetchManifest,
+  };
+}
+
+module.exports = {
+  createUpdater,
+  scanDir,
+  manifestFromScan,
+  filesMap,
+  validateManifest,
+  sha256File,
+  cmpVersion,
+  excluded,
+  EXCLUDES,
+  REPO,
+  FEED_DIR,
+};

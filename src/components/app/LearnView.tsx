@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
-  MoreHorizontal, CheckCircle2, AlertCircle, Loader2,
+  MoreHorizontal, CheckCircle2, AlertCircle, Loader2, Copy, ZoomIn, ZoomOut,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -14,15 +14,149 @@ import { useApp } from "@/lib/store";
 import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
+import { IS_APK } from "@/lib/app-mode";
 import { askAi } from "@/lib/aiClient";
 import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
+const EMPTY_MARKS: import("@/lib/store").LessonMark[] = [];
+
+/** زوم متن درس — مرز منطقی ۹۰٪ تا ۱۶۰٪ با گام ۱۰٪ (درخواست کاربر) */
+const LESSON_ZOOM = {
+  min: 0.9,
+  max: 1.6,
+  step: 0.1,
+  clamp(v: number): number {
+    const snapped = Math.round(v / this.step) * this.step;
+    return Math.min(this.max, Math.max(this.min, Math.round(snapped * 100) / 100));
+  },
+};
+const ZOOM_KEY = "lexa-lesson-zoom";
+
+/** کپی متن در کلیپ‌بورد — Clipboard API + فال‌بک execCommand برای WebView قدیمی */
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* فال‌بک */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:-999px;opacity:0;pointer-events:none";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف */
+function MarkToolbar({
+  mode, rect, lessonId, markId, text, secId, occ, onDone,
+}: {
+  mode: "new" | "edit";
+  rect: { top: number; bottom: number; centerX: number };
+  lessonId: string;
+  markId?: string;
+  text?: string;
+  secId?: string;
+  occ?: number;
+  onDone: () => void;
+}) {
+  const applyMark = useApp((s) => s.applyMark);
+  const removeMark = useApp((s) => s.removeMark);
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [copied, setCopied] = React.useState(false);
+  const boxRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const x = Math.min(Math.max(12, rect.centerX - w / 2), window.innerWidth - w - 12);
+    const y = rect.top > h + 66 ? rect.top - h - 8 : rect.bottom + 8;
+    setPos({ x, y });
+  }, [rect]);
+
+  function pick(color: string) {
+    if (!isMarkColor(color)) return;
+    if (mode === "new" && text && secId) {
+      applyMark(lessonId, { id: Math.random().toString(36).slice(2) + Date.now().toString(36), secId, text, color, occ });
+      try { window.getSelection()?.removeAllRanges(); } catch {}
+    } else if (mode === "edit" && markId) {
+      applyMark(lessonId, { id: markId, secId: secId ?? "", text: text ?? "", color, occ });
+    }
+    onDone();
+  }
+
+  async function copySel() {
+    const ok = await copyTextToClipboard(text ?? "");
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => onDone(), 800);
+    } else {
+      onDone();
+    }
+  }
+
+  return (
+    <div
+      ref={boxRef}
+      className="fixed z-[90] flex items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-card"
+      style={{ visibility: pos ? "visible" : "hidden", left: pos?.x ?? 0, top: pos?.y ?? 0 }}
+      onMouseDown={(e) => e.preventDefault()}
+      data-mark-toolbar="1"
+      role="toolbar"
+      aria-label="نشان‌گذاری و کپی متن"
+    >
+      {mode === "new" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">نشان کن:</span>}
+      {Object.entries(MARK_COLORS).map(([key, c]) => (
+        <button
+          key={key}
+          onClick={() => pick(key)}
+          title="رنگ نشان"
+          aria-label={`نشان با رنگ ${key}`}
+          className="h-8 w-8 rounded-full border border-black/10 transition-transform hover:scale-110 active:scale-95 sm:h-7 sm:w-7"
+          style={{ background: c.dot, boxShadow: `inset 0 -3px 6px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.18)` }}
+        />
+      ))}
+      <span className="mx-0.5 h-5 w-px bg-border" />
+      <button
+        onClick={() => void copySel()}
+        title="کپی متن"
+        aria-label="کپی متن انتخاب‌شده"
+        className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold transition-colors sm:h-7 ${copied ? "bg-success/10 text-success" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+      >
+        {copied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? "کپی شد" : "کپی"}
+      </button>
+      {mode === "edit" && markId && (
+        <button
+          onClick={() => { removeMark(lessonId, markId); onDone(); }}
+          className="grid h-8 w-8 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10 sm:h-7 sm:w-7"
+          title="حذف نشان"
+          aria-label="حذف نشان"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function LearnView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
@@ -36,6 +170,20 @@ export function LearnView({ id }: { id: string }) {
   const notes = notesAll[id] ?? EMPTY_NOTES;
   const addNote = useApp((s) => s.addNote);
   const removeNote = useApp((s) => s.removeNote);
+
+  // ── نشان‌گذاری متن ──
+  const marksAll = useApp((s) => s.marks);
+  const marksForLesson = marksAll[id] ?? EMPTY_MARKS;
+  const articleRef = React.useRef<HTMLElement | null>(null);
+  const [markBar, setMarkBar] = React.useState<
+    | null
+    | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number }
+    | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number }
+  >(null);
+  const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
+    const host = el?.closest("[data-sec-id]") ?? null;
+    return { secEl: host, secId: host?.getAttribute("data-sec-id") ?? null };
+  }, []);
 
   // ── یافتن جلسه و دوره ──
   let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
@@ -65,6 +213,20 @@ export function LearnView({ id }: { id: string }) {
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
+  // ── زوم متن درس — بزرگ/کوچک کردن اندازهٔ متون با مرز منطقی و ماندگاری ──
+  const [zoom, setZoomState] = React.useState(1);
+  React.useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem(ZOOM_KEY) || "1");
+      if (Number.isFinite(v) && v > 0) setZoomState(LESSON_ZOOM.clamp(v));
+    } catch { /* بی‌اثر */ }
+  }, []);
+  const setZoom = React.useCallback((v: number) => {
+    const z = LESSON_ZOOM.clamp(v);
+    setZoomState(z);
+    try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* بی‌اثر */ }
+  }, []);
+
   React.useEffect(() => {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
      
@@ -72,6 +234,92 @@ export function LearnView({ id }: { id: string }) {
 
   // ── گیت لود تنبل محتوا: متن جلسه‌های داخلی به‌محض باز شدن از شبکه می‌آید ──
   const textState = useLessonContent(ctx?.lesson);
+
+  // ── رندر نشان‌های ذخیره‌شده روی DOM (بعد از هر تغییر مرتبط) ──
+  React.useLayoutEffect(() => {
+    const root = articleRef.current;
+    if (!root) return;
+    const sectionEls = new Map<string, Element>();
+    root.querySelectorAll("[data-sec-id]").forEach((el) => {
+      const sid = el.getAttribute("data-sec-id");
+      if (sid) sectionEls.set(sid, el);
+    });
+    if (!sectionEls.size) return;
+    applyMarksToSections(sectionEls, marksForLesson);
+  }); // بدون آرگومان — بعد از هر رندر، idempotent است
+
+  // ── تشخیص انتخاب متن → نوار ابزار نشان‌گذاری ──
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function check() {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      const anchor = range.startContainer.parentElement ?? null;
+      const root = articleRef.current;
+      if (!anchor || !root || !root.contains(anchor)) return;
+      if (!isSelectableNode(anchor)) return;
+      const { secEl, secId } = secIdOf(anchor);
+      if (!secEl || !secId) return;
+      const located = locateSelection(secEl, range);
+      if (!located) return;
+      const r = range.getBoundingClientRect();
+      if (!r || (!r.width && !r.height)) return;
+      setMarkBar({
+        mode: "new",
+        rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
+        text: located.text,
+        secId,
+        occ: located.occ,
+      });
+    }
+    function onChange() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        setMarkBar((cur) => (cur?.mode === "new" ? null : cur));
+        check();
+      }, 260);
+    }
+    function onPointerDown(e: Event) {
+      const t = e.target as Element | null;
+      if (t?.closest?.("[data-mark-toolbar]")) return;
+      setMarkBar(null);
+    }
+    function onScroll() {
+      setMarkBar(null);
+    }
+    document.addEventListener("selectionchange", onChange);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      document.removeEventListener("selectionchange", onChange);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [secIdOf]);
+
+  // ── کلیک روی نشان موجود → نوار ویرایش/حذف ──
+  function handleArticleClick(e: React.MouseEvent) {
+    const target = e.target as Element;
+    const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
+    if (!mk) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return; // کاربر در حال انتخاب است — دخالت نکن
+    const mid = mk.dataset.mid;
+    if (!mid) return;
+    const mark = marksForLesson.find((m) => m.id === mid);
+    if (!mark) return;
+    const r = mk.getBoundingClientRect();
+    setMarkBar({
+      mode: "edit",
+      markId: mid,
+      secId: mark.secId,
+      text: mark.text,
+      occ: mark.occ,
+      rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
+    });
+  }
 
   if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
 
@@ -214,7 +462,7 @@ export function LearnView({ id }: { id: string }) {
           <div className="max-h-[46vh] space-y-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-card">
             <p className="flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
             {laws.map((l, i) => (
-              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[15px] leading-relaxed">
+              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[14px] leading-[1.75] sm:text-[15px]">
                 <span className="font-display font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
               </p>
             ))}
@@ -328,7 +576,7 @@ export function LearnView({ id }: { id: string }) {
       {/* ستون اصلی */}
       <main className="min-w-0">
         {/* نوار پیشرفت جلسه */}
-        <header className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+        <header className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-6">
           <p className="text-xs font-medium text-bronze">{course.title} · فصل {fa(chapter.order)}</p>
           <h1 className="mt-1.5 text-xl font-bold leading-relaxed sm:text-2xl">{lesson.title}</h1>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-border/80">
@@ -348,21 +596,66 @@ export function LearnView({ id }: { id: string }) {
               </button>
             ))}
           </div>
-          {tab !== "teach" && <div className="lg:hidden">{bodyTabContent}</div>}
+          {tab !== "teach" && <div className="lg:hidden" style={{ zoom } as React.CSSProperties}>{bodyTabContent}</div>}
+
+          {/* زوم متن درس — بزرگ/کوچک‌کردن اندازهٔ متون (۹۰٪ تا ۱۶۰٪) */}
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-border bg-background/50 px-2.5 py-1.5">
+            <span className="ps-1 text-[11px] font-bold text-muted-foreground">اندازهٔ متن</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setZoom(zoom - LESSON_ZOOM.step)}
+                disabled={zoom <= LESSON_ZOOM.min + 0.001}
+                title="کوچک‌تر"
+                aria-label="کوچک‌کردن اندازهٔ متن"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-35"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <span dir="ltr" className="min-w-[42px] text-center text-[11px] font-bold tabular-nums text-bronze">{fa(Math.round(zoom * 100))}٪</span>
+              <button
+                onClick={() => setZoom(zoom + LESSON_ZOOM.step)}
+                disabled={zoom >= LESSON_ZOOM.max - 0.001}
+                title="بزرگ‌تر"
+                aria-label="بزرگ‌کردن اندازهٔ متن"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-35"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                disabled={Math.abs(zoom - 1) < 0.001}
+                title="اندازهٔ پیش‌فرض"
+                aria-label="بازنشانی اندازهٔ متن"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-35"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </header>
 
         {/* بخش‌های تدریس */}
-        <article className="space-y-6" style={{ display: tab === "teach" ? undefined : "none" }}>
+        <article
+          key={id}
+          ref={articleRef}
+          className="space-y-6"
+          style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none", zoom } as React.CSSProperties}
+          onClick={handleArticleClick}
+          // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا فقط
+          // نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید
+          onContextMenu={(e) => e.preventDefault()}
+        >
           {sections.slice(0, visibleCount).map((s, i) => {
             const meta = SECTION_META[s.type];
             return (
               <motion.section
                 key={s.id}
                 id={`sec-${i}`}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-                className="scroll-mt-28 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7"
+                data-sec-id={s.id}
+                initial={IS_APK ? false : { opacity: 0, y: 14 }}
+                animate={IS_APK ? undefined : { opacity: 1, y: 0 }}
+                transition={IS_APK ? undefined : { duration: 0.25 }}
+                className="scroll-mt-28 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-7"
               >
                 <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
 
@@ -482,6 +775,31 @@ export function LearnView({ id }: { id: string }) {
 
       {Sidebar}
 
+      {/* نوار ابزار نشان‌گذاری متن — پنج رنگ یا ویرایش/حذف نشان موجود */}
+      {markBar && markBar.mode === "new" && (
+        <MarkToolbar
+          mode="new"
+          rect={markBar.rect}
+          lessonId={id}
+          text={markBar.text}
+          secId={markBar.secId}
+          occ={markBar.occ}
+          onDone={() => setMarkBar(null)}
+        />
+      )}
+      {markBar && markBar.mode === "edit" && (
+        <MarkToolbar
+          mode="edit"
+          rect={markBar.rect}
+          lessonId={id}
+          markId={markBar.markId}
+          secId={markBar.secId}
+          text={markBar.text}
+          occ={markBar.occ}
+          onDone={() => setMarkBar(null)}
+        />
+      )}
+
       {/* گفت‌وگوی بازخورد: انتقاد → تحلیل AI نسبت به جزوه → ثبت پیشنهاد برای مدیر */}
       <FeedbackDialog
         open={feedbackOpen}
@@ -574,7 +892,7 @@ function AiAnswerRich({ text }: { text: string }) {
   return (
     <>
       {prose && (
-        <div className="teach-body prose-p:leading-[1.85] text-[15.5px] [&_p]:my-1 [&_strong]:text-foreground">
+        <div className="teach-body prose-p:leading-[1.85] text-[14.5px] sm:text-[15.5px] [&_p]:my-1 [&_strong]:text-foreground">
           <ReactMarkdown>{prose}</ReactMarkdown>
         </div>
       )}
@@ -582,7 +900,7 @@ function AiAnswerRich({ text }: { text: string }) {
         <div className="mt-3 space-y-2">
           <p className="text-[11px] font-bold text-muted-foreground">مستند قانونی پاسخ:</p>
           {laws.map((l, i) => (
-            <p key={i} className="law-text flex gap-2 rounded-lg border-s-2 border-bronze/60 bg-background/70 px-3 py-2.5 text-[15.5px] leading-[1.9]">
+            <p key={i} className="law-text flex gap-2 rounded-lg border-s-2 border-bronze/60 bg-background/70 px-3 py-2.5 text-[14.5px] leading-[1.8] sm:text-[15.5px] sm:leading-[1.9]">
               <Scale className="mt-1.5 h-3.5 w-3.5 shrink-0 text-bronze" />
               <span>{l}</span>
             </p>
