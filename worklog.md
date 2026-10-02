@@ -1273,3 +1273,27 @@ Stage Summary:
 - ثبت‌نام/ورود دسکتاپ فیکس شد؛ نشان‌گذاری ۵ رنگه با سینک کامل (حساب سروری + ساپابیس) زنده است
 - نشتی دیتابیس در بسته‌های قدیمی کشف، پاکسازی و مستند شد؛ keystore اندروید در download/android با INFO
 - بیلد بعدی APK: VERSION=X.Y.Z bash scripts/build-apk.sh
+
+---
+Task ID: 10
+Agent: main (Super Z)
+Task: فیکس دو باگ گزارش‌شدهٔ پس از v0.7.0 — «Application error» اندروید و شکست آپدیت ویندوز 0.6.0→0.7.0 — و ریلیز v0.8.0 (هر دو پلتفرم سالم)
+
+Work Log:
+- ریشه‌یابی آپدیت ویندوز: مانیفست 0.7.0 یک entry از نوع symlink داشت (.next/standalone/.next/node_modules/@prisma/client-2c3a…). روی ویندوز زیپ به‌صورت «فایل متنی» استخراج می‌شود → هش محلی ≠ «link:…» → آپدیتر آن را برای دانلود می‌گذاشت → URL بی‌معنی «f/link:../../..bin» → 404 → شکست همیشگی apply (در لینوکس e2e سبز بود چون symlink محلی عیناً همان بود). فید زنده و انبار دلتا هر دو سالم بودند (۵۳۳/۵۳۳ فایل HEAD 200)
+- فیکس‌های electron/app-updater.js: (۱) computeDiff هرگز entryهای link: را برای دانلود نمی‌گذارد (۲) resume: اگر appdata کپی پایهٔ سالم بدون .lexa-install.json دارد (تلاش قبلی حین دانلود مرده)، کپی پایهٔ ۱۷۰MB از نو ساخته نمی‌شود (hasUsableBase؛ commit نیمه‌کاره = usable نیست → کپی پایهٔ نو برای ایمنی) (۳) fetchManifest چندمنبعی: jsDelivr @main + کشف آخرین تگ از خود github.com (api releases → releases.atom) + raw — مانیفستِ تگ ایمیبلِ پادزهر «کش کهنهٔ jsDelivr @main روی edgeهای منطقه‌ای» — انتخاب تازه‌ترین با cmpVersion؛ هر سه منبع موازی (بدترین حالت = یک تایم‌اوت)؛ با LEXA_UPDATE_FEED فقط فید محلی (تست/QA)
+- تست‌های جدید: scripts/test-win-link-entry.mjs (۱۲/۱۲ — شبیه‌سازی ویندوز + resume + commit نیمه‌کاره)؛ تست‌های قبلی موتور دلتا ۲۸/۲۸؛ e2e الکترون با پکیج واقعی به 0.8.0/0.8.1 سیم‌کشی شد و سبز (کپی پایه ۱۷۰MB با پیشرفت → دلتا ۲ فایل → ری‌استارت از appdata 0.8.1)
+- ریشه‌یابی اندروید: export سالم بود (دسکتاپ بدون خطا رندر می‌شد)؛ چانک‌ها از APIهای مدرن استفاده می‌کردند: structuredClone (Chrome 98+) در چانک React، AbortSignal.timeout (103+) در providers-lite، Object.hasOwn (93+)، .at (92+)، optional chaining (80+) — WebView قدیمی (بدون آپدیت Play — رایج در ایران) → «Application error» در استارتاپ
+- فیکس اندروید: src/lib/compat-script.ts (ES5 خالص — بدون arrow/backtick/let) — پلی‌فیل کامل (structuredClone با پشتیبانی Date/RegExp/Map/Set/TypedArray، AbortSignal.timeout، crypto.randomUUID/getRandomValues، Object.hasOwn/entries/fromEntries، Array.at/findLast/flat/flatMap، String.replaceAll، Promise.allSettled/any، requestIdleCallback، استاب ResizeObserver) به‌صورت اولین <script> head در layout.tsx + اورلی خطای قابل‌گزارش فقط در APK (window.onerror/unhandledrejection → پنل فارسی با UA + دکمهٔ کپی گزارش — از این پس خطاهای کاربر قابل گزارش است) + گیت SW: در APK سرویس‌ورکر هرگز ثبت نمی‌شود و SW/کش‌های باقی‌مانده از نصب قبلی پاک می‌شود (جلوگیری از سرو محتوای کهنه روی APK جدید) + startOfflineAutoUpdate در APK غیرفعال (زیرساخت SW معنا ندارد)
+- کشف ایمنی: entry symlink از پکیج هم حذف شد (find -type l -delete در اسکریپت build) — چون موتور قدیمی روی دستگاه کاربران است و مانیفست 0.8.0 باید بدون link باشد تا آپدیت 0.6.0→0.8.0 با موتور قدیمی هم کامل شود (هیچ ارجاع کدی به client-2c3a وجود ندارد — dead weight)؛ build-app-update.mjs هم دیگر symlinkها را در مانیفست نمی‌آورد
+- بامپ: package.json 0.8.0 / sw v36 / DESIGN_VERSION 1.9.4 / gradle versionCode 80, versionName 0.8.0
+- بیلد: وب+استاندالون OK (SYMLINKS_CLEANED) → پرود PROD_READY؛ electron:build بار دوم کامل شد (AppImage ۱۲۴MB)؛ zip الکترون‌بیلدر باز ناپایدار → zip -9 دستی از win-unpacked تازه (۱۷۸MB، unzip -t سالم، ۲۷۴۱ فایل)؛ APK با scripts/build-apk.sh (۵.۹MB، امضا OK)
+- QA: وب ۷/۷ (ثبت‌نام سروری + تولبار نشان + اعمال رنگ + sync 200 + صفر خطا — نکته: انتخاب متن QA باید تریپل‌کلیک موس باشد)؛ export اندروید ۱۰/۱۰ (بدون کرش، گیت‌های APK، درس باندل، نشان)؛ پلی‌فیل ۱۵/۱۵ در محیط فقیر
+- ریلیز: commit df503d9 + تگ app-v0.8.0 + purge jsDelivr + ریلیز v0.8.0 (id 401659017) با ۴ asset — نکته: squashfs-root استخراج‌شدهٔ AppImage به‌گیت اضافه شده بود و push را با خطای ۱۰۰MB رد کرد → soft reset و پاکسازی؛ squashfs-root به .gitignore
+- راستی‌آزمایی زنده: مانیفست 0.8.0 روی @main و @tag (۲۲۹۸ فایل، صفر link)؛ شبیه‌سازی موتور قدیمی: کاربر 0.6.0 ویندوز = ۵۳۵ فایل/۱۲.۳MB همه روی CDN (MISSING: ۰)، کاربر 0.7.0 = ۴۷ فایل/۰.۴MB، بدون فایل بالای سقف؛ releases.atom → app-v0.8.0 (کشف تگ)؛ check() زنده از 0.6.0 → remoteVersion 0.8.0 در ۰.۸s
+
+Stage Summary:
+- هر دو باگ گزارش‌شده فیکس و با تست سبز شد؛ v0.8.0 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.8.0 (AppImage/WinZip/APK/checksums)
+- مسیر آپدیت کاربران: 0.6.0 و 0.7.0 هر دو با «بررسی به‌روزرسانی» داخل برنامه به 0.8.0 می‌رسند (دلتا ۱۲.۳MB و ۰.۴MB)؛ از این به بعد آپدیترها هم در برابر symlink ایمن‌اند هم در برابر کش کهنهٔ CDN
+- APK جدید (versionCode 80) روی WebViewهای قدیمی بالا می‌آید؛ اگر خطایی باشد پیامش روی صفحه دیده/کپی می‌شود
+- درس بعدی غایبی (جلسهٔ ۲) کماکان با الگوی بستهٔ محتوایی (بدون ریلیز اپ) قابل افزودن است
