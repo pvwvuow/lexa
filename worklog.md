@@ -1253,3 +1253,23 @@ Work Log:
 Stage Summary:
 - «تدریس مدنی ۷ — استاد غایبی» v1.0.2 زنده است: کاربر از تنظیمات → به‌روزرسانی‌ها نصب می‌کند (jsDelivr → GitHub → سرور اپ) و دوره در کتابخانه می‌نشیند؛ جلسه‌های بعدی = بامپ همین بسته با فصل جدید
 - کل جریان بدون ریلیز اپ تست و سبز شد؛ فارسی و ویرایش‌شده با مثال‌های خود کلاس
+
+---
+Task ID: 9
+Agent: main (Super Z)
+Task: سه درخواست — رفع ثبت‌نام/ورود کاربران نصب‌شده + نشان‌گذاری متن با رنگ ذخیره‌شده در حساب + ساخت نسخهٔ اندروید (APK)؛ ریلیز v0.7.0
+
+Work Log:
+- ریشه‌یابی باگ حساب دسکتاپ: سرور استاندالون در پکیج بدون DATABASE_URL و بدون فایل دیتابیس بالا می‌آمد → همهٔ /api/auth/* خطای 500 → «ارتباط با سرور برقرار نشد». اصلاح در main-core.js: DATABASE_URL به lexa.db در userData کاربر + کپی قالب خالی (lexa-template.db محصول بیلد) در اولین اجرا؛ قالب با prisma db push در پایان build ساخته می‌شود. E2E شبیه‌سازی پکیج: ثبت‌نام/me/sync/خروج/ورود/data همه 200 — نشان هم از سرور برگشت
+- نشان‌گذاری: LessonMark در استور (secId/text/color/occ) + applyMark/removeMark + ادغام id-based در merge/replace + partialize؛ UserBlob.marksJson (db push) + ادغام در /api/user/sync و برگشت در /api/user/data + buildSyncSnapshot — یعنی هم سینک حساب سروری و هم بلاب ساپابیس (کل استور) خودکار شامل می‌شود
+- موتور DOM نشان (src/lib/marks.ts): ایندکس کاراکتربه‌کاراکتر نرمال‌شدهٔ متن بخش، پشتیبانی انتخاب چندنودی، اندیس وقوع (occ) برای عبارت تکراری، unwrap+rewrap idempotent در useLayoutEffect، کلید id روی article برای ریمانت امن؛ تولبار شناور ۵ رنگ + ویرایش/حذف با کلیک روی نشان؛ CSS .lexa-mark با rgba و box-decoration-break (تم روز/شب). QA پلی‌رایت ۹/۹ سبز
+- اندروید: next.config حالت export با NEXT_PUBLIC_APP_MODE=apk + تفکیک providers-lite (ایزومورفیک: Gemini/OpenAI) از providers سروری (builtin z-ai) + runAiTask با dispatch injection — route و aiClient مشترک؛ aiClient در APK مستقیم از کلاینت با کلید کاربر اجرا می‌کند. گیت‌های UI: ApkUnavailable برای teachers/library/studio/write/post/teacher/admin، حذف builtin از تنظیمات AI، کارت حساب ابری در تب عمومی مهمان‌ها، داک موبایل → قوانین
+- بیلد APK: scripts/build-apk.sh (پارک API → export → cap sync → gradle release) + Android SDK (platform 35) + JDK 21 پرتابل (JRE سیستم javac نداشت) + آیکون‌های mipmap و اسپلش برند از pwa-512 (PIL) + keystore امضا (lexa-release-2026) → Lexa-0.7.0-android.apk ‏5.9MB امضاشده (apksigner verify OK، minSdk 23/target 35، هر ۴۱۶ متن داخل assets). QA اکسپورت ۱۰/۱۰ سبز
+- ⚠️ کشف امنیتی مهم: فایل‌تریسینگ نکست db/custom.db، backups/، data/ و .env را در استندالون کپی می‌کرد — یعنی زیپ‌های عمومی v0.3 تا v0.6 حاوی بکاپ دیتابیس سرور (۹ کاربر واقعی) بودند! فیکس: outputFileTracingExcludes + پاکسازی پس از build + excludes در electron-builder + انتقال قالب به lexa-template.db. پکیج‌های جدید بررسی شدند (بدون هیچ فایل حساسی)؛ assetهای آلودهٔ ریلیزهای قدیمی حذف و یادداشت هشدار به بدنهٔ ریلیزها اضافه شد. start-prod.sh حالا DATABASE_URL را صریح ست می‌کند
+- ریلیز v0.7.0: بامپ 0.7.0/sw v35/design 1.9.3 → بیلد وب + AppImage ۱۲۳MB + zip دستی ویندوز ۱۹۹MB (zip الکترون‌بیلدر دوباره ناقص مرد) → delta manifest (۲۲۹۹ فایل) + ۵۵۹ باینری دلتا → commit 225bf48 + تگ app-v0.7.0 → purge jsDelivr → ریلیز گیت‌هاب v0.7.0 (id 401592728) با ۴ asset شامل APK. راستی‌آزمایی: مانیفست 0.7.0 روی CDN (@main و @app-v0.7.0)، فایل دلتا 200، release latest. QA پرود ۶/۶: ثبت‌نام حساب تازه + نشان آبی + خروج/ورود + بازیابی نشان از سرور
+
+Stage Summary:
+- v0.7.0 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.7.0 — سه کانال: وب (PWA)، دسکتاپ (AppImage/zip)، اندروید (APK ۵.۹MB آفلاین‌کامل)
+- ثبت‌نام/ورود دسکتاپ فیکس شد؛ نشان‌گذاری ۵ رنگه با سینک کامل (حساب سروری + ساپابیس) زنده است
+- نشتی دیتابیس در بسته‌های قدیمی کشف، پاکسازی و مستند شد؛ keystore اندروید در download/android با INFO
+- بیلد بعدی APK: VERSION=X.Y.Z bash scripts/build-apk.sh
