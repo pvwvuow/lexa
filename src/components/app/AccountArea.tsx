@@ -13,15 +13,20 @@ import {
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
+import { IS_APK } from "@/lib/app-mode";
 import { AuthDialog } from "./AuthDialog";
+import { CloudAccountArea } from "./CloudAuth";
 import { UserAvatar } from "./common";
 
-/** بخش حساب کاربری در هدر: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب */
+/** بخش حساب کاربری در هدر: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب.
+ *  در APK حساب از نوع «ابری» است (CloudAccountArea) چون APK سرور محلی ندارد. */
 export function AccountArea() {
   const auth = useAuth();
   const [open, setOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [leaving, setLeaving] = React.useState(false);
+
+  if (IS_APK) return <CloudAccountArea />;
 
   if (auth.status === "loading") {
     return <span aria-hidden className="inline-block h-10 w-10 animate-pulse rounded-xl bg-muted" />;

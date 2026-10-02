@@ -429,11 +429,10 @@ export function AppShell() {
                   <GlobalSearch courses={courses} variant="icon" />
                 </div>
                 {!IS_APK && <FeedBell />}
-                {!IS_APK && (
-                  <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
-                    <AccountArea />
-                  </span>
-                )}
+                {/* حساب — در APK هم دیده می‌شود (حساب ابری) تا ثبت‌نام/ورود موبایل کار کند */}
+                <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
+                  <AccountArea />
+                </span>
                 {/* دکمهٔ طلایی تم — چرخهٔ روز/شب/شیشه‌ای؛ جای دکمهٔ منوی حذف‌شده در موبایل */}
                 <span className="inline-flex">
                   <ThemeToggle />

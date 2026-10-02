@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
-  MoreHorizontal, CheckCircle2, AlertCircle, Loader2,
+  MoreHorizontal, CheckCircle2, AlertCircle, Loader2, Copy,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -14,6 +14,7 @@ import { useApp } from "@/lib/store";
 import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
+import { IS_APK } from "@/lib/app-mode";
 import { askAi } from "@/lib/aiClient";
 import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
@@ -26,7 +27,31 @@ interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
 const EMPTY_MARKS: import("@/lib/store").LessonMark[] = [];
 
-/** نوار ابزار شناور نشان‌گذاری — پنج رنگ + حذف */
+/** کپی متن در کلیپ‌بورد — Clipboard API + فال‌بک execCommand برای WebView قدیمی */
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* فال‌بک */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:-999px;opacity:0;pointer-events:none";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف */
 function MarkToolbar({
   mode, rect, lessonId, markId, text, secId, occ, onDone,
 }: {
@@ -42,6 +67,7 @@ function MarkToolbar({
   const applyMark = useApp((s) => s.applyMark);
   const removeMark = useApp((s) => s.removeMark);
   const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [copied, setCopied] = React.useState(false);
   const boxRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useLayoutEffect(() => {
@@ -65,6 +91,16 @@ function MarkToolbar({
     onDone();
   }
 
+  async function copySel() {
+    const ok = await copyTextToClipboard(text ?? "");
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => onDone(), 800);
+    } else {
+      onDone();
+    }
+  }
+
   return (
     <div
       ref={boxRef}
@@ -73,7 +109,7 @@ function MarkToolbar({
       onMouseDown={(e) => e.preventDefault()}
       data-mark-toolbar="1"
       role="toolbar"
-      aria-label="نشان‌گذاری متن"
+      aria-label="نشان‌گذاری و کپی متن"
     >
       {mode === "new" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">نشان کن:</span>}
       {Object.entries(MARK_COLORS).map(([key, c]) => (
@@ -82,22 +118,29 @@ function MarkToolbar({
           onClick={() => pick(key)}
           title="رنگ نشان"
           aria-label={`نشان با رنگ ${key}`}
-          className="h-7 w-7 rounded-full border border-black/10 transition-transform hover:scale-110 active:scale-95"
+          className="h-8 w-8 rounded-full border border-black/10 transition-transform hover:scale-110 active:scale-95 sm:h-7 sm:w-7"
           style={{ background: c.dot, boxShadow: `inset 0 -3px 6px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.18)` }}
         />
       ))}
+      <span className="mx-0.5 h-5 w-px bg-border" />
+      <button
+        onClick={() => void copySel()}
+        title="کپی متن"
+        aria-label="کپی متن انتخاب‌شده"
+        className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold transition-colors sm:h-7 ${copied ? "bg-success/10 text-success" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+      >
+        {copied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        {copied ? "کپی شد" : "کپی"}
+      </button>
       {mode === "edit" && markId && (
-        <>
-          <span className="mx-0.5 h-5 w-px bg-border" />
-          <button
-            onClick={() => { removeMark(lessonId, markId); onDone(); }}
-            className="grid h-7 w-7 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10"
-            title="حذف نشان"
-            aria-label="حذف نشان"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </>
+        <button
+          onClick={() => { removeMark(lessonId, markId); onDone(); }}
+          className="grid h-8 w-8 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10 sm:h-7 sm:w-7"
+          title="حذف نشان"
+          aria-label="حذف نشان"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       )}
     </div>
   );
@@ -393,7 +436,7 @@ export function LearnView({ id }: { id: string }) {
           <div className="max-h-[46vh] space-y-2.5 overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-card">
             <p className="flex items-center gap-2 border-b border-dashed border-border pb-2.5 text-sm font-bold"><Scale className="h-4 w-4 text-bronze" /> مواد قانونی مرتبط</p>
             {laws.map((l, i) => (
-              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[15px] leading-relaxed">
+              <p key={i} className="law-text rounded-lg border-s-2 border-bronze/60 bg-gradient-to-l from-bronze/[0.07] to-transparent px-3 py-2 text-[14px] leading-[1.75] sm:text-[15px]">
                 <span className="font-display font-bold text-bronze">مادهٔ {l.no}</span> — {l.text.slice(0, 110)}…
               </p>
             ))}
@@ -507,7 +550,7 @@ export function LearnView({ id }: { id: string }) {
       {/* ستون اصلی */}
       <main className="min-w-0">
         {/* نوار پیشرفت جلسه */}
-        <header className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+        <header className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-6">
           <p className="text-xs font-medium text-bronze">{course.title} · فصل {fa(chapter.order)}</p>
           <h1 className="mt-1.5 text-xl font-bold leading-relaxed sm:text-2xl">{lesson.title}</h1>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-border/80">
@@ -535,8 +578,11 @@ export function LearnView({ id }: { id: string }) {
           key={id}
           ref={articleRef}
           className="space-y-6"
-          style={{ display: tab === "teach" ? undefined : "none" }}
+          style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none" }}
           onClick={handleArticleClick}
+          // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا فقط
+          // نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید
+          onContextMenu={(e) => e.preventDefault()}
         >
           {sections.slice(0, visibleCount).map((s, i) => {
             const meta = SECTION_META[s.type];
@@ -545,10 +591,10 @@ export function LearnView({ id }: { id: string }) {
                 key={s.id}
                 id={`sec-${i}`}
                 data-sec-id={s.id}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-                className="scroll-mt-28 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-7"
+                initial={IS_APK ? false : { opacity: 0, y: 14 }}
+                animate={IS_APK ? undefined : { opacity: 1, y: 0 }}
+                transition={IS_APK ? undefined : { duration: 0.25 }}
+                className="scroll-mt-28 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-7"
               >
                 <SectionHead n={i + 1} type={s.type} title={s.title ?? meta.title} />
 
@@ -785,7 +831,7 @@ function AiAnswerRich({ text }: { text: string }) {
   return (
     <>
       {prose && (
-        <div className="teach-body prose-p:leading-[1.85] text-[15.5px] [&_p]:my-1 [&_strong]:text-foreground">
+        <div className="teach-body prose-p:leading-[1.85] text-[14.5px] sm:text-[15.5px] [&_p]:my-1 [&_strong]:text-foreground">
           <ReactMarkdown>{prose}</ReactMarkdown>
         </div>
       )}
@@ -793,7 +839,7 @@ function AiAnswerRich({ text }: { text: string }) {
         <div className="mt-3 space-y-2">
           <p className="text-[11px] font-bold text-muted-foreground">مستند قانونی پاسخ:</p>
           {laws.map((l, i) => (
-            <p key={i} className="law-text flex gap-2 rounded-lg border-s-2 border-bronze/60 bg-background/70 px-3 py-2.5 text-[15.5px] leading-[1.9]">
+            <p key={i} className="law-text flex gap-2 rounded-lg border-s-2 border-bronze/60 bg-background/70 px-3 py-2.5 text-[14.5px] leading-[1.8] sm:text-[15.5px] sm:leading-[1.9]">
               <Scale className="mt-1.5 h-3.5 w-3.5 shrink-0 text-bronze" />
               <span>{l}</span>
             </p>

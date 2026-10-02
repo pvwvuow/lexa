@@ -27,7 +27,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
+    // perf-lite: پروفایل کارایی موبایل — در APK بلورها/انیمیشن‌های سنگین خاموش
+    // می‌شوند تا اسکرول و رندر روی WebView گوشی سبک بماند (globals.css)
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={IS_APK ? "perf-lite" : undefined}>
       <head>
         {/* پلی‌فیل‌های سازگاری — باید قبل از همهٔ چانک‌ها اجرا شود (WebView قدیمی) */}
         <script dangerouslySetInnerHTML={{ __html: compatScript }} />

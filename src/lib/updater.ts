@@ -329,9 +329,53 @@ export async function installAllOutdated(statuses: PackStatus[]): Promise<number
 
 let started = false;
 
+/** کلید کلید‌زرخشک نصب خودکار — اگر «off» باشد رفتار قدیمی (نصب دستی) می‌ماند */
+const AUTO_INSTALL_KEY = "lexa-auto-packs";
+
+export function autoInstallEnabled(): boolean {
+  try {
+    return localStorage.getItem(AUTO_INSTALL_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setAutoInstallEnabled(v: boolean): void {
+  try {
+    localStorage.setItem(AUTO_INSTALL_KEY, v ? "on" : "off");
+  } catch { /* حالت خصوصی مرورگر */ }
+}
+
+/**
+ * بسته‌های تازه/عقب‌ماندهٔ مانیفست را بی‌صدا نصب می‌کند (کتابخانه/دفترچه‌ها
+ * بدون مراجعهٔ کاربر به تنظیمات، خودشان اضافه می‌شوند — رفتار پیش‌فرض از 0.9.0).
+ */
+async function autoInstallFromManifest(m: UpdateManifest): Promise<number> {
+  if (!autoInstallEnabled() || !m.packs.length) return 0;
+  const installed = await listInstalledPacks();
+  const byId = new Map(installed.map((p) => [p.meta.id, p]));
+  let n = 0;
+  for (const meta of m.packs) {
+    const cur = byId.get(meta.id);
+    if (cur && cur.meta.version === meta.version) continue; // نصب و به‌روز
+    try {
+      await installPack(meta);
+      n += 1;
+    } catch {
+      /* هر بسته مستقل است — خطای یکی بقیه را متوقف نمی‌کند */
+    }
+  }
+  if (n > 0) {
+    try {
+      window.dispatchEvent(new CustomEvent("lexa-packs-autoinstalled", { detail: { count: n } }));
+    } catch { /* بی‌اثر */ }
+  }
+  return n;
+}
+
 /**
  * در استارتاپ اپ: بسته‌های نصب‌شده را ادغام می‌کند و در پس‌زمینه مانیفست را
- * برای «نشان به‌روزرسانی موجود» کش می‌کند. چندبار صدا زدنش بی‌ضرر است.
+ * می‌گیرد و بسته‌های تازه/عقب‌مانده را «خودکار» نصب می‌کند. چندبار صدا زدنش بی‌ضرر است.
  */
 export async function initContentPacks(): Promise<void> {
   if (started || typeof window === "undefined") return;
@@ -345,10 +389,12 @@ export async function initContentPacks(): Promise<void> {
     /* IndexedDB در دسترس نیست — بی‌خیال */
   }
 
-  // ۲) بررسی بی‌صدای مانیفست برای کش و نشانگر تنظیمات
-  void checkForUpdates().catch(() => {
-    /* آفلاین یا مخزن در دسترس نیست — مشکلی نیست */
-  });
+  // ۲) بررسی بی‌صدای مانیفست + نصب خودکار بسته‌های تازه (جزوه/تدریس بدون تنظیمات)
+  void checkForUpdates()
+    .then((m) => autoInstallFromManifest(m))
+    .catch(() => {
+      /* آفلاین یا مخزن در دسترس نیست — مشکلی نیست */
+    });
 }
 
 /**

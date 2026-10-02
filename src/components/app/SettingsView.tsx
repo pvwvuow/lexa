@@ -8,7 +8,7 @@ import {
   WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
   RefreshCw, TriangleAlert, FileText, BookOpen, Wrench,
   Share, SquarePlus, Copy, Check, Apple, Chrome as ChromeIcon, Monitor, ExternalLink,
-  PackageCheck, PackageOpen, CloudDownload,
+  PackageCheck, PackageOpen, CloudDownload, Sparkles,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp } from "@/lib/store";
@@ -28,6 +28,7 @@ import { IS_APK } from "@/lib/app-mode";
 import {
   initContentPacks, checkForUpdates, cachedManifest, lastCheckAt,
   listInstalledPacks, installPack, removePack, installAllOutdated, buildStatuses,
+  autoInstallEnabled, setAutoInstallEnabled,
   kindLabel,
   type UpdateManifest, type PackStatus, type InstalledPack,
 } from "@/lib/updater";
@@ -482,6 +483,7 @@ function ContentUpdates() {
   const [msg, setMsg] = React.useState("");
   const [rowBusy, setRowBusy] = React.useState("");
   const [allBusy, setAllBusy] = React.useState(false);
+  const [autoOn, setAutoOn] = React.useState<boolean>(() => autoInstallEnabled());
 
   const refreshInstalled = React.useCallback(async () => {
     setInstalled(await listInstalledPacks());
@@ -489,7 +491,16 @@ function ContentUpdates() {
 
   React.useEffect(() => {
     void refreshInstalled();
+    // اگر نصب خودکار در پس‌زمینه بسته‌ای اضافه کرد، فهرست همین‌جا هم تازه شود
+    const onAuto = () => { void refreshInstalled(); };
+    window.addEventListener("lexa-packs-autoinstalled", onAuto);
+    return () => window.removeEventListener("lexa-packs-autoinstalled", onAuto);
   }, [refreshInstalled]);
+
+  function toggleAuto(v: boolean) {
+    setAutoOn(v);
+    setAutoInstallEnabled(v);
+  }
 
   const statuses: PackStatus[] = React.useMemo(
     () => (manifest ? buildStatuses(manifest, installed) : []),
@@ -572,9 +583,32 @@ function ContentUpdates() {
           <PackageCheck className="h-5 w-5 text-bronze" /> به‌روزرسانی محتوا
         </h2>
         <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-          دوره‌ها و دفترچه‌های آزمون تازه، بدون نیاز به نصب نسخهٔ جدید برنامه از مخزن Lexa دانلود و نصب می‌شوند.
-          بسته‌ها روی همین دستگاه (IndexedDB) ذخیره می‌شوند، آفلاین هم کار می‌کنند و با حذف، از اپ برداشته می‌شوند.
+          جزوه‌ها، تدریس‌ها و دفترچه‌های آزمون تازه، بدون نیاز به نصب نسخهٔ جدید برنامه، خودکار از مخزن Lexa دریافت و
+          مستقیم به کتابخانه یا بخش مربوطه اضافه می‌شوند — نیازی به نصب دستی نیست. این بخش فقط برای دیدن فهرست و حذف اختیاری است.
         </p>
+
+        {/* کلید نصب خودکار */}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background/60 px-4 py-3">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+              <Sparkles className="h-3.5 w-3.5 text-bronze" /> نصب خودکار بسته‌ها
+            </p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              {autoOn
+                ? "فعال — هر جزوه یا دفترچهٔ تازه با اتصال اینترنت بی‌صدا نصب و به کتابخانه اضافه می‌شود."
+                : "غیرفعال — بسته‌های تازه فقط با دکمهٔ نصب همین صفحه اضافه می‌شوند."}
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={autoOn}
+            aria-label="نصب خودکار بسته‌های محتوایی"
+            onClick={() => toggleAuto(!autoOn)}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${autoOn ? "bg-success" : "bg-muted-foreground/35"}`}
+          >
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${autoOn ? "start-6" : "start-1"}`} />
+          </button>
+        </div>
 
         {/* وضعیت آخرین بررسی */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background/60 px-4 py-3">

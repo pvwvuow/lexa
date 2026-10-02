@@ -65,3 +65,24 @@ export async function sbPullState(): Promise<{err:string|null,data:unknown|null}
   const rows = await res.json();
   return {err:null,data:rows?.[0]?.data ?? null};
 }
+
+/* ─── بلاب محلی کامل دستگاه (استور + مباحث ضعیف + نشان‌های قانون) ────────────
+ * بین CloudSyncCard (تنظیمات) و دیالوگ حساب ابری مشترک است. */
+const STORE_KEY = "lexa-store-v1";
+const WEAK_KEY = "hoh_weak_topics";
+const MARKS_KEY = "lexa-law-marks";
+
+export function collectLocal(): Record<string, unknown> {
+  const read = (k: string) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
+  return { store: read(STORE_KEY), weakTopics: read(WEAK_KEY), lawMarks: read(MARKS_KEY), savedAt: Date.now() };
+}
+
+export function applyLocal(data: Record<string, unknown>): string[] {
+  const done: string[] = [];
+  const put = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); done.push(k); } catch { /* ignore */ } };
+  const d = data as { store?: unknown; weakTopics?: unknown; lawMarks?: unknown };
+  if (d.store) put(STORE_KEY, d.store);
+  if (d.weakTopics) put(WEAK_KEY, d.weakTopics);
+  if (d.lawMarks) put(MARKS_KEY, d.lawMarks);
+  return done;
+}

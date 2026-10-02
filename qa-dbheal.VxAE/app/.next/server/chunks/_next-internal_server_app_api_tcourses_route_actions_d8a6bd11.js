@@ -1,0 +1,3 @@
+module.exports=[11329,(e,o,d)=>{}];
+
+//# sourceMappingURL=_next-internal_server_app_api_tcourses_route_actions_d8a6bd11.js.map
