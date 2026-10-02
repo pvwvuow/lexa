@@ -1,13 +1,13 @@
 {
   "name": "lexa",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Lexa — استاد حقوقی هوشمند: مرجع آمادگی آزمون‌های حقوقی با هوش مصنوعی",
   "author": "Lexa Team <lexa@users.noreply.github.com>",
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "bun scripts/build-lesson-texts.mjs && next build && rm -rf .next/standalone/db .next/standalone/backups .next/standalone/data .next/standalone/upload .next/standalone/.env* && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && rm -f .next/standalone/lexa-template.db && DATABASE_URL=file:$PWD/.next/standalone/lexa-template.db bunx prisma db push --skip-generate && echo TEMPLATE_DB_OK",
+    "build": "bun scripts/build-lesson-texts.mjs && next build && rm -rf .next/standalone/db .next/standalone/backups .next/standalone/data .next/standalone/upload .next/standalone/.env* && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && rm -f .next/standalone/lexa-template.db && DATABASE_URL=file:$PWD/.next/standalone/lexa-template.db bunx prisma db push --skip-generate && find .next/standalone -type l -delete && echo SYMLINKS_CLEANED && echo TEMPLATE_DB_OK",
     "build:apk": "bun scripts/build-lesson-texts.mjs && NEXT_PUBLIC_APP_MODE=apk next build",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",

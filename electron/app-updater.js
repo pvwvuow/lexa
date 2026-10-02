@@ -236,22 +236,92 @@ function createUpdater(ctx) {
     }
   }
 
+  /**
+   * کشف آخرین تگ ریلیز از خود github.com (بدون واسطهٔ CDN) — پادزهر
+   * «کش کهنهٔ jsDelivr @main» روی برخی edgeهای منطقه‌ای:
+   * 1) api.github.com releases → tag_name اولین ریلیز v… → app-v…
+   * 2) releases.atom → اولین تگ v… (وقتی API محدود/مسدود است)
+   * مانیفستِ تگ ایمیبل محتوای تغییرناپذیر دارد — همیشه دقیق و تازه.
+   */
+  async function discoverLatestTag() {
+    const urls = [
+      `https://api.github.com/repos/${REPO}/releases?per_page=5`,
+      `https://github.com/${REPO}/releases.atom`,
+    ];
+    for (let i = 0; i < urls.length; i++) {
+      const u = urls[i];
+      try {
+        const txt = Buffer.from(await fetchBuffer(u, MANIFEST_TIMEOUT)).toString("utf8");
+        if (i === 0) {
+          const arr = JSON.parse(txt);
+          if (Array.isArray(arr)) {
+            for (const r of arr) {
+              const t = r && r.tag_name;
+              if (r && !r.draft && !r.prerelease && typeof t === "string" && /^v\d/.test(t)) {
+                return "app-" + t;
+              }
+            }
+          }
+        } else {
+          const m = txt.match(/releases\/tag\/(v\d[\w.\-]*)/);
+          if (m && m[1]) return "app-" + m[1];
+        }
+      } catch (e) {
+        log("tag discovery failed:", u, e && e.message);
+      }
+    }
+    return null;
+  }
+
   async function fetchManifest() {
+    // فید آزمایشی/محلی (LEXA_UPDATE_FEED — تست/QA): فقط همین منبع؛ بدون
+    // کشف تگ و منابع عمومی — وگرنه مانیفست پرودِ واقعی تست را می‌بلعد.
+    if (env.LEXA_UPDATE_FEED) {
+      const u = manifestUrls()[0];
+      const m = JSON.parse(Buffer.from(await fetchBuffer(u, MANIFEST_TIMEOUT)).toString("utf8"));
+      if (!validateManifest(m)) throw new Error("ساختار مانیفست نامعتبر است");
+      return m;
+    }
+
+    // چند منبع دریافت و «تازه‌ترین» انتخاب می‌شود — jsDelivr @main ممکن است
+    // در برخی edgeها کهنه باشد؛ مانیفست تگ ایمیبل همیشه معتبر و تازه است.
     let lastErr = null;
-    for (const u of manifestUrls()) {
+    const results = [];
+
+    const tryFetch = async (u, label) => {
       try {
         const m = JSON.parse(Buffer.from(await fetchBuffer(u, MANIFEST_TIMEOUT)).toString("utf8"));
         if (!validateManifest(m)) throw new Error("ساختار مانیفست نامعتبر است");
+        results.push(m);
         return m;
       } catch (e) {
         lastErr = e;
-        log("manifest fetch failed:", u, e && e.message);
+        log("manifest fetch failed:", label, u, e && e.message);
+        return null;
       }
+    };
+
+    // هر سه منبع موازی — بدترین حالت هم به اندازهٔ یک تایم‌اوت طول می‌کشد
+    await Promise.all([
+      tryFetch(manifestUrls()[0], "@main"), // jsDelivr @main — مسیر سریع
+      // کشف تگ از github.com → مانیفست ایمیبل تگ (پادزهر کش کهنهٔ @main)
+      discoverLatestTag().then((tag) =>
+        tag ? tryFetch(`https://cdn.jsdelivr.net/gh/${REPO}@${tag}/${FEED_DIR}/manifest.json`, tag) : null,
+      ),
+      tryFetch(manifestUrls()[1], "raw@main"), // fallback رسمی (همیشه تازه)
+    ]);
+
+    if (!results.length) {
+      throw new Error(
+        "دریافت مانیفست به‌روزرسانی ناموفق بود" +
+          (lastErr && lastErr.message ? ` (${lastErr.message})` : ""),
+      );
     }
-    throw new Error(
-      "دریافت مانیفست به‌روزرسانی ناموفق بود" +
-        (lastErr && lastErr.message ? ` (${lastErr.message})` : ""),
-    );
+    let best = results[0];
+    for (const m of results) {
+      if (cmpVersion(m.version, best.version) > 0) best = m;
+    }
+    return best;
   }
 
   /* ── وضعیت محلی ── */
@@ -267,6 +337,18 @@ function createUpdater(ctx) {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * آیا کپی پایهٔ appdata «سالم ولی بدون نشان نصب» است؟ (تلاش قبلی حین دانلود
+   * شکسته — دوباره ۱۷۰MB کپی نکن؛ ادامهٔ دلتا کافی است.) اگر commit نیمه‌کاره
+   * مانده باشد (.commit-in-progress) usable نیست — محتوایش ترکیبی است → کپی پایهٔ نو.
+   */
+  async function hasUsableBase(ad) {
+    if (!(await exists(ad))) return false;
+    if (await exists(path.join(ad, ".base-incomplete"))) return false;
+    if (await exists(path.join(ad, ".commit-in-progress"))) return false;
+    return exists(path.join(ad, "package.json"));
   }
 
   /**
@@ -309,8 +391,14 @@ function createUpdater(ctx) {
     const toDownload = [];
     const toDelete = [];
     for (const [p, e] of Object.entries(remote.files)) {
+      const rh = String(e[0]);
+      // ⚠️ symlinkها دانلودشدنی نیستند (URL محتوایی ندارند) — در ویندوز هم symlink
+      // از زیپ به‌صورت فایل واقعی استخراج می‌شود و هشش هرگز با link: یکسان نیست؛
+      // اگر دانلود می‌شد (URL بی‌معنی link:...bin) کل آپدیت شکست می‌خورد.
+      // بی‌خیالشان می‌شویم: همیشه بهترین‌تلاش ساخت در commit/کپی پایه انجام می‌شود.
+      if (rh.startsWith("link:")) continue;
       const l = localFiles.get(p);
-      if (!l || l.h !== e[0]) toDownload.push({ p, h: e[0], s: e[1] || 0 });
+      if (!l || String(l.h) !== rh) toDownload.push({ p, h: rh, s: e[1] || 0 });
     }
     for (const p of localFiles.keys()) {
       if (!remote.files[p]) toDelete.push(p);
@@ -438,8 +526,9 @@ function createUpdater(ctx) {
     const local = await ensureLocalManifest();
     const ad = appdataDir();
 
-    // ۱) لایهٔ appdata — اگر معتبر نیست از باندل کپی پایه ساخته می‌شود
-    if (!(await isAppdataValid(ad))) {
+    // ۱) لایهٔ appdata — اگر معتبر نیست ولی کپی پایهٔ سالمی از تلاش قبلی هست،
+    // کپی پایهٔ ۱۷۰MB از نو ساخته نمی‌شود؛ فقط دلتا ادامه پیدا می‌کند
+    if (!(await isAppdataValid(ad)) && !(await hasUsableBase(ad))) {
       await prepareBase(ad, local.files, ev);
     }
 
@@ -538,6 +627,7 @@ function createUpdater(ctx) {
     apply,
     appdataDir,
     isAppdataValid,
+    hasUsableBase,
     ensureLocalManifest,
     fetchManifest,
   };

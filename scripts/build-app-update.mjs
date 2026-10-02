@@ -57,6 +57,13 @@ if (!fs.existsSync(path.join(dir, "package.json")) || !fs.existsSync(path.join(d
 console.log(`اسکن «${dir}» …`);
 const t0 = Date.now();
 const files = await scanDir(dir);
+// ⚠️ entryهای symlink هرگز وارد مانیفست نشوند — نه محتوایی برای دانلود دارند
+// نه موتورهای قدیمی (0.6/0.7 روی دستگاه کاربر) تحملشان را دارند (باگ ویندوز).
+let droppedLinks = 0;
+for (const [p, e] of [...files]) {
+  if (String(e.h).startsWith("link:")) { files.delete(p); droppedLinks++; }
+}
+if (droppedLinks) console.log(`${droppedLinks} symlink از مانیفست حذف شد (دانلودشدنی نیستند)`);
 let totalBytes = 0;
 for (const e of files.values()) totalBytes += e.s;
 console.log(

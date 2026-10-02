@@ -80,3 +80,4 @@ download/electron/latest.yml
 electron/build/icon.ico
 download/android/*.apk
 download/electron/*.apk
+download/electron/squashfs-root/

@@ -3,7 +3,7 @@
  *
  *  ۱) ساخت یک «اپ پکیج‌شده» آزمایشی: باینری الکترون + resources/app واقعی
  *     (از linux-unpacked) با کدهای جدید electron/*.js
- *  ۲) فید محلی v0.6.1 با ۲ فایل تغییریافته (main-core.js + package.json)
+ *  ۲) فید محلی v0.8.1 با ۲ فایل تغییریافته (main-core.js + package.json)
  *  ۳) اجرا با xvfb + LEXA_UPDATE_QA=1 → چک/اعمال خودکار → ری‌استارت
  *  ۴) نمونهٔ دوم باید از لایهٔ appdata (نسخهٔ جدید) بالا بیاید
  *
@@ -49,7 +49,7 @@ for (const f of ["main.js", "main-core.js", "preload.js", "app-updater.js"]) {
 }
 console.log("✓ آماده");
 
-console.log("\n── ۲) فید محلی v0.6.1 ──");
+console.log("\n── ۲) فید محلی v0.8.1 ──");
 console.log("اسکن اپ (۲۳۰۰+ فایل)…");
 const files = await scanDir(APPDIR);
 console.log(`${files.size} فایل`);
@@ -57,9 +57,9 @@ const pkgRaw = await fsp.readFile(path.join(APPDIR, "package.json"), "utf8");
 const coreRaw = await fsp.readFile(path.join(APPDIR, "electron/main-core.js"), "utf8");
 
 // محتوای «نسخهٔ جدید» دو فایل
-const newPkg = pkgRaw.replace(/"version":\s*"[^"]+"/, '"version": "0.6.1"');
+const newPkg = pkgRaw.replace(/"version":\s*"[^"]+"/, '"version": "0.8.1"');
 if (newPkg === pkgRaw) throw new Error("version در package.json پیدا نشد");
-const newCore = coreRaw + "\n// QA-MARKER-0.6.1 — این نسخه از لایهٔ آپدیت اجرا شده است\n";
+const newCore = coreRaw + "\n// QA-MARKER-0.8.1 — این نسخه از لایهٔ آپدیت اجرا شده است\n";
 
 const mut = [
   { p: "package.json", content: newPkg },
@@ -67,7 +67,7 @@ const mut = [
 ];
 
 const manifest = manifestFromScan(files, {
-  version: "0.6.0",
+  version: "0.8.0",
   generatedAt: new Date().toISOString(),
 });
 const sha256Buf = (b) => createHash("sha256").update(b).digest("hex");
@@ -77,9 +77,9 @@ for (const m of mut) {
   const h = sha256Buf(Buffer.from(m.content, "utf8"));
   manifest.files[m.p] = [h, Buffer.byteLength(m.content)];
 }
-manifest.version = "0.6.1";
-manifest.notes = "QA v0.6.1 — دو فایل تغییرکرده";
-manifest.tag = "app-v0.6.1";
+manifest.version = "0.8.1";
+manifest.notes = "QA v0.8.1 — دو فایل تغییرکرده";
+manifest.tag = "app-v0.8.1";
 
 await fsp.mkdir(path.join(FEEDROOT, "updates/app/f"), { recursive: true });
 for (const m of mut) {
@@ -158,18 +158,18 @@ const assert = (cond, label, extra = "") => {
 };
 
 console.log("\n── ۴) assertions ──");
-assert(!!seenApplied, "نمونهٔ اول: آپدیت به 0.6.1 اعمال شد", JSON.stringify(seenApplied));
+assert(!!seenApplied, "نمونهٔ اول: آپدیت به 0.8.1 اعمال شد", JSON.stringify(seenApplied));
 assert(!!finalState && finalState.phase === "relaunched-from-appdata", "نمونهٔ دوم از لایهٔ appdata بالا آمد", JSON.stringify(finalState));
 assert(
-  !!finalState && finalState.version === "0.6.1" && String(finalState.appRoot || "").includes("/appdata"),
-  "APP_ROOT نمونهٔ دوم = appdata با نسخهٔ 0.6.1",
+  !!finalState && finalState.version === "0.8.1" && String(finalState.appRoot || "").includes("/appdata"),
+  "APP_ROOT نمونهٔ دوم = appdata با نسخهٔ 0.8.1",
 );
 const inst = JSON.parse(await fsp.readFile(path.join(PROFILE, "Lexa/appdata/.lexa-install.json"), "utf8"));
-assert(inst.version === "0.6.1", "مانیفست نصب = 0.6.1");
+assert(inst.version === "0.8.1", "مانیفست نصب = 0.8.1");
 const coreAfter = await fsp.readFile(path.join(PROFILE, "Lexa/appdata/electron/main-core.js"), "utf8");
-assert(coreAfter.includes("QA-MARKER-0.6.1"), "main-core داخل appdata نسخهٔ جدید است");
+assert(coreAfter.includes("QA-MARKER-0.8.1"), "main-core داخل appdata نسخهٔ جدید است");
 const pkgAfter = JSON.parse(await fsp.readFile(path.join(PROFILE, "Lexa/appdata/package.json"), "utf8"));
-assert(pkgAfter.version === "0.6.1", "package.json داخل appdata = 0.6.1");
+assert(pkgAfter.version === "0.8.1", "package.json داخل appdata = 0.8.1");
 assert(fs.existsSync(path.join(PROFILE, "Lexa/appdata/.next/standalone/server.js")), "سرور استاندالون داخل appdata کپی شده");
 
 console.log(ok ? "\n🎉 E2E کامل سبز — آپدیت درون‌برنامه‌ای سر-to-سر کار می‌کند" : "\n✗ E2E ناموفق");
