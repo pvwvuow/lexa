@@ -1,7 +1,7 @@
 /* QA وب v0.9.0 — رندر + حساب سروری + نشان‌گذاری + کپی + حذف منوی پیش‌فرض + سینک + نسخه‌ها + صفر خطا */
 const { chromium } = require("playwright");
 
-const BASE = "http://127.0.0.1:3000";
+const BASE = "http://127.0.0.1:3210";
 const STAMP = Date.now().toString().slice(-8);
 const USER = `qa09_${STAMP}`;
 const PASS = "Qa09" + STAMP + "!";
@@ -32,7 +32,7 @@ const PASS = "Qa09" + STAMP + "!";
     const r = await fetch("/sw.js");
     return ((await r.text()).match(/lexa-pwa-v\d+/) || ["?"])[0];
   });
-  assert(swVer === "lexa-pwa-v40", "سرویس‌ورکر v39 سرو می‌شود", swVer);
+  assert(swVer === "lexa-pwa-v41", "سرویس‌ورکر v41 سرو می‌شود", swVer);
 
   console.log("[۲] ساخت حساب سروری تازه (ورود / ثبت‌نام — دکمهٔ فرعی سپر: حساب سروری)");
   await page.goto(BASE + "/#/", { waitUntil: "networkidle", timeout: 45000 });

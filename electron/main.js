@@ -52,7 +52,18 @@ try {
         } catch {
           /* باندل بدون package.json — بعید */
         }
-        if (cmpVersion(adVersion, bundledVersion) >= 0) overlayCore = core;
+        // درِ ساختاری: فایل‌های حیاتی نصب باید واقعاً باشند — اگر یکی غایب است
+        // (نصب نیمه‌کاره/خراب‌شده) لایهٔ appdata هرگز بوت نمی‌شود؛ باندل سالم جای آن.
+        // (ریشهٔ «Application error: a client-side exception» بعد از آپدیت درون‌برنامه‌ای.)
+        const critOk = [
+          "package.json",
+          "electron/app-updater.js",
+          "electron/preload.js",
+          ".next/standalone/server.js",
+          ".next/standalone/package.json",
+          ".next/standalone/.next/BUILD_ID",
+        ].every((rel) => fs.existsSync(path.join(ad, rel)));
+        if (critOk && cmpVersion(adVersion, bundledVersion) >= 0) overlayCore = core;
       }
     }
   }

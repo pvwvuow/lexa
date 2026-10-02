@@ -357,9 +357,9 @@ function createUpdater(ctx) {
    * مانیفست محلی: اول appdata (نسخهٔ نصب‌شده)، بعد کش باندل، وگرنه اسکن کامل
    * (اسکن ~۱۷۰MB چند ثانیه طول می‌کشد و یک‌بار در userData کش می‌شود).
    */
-  async function ensureLocalManifest() {
+  async function ensureLocalManifest(o = {}) {
     const ad = appdataDir();
-    if (await isAppdataValid(ad)) {
+    if (!o.forceBundle && (await isAppdataValid(ad))) {
       const m = JSON.parse(await fsp.readFile(path.join(ad, ".lexa-install.json"), "utf8"));
       return { dir: ad, version: m.version, files: filesMap(m) };
     }
@@ -508,13 +508,50 @@ function createUpdater(ctx) {
   }
 
   /**
+   * راستی‌آزمایی سلامت لایهٔ appdata — هشِ همهٔ فایل‌ها با مانیفستِ نصب (.lexa-install.json).
+   * خروجی: { ok, checked, broken: [مسیرها… (حداکثر ۵)] }
+   * برای «درِ سلامت بوت» و «ترمیم خودکار پس از بوت» استفاده می‌شود.
+   */
+  async function verifyLocal(maxReport = 5) {
+    const ad = appdataDir();
+    const broken = [];
+    let checked = 0;
+    const inst = path.join(ad, ".lexa-install.json");
+    if (!(await exists(inst))) return { ok: false, checked, broken: [".lexa-install.json (missing)"] };
+    let manifest;
+    try {
+      manifest = JSON.parse(await fsp.readFile(inst, "utf8"));
+      if (!validateManifest(manifest)) throw new Error("invalid");
+    } catch {
+      return { ok: false, checked, broken: [".lexa-install.json (corrupt)"] };
+    }
+    const files = filesMap(manifest);
+    for (const [rel, e] of files) {
+      if (String(e.h).startsWith("link:")) continue;
+      const p = safeJoin(ad, rel);
+      try {
+        const h = await sha256File(p);
+        checked += 1;
+        if (h !== e.h) {
+          broken.push(rel);
+          if (broken.length >= maxReport) return { ok: false, checked, broken };
+        }
+      } catch {
+        broken.push(rel + " (missing)");
+        if (broken.length >= maxReport) return { ok: false, checked, broken };
+      }
+    }
+    return { ok: broken.length === 0, checked, broken };
+  }
+
+  /**
    * اجرای کامل آپدیت. onEvent با پیشرفت مرحله‌ای صدا زده می‌شود:
    *   { phase: "prepare" }
    *   { phase: "base", copiedBytes, totalBytes }              — فقط بار اول
    *   { phase: "download", filesDone, filesTotal, bytesDone, bytesTotal, currentFile? }
    *   { phase: "commit", filesDone, filesTotal }
    */
-  async function apply(onEvent) {
+  async function apply(onEvent, opts = {}) {
     const ev = (e) => {
       try {
         onEvent && onEvent(e);
@@ -525,12 +562,18 @@ function createUpdater(ctx) {
 
     ev({ phase: "prepare" });
     const remote = await fetchManifest();
-    const local = await ensureLocalManifest();
+    // در حالت ترمیم، مانیفست محلی باید «باندل» باشد نه install.jsonِ شاید-دروغگو
+    const local = await ensureLocalManifest(opts.rebuildBase === true ? { forceBundle: true } : {});
     const ad = appdataDir();
 
     // ۱) لایهٔ appdata — اگر معتبر نیست ولی کپی پایهٔ سالمی از تلاش قبلی هست،
-    // کپی پایهٔ ۱۷۰MB از نو ساخته نمی‌شود؛ فقط دلتا ادامه پیدا می‌کند
-    if (!(await isAppdataValid(ad)) && !(await hasUsableBase(ad))) {
+    //    کپی پایهٔ ۱۷۰MB از نو ساخته نمی‌شود؛ فقط دلتا ادامه پیدا می‌کند.
+    //    opts.rebuildBase=true (حالت ترمیم): کپی پایه همیشه از نو — install.json
+    //    ممکن است «دروغ» بگوید (فایل‌های سالم‌نما ولی خراب روی دیسک) و کپی پایهٔ
+    //    تازه، فایل‌های خرابِ مشترکِ باندل/ریموت را هم زنده می‌کند.
+    const forceRebuild = opts.rebuildBase === true;
+    const appdataInvalid = !(await isAppdataValid(ad));
+    if (forceRebuild || (appdataInvalid && !(await hasUsableBase(ad)))) {
       await prepareBase(ad, local.files, ev);
     }
 
@@ -599,6 +642,9 @@ function createUpdater(ctx) {
       }
     }
     await fsp.writeFile(path.join(ad, ".commit-in-progress"), new Date().toISOString());
+    // ⚠️ نشانگر فقط پس از «کامیت کامل + راستی‌آزمایی» برداشته می‌شود — اگر وسط راه
+    // خطا بخورد (دیسک پر/قفل آنتی‌ویروس/…) نشانگر می‌ماند تا بوت‌استرپ این لایهٔ
+    // نیمه‌کاره را بوت نکند و به باندل سالم برگردد (ریشهٔ «Application error» پس از آپدیت).
     try {
       let done = 0;
       for (const f of diff.toDownload) {
@@ -631,13 +677,43 @@ function createUpdater(ctx) {
         done += 1;
         ev({ phase: "commit", filesDone: done, filesTotal: commitTotal });
       }
-      await fsp.writeFile(
-        path.join(ad, ".lexa-install.json"),
-        JSON.stringify({ ...remote, appliedAt: new Date().toISOString() }),
-      );
-    } finally {
-      await fsp.rm(path.join(ad, ".commit-in-progress"), { force: true });
+    } catch (e) {
+      ev({ phase: "commit-failed", note: "نشانگر نیمه‌کاره ماند — بوت بعدی از باندل سالم بالا می‌آید" });
+      throw e;
     }
+
+    // ۵) راستی‌آزمایی پس از کامیت — هشِ همهٔ فایل‌های تازه روی دیسک باید با مانیفست
+    //    ریموت بخواند؛ هر ناهمخوانی یعنی نصب ناقص/خراب → نشانگر می‌ماند و خطا می‌دهیم
+    //    (install.json کهنه هنوز معتبرترین تصویرِ «نسخهٔ قبلی» است).
+    let verifyBad = 0;
+    let verifyFirst = "";
+    for (const f of diff.toDownload) {
+      if (String(f.h).startsWith("link:")) continue;
+      try {
+        const h = await sha256File(safeJoin(ad, f.p));
+        if (h !== f.h) {
+          verifyBad += 1;
+          if (!verifyFirst) verifyFirst = f.p;
+        }
+      } catch {
+        verifyBad += 1;
+        if (!verifyFirst) verifyFirst = f.p + " (missing)";
+      }
+    }
+    if (verifyBad > 0) {
+      log("post-commit verify FAILED:", verifyBad, verifyFirst);
+      ev({ phase: "commit-failed", note: "راستی‌آزمایی پس از نصب شکست خورد" });
+      throw new Error(
+        "پس از نصب، راستی‌آزمایی فایل‌ها شکست خورد (" + verifyBad + " فایل — " + verifyFirst + ")" +
+          " — نصب کامل نشد؛ برنامه با نسخهٔ قبلی بالا می‌آید و دوباره می‌توانید آپدیت بگیرید.",
+      );
+    }
+
+    await fsp.rm(path.join(ad, ".commit-in-progress"), { force: true });
+    await fsp.writeFile(
+      path.join(ad, ".lexa-install.json"),
+      JSON.stringify({ ...remote, appliedAt: new Date().toISOString() }),
+    );
     // فقط در موفقیت staging پاک می‌شود — در خطا برای ازسرگیری می‌ماند
     await fsp.rm(st, { recursive: true, force: true });
 
@@ -647,6 +723,7 @@ function createUpdater(ctx) {
   return {
     check,
     apply,
+    verifyLocal,
     appdataDir,
     isAppdataValid,
     hasUsableBase,

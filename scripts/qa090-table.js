@@ -1,6 +1,6 @@
 /* QA جدول مقایسه در موبایل — اسکرول افقی به‌جای بریدگی (مدنی/جزا — درس‌های دارای table) */
 const { chromium } = require("playwright");
-const BASE = "http://127.0.0.1:3000";
+const BASE = "http://127.0.0.1:3210";
 
 (async () => {
   let passed = 0, failed = 0;

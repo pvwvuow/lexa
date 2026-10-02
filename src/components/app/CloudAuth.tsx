@@ -17,7 +17,9 @@ import {
   sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState,
   collectLocal, onAuthChange, type SbUser,
 } from "@/lib/supabase";
-import { adoptCloudBlob, forceApplyCloudBlob } from "@/lib/cloud-sync";
+import { adoptCloudBlob, forceApplyCloudBlob, wipeLocalUserData, handleAccountSwitch } from "@/lib/cloud-sync";
+import { builtinCourses } from "@/lib/law/courses";
+import { useApp } from "@/lib/store";
 
 type Tab = "login" | "register";
 
@@ -85,6 +87,14 @@ export function CloudAuthDialog({
       return;
     }
     // ── ورود موفق: همگام‌سازی هوشمند ──
+    // تشخیص تعویض حساب: اگر قبلاً حساب دیگری روی این دستگاه وارد شده بود، دادهٔ
+    // محلی (نشان‌ها/پیشرفت/کتاب‌ها) متعلق به آن حساب است و هرگز به حساب جدید نباید برسد.
+    handleAccountSwitch(sbUser()!.id);
+    // سیاست «کتابخانهٔ خالی برای حساب تازه» — هم‌سو با ثبت‌نام سروری: همهٔ دوره‌های
+    // آماده «حذف‌شده» ثبت می‌شوند تا کاربر خودش از کتابخانهٔ عمومی انتخاب کند.
+    if (tab === "register") {
+      useApp.getState().setHiddenBuiltins(builtinCourses.map((c) => c.id));
+    }
     onOpenChange(false);
     setPassword("");
     const { err: pullErr, data } = await sbPullState();
@@ -336,6 +346,8 @@ export function CloudAccountArea() {
                   setBusy("out");
                   await sbPushState(collectLocal()).catch(() => {}); // آخرین ذخیره
                   await sbSignOut();
+                  // خروج یعنی دادهٔ حساب روی دستگاه نماند — با ورود، از ابر برمی‌گردد
+                  wipeLocalUserData();
                   setBusy("");
                 }}
                 disabled={busy !== ""}

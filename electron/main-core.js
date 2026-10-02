@@ -73,6 +73,7 @@ let win = null;
 let quitting = false;
 let updating = false; // حین اعمال آپدیت، پیام «سرور متوقف شد» نشان داده نشود
 let autoRestartTimer = null;
+let currentPort = 0; // برای بالا‌آوردن دوبارهٔ سرور پس از شکست اعمال آپدیت
 
 /* ─── موتور به‌روزرسانی دلتا ──────────────────────────────────────────────── */
 
@@ -318,6 +319,19 @@ ipcMain.handle("lexa:update:apply", async () => {
     return res;
   } catch (e) {
     sendUpdateEvent({ type: "apply:error", message: (e && e.message) || "خطای نامشخص" });
+    // سرور در beforeCommit بسته شد — با شکست اعمال، دوباره بالا می‌آوریم تا کاربر
+    // با نسخهٔ فعلی (سالم) سرِ کار بماند؛ لاگ کامل در کنسول.
+    console.error("[lexa-updater] apply failed:", e && e.message);
+    try {
+      updating = false;
+      if (!quitting && currentPort && !serverProc) {
+        startServer(currentPort);
+        await waitForServer(currentPort);
+        if (win && !win.isDestroyed()) {
+          win.loadURL(`http://127.0.0.1:${currentPort}`).catch(() => {});
+        }
+      }
+    } catch { /* تلاش مجدد ناموفق — کاربر برنامه را باز می‌کند */ }
     throw e;
   } finally {
     applying = false;
@@ -343,6 +357,51 @@ async function silentCheck() {
     }
   } catch {
     /* آفلاین — بی‌خیال */
+  }
+}
+
+/**
+ * ترمیم خودکار لایهٔ appdata پس از بوت — پادزهر «Application error» بعد از آپدیت.
+ * اگر محتوای نصب با مانیفستِ ثبت‌شده‌اش نخواند (نصب نیمه‌کاره/خراب‌شده — آنتی‌ویروس،
+ * دیسک پر، قطع برق وسط کامیت)، بوت‌استرپ به باندل سالم برمی‌گردد و این‌جا لایهٔ
+ * appdata بی‌صدا از نو ساخته و پس از موفقیت برنامه ری‌استارت می‌شود.
+ * قفل ۳۰ دقیقه‌ای: اگر ترمیم قبلی موفق نشد، در هر بوت دوباره تلاش نمی‌کنیم.
+ */
+async function backgroundRepair() {
+  if (!IS_PACKAGED) return;
+  try {
+    const ad = path.join(app.getPath("userData"), "appdata");
+    const inst = path.join(ad, ".lexa-install.json");
+    if (!fs.existsSync(inst)) return; // appdata اصلاً وجود ندارد — کاری نیست
+    const lockFile = path.join(app.getPath("userData"), "repair-attempt.json");
+    try {
+      const prev = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+      if (prev && typeof prev.at === "number" && Date.now() - prev.at < 30 * 60 * 1000) {
+        console.log("[lexa-electron] repair skipped — cooldown active");
+        return;
+      }
+    } catch { /* قفل نیست */ }
+
+    const v = await updater.verifyLocal();
+    if (v.ok) return;
+    console.warn("[lexa-electron] appdata layer BROKEN:", v.broken.join(" | "));
+    try { fs.writeFileSync(lockFile, JSON.stringify({ at: Date.now(), broken: v.broken })); } catch {}
+    sendUpdateEvent({ type: "repair:start", broken: v.broken });
+
+    const send = (p) => sendUpdateEvent({ type: "apply:progress", ...p });
+    updating = true; // حین ترمیم، مرگ سرور لایهٔ خراب پیام خطا ندهد — پایانش ری‌استارت است
+    const res = await updater.apply(send, { rebuildBase: true });
+    console.log("[lexa-electron] repair applied:", res.version);
+    sendUpdateEvent({ type: "repair:done", version: res.version });
+    setTimeout(() => {
+      try {
+        app.relaunch();
+        app.exit(0);
+      } catch { /* بی‌اثر */ }
+    }, 2500);
+  } catch (e) {
+    console.error("[lexa-electron] auto-repair failed:", e && e.message);
+    sendUpdateEvent({ type: "repair:failed", message: (e && e.message) || "خطای نامشخص" });
   }
 }
 
@@ -420,6 +479,7 @@ function bootApp() {
         console.log("[lexa-electron] dev mode — standalone:", SERVER_JS);
       }
       const port = await getFreePort();
+      currentPort = port;
       startServer(port);
 
       // پنجره با صفحهٔ راه‌اندازی باز می‌شود تا کاربر صفحهٔ خالی نبیند
@@ -447,10 +507,11 @@ function bootApp() {
       // همان پنجره به اپ اصلی وصل می‌شود — بدون باز و بسته شدن دوباره
       createMainWindow(port);
 
-      // بررسی بی‌صدای آپدیت پس از بالا آمدن کامل
+      // بررسی بی‌صدای آپدیت پس از بالا آمدن کامل + ترمیم خودکار لایهٔ خراب
       if (process.env.LEXA_NO_AUTOCHECK !== "1") {
         setTimeout(() => void silentCheck(), 6_000);
       }
+      setTimeout(() => void backgroundRepair(), 10_000);
       if (process.env.LEXA_UPDATE_QA === "1") {
         setTimeout(() => void runQaUpdateFlow(), 5_000);
       }

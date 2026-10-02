@@ -81,10 +81,11 @@ function SideItem({
   );
 }
 
-function DockBtn({ icon: Icon, label, active, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; active?: boolean; onClick: () => void }) {
+function DockBtn({ icon: Icon, label, active, onClick, title }: { icon: React.ComponentType<{ className?: string }>; label: string; active?: boolean; onClick: () => void; title?: string }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       aria-current={active ? "page" : undefined}
       className={`relative flex flex-col items-center gap-0.5 rounded-[24px] border px-2 py-2 text-[10px] font-semibold transition-all duration-200 ${
         active
@@ -199,6 +200,64 @@ export function AppShell() {
   // منوی کشویی موبایل — تنها راه دسترسی کامل به همهٔ بخش‌ها در صفحهٔ کوچک
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [drawerStudy, setDrawerStudy] = React.useState(false);
+  // تصویر لحظه‌ای باز/بسته بودن منو برای شنونده‌های لمسی (بدون وابستگی به effect)
+  const drawerOpenRef = React.useRef(false);
+  React.useEffect(() => { drawerOpenRef.current = drawerOpen; }, [drawerOpen]);
+
+  // ── سوایپ منوی کشویی (موبایل): کشیدن از لبهٔ راست صفحه به سمت چپ منو را باز
+  //    می‌کند و کشیدن به سمت راست (وقتی منو باز است) آن را می‌بندد. ──
+  React.useEffect(() => {
+    const EDGE = 44;   // نوار لبهٔ راست برای شروع سوایپِ بازکردن
+    const ZONE = 390;  // ناحیهٔ منو برای سوایپِ بستن
+    const DIST = 64;   // حداقل جابه‌جایی افقی معتبر
+    let x0 = 0, y0 = 0, t0 = 0;
+
+    const inScrollableX = (el: EventTarget | null): boolean => {
+      let n: HTMLElement | null = el instanceof Element ? (el as HTMLElement) : null;
+      let hops = 0;
+      while (n && hops++ < 6) {
+        const ox = window.getComputedStyle(n).overflowX;
+        if (ox === "auto" || ox === "scroll") return true;
+        n = n.parentElement;
+      }
+      return false;
+    };
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) { x0 = 0; return; }
+      const t = e.touches[0];
+      x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!x0) return;
+      const sx = x0, sy = y0, st = t0;
+      x0 = 0; y0 = 0;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx;
+      const dy = t.clientY - sy;
+      // باید افقیِ محکم و کوتاه باشد تا با اسکرول عمودی و لمس‌های عادی قاطی نشود
+      if (Math.abs(dx) < DIST || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+      if (Date.now() - st > 900) return;
+      if (window.innerWidth >= 1024) return; // دسکتاپ: سایدبار همیشه هست
+      if (!drawerOpenRef.current) {
+        // باز کردن: شروع از لبهٔ راست و کشیدن به چپ — روی نوارهای اسکرول‌شوندهٔ افقی نه
+        if (dx < 0 && sx >= window.innerWidth - EDGE && !inScrollableX(e.target)) setDrawerOpen(true);
+      } else {
+        // بستن: کشیدن به راست داخل ناحیهٔ منو
+        if (dx > 0 && sx >= window.innerWidth - ZONE) setDrawerOpen(false);
+      }
+    };
+
+    const onCancel = () => { x0 = 0; };
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchend", onEnd, { passive: true });
+    document.addEventListener("touchcancel", onCancel, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onCancel);
+    };
+  }, []);
 
   React.useEffect(() => {
     setMounted(true);
@@ -342,8 +401,8 @@ export function AppShell() {
         {/* تست و آزمون — یک ورود یکتا: تست از کتابخانه + دفترچه‌های آماده در دو تب داخل همان صفحه */}
         <SideItem icon={NotebookTabs} label="تست و آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
         <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
-        {/* کتابخانهٔ عمومی — دوره‌ها و مطالب اساتید با دسته‌بندی */}
-        {!IS_APK && <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />}
+        {/* کتابخانهٔ عمومی — دوره‌های آماده (آفلاین) + مطالب اساتید — در اندروید هم فعال */}
+        <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
@@ -484,7 +543,7 @@ export function AppShell() {
           {route.view === "studio" && (IS_APK ? <ApkUnavailable title="اتاق استاد" /> : <StudioView />)}
           {route.view === "write" && (IS_APK ? <ApkUnavailable title="نوشتن مطلب" /> : <StudioWriteView kind={route.kind} id={route.id} />)}
           {route.view === "post" && (IS_APK ? <ApkUnavailable title="مطلب استاد" /> : <PostView id={route.id} />)}
-          {route.view === "library" && (IS_APK ? <ApkUnavailable title="کتابخانهٔ عمومی" /> : <PublicLibraryView />)}
+          {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && (IS_APK ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
           {route.view === "admin" && (IS_APK ? <ApkUnavailable title="پنل مدیریت" /> : <AdminView />)}
@@ -507,8 +566,8 @@ export function AppShell() {
             <DockBtn icon={Home} label="خانه" active={["home", "course"].includes(current)} onClick={() => go({ view: "home" })} />
             <DockBtn icon={BookOpen} label="تدریس" active={isSubPage && current !== "quiz"} onClick={dockTadriss} />
             <DockBtn icon={NotebookTabs} label="آزمون" active={current === "quiz"} onClick={() => go({ view: "quiz" })} />
-            <DockBtn icon={LibraryBig} label="کتابخانه" active={IS_APK ? current === "law" : ["library", "law"].includes(current)} onClick={() => go(IS_APK ? { view: "law" } : { view: "library" })} />
-            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} />
+            <DockBtn icon={LibraryBig} label="کتابخانه" active={["library", "law"].includes(current)} onClick={() => go({ view: "library" })} />
+            <DockBtn icon={Menu} label="منو" active={false} onClick={() => setDrawerOpen(true)} title="منو — با کشیدن از لبهٔ راست صفحه هم باز می‌شود" />
           </div>
         </nav>
 
@@ -555,7 +614,7 @@ export function AppShell() {
               )}
               <SideItem icon={NotebookTabs} label="تست و آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
               <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
-              {!IS_APK && <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />}
+              <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
               {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
               {auth.user?.role === "teacher" && (
@@ -576,6 +635,9 @@ export function AppShell() {
                 <SyncHint collapsed />
               </div>
             </div>
+            <p className="mt-1.5 text-center text-[10px] leading-relaxed text-muted-foreground/60">
+              راه دیگر: کشیدن از لبهٔ راست صفحه به چپ منو را باز می‌کند و کشیدن به راست، می‌بندد.
+            </p>
           </SheetContent>
         </Sheet>
       </div>

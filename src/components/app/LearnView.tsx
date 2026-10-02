@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
-  MoreHorizontal, CheckCircle2, AlertCircle, Loader2, Copy,
+  MoreHorizontal, CheckCircle2, AlertCircle, Loader2, Copy, ZoomIn, ZoomOut,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -26,6 +26,18 @@ import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, i
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
 const EMPTY_MARKS: import("@/lib/store").LessonMark[] = [];
+
+/** زوم متن درس — مرز منطقی ۹۰٪ تا ۱۶۰٪ با گام ۱۰٪ (درخواست کاربر) */
+const LESSON_ZOOM = {
+  min: 0.9,
+  max: 1.6,
+  step: 0.1,
+  clamp(v: number): number {
+    const snapped = Math.round(v / this.step) * this.step;
+    return Math.min(this.max, Math.max(this.min, Math.round(snapped * 100) / 100));
+  },
+};
+const ZOOM_KEY = "lexa-lesson-zoom";
 
 /** کپی متن در کلیپ‌بورد — Clipboard API + فال‌بک execCommand برای WebView قدیمی */
 async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -200,6 +212,20 @@ export function LearnView({ id }: { id: string }) {
   }, [askOpen, id]);
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+
+  // ── زوم متن درس — بزرگ/کوچک کردن اندازهٔ متون با مرز منطقی و ماندگاری ──
+  const [zoom, setZoomState] = React.useState(1);
+  React.useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem(ZOOM_KEY) || "1");
+      if (Number.isFinite(v) && v > 0) setZoomState(LESSON_ZOOM.clamp(v));
+    } catch { /* بی‌اثر */ }
+  }, []);
+  const setZoom = React.useCallback((v: number) => {
+    const z = LESSON_ZOOM.clamp(v);
+    setZoomState(z);
+    try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* بی‌اثر */ }
+  }, []);
 
   React.useEffect(() => {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
@@ -570,7 +596,42 @@ export function LearnView({ id }: { id: string }) {
               </button>
             ))}
           </div>
-          {tab !== "teach" && <div className="lg:hidden">{bodyTabContent}</div>}
+          {tab !== "teach" && <div className="lg:hidden" style={{ zoom } as React.CSSProperties}>{bodyTabContent}</div>}
+
+          {/* زوم متن درس — بزرگ/کوچک‌کردن اندازهٔ متون (۹۰٪ تا ۱۶۰٪) */}
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-border bg-background/50 px-2.5 py-1.5">
+            <span className="ps-1 text-[11px] font-bold text-muted-foreground">اندازهٔ متن</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setZoom(zoom - LESSON_ZOOM.step)}
+                disabled={zoom <= LESSON_ZOOM.min + 0.001}
+                title="کوچک‌تر"
+                aria-label="کوچک‌کردن اندازهٔ متن"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-35"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <span dir="ltr" className="min-w-[42px] text-center text-[11px] font-bold tabular-nums text-bronze">{fa(Math.round(zoom * 100))}٪</span>
+              <button
+                onClick={() => setZoom(zoom + LESSON_ZOOM.step)}
+                disabled={zoom >= LESSON_ZOOM.max - 0.001}
+                title="بزرگ‌تر"
+                aria-label="بزرگ‌کردن اندازهٔ متن"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-35"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                disabled={Math.abs(zoom - 1) < 0.001}
+                title="اندازهٔ پیش‌فرض"
+                aria-label="بازنشانی اندازهٔ متن"
+                className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-35"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
         </header>
 
         {/* بخش‌های تدریس */}
@@ -578,7 +639,7 @@ export function LearnView({ id }: { id: string }) {
           key={id}
           ref={articleRef}
           className="space-y-6"
-          style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none" }}
+          style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none", zoom } as React.CSSProperties}
           onClick={handleArticleClick}
           // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا فقط
           // نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید

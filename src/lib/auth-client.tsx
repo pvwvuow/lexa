@@ -290,8 +290,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hiddenBuiltins: [],
       notes: {},
       lastLocation: {},
+      examAttempts: {},
+      marks: {},
     });
     try { localStorage.removeItem("hoh_weak_topics"); } catch {}
+    try { localStorage.removeItem("lexa-law-marks"); } catch {}
     useApp.getState().setTBooks([]);
     userRef.current = null;
     setUser(null);

@@ -9,6 +9,7 @@
 import * as React from "react";
 import { CloudUpload, CloudDownload, Loader2, LogIn, LogOut, UserPlus, CheckCircle2, CloudCog, TriangleAlert } from "lucide-react";
 import { sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState, onAuthChange, type SbUser } from "@/lib/supabase";
+import { wipeLocalUserData } from "@/lib/cloud-sync";
 
 const STORE_KEY = "lexa-store-v1";
 const WEAK_KEY = "hoh_weak_topics";
@@ -82,7 +83,7 @@ export function CloudSyncCard() {
         <div className="space-y-3">
           <div className="flex items-center justify-between rounded-xl bg-success/10 px-4 py-3 text-sm">
             <span className="flex items-center gap-2 font-bold text-success"><CheckCircle2 className="h-4 w-4" /> {user.email}</span>
-            <button onClick={() => { sbSignOut(); setMsg("از حساب ابری خارج شدی."); }} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted/50">
+            <button onClick={async () => { await sbPushState(collectLocal()).catch(() => {}); await sbSignOut(); wipeLocalUserData(); setMsg("از حساب ابری خارج شدی؛ داده‌ات روی ابر محفوظ است."); }} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted/50">
               <LogOut className="h-3.5 w-3.5" /> خروج
             </button>
           </div>
