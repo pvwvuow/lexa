@@ -10,7 +10,7 @@ import type { Course } from "@/lib/law/types";
 import { LAW_CODES, type LawCode, type LawBook } from "@/lib/law/statutes";
 import { fetchFullLaws } from "./LawLibraryView";
 import { CourseIcon, UserAvatar } from "./common";
-import { useTextsVersion } from "@/lib/law/texts";
+import { useTextsVersion, ensureLessonsContent } from "@/lib/law/texts";
 import { IS_APK } from "@/lib/app-mode";
 
 /* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
@@ -49,28 +49,58 @@ interface TeacherHit {
   score: number;
 }
 
-/** ساخت شاخص سبک از کل کتابخانه — یک‌بار به ازای تغییر آرایهٔ دوره‌ها */
-function buildIndex(courses: Course[]) {
-  const items: { c: Course; ch: string; l: { id: string; title: string }; flatIdx: number; total: number; hay: string; plain: string }[] = [];
-  for (const c of courses) {
-    const flats = flatLessons(c);
-    const total = flats.length;
-    flats.forEach(({ lesson, chapter }, i) => {
-      let plain = `${lesson.title} ${chapter.title} ${c.title}`;
-      for (const s of lesson.sections) {
-        if (s.title) plain += ` ${s.title}`;
-        if (s.body) plain += ` ${s.body}`;
-        if (s.bullets) plain += ` ${s.bullets.join(" ")}`;
-        if (s.law) for (const w of s.law) plain += ` ماده ${w.no} ${w.text}`;
-        if (s.table) for (const r of s.table.rows) plain += ` ${r.join(" ")}`;
-        if (s.questionText) plain += ` ${s.questionText}`;
-      }
-      for (const q of lesson.quiz.slice(0, 3)) plain += ` ${q.q}`;
-      plain = plain.replace(/\s+/g, " ");
-      items.push({ c, ch: chapter.title, l: { id: lesson.id, title: lesson.title }, flatIdx: i, total, hay: norm(plain), plain });
-    });
-  }
-  return items;
+/** آیتم شاخص جلسه‌ها */
+interface IndexItem { c: Course; ch: string; l: { id: string; title: string }; flatIdx: number; total: number; hay: string; plain: string }
+function flattenCourseInto(c: Course, items: IndexItem[]) {
+  const flats = flatLessons(c);
+  const total = flats.length;
+  flats.forEach(({ lesson, chapter }, i) => {
+    let plain = `${lesson.title} ${chapter.title} ${c.title}`;
+    for (const s of lesson.sections) {
+      if (s.title) plain += ` ${s.title}`;
+      if (s.body) plain += ` ${s.body}`;
+      if (s.bullets) plain += ` ${s.bullets.join(" ")}`;
+      if (s.law) for (const w of s.law) plain += ` ماده ${w.no} ${w.text}`;
+      if (s.table) for (const r of s.table.rows) plain += ` ${r.join(" ")}`;
+      if (s.questionText) plain += ` ${s.questionText}`;
+    }
+    for (const q of lesson.quiz.slice(0, 3)) plain += ` ${q.q}`;
+    plain = plain.replace(/\s+/g, " ");
+    items.push({ c, ch: chapter.title, l: { id: lesson.id, title: lesson.title }, flatIdx: i, total, hay: norm(plain), plain });
+  });
+}
+
+/* ─── کش شاخص جلسه‌ها — بین باز و بسته‌شدن‌ها می‌ماند تا جستجو همیشه فوری باشد ──
+   کلید کش = هویت آرایهٔ دوره‌ها + نسخهٔ متن‌های تنبل. ساخت تکه‌تکه و غیرمسدودکننده
+   است تا روی گوشی‌های کند صفحه هنگ نکند و تا پایان ساخت، اسکلتون دیده شود. */
+interface LessonIndexKey { n: number; lessons: number; ver: number }
+let LESSON_CACHE: { key: LessonIndexKey; items: IndexItem[] } | null = null;
+let LESSON_BUILD: { key: LessonIndexKey; items: IndexItem[]; done: boolean; subs: ((items: IndexItem[]) => void)[] } | null = null;
+function lessonKey(courses: Course[], ver: number): LessonIndexKey {
+  let lessons = 0;
+  for (const c of courses) for (const ch of c.chapters) lessons += ch.lessons.length;
+  return { n: courses.length, lessons, ver };
+}
+function sameKey(a: LessonIndexKey, b: LessonIndexKey) { return a.n === b.n && a.lessons === b.lessons && a.ver === b.ver; }
+function ensureLessonIndex(courses: Course[], ver: number, onDone: (items: IndexItem[]) => void) {
+  const key = lessonKey(courses, ver);
+  if (LESSON_CACHE && sameKey(LESSON_CACHE.key, key)) { onDone(LESSON_CACHE.items); return; }
+  // ساخت در جریان؟ همهٔ نمونه‌های جستجو مشترک می‌شوند — ساخت فقط یک‌بار انجام می‌شود
+  if (LESSON_BUILD && !LESSON_BUILD.done) { LESSON_BUILD.subs.push(onDone); return; }
+  const build: NonNullable<typeof LESSON_BUILD> = { key, items: [], done: false, subs: [onDone] };
+  LESSON_BUILD = build;
+  let i = 0;
+  const step = () => {
+    if (LESSON_BUILD !== build) return; // ساخت جدیدتری جایگزین شده
+    const end = Math.min(i + 20, courses.length);
+    for (; i < end; i++) flattenCourseInto(courses[i], build.items);
+    if (i < courses.length) { setTimeout(step, 0); return; }
+    build.done = true;
+    LESSON_CACHE = { key, items: build.items };
+    for (const fn of build.subs) fn(build.items);
+    if (LESSON_BUILD === build) LESSON_BUILD = null;
+  };
+  setTimeout(step, 0);
 }
 
 /** نتیجهٔ مادهٔ قانونی از کتابخانهٔ قوانین */
@@ -105,31 +135,44 @@ function buildLawIndex(full?: Record<string, { books?: LawBook[] }> | null): Law
   return items;
 }
 
+/* شاخص قوانین — یک‌بار ساخته می‌شود؛ با رسیدن متن کامل، فقط یک‌بار غنی‌تر می‌شود */
+let LAW_ITEMS: LawIndexItem[] | null = null;
+let LAW_FULL_REF: unknown = null;
+function getLawItems(full?: Record<string, { books?: LawBook[] }> | null): LawIndexItem[] {
+  const ref = full && Object.keys(full).length ? full : null;
+  if (ref && LAW_FULL_REF !== ref) {
+    LAW_FULL_REF = ref;
+    LAW_ITEMS = buildLawIndex(ref);
+  } else if (!LAW_ITEMS) {
+    LAW_ITEMS = buildLawIndex(null);
+    LAW_FULL_REF = null;
+  }
+  return LAW_ITEMS;
+}
+
 export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[]; variant?: "icon" | "bar" | "hero" }) {
   const [open, setOpen] = React.useState(false);
-  const [rawQ, setRawQ] = React.useState("");
-  // ورودی دیبانس می‌شود تا تایپ روان بماند
+  // q مستقیم از ورودی کنترل‌نشده می‌آید — بدون debounce. روی اندروید با IME/متن‌ساز
+  // تضاد ندارد و نتیجه‌ها در همان ضربهٔ کلید به‌روز می‌شوند.
   const [q, setQ] = React.useState("");
   const [cursor, setCursor] = React.useState(0);
   const [indexReady, setIndexReady] = React.useState(false);
   const [teachersLoading, setTeachersLoading] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  React.useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setQ(rawQ), 110);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [rawQ]);
 
   // ── اساتید (برای جستجوی اسم استاد)؛ مهمان هم آزاد است ──
   const [teachers, setTeachers] = React.useState<
     { id: string; displayName: string; username: string; avatarUrl?: string | null; followers: number; posts: number; courses: number }[]
   >([]);
 
-  const [index, setIndex] = React.useState<ReturnType<typeof buildIndex> | null>(null);
-  const [lawIndex, setLawIndex] = React.useState<ReturnType<typeof buildLawIndex> | null>(null);
+  const [index, setIndex] = React.useState<IndexItem[] | null>(null);
+  const [lawIndex, setLawIndex] = React.useState<LawIndexItem[] | null>(null);
+  const textsVer = useTextsVersion();
+  const textsVerRef = React.useRef(textsVer);
+  React.useEffect(() => {
+    textsVerRef.current = textsVer;
+  }, [textsVer]);
 
   /* میانبرهای کیبورد: / یا Ctrl+K باز میکند؛ Esc میبندد */
   React.useEffect(() => {
@@ -146,25 +189,50 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // آماده‌سازی شاخص به صورت غیرمسدودکننده پس از باز شدن
+  // شنیدن «بومی و تفویضی» رویداد input در سطح document (فاز capture) — کاملاً مصون از:
+  //  • dedupِ ردیاب مقدارِ React (که باگ «تایپ کامل → هیچ؛ پاک‌کردن یک حرف → نتیجه» اندروید بود)
+  //  • تضاد IME/متن‌ساز گوشی حین composition
+  //  • زمان‌بندی mount/re-mount پورتال و ترتیب افکت‌ها
+  // هر نمونه فقط رویدادِ دیالوگ خودش را می‌پذیرد (data-search=useId).
+  const sid = React.useId();
+  React.useEffect(() => {
+    const onInput = (e: Event) => {
+      const t = e.target as HTMLInputElement | null;
+      if (!t || t.tagName !== "INPUT") return;
+      if (!t.closest(`[data-search="${sid}"]`)) return;
+      setQ(t.value);
+      setCursor(0);
+    };
+    document.addEventListener("input", onInput, true);
+    return () => document.removeEventListener("input", onInput, true);
+  }, [sid]);
+
+  // آماده‌سازی شاخص هنگام باز شدن — از کش اگر تازه باشد؛ وگرنه ساخت تکه‌تکهٔ
+  // غیرمسدودکننده (اسکلتون تا پایان ساخت). باز و بسته کردن‌های بعدی فوری است.
   React.useEffect(() => {
     if (!open) return;
-    setRawQ("");
     setQ("");
     setCursor(0);
-    setIndex(null);
-    setIndexReady(false);
     setTimeout(() => inputRef.current?.focus(), 40);
-    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
-      ?? ((cb: () => void) => window.setTimeout(cb, 120));
-    idle(() => {
-      setIndex(buildIndex(courses));
-      setLawIndex(buildLawIndex());
+
+    setIndexReady(false);
+    ensureLessonIndex(courses, textsVerRef.current, (items) => {
+      setIndex(items);
       setIndexReady(true);
     });
+
+    // متن‌های تنبل همهٔ جلسات بی‌صدا آب می‌شوند تا «جستجوی بدنهٔ درس‌ها» کامل شود؛
+    // در APK از assets محلی می‌آید (فوری) و بعد از بار اول، از کش IndexedDB.
+    // با هر آب‌رسانی نسخهٔ متن‌ها بالا می‌رود و افکت پایین‌تر شاخص را پله‌ای غنی می‌کند.
+    void ensureLessonsContent(
+      courses.flatMap((c) => c.chapters.flatMap((ch) => ch.lessons)),
+      10,
+    );
+
+    setLawIndex(getLawItems());
     // متن کامل قوانین برسد، شاخص قانونی غنی‌تر می‌شود
     fetchFullLaws().then((d) => {
-      if (d && Object.keys(d).length) setLawIndex(buildLawIndex(d));
+      if (d && Object.keys(d).length) setLawIndex(getLawItems(d));
     });
     setTeachersLoading(true);
     fetch("/api/social/suggestions")
@@ -174,14 +242,27 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
       })
       .catch(() => {})
       .finally(() => setTeachersLoading(false));
-     
   }, [open]);
 
-  // با آب‌رسانی محتوای تازه (لود تنبل) شاخص غنی‌تر می‌شود — تا وقتی جست‌وجو باز است
-  const textsVer = useTextsVersion();
+  // با آب‌رسانی محتوای تازه (لود تنبل) شاخص بی‌صدا و «پله‌ای» بازسازی می‌شود —
+  // در طوفان آب‌رسانی (۴۰۰+ متن) حداکثر هر ۱٫۲ ثانیه یک‌بار، و یکی هم در پایان.
+  const lastIdxRunRef = React.useRef(0);
+  const rebuildTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
-    if (!open || !indexReady) return;
-    setIndex(buildIndex(courses));
+    if (!open) return;
+    const run = () => {
+      lastIdxRunRef.current = Date.now();
+      ensureLessonIndex(courses, textsVer, (items) => {
+        setIndex(items);
+        setIndexReady(true);
+      });
+    };
+    const wait = Math.max(0, 1200 - (Date.now() - lastIdxRunRef.current));
+    if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    rebuildTimerRef.current = window.setTimeout(run, wait);
+    return () => {
+      if (rebuildTimerRef.current) { clearTimeout(rebuildTimerRef.current); rebuildTimerRef.current = null; }
+    };
   }, [textsVer]);
 
   const hits: Hit[] = React.useMemo(() => {
@@ -321,8 +402,8 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
     );
   }
 
-  const busy = (!indexReady || rawQ !== q) && true;
-  const hasQuery = rawQ.trim().length > 0;
+  const busy = !indexReady;
+  const hasQuery = q.trim().length > 0;
 
   return (
     <>
@@ -366,6 +447,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
           role="dialog"
           aria-modal="true"
           aria-label="جستجوی سراسری"
+          data-search={sid}
           className="fixed inset-0 z-[60] flex items-end justify-center bg-background/50 backdrop-blur-[6px] dark:bg-black/45 sm:items-start sm:p-4 sm:pt-[10vh]"
           onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
         >
@@ -377,8 +459,12 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               <Search className="h-4 w-4 shrink-0 text-bronze" />
               <input
                 ref={inputRef}
-                value={rawQ}
-                onChange={(e) => { setRawQ(e.target.value); setCursor(0); }}
+                defaultValue=""
+                enterKeyHint="search"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 onKeyDown={onKeyDownList}
                 placeholder="جلسه، ماده یا اسم استاد…"
                 className="h-14 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
@@ -447,7 +533,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
               ) : (
                 <>
                   {/* نوار نتیجه */}
-                  <div className="sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-white/55 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground ring-1 ring-inset ring-white/40 backdrop-blur-md dark:bg-white/[0.07] dark:ring-white/10">
+                  <div className="search-count-bar sticky top-0 z-10 mb-1 flex items-center justify-between rounded-xl bg-white/55 px-3 py-1.5 text-[10.5px] font-semibold text-muted-foreground ring-1 ring-inset ring-white/40 backdrop-blur-md dark:bg-white/[0.07] dark:ring-white/10">
                     <span>{fa(teacherHits.length)} استاد · {fa(lawHits.length)} ماده · {fa(hits.length)} جلسه</span>
                     <span dir="ltr" className="hidden font-display tabular-nums opacity-70 sm:inline">Esc</span>
                   </div>

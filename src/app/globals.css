@@ -905,6 +905,23 @@ mark.lexa-mark:hover {
   background: rgb(24 33 29 / 0.98);
   box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.55);
 }
+/* پنل جستجو (تنها مصرف‌کنندهٔ lg-panel) در اندروید — ماتِ تقریباً جامد.
+   بدون blur زنده، محتوای پشت صفحهٔ جستجو دیگر سِرنمی‌خورد و متن همیشه خوانا می‌ماند. */
+.perf-lite .lg-panel {
+  background: rgb(250 250 248 / 0.99);
+  box-shadow: 0 12px 28px -14px rgb(10 22 17 / 0.38);
+}
+.perf-lite.dark .lg-panel {
+  background: rgb(24 33 29 / 0.99);
+  box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.55);
+}
+/* نوار شمارندهٔ نتیجه داخل جستجو — روی پنل مات، ته‌رنگ یکدست به‌جای شیشه */
+.perf-lite .search-count-bar {
+  background: rgb(255 255 255 / 0.72);
+}
+.perf-lite.dark .search-count-bar {
+  background: rgb(255 255 255 / 0.06);
+}
 .perf-lite.theme-glass .bg-card,
 .perf-lite.theme-glass .bg-popover,
 .perf-lite.theme-glass .bg-sidebar {
