@@ -29,7 +29,7 @@ files:
   - "!.next/standalone/db/**"
   - "!.next/standalone/data/uploads/**"
   - "!.next/standalone/backups/**"
-  - "!.next/standalone/{download,src,scripts,qa,shots,tests,skills,tool-results,upload,updates,assets,prisma}/**"
+  - "!.next/standalone/{download,src,scripts,qa,qa-*,shots,tests,skills,tool-results,upload,updates,assets,prisma,android}/**"
   - "!.next/standalone/{electron-builder.yml,supabase-schema.sql}"
   - "!.next/standalone/backups/**"
   - "!.next/standalone/data/**"
