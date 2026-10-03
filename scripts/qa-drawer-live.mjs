@@ -1,7 +1,7 @@
 // QA منوی کشویی موبایل — باز شدن فوری + درگ زندهٔ ۱:۱ (CDP touch)
 import { chromium } from "playwright";
 
-const BASE = "http://localhost:3000";
+const BASE = "http://127.0.0.1:3210";
 const PANEL = '[role="dialog"][aria-label="منو"]';
 const results = [];
 function check(name, ok, extra = "") {

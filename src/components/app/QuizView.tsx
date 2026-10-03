@@ -422,7 +422,7 @@ export function QuizView({ id }: { id?: string }) {
         </div>
 
         {tab === "packs" ? (
-          <ExamPackHub onUseLibrary={() => setTab("library")} />
+          <ExamPackHub />
         ) : (
           <>
         <motion.header initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">

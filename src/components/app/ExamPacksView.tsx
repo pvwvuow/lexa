@@ -97,26 +97,13 @@ function VokalatBanner() {
   );
 }
 
-export function ExamPackHub({ onUseLibrary }: { onUseLibrary?: () => void }) {
+export function ExamPackHub() {
   const [type, setType] = React.useState<string>("ALL");
   const types = React.useMemo(() => examTypes(), []);
   const shown = React.useMemo(() => (type === "ALL" ? examPacks : examPacks.filter((p) => p.examSlug === type)), [type]);
 
   return (
     <div className="space-y-5">
-      {/* معرفی + آزمون دلخواه */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-bronze/40 bg-gradient-to-l from-bronze/[0.06] to-transparent p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-md text-[12px] leading-relaxed text-muted-foreground">
-          <span className="font-bold text-foreground">دفترچه‌های آمادهٔ آزمون</span> — تستی‌ها یکجا با زمان‌سنج مثل جلسهٔ واقعی؛ تشریحی‌ها با پاسخ نمونه و کلیدواژه.
-          همهٔ آزمون‌ها به‌مرور اینجا اضافه می‌شوند.
-        </p>
-        {onUseLibrary && (
-          <button onClick={onUseLibrary} className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-bronze bg-bronze/10 px-4 py-2 text-xs font-bold text-bronze transition-colors hover:bg-bronze/20">
-            <Library className="h-3.5 w-3.5" /> از کتابخانهٔ خودم آزمون بسازم
-          </button>
-        )}
-      </div>
-
       {/* ═══ ورود اختصاصی به آزمون وکالت ═══ */}
       <VokalatBanner />
 

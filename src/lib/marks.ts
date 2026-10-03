@@ -30,15 +30,17 @@ export function isMarkColor(c: string): boolean {
 
 const norm = (s: string) => s.replace(/\s+/g, " ");
 
-/** نودهای متنی مجاز — داخل دکمه/ورودی/نشان موجود نمی‌رویم */
-function collectTextNodes(rootEl: Element): Text[] {
+/** نودهای متنی مجاز — داخل دکمه/ورودی نمی‌رویم؛ متن نشان‌های موجود بسته به حالت */
+function collectTextNodes(rootEl: Element, includeMarks = false): Text[] {
   const nodes: Text[] = [];
+  const skip = includeMarks
+    ? "button,input,textarea,select,script,style"
+    : "button,input,textarea,select,script,style,mark[data-lexa-mark]";
   const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
       const p = n.parentElement;
       if (!p) return NodeFilter.FILTER_REJECT;
-      if (p.closest("button,input,textarea,select,script,style,mark[data-lexa-mark]"))
-        return NodeFilter.FILTER_REJECT;
+      if (p.closest(skip)) return NodeFilter.FILTER_REJECT;
       return n.nodeValue && n.nodeValue.length ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
     },
   });
@@ -57,10 +59,12 @@ interface TextIndex {
 }
 
 /** ایندکس متن نرمال‌شدهٔ یکپارچهٔ بخش (فاصله‌های تکراری جمع می‌شوند) */
-function buildIndex(secEl: Element): TextIndex {
+function buildIndex(secEl: Element, includeMarks = false): TextIndex {
+  // includeMarks=true: متن نشان‌های موجود هم جزو ایندکس می‌آید — برای ویرایش/گسترش نشان
+  // و برای انتخاب متنی که روی نشان قبلی می‌افتد. اعمال نشان همیشه بعد از unwrap است و به این فلگ نیازی ندارد.
   let full = "";
   const map: TextIndex["map"] = [];
-  for (const node of collectTextNodes(secEl)) {
+  for (const node of collectTextNodes(secEl, includeMarks)) {
     const v = node.nodeValue ?? "";
     for (let i = 0; i < v.length; i++) {
       const ch = v[i];
@@ -75,6 +79,71 @@ function buildIndex(secEl: Element): TextIndex {
     }
   }
   return { full, map };
+}
+
+/* ── لنگر متنی (context anchor) — حفظ نشان در برابر آپدیت محتوا ──────────────
+ * مشکل: نشان با «متن + اندیس وقوع» جایابی می‌شد؛ اگر آپدیت محتوا جایی قبل از
+ * جملهٔ نشان‌شده تغییر می‌داد، تعداد وقوع‌ها جابه‌جا می‌شد و نشان می‌پرید روی
+ * وقوع اشتباه. راه‌حل: هنگام ذخیره، چند نویسهٔ قبل/بعدِ جمله هم ذخیره می‌شود
+ * (pfx/sfx) و هنگام اعمال، وقوعی انتخاب می‌شود که بافتِ اطرافش با لنگر جور باشد.
+ * اگر جملهٔ نشان‌شده خودش دیگر در متن نباشد (آپدیت شامل همان بخش شده)، نشان
+ * رها می‌شود — دقیقاً طبق خواست کاربر: «اگر ربطی نداشت، مارک نباید بپرد». */
+const CTX_LEN = 28;
+
+function ctxBefore(full: string, pos: number): string {
+  return full.slice(Math.max(0, pos - CTX_LEN), pos).trimStart();
+}
+
+function ctxAfter(full: string, pos: number): string {
+  return full.slice(pos, pos + CTX_LEN).trimEnd();
+}
+
+/** همهٔ وقوع‌های needle در haystack */
+function occurrences(haystack: string, needle: string): number[] {
+  const at: number[] = [];
+  let p = haystack.indexOf(needle);
+  while (p >= 0) {
+    at.push(p);
+    p = haystack.indexOf(needle, p + needle.length);
+  }
+  return at;
+}
+
+/** نسبت جور بودن بافت اطراف یک وقوع با لنگر ذخیره‌شده — ۰ تا ۱ */
+function scoreOccurrence(haystack: string, pos: number, len: number, pfx: string, sfx: string): number {
+  let match = 0;
+  let total = 0;
+  if (pfx) {
+    const n = Math.min(pfx.length, pos);
+    total += pfx.length;
+    for (let i = 0; i < n; i++) if (haystack[pos - n + i] === pfx[i]) match++;
+  }
+  if (sfx) {
+    const e = pos + len;
+    const n = Math.min(sfx.length, haystack.length - e);
+    total += sfx.length;
+    for (let i = 0; i < n; i++) if (haystack[e + i] === sfx[i]) match++;
+  }
+  return total ? match / total : 0;
+}
+
+const CTX_MIN_SCORE = 0.5;
+
+/** وقوع درست را برمی‌گزیند: با لنگر اگر بود، وگرنه اندیس وقوع قدیمی */
+function pickOccurrence(haystack: string, needle: string, at: number[], mark: { occ?: number; pfx?: string; sfx?: string }): number {
+  if (at.length === 1) return at[0];
+  const pfx = (mark.pfx ?? "").trim();
+  const sfx = (mark.sfx ?? "").trim();
+  if (pfx || sfx) {
+    let best = at[0];
+    let bestScore = -1;
+    for (const p of at) {
+      const s = scoreOccurrence(haystack, p, needle.length, pfx, sfx);
+      if (s > bestScore) { bestScore = s; best = p; }
+    }
+    if (bestScore >= CTX_MIN_SCORE) return best;
+  }
+  return at[Math.min(mark.occ ?? 0, at.length - 1)];
 }
 
 /** بازهٔ [start,end) در full را روی نودهای واقعی برمی‌گرداند */
@@ -107,16 +176,18 @@ function rangeToSegments(
 
 function wrapSegment(node: Text, from: number, to: number, markId: string, color: string): HTMLElement | null {
   try {
-    let mid: Text = node;
-    if (to < node.length) mid = node.splitText(to);
-    if (from > 0) mid = node.splitText(from);
+    // برش دقیق [from..to) — باگ قدیمی: وقتی from=0 بود، بعد از splitText(to)
+    // متغیر به «دم» اشاره می‌کرد و نشان تا انتهای نود متنی کش می‌آمد
+    let target: Text = node;
+    if (to < node.length) node.splitText(to); // node اکنون فقط [0..to) است
+    if (from > 0) target = node.splitText(from); // node = سر [0..from) ؛ target = [from..to)
     const mk = document.createElement("mark");
     mk.className = "lexa-mark";
     mk.dataset.lexaMark = "1";
     mk.dataset.mid = markId;
     mk.style.setProperty("--mk-bg", markBg(color));
-    mid.parentNode?.insertBefore(mk, mid);
-    mk.appendChild(mid);
+    target.parentNode?.insertBefore(mk, target);
+    mk.appendChild(target);
     return mk;
   } catch {
     return null;
@@ -136,13 +207,14 @@ function unwrapAll(rootEl: Element) {
   } catch { /* بی‌اثر */ }
 }
 
-/** اندیس وقوع (occ) یک بازهٔ انتخاب‌شده را در بخش پیدا می‌کند — زمان ذخیره */
+/** اندیس وقوع + لنگر متنی یک بازهٔ انتخاب‌شده را در بخش پیدا می‌کند — زمان ذخیره */
 export function locateSelection(
   secEl: Element | null,
   range: Range,
-): { text: string; occ: number } | null {
+): { text: string; occ: number; pfx: string; sfx: string } | null {
   if (!secEl) return null;
-  const idx = buildIndex(secEl);
+  // includeMarks: انتخاب ممکن است روی متن نشان قبلی بیفتد — باید کامل دیده شود
+  const idx = buildIndex(secEl, true);
   const sc = range.startContainer;
   const ec = range.endContainer;
   const so = range.startOffset;
@@ -175,41 +247,159 @@ export function locateSelection(
     occ++;
     p = idx.full.indexOf(text, p + text.length);
   }
-  return { text, occ };
+  return { text, occ, pfx: ctxBefore(idx.full, start), sfx: ctxAfter(idx.full, end) };
 }
 
 /** همهٔ نشان‌های ذخیره‌شده را روی DOM بخش‌ها اعمال می‌کند (idempotent) */
 export function applyMarksToSections(
   sectionEls: Map<string, Element>,
-  marks: { id: string; secId: string; text: string; color: string; occ?: number }[],
+  marks: { id: string; secId: string; text: string; color: string; occ?: number; pfx?: string; sfx?: string }[],
 ): void {
   // ۱) پاک‌سازی نشان‌های قبلی
   for (const el of sectionEls.values()) unwrapAll(el);
 
+  // ایندکس هر بخش یک‌بار ساخته می‌شود — بعد از unwrap هیچ نشان چیزی باقی نمانده
+  const idxCache = new Map<string, TextIndex>();
+  const indexOf = (sid: string): TextIndex | null => {
+    const el = sectionEls.get(sid);
+    if (!el) return null;
+    let idx = idxCache.get(sid);
+    if (!idx) { idx = buildIndex(el); idxCache.set(sid, idx); }
+    return idx;
+  };
+
   // ۲) اعمال نشان‌ها — بلندترین عبارت‌ها اول تا هم‌پوشانی حداقلی شود
   const sorted = [...marks].sort((a, b) => (b.text?.length ?? 0) - (a.text?.length ?? 0));
   for (const mark of sorted) {
-    const secEl = sectionEls.get(mark.secId);
-    if (!secEl || !mark.text || mark.text.length < 2) continue;
-    const idx = buildIndex(secEl);
-    const haystack = idx.full;
+    if (!mark.text || mark.text.length < 2) continue;
     const needle = norm(mark.text).trim();
     if (!needle) continue;
-    // همهٔ وقوع‌ها
-    const at: number[] = [];
-    let p = haystack.indexOf(needle);
-    while (p >= 0) {
-      at.push(p);
-      p = haystack.indexOf(needle, p + needle.length);
+
+    let secId = mark.secId;
+    let idx = indexOf(secId);
+    let chosen = -1;
+    if (idx) {
+      const at = occurrences(idx.full, needle);
+      if (at.length) chosen = pickOccurrence(idx.full, needle, at, mark);
     }
-    if (!at.length) continue;
-    const chosen = at[Math.min(mark.occ ?? 0, at.length - 1)];
+
+    // ۳) جستجوی سراسری — اگر بخش نشان دیگر جای خودش نبود (آپدیت ساختار بخش‌ها را
+    // جابه‌جا کرده) اما جملهٔ نشان‌شده با همان بافت جایی دیگر هست، نشان همان‌جا
+    // می‌نشیند و نمی‌پرد. بدون لنگر متنی این مسیر انجام نمی‌شود تا نشان تصادفی
+    // به بخش بی‌ربط نچسبد.
+    if (chosen < 0 && (mark.pfx || mark.sfx)) {
+      const pfx = (mark.pfx ?? "").trim();
+      const sfx = (mark.sfx ?? "").trim();
+      let bestScore = 0;
+      let bestSid = "";
+      let bestPos = -1;
+      for (const sid of sectionEls.keys()) {
+        if (sid === secId) continue;
+        const i2 = indexOf(sid);
+        if (!i2) continue;
+        for (const p of occurrences(i2.full, needle)) {
+          const s = scoreOccurrence(i2.full, p, needle.length, pfx, sfx);
+          if (s > bestScore) { bestScore = s; bestSid = sid; bestPos = p; }
+        }
+      }
+      if (bestPos >= 0 && bestScore >= 0.6) {
+        secId = bestSid;
+        idx = indexOf(bestSid);
+        chosen = bestPos;
+      }
+    }
+
+    if (!idx || chosen < 0) continue; // جملهٔ نشان‌شده دیگر وجود ندارد — رها می‌شود
     const segs = rangeToSegments(idx, chosen, chosen + needle.length);
     for (const seg of segs) {
       if (seg.to <= seg.from) continue;
       wrapSegment(seg.node, seg.from, seg.to, mark.id, mark.color);
     }
   }
+}
+
+/* ── ویرایش بازهٔ نشان — حرکت سر و ته مارک عقب/جلو (درخواست کاربر) ─────────── */
+
+export interface LocatedMark { start: number; end: number; full: string }
+
+/** جای دقیق نشان در ایندکس نرمال‌شدهٔ بخش — با لنگر متنی اگر بود */
+export function locateMarkRange(
+  secEl: Element | null,
+  mark: { text: string; occ?: number; pfx?: string; sfx?: string },
+): LocatedMark | null {
+  if (!secEl) return null;
+  // includeMarks=true — متن خودِ نشان باید در ایندکس دیده شود
+  const idx = buildIndex(secEl, true);
+  const needle = norm(mark.text).trim();
+  if (!needle) return null;
+  const at = occurrences(idx.full, needle);
+  if (!at.length) return null;
+  const pos = pickOccurrence(idx.full, needle, at, mark);
+  return { start: pos, end: pos + needle.length, full: idx.full };
+}
+
+/** آغاز کلمهٔ قبل از pos — null یعنی جایی برای عقب رفتن نیست */
+function wordStartBefore(full: string, pos: number): number | null {
+  let i = pos;
+  while (i > 0 && full[i - 1] === " ") i--;
+  if (i === 0) return null;
+  while (i > 0 && full[i - 1] !== " ") i--;
+  return i;
+}
+
+/** آغاز کلمهٔ بعد از pos (تا مرز end) — null یعنی دیگر کلمه‌ای در بازه نیست */
+function wordStartAfter(full: string, pos: number, end: number): number | null {
+  let i = pos;
+  while (i < end && full[i] !== " ") i++; // عبور از کلمهٔ فعلی
+  while (i < end && full[i] === " ") i++;
+  return i < end ? i : null;
+}
+
+/** پایان کلمهٔ بعد از end — null یعنی انتهای متن */
+function wordEndAfter(full: string, end: number): number | null {
+  let i = end;
+  while (i < full.length && full[i] === " ") i++;
+  if (i >= full.length) return null;
+  while (i < full.length && full[i] !== " ") i++;
+  return i;
+}
+
+/** پایان کلمهٔ قبل از end (تا مرز start) — null یعنی دیگر کلمه‌ای در بازه نیست */
+function wordEndBefore(full: string, end: number, start: number): number | null {
+  let i = end;
+  while (i > start && full[i - 1] === " ") i--;
+  if (i === start) return null;
+  while (i > start && full[i - 1] !== " ") i--;
+  return i;
+}
+
+/**
+ * جابه‌جایی مرز نشان یک کلمه عقب/جلو و برگرداندن رکورد تازهٔ نشان.
+ * which: کدام مرز (شروع/پایان) — dir: ‎-۱ یعنی به سمت ابتدای متن، ‎+۱ به سمت انتها.
+ * اگر مرز نتواند حرکت کند (اول/آخر متن یا نشان تک‌کلمه‌ای می‌شود) null برمی‌گردد.
+ */
+export function adjustMarkText(
+  secEl: Element | null,
+  mark: { text: string; occ?: number; pfx?: string; sfx?: string },
+  which: "start" | "end",
+  dir: -1 | 1,
+): { text: string; occ: number; pfx: string; sfx: string } | null {
+  const rng = locateMarkRange(secEl, mark);
+  if (!rng) return null;
+  const { full } = rng;
+  let { start, end } = rng;
+  if (which === "start") {
+    const ns = dir < 0 ? wordStartBefore(full, start) : wordStartAfter(full, start, end);
+    if (ns == null) return null;
+    start = ns;
+  } else {
+    const ne = dir < 0 ? wordEndBefore(full, end, start) : wordEndAfter(full, end);
+    if (ne == null) return null;
+    end = ne;
+  }
+  const text = full.slice(start, end).trim();
+  if (text.length < 2) return null; // نشان خیلی کوتاه نمی‌شود
+  return { text, occ: 0, pfx: ctxBefore(full, start), sfx: ctxAfter(full, end) };
 }
 
 /** آیا المان داخل یک ناحیهٔ قابل انتخاب است (نه دکمه و ورودی) */

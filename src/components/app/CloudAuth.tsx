@@ -10,7 +10,15 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Scale, UserRound, KeyRound, Loader2, CloudUpload, CloudDownload, CloudCheck,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Scale, UserRound, KeyRound, Loader2, CloudUpload, CloudDownload,
   ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert,
 } from "lucide-react";
 import {
@@ -293,76 +301,65 @@ export function CloudAccountArea() {
   return (
     <>
       <CloudAuthDialog open={open} onOpenChange={setOpen} />
-      <span className="relative">
-        <button
-          onClick={() => setMenuOpen((v) => !v)}
-          className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-2 pe-2.5 ps-1.5 shadow-card transition-colors hover:border-bronze/60"
-          aria-label={`حساب ابری ${user.email}`}
-        >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-bl from-primary/90 to-bronze text-[11px] font-bold text-primary-foreground">
-            {(user.email || "؟").slice(0, 1).toUpperCase()}
-          </span>
-          <span className="hidden max-w-[120px] truncate text-start text-xs font-bold sm:block" dir="ltr">
-            {user.email}
-          </span>
-          <CloudCheck className="h-4 w-4 text-success" />
-        </button>
+      {/* منوی حساب — رادیکس با پورتال؛ اگر داخل هدر می‌ماند با overflow-hidden هدر کلیپ می‌شد و با لمس آواتار هیچی دیده نمی‌شد */}
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-2 pe-2.5 ps-1.5 shadow-card transition-colors hover:border-bronze/60"
+            aria-label={`حساب ابری ${user.email}`}
+          >
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-bl from-primary/90 to-bronze text-[11px] font-bold text-primary-foreground">
+              {(user.email || "؟").slice(0, 1).toUpperCase()}
+            </span>
+            <span className="hidden max-w-[120px] truncate text-start text-xs font-bold sm:block" dir="ltr">
+              {user.email}
+            </span>
+          </button>
+        </DropdownMenuTrigger>
 
-        {menuOpen && (
-          <>
-            {/* پردهٔ بستن منو */}
-            <button aria-hidden className="fixed inset-0 z-40 cursor-default" onClick={() => setMenuOpen(false)} tabIndex={-1} />
-            <div
-              role="menu"
-              aria-label="منوی حساب ابری"
-              className="absolute end-0 top-12 z-50 w-64 overflow-hidden rounded-xl border border-border bg-popover p-1.5 shadow-card"
-            >
-              <div className="rounded-lg bg-muted/50 px-3 py-2">
-                <p className="text-[10px] font-bold text-muted-foreground">حساب ابری</p>
-                <p className="truncate text-xs font-bold" dir="ltr">{user.email}</p>
-              </div>
-              <button
-                role="menuitem"
-                onClick={() => { setMenuOpen(false); void doPush(); }}
-                disabled={busy !== ""}
-                className="mt-1 flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent disabled:opacity-45"
-              >
-                {busy === "push" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-bronze" /> : <CloudUpload className="h-4 w-4 shrink-0 text-bronze" />}
-                همگام‌سازی روی ابر
-              </button>
-              <button
-                role="menuitem"
-                onClick={() => { setMenuOpen(false); void doPull(); }}
-                disabled={busy !== ""}
-                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-accent disabled:opacity-45"
-              >
-                {busy === "pull" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-bronze" /> : <CloudDownload className="h-4 w-4 shrink-0 text-bronze" />}
-                بازیابی از ابر
-              </button>
-              <button
-                role="menuitem"
-                onClick={async () => {
-                  setMenuOpen(false);
-                  setBusy("out");
-                  await sbPushState(collectLocal()).catch(() => {}); // آخرین ذخیره
-                  await sbSignOut();
-                  // خروج یعنی دادهٔ حساب روی دستگاه نماند — با ورود، از ابر برمی‌گردد
-                  wipeLocalUserData();
-                  setBusy("");
-                }}
-                disabled={busy !== ""}
-                className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-danger transition-colors hover:bg-destructive/10 disabled:opacity-45"
-              >
-                {busy === "out" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <LogOut className="h-4 w-4 shrink-0" />}
-                خروج (با سینک نهایی)
-              </button>
-              {note && (
-                <p className="mt-1 rounded-lg bg-success/10 px-3 py-2 text-[11px] font-bold text-success">{note}</p>
-              )}
-            </div>
-          </>
-        )}
-      </span>
+        <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-1.5">
+          <DropdownMenuLabel dir="rtl" className="space-y-0.5 px-2">
+            <p className="text-[10px] font-bold text-muted-foreground">حساب ابری</p>
+            <p className="truncate text-xs font-bold" dir="ltr">{user.email}</p>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => void doPush()}
+            disabled={busy !== ""}
+            className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+          >
+            {busy === "push" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-bronze" /> : <CloudUpload className="h-4 w-4 shrink-0 text-bronze" />}
+            همگام‌سازی روی ابر
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => void doPull()}
+            disabled={busy !== ""}
+            className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+          >
+            {busy === "pull" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-bronze" /> : <CloudDownload className="h-4 w-4 shrink-0 text-bronze" />}
+            بازیابی از ابر
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={async () => {
+              setBusy("out");
+              await sbPushState(collectLocal()).catch(() => {}); // آخرین ذخیره
+              await sbSignOut();
+              // خروج یعنی دادهٔ حساب روی دستگاه نماند — با ورود، از ابر برمی‌گردد
+              wipeLocalUserData();
+              setBusy("");
+            }}
+            disabled={busy !== ""}
+            className="cursor-pointer rounded-lg gap-2.5 py-2.5 text-danger focus:text-danger"
+          >
+            {busy === "out" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <LogOut className="h-4 w-4 shrink-0" />}
+            خروج (با سینک نهایی)
+          </DropdownMenuItem>
+          {note && (
+            <p className="mt-1 rounded-lg bg-success/10 px-3 py-2 text-[11px] font-bold text-success">{note}</p>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 }

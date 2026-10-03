@@ -123,10 +123,19 @@ export const useApp = create<AppState>()(
       applyMark(lessonId, mark) {
         const list = get().marks[lessonId] ?? [];
         const at = typeof mark.createdAt === 'number' ? mark.createdAt : Date.now();
-        // همان متن در همان بخش → تغییر رنگ همان نشان (نه تکرار)
-        const existing = list.find((m) => m.secId === mark.secId && m.text === mark.text);
+        // اول با id (ویرایش/تنظیم بازهٔ همان نشان)؛ بعد همان متن در همان بخش →
+        // تغییر رنگ همان نشان (نه تکرار)
+        const existing = list.find((m) => m.id === mark.id)
+          ?? list.find((m) => m.secId === mark.secId && m.text === mark.text);
         const next: LessonMark = existing
-          ? { ...existing, color: mark.color, occ: mark.occ ?? existing.occ }
+          ? {
+              ...existing,
+              text: mark.text, // تنظیم بازه می‌تواند متن را تغییر دهد
+              color: mark.color,
+              occ: mark.occ ?? existing.occ,
+              pfx: mark.pfx ?? existing.pfx,
+              sfx: mark.sfx ?? existing.sfx,
+            }
           : { ...mark, createdAt: at };
         const others = list.filter((m) => (existing ? m.id !== existing.id : true));
         set({ marks: { ...get().marks, [lessonId]: [next, ...others].slice(0, 300) } });

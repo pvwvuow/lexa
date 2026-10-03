@@ -21,7 +21,7 @@ import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
-import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
+import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor, adjustMarkText } from "@/lib/marks";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -63,9 +63,13 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
-/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف */
+/** فاصلهٔ عمودی امن نوار شناور از انتخاب — دسته‌های انتخاب اندروید دقیقاً روی
+ * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
+const TOOLBAR_GAP = 36;
+
+/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف + تنظیم سر و ته نشان */
 function MarkToolbar({
-  mode, rect, lessonId, markId, text, secId, occ, onDone,
+  mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, onAdjust, onDone,
 }: {
   mode: "new" | "edit";
   rect: { top: number; bottom: number; centerX: number };
@@ -74,6 +78,9 @@ function MarkToolbar({
   text?: string;
   secId?: string;
   occ?: number;
+  pfx?: string;
+  sfx?: string;
+  onAdjust?: (which: "start" | "end", dir: -1 | 1) => void;
   onDone: () => void;
 }) {
   const applyMark = useApp((s) => s.applyMark);
@@ -88,17 +95,17 @@ function MarkToolbar({
     const w = el.offsetWidth;
     const h = el.offsetHeight;
     const x = Math.min(Math.max(12, rect.centerX - w / 2), window.innerWidth - w - 12);
-    const y = rect.top > h + 66 ? rect.top - h - 8 : rect.bottom + 8;
+    const y = rect.top > h + TOOLBAR_GAP + 70 ? rect.top - h - TOOLBAR_GAP : rect.bottom + TOOLBAR_GAP;
     setPos({ x, y });
   }, [rect]);
 
   function pick(color: string) {
     if (!isMarkColor(color)) return;
     if (mode === "new" && text && secId) {
-      applyMark(lessonId, { id: Math.random().toString(36).slice(2) + Date.now().toString(36), secId, text, color, occ });
+      applyMark(lessonId, { id: Math.random().toString(36).slice(2) + Date.now().toString(36), secId, text, color, occ, pfx, sfx });
       try { window.getSelection()?.removeAllRanges(); } catch {}
     } else if (mode === "edit" && markId) {
-      applyMark(lessonId, { id: markId, secId: secId ?? "", text: text ?? "", color, occ });
+      applyMark(lessonId, { id: markId, secId: secId ?? "", text: text ?? "", color, occ, pfx, sfx });
     }
     onDone();
   }
@@ -116,7 +123,7 @@ function MarkToolbar({
   return (
     <div
       ref={boxRef}
-      className="fixed z-[90] flex items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-card"
+      className="fixed z-[90] flex max-w-[min(96vw,42rem)] flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-card"
       style={{ visibility: pos ? "visible" : "hidden", left: pos?.x ?? 0, top: pos?.y ?? 0 }}
       onMouseDown={(e) => e.preventDefault()}
       data-mark-toolbar="1"
@@ -145,14 +152,36 @@ function MarkToolbar({
         {copied ? "کپی شد" : "کپی"}
       </button>
       {mode === "edit" && markId && (
-        <button
-          onClick={() => { removeMark(lessonId, markId); onDone(); }}
-          className="grid h-8 w-8 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10 sm:h-7 sm:w-7"
-          title="حذف نشان"
-          aria-label="حذف نشان"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <>
+          <span className="mx-0.5 h-5 w-px bg-border" />
+          {/* تنظیم سر و ته نشان — هر لمس مرز را یک کلمه عقب/جلو می‌برد */
+          /* − = به سمت ابتدای متن (عقب) ، + = به سمت انتهای متن (جلو) */}
+          {([
+            { which: "start" as const, dir: -1 as const, label: "ابتدا −", title: "شروع نشان را یک کلمه عقب‌تر ببر (بزرگ‌تر شدن از اول)" },
+            { which: "start" as const, dir: 1 as const, label: "ابتدا +", title: "شروع نشان را یک کلمه جلوتر ببر (کوچک‌تر شدن از اول)" },
+            { which: "end" as const, dir: -1 as const, label: "انتها −", title: "پایان نشان را یک کلمه عقب‌تر ببر (کوچک‌تر شدن از آخر)" },
+            { which: "end" as const, dir: 1 as const, label: "انتها +", title: "پایان نشان را یک کلمه جلوتر ببر (بزرگ‌تر شدن از آخر)" },
+          ]).map(({ which, dir, label, title }) => (
+            <button
+              key={label}
+              onClick={() => onAdjust?.(which, dir)}
+              title={title}
+              aria-label={title}
+              className="inline-flex h-8 items-center rounded-lg border border-border px-1.5 text-[10px] font-bold text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze sm:h-7"
+            >
+              {label}
+            </button>
+          ))}
+          <span className="mx-0.5 h-5 w-px bg-border" />
+          <button
+            onClick={() => { removeMark(lessonId, markId); onDone(); }}
+            className="grid h-8 w-8 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10 sm:h-7 sm:w-7"
+            title="حذف نشان"
+            aria-label="حذف نشان"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </>
       )}
     </div>
   );
@@ -174,11 +203,12 @@ export function LearnView({ id }: { id: string }) {
   // ── نشان‌گذاری متن ──
   const marksAll = useApp((s) => s.marks);
   const marksForLesson = marksAll[id] ?? EMPTY_MARKS;
+  const applyMark = useApp((s) => s.applyMark);
   const articleRef = React.useRef<HTMLElement | null>(null);
   const [markBar, setMarkBar] = React.useState<
     | null
-    | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number }
-    | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number }
+    | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
+    | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string }
   >(null);
   const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
     const host = el?.closest("[data-sec-id]") ?? null;
@@ -200,16 +230,6 @@ export function LearnView({ id }: { id: string }) {
   const [loadingFor, setLoadingFor] = React.useState<string | null>(null); // نوع دکمه فعال
   const [questionInput, setQuestionInput] = React.useState("");
   const [showTocMobile, setShowTocMobile] = React.useState(false);
-  const [askOpen, setAskOpen] = React.useState(false); // فرم شناور پرسش در موبایل
-  // چرخهٔ دکمهٔ «از استاد بپرس»: برچسب یک‌بار کامل دیده می‌شود، بعد زیر دکمه جمع و
-  // خود دکمه کم‌رنگ می‌شود تا حواس کاربر هنگام خواندن پرت نشود (هاور = برمی‌گردد)
-  const [fabDim, setFabDim] = React.useState(false);
-  React.useEffect(() => {
-    if (askOpen) return;
-    setFabDim(false);
-    const t = setTimeout(() => setFabDim(true), 3400);
-    return () => clearTimeout(t);
-  }, [askOpen, id]);
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
@@ -271,6 +291,8 @@ export function LearnView({ id }: { id: string }) {
         text: located.text,
         secId,
         occ: located.occ,
+        pfx: located.pfx,
+        sfx: located.sfx,
       });
     }
     function onChange() {
@@ -299,7 +321,7 @@ export function LearnView({ id }: { id: string }) {
     };
   }, [secIdOf]);
 
-  // ── کلیک روی نشان موجود → نوار ویرایش/حذف ──
+  // ── کلیک روی نشان موجود → نوار ویرایش/حذف/تنظیم بازه ──
   function handleArticleClick(e: React.MouseEvent) {
     const target = e.target as Element;
     const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
@@ -317,8 +339,34 @@ export function LearnView({ id }: { id: string }) {
       secId: mark.secId,
       text: mark.text,
       occ: mark.occ,
+      pfx: mark.pfx,
+      sfx: mark.sfx,
       rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
     });
+  }
+
+  // ── تنظیم سر و ته نشان — هر لمس مرز را یک کلمه عقب/جلو می‌برد ──
+  function handleAdjustMark(which: "start" | "end", dir: -1 | 1) {
+    const cur = markBar;
+    if (!cur || cur.mode !== "edit") return;
+    const mark = marksForLesson.find((m) => m.id === cur.markId);
+    if (!mark) return;
+    const root = articleRef.current;
+    const secEl = root?.querySelector(`[data-sec-id="${CSS.escape(mark.secId)}"]`) ?? null;
+    const next = adjustMarkText(secEl, mark, which, dir);
+    if (!next) return; // مرز جابه‌جا نشد (اول/آخر متن یا نشان تک‌کلمه‌ای)
+    applyMark(id, { id: mark.id, secId: mark.secId, text: next.text, color: mark.color, occ: next.occ, pfx: next.pfx, sfx: next.sfx });
+    // نوار باز می‌ماند و روی نشان تازه می‌نشیند — کاربر می‌تواند چند بار پشت‌سرهم تنظیم کند.
+    // اگر کاربر در فاصلهٔ بین نوار را بسته (اسکرول/لمس دیگر)، دوباره بازش نمی‌کنیم.
+    window.setTimeout(() => {
+      setMarkBar((cur) => {
+        if (!cur || cur.mode !== "edit" || cur.markId !== mark.id) return cur;
+        const mkEl = articleRef.current?.querySelector(`mark[data-lexa-mark][data-mid="${CSS.escape(mark.id)}"]`);
+        if (!mkEl) return cur;
+        const r = mkEl.getBoundingClientRect();
+        return { ...cur, text: next.text, occ: next.occ, pfx: next.pfx, sfx: next.sfx, rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 } };
+      });
+    }, 40);
   }
 
   if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
@@ -512,7 +560,7 @@ export function LearnView({ id }: { id: string }) {
   // ─── لود تنبل: متن هنوز از شبکه نرسیده ───
   if (isLazyLesson(lesson) && lesson.sections.length === 0 && textState !== "ready") {
     return (
-      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[186px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[124px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
         <main className="min-w-0">
           <header className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
             <p className="text-xs font-medium text-bronze">{course.title} · فصل {fa(chapter.order)}</p>
@@ -572,7 +620,7 @@ export function LearnView({ id }: { id: string }) {
     ) : null;
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[186px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
+    <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[124px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
       {/* ستون اصلی */}
       <main className="min-w-0">
         {/* نوار پیشرفت جلسه */}
@@ -775,7 +823,7 @@ export function LearnView({ id }: { id: string }) {
 
       {Sidebar}
 
-      {/* نوار ابزار نشان‌گذاری متن — پنج رنگ یا ویرایش/حذف نشان موجود */}
+      {/* نوار ابزار نشان‌گذاری متن — پنج رنگ یا ویرایش/حذف/تنظیم بازهٔ نشان موجود */}
       {markBar && markBar.mode === "new" && (
         <MarkToolbar
           mode="new"
@@ -784,6 +832,8 @@ export function LearnView({ id }: { id: string }) {
           text={markBar.text}
           secId={markBar.secId}
           occ={markBar.occ}
+          pfx={markBar.pfx}
+          sfx={markBar.sfx}
           onDone={() => setMarkBar(null)}
         />
       )}
@@ -796,6 +846,9 @@ export function LearnView({ id }: { id: string }) {
           secId={markBar.secId}
           text={markBar.text}
           occ={markBar.occ}
+          pfx={markBar.pfx}
+          sfx={markBar.sfx}
+          onAdjust={handleAdjustMark}
           onDone={() => setMarkBar(null)}
         />
       )}
@@ -820,59 +873,6 @@ export function LearnView({ id }: { id: string }) {
           };
         }}
       />
-
-      {/* ورودی پرسش آزاد — فقط موبایل/تبلت: دکمهٔ فشرده‌ای چسبیده به داک پایین، نه معلق وسط صفحه */}
-      <div className="fixed inset-x-0 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-30 px-3 sm:px-6 lg:hidden">
-        {askOpen ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!questionInput.trim()) return;
-              handleAction("free", questionInput.trim());
-              setQuestionInput("");
-            }}
-            className="mx-auto flex max-w-3xl items-center gap-1.5 rounded-2xl border border-bronze/40 bg-card/95 p-1.5 shadow-lg backdrop-blur"
-          >
-            <input
-              autoFocus
-              value={questionInput}
-              onChange={(e) => setQuestionInput(e.target.value)}
-              placeholder="سوالی از استاد داری؟ بپرس…"
-              className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/70"
-              aria-label="سؤال آزاد از استاد"
-            />
-            <button type="submit" disabled={!!loadingFor} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label="ارسال سوال">
-              <Send className="h-4 w-4 -scale-x-100" />
-            </button>
-            <button type="button" onClick={() => setAskOpen(false)} aria-label="بستن پرسش سریع" className="grid h-10 w-8 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-muted">
-              ×
-            </button>
-          </form>
-        ) : (
-          <div className="flex max-w-7xl">
-            <button
-              onClick={() => setAskOpen(true)}
-              title="سؤال آزاد از استاد هوشمند همین جلسه"
-              aria-label="از استاد بپرس"
-              className={`inline-flex items-center gap-2 rounded-full border border-bronze/45 bg-card/95 p-1.5 pe-4 shadow-lg backdrop-blur transition-all duration-500 hover:border-bronze ${
-                fabDim ? "pe-1.5 opacity-45 hover:pe-4 hover:opacity-100 focus-visible:opacity-100" : ""
-              }`}
-            >
-              <span aria-hidden className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
-                <Send className="h-4 w-4 -scale-x-100" />
-              </span>
-              <span
-                aria-hidden={fabDim}
-                className={`overflow-hidden whitespace-nowrap text-[12.5px] font-bold transition-all duration-500 ${
-                  fabDim ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
-                }`}
-              >
-                از استاد بپرس
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -96,7 +96,6 @@ export function AccountArea() {
             <span className="hidden max-w-[110px] truncate text-start text-xs font-bold sm:block">
               {u.username}
             </span>
-            <CloudCheck className="h-4 w-4 text-success" />
           </button>
         </DropdownMenuTrigger>
 

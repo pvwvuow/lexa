@@ -25,6 +25,8 @@ export interface LessonMarkSync {
   text: string; // متن نرمال‌شدهٔ انتخاب‌شده
   color: string; // کلید رنگ: yellow | green | blue | pink | orange
   occ?: number; // اندیس وقوع در بخش (برای تکرارِ عبارت)
+  pfx?: string; // لنگر متنی: چند نویسهٔ قبل از نشان — نشان بعد از آپدیت محتوا سر جایش می‌ماند
+  sfx?: string; // لنگر متنی: چند نویسهٔ بعد از نشان
   createdAt: number;
 }
 
