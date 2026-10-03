@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff } from "lucide-react";
+import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff, Download, RefreshCw } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
@@ -14,6 +14,7 @@ import { useTargetRating } from "@/lib/social-client";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { ensureChapterContent, isLazyLesson, peekTextState, useTextsVersion } from "@/lib/law/texts";
+import { applyCourseUpdate, refreshPackUpdates, usePackUpdates } from "@/lib/updater";
 
 const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
 
@@ -165,6 +166,30 @@ function CourseBody({
   const ownerAvatar = (course as Course & { _ownerAvatar?: string | null })._ownerAvatar;
   const status = (course as Course & { _status?: string })._status;
 
+  // به‌روزرسانی محتوایی این کتاب (بستهٔ محتوایی) — بررسی بی‌صدا با تُرتل داخلی
+  const packUpdates = usePackUpdates();
+  const courseUpdate = packUpdates[course.id];
+  const [packUpdating, setPackUpdating] = React.useState(false);
+  const [packUpdateNotes, setPackUpdateNotes] = React.useState<string | null>(null);
+  const [packUpdateError, setPackUpdateError] = React.useState(false);
+
+  React.useEffect(() => {
+    void refreshPackUpdates();
+  }, [course.id]);
+
+  const handlePackUpdate = async () => {
+    setPackUpdating(true);
+    setPackUpdateError(false);
+    try {
+      const notes = await applyCourseUpdate(course.id);
+      setPackUpdateNotes(notes ?? "محتوای این کتاب به تازه‌ترین نسخه ارتقا یافت.");
+    } catch {
+      setPackUpdateError(true);
+    } finally {
+      setPackUpdating(false);
+    }
+  };
+
   // نسخهٔ رجیستری متون — با هر آب‌رسانی، نشان‌های لودینگ تازه می‌شوند
   useTextsVersion();
 
@@ -284,6 +309,47 @@ function CourseBody({
                 }}
               />
             </span>
+          </div>
+        )}
+
+        {/* به‌روزرسانی محتوایی — نشانگر روی سرتیتر همان کتاب + نصب فوری همان‌جا (بدون آپدیت اپ) */}
+        {courseUpdate && !packUpdateNotes && (
+          <div className="relative mt-4 rounded-xl border border-bronze/40 bg-gradient-to-l from-bronze/[0.13] to-bronze/[0.04] px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span aria-hidden className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-bronze opacity-55" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-bronze" />
+              </span>
+              <span className="text-xs font-bold leading-relaxed">
+                به‌روزرسانی جدید این کتاب آمده است
+                <span className="ms-1.5 font-display text-bronze">نسخهٔ {fa(courseUpdate.version)}</span>
+              </span>
+              <button
+                onClick={() => void handlePackUpdate()}
+                disabled={packUpdating}
+                className="ms-auto inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {packUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {packUpdating ? "در حال نصب…" : "به‌روزرسانی کن"}
+              </button>
+            </div>
+            {courseUpdate.notes && (
+              <details className="mt-2">
+                <summary className="cursor-pointer select-none text-[11px] font-bold text-bronze">این نسخه چه چیزهایی دارد؟</summary>
+                <p className="mt-1.5 whitespace-pre-line rounded-lg bg-background/60 p-2.5 text-[11.5px] leading-relaxed text-muted-foreground">{courseUpdate.notes}</p>
+              </details>
+            )}
+            {packUpdateError && (
+              <p className="mt-2 text-[11px] font-bold text-destructive">نصب ناموفق بود — اتصال اینترنت را چک کن و دوباره بزن.</p>
+            )}
+          </div>
+        )}
+        {packUpdateNotes && (
+          <div className="relative mt-4 rounded-xl border border-success/40 bg-success/[0.07] px-4 py-3">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-success">
+              <RefreshCw className="h-3.5 w-3.5" /> به‌روزرسانی نصب شد — تازه‌های این نسخه:
+            </p>
+            <p className="mt-1.5 whitespace-pre-line text-[11.5px] leading-relaxed text-muted-foreground">{packUpdateNotes}</p>
           </div>
         )}
 

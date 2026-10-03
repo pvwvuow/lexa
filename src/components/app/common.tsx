@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Scale, BookOpen, HelpCircle, Lightbulb, ListChecks, GitCompareArrows,
   GraduationCap, Quote, FileText, Sparkles, BookOpenCheck, Handshake,
-  AlertTriangle, Zap, Info, Compass, Gavel, Globe, ArrowRight } from "lucide-react";
+  AlertTriangle, Zap, Info, Compass, Gavel, Globe, ArrowRight, Flag } from "lucide-react";
 import type { SectionType, LawRef, LessonSection } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
 import { goBack } from "@/lib/router";
@@ -243,10 +243,13 @@ type TermItem = { term?: string; text: string; subs?: SubItem[] };
 type BodyBlock =
   | { kind: "p"; text: string }
   | { kind: "terms"; items: TermItem[] }
-  | { kind: "steps"; items: string[] };
+  | { kind: "steps"; items: string[] }
+  | { kind: "goals"; lead: string; items: string[] };
 
 const DASH_RE = /^[-–•*]\s+/;
 const NUM_RE = /^[0-9۰-۹]{1,2}\s*[-–.)))]\s*/;
+/** خط «هدف‌گذاری» جلسه — پاراگراف تک‌خطی که با آن تمام می‌شود و بعدش آیتم‌های شماره‌دار می‌آیند */
+const GOAL_LEAD_RE = /^\s*(?:[^\n]{0,80}?)(?:باید\s+بتوانی|اهداف\s+این\s+جلسه)\s*[:：]\s*$/;
 
 type RunKind = "p" | "dash" | "num";
 
@@ -293,8 +296,17 @@ export function parseBody(body: string): BodyBlock[] {
         paraBuf.push(run.lines.map((l) => l.trim()).join("\n"));
         continue;
       }
+      // تشخیص «اهداف جلسه» باید پیش از flushPara باشد — وگرنه بافر خالی شده
+      const leadLine = run.kind === "num" ? (paraBuf[paraBuf.length - 1]?.trim() ?? "") : "";
+      const isGoals = !!leadLine && !leadLine.includes("\n") && GOAL_LEAD_RE.test(leadLine);
+      if (isGoals) paraBuf.pop();
       flushPara();
       if (run.kind === "num") {
+        if (isGoals) {
+          // پنل «هدف‌های جلسه»: پاراگراف تک‌خطی «… باید بتوانی:» + آیتم‌های شماره‌دار بلافاصله بعدش
+          blocks.push({ kind: "goals", lead: leadLine, items: run.lines.map((l) => l.replace(NUM_RE, "").trim()) });
+          continue;
+        }
         blocks.push({ kind: "steps", items: run.lines.map((l) => l.replace(NUM_RE, "").trim()) });
       } else {
         const items: TermItem[] = [];
@@ -486,6 +498,34 @@ function EyeOn({ className }: { className?: string }) {
   );
 }
 
+/** برگهٔ «هدف‌های این جلسه» — المان کوچک چک‌لیستی با مدال‌های برنزی کوچک،
+ *  جداکنندهٔ مویی و واترمارک پرچم؛ بدون کارت مستطیلی تکراری (زبان طراحی اپ). */
+export function GoalSheet({ lead, items }: { lead: string; items: string[] }) {
+  return (
+    <div className="relative mt-5 overflow-hidden rounded-2xl border border-bronze/25 bg-gradient-to-l from-bronze/[0.09] via-bronze/[0.03] to-transparent px-4 py-4 sm:px-5">
+      <Flag aria-hidden className="pointer-events-none absolute -end-5 -top-5 h-24 w-24 rotate-12 text-bronze/[0.07]" />
+      <p className="relative flex items-center gap-2 font-display text-[14px] font-bold text-bronze sm:text-[15px]">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-bronze/15 ring-1 ring-inset ring-bronze/30">
+          <Flag className="h-3.5 w-3.5" />
+        </span>
+        {lead.replace(/\s*[:：]\s*$/, "")}
+      </p>
+      <ul className="relative mt-1">
+        {items.map((t, i) => (
+          <li key={i} className="group relative flex items-start gap-3 py-2.5">
+            {i > 0 && <span aria-hidden className="absolute inset-x-1 top-0 h-px bg-gradient-to-l from-transparent via-border to-transparent" />}
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-bronze/10 font-display text-[11px] font-bold text-bronze ring-1 ring-inset ring-bronze/35 transition-colors duration-200 group-hover:bg-bronze/20">
+              {fa(i + 1)}
+            </span>
+            <p className="min-w-0 flex-1 text-[14.5px] leading-[1.85] text-foreground/95 sm:text-[16px]">{t}</p>
+          </li>
+        ))}
+      </ul>
+      <div aria-hidden className="mx-auto mt-1 h-px w-20 bg-gradient-to-l from-transparent via-bronze/50 to-transparent" />
+    </div>
+  );
+}
+
 /** رندر بدنهٔ درس: پاراگراف + کارت اصطلاح + پله‌نما (تشخیص خودکار نکتهٔ مهم) */
 export function BodyRich({ text }: { text: string }) {
   const blocks = React.useMemo(() => parseBody(text), [text]);
@@ -523,6 +563,7 @@ export function BodyRich({ text }: { text: string }) {
           return <React.Fragment key={i}>{rendered}</React.Fragment>;
         }
         if (b.kind === "steps") return <StepList key={i} items={b.items} />;
+        if (b.kind === "goals") return <GoalSheet key={i} lead={b.lead} items={b.items} />;
         const withTerm = b.items.filter((x) => x.term || x.subs).length >= Math.ceil(b.items.length / 2);
         if (!withTerm) return <PlainList key={i} items={b.items.map((x) => x.text)} />;
         return (

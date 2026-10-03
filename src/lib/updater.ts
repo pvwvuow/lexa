@@ -13,6 +13,7 @@
  *   ۴) حذف بسته، هم از IndexedDB و هم از ادغام پاک می‌کند.
  * ─────────────────────────────────────────────────────────────────────── */
 
+import * as React from "react";
 import type { Course } from "@/lib/law/types";
 import type { ExamPack } from "@/lib/law/examPacks";
 import { registerDynamicExamPack } from "@/lib/law/examPacks";
@@ -59,6 +60,10 @@ export interface UpdatePackMeta {
   file: string;
   /** اندازهٔ تقریبی به بایت (اختیاری، برای نمایش) */
   size?: number;
+  /** شناسهٔ دورهٔ حاصل از بسته (kind=course) — برای نشانگر «به‌روزرسانی جدید» روی سرتیتر کتاب */
+  courseId?: string;
+  /** چه چیزهایی در نسخهٔ جدید آمده — پس از نصب به‌روزرسانی به کاربر نشان داده می‌شود */
+  notes?: string;
 }
 
 export interface UpdateManifest {
@@ -325,10 +330,102 @@ export async function installAllOutdated(statuses: PackStatus[]): Promise<number
   return n;
 }
 
+/* ─── نشانگر «به‌روزرسانی جدید» روی سرتیتر کتاب ─────────────────────────────
+ * مانیفست برخط با بسته‌های نصب‌شده مقایسه می‌شود؛ هر بستهٔ kind=course که
+ * نسخهٔ تازه‌تری دارد، با courseId خودش اینجا ثبت می‌شود تا سرتیتر همان کتاب
+ * نشان «به‌روزرسانی جدید» بگیرد و کاربر همان‌جا — بدون آپدیت کل برنامه —
+ * محتوای جدید را بگیرد. */
+
+export interface CourseUpdateInfo {
+  packId: string;
+  version: string;
+  title: string;
+  /** فهرست تازه‌ها — پس از نصب نمایش داده می‌شود */
+  notes?: string;
+}
+
+type PackUpdateSnapshot = Record<string, CourseUpdateInfo>; // کلید = courseId
+
+let packUpdateSnapshot: PackUpdateSnapshot = {};
+let packUpdateListeners = new Set<() => void>();
+let packUpdateLastFetch = 0;
+
+function emitPackUpdates(): void {
+  for (const l of packUpdateListeners) {
+    try { l(); } catch { /* شنوندهٔ خراب مانع بقیه نمی‌شود */ }
+  }
+}
+
+function subscribePackUpdates(cb: () => void): () => void {
+  packUpdateListeners.add(cb);
+  return () => { packUpdateListeners.delete(cb); };
+}
+
+function getPackUpdateSnapshot(): PackUpdateSnapshot {
+  return packUpdateSnapshot;
+}
+
+/** هوک React — نقشهٔ courseId → اطلاعات به‌روزرسانی در انتظار نصب */
+export function usePackUpdates(): PackUpdateSnapshot {
+  return React.useSyncExternalStore(subscribePackUpdates, getPackUpdateSnapshot, () => ({}));
+}
+
+/** مقایسهٔ مانیفست با نصب‌شده‌ها و ثبت نشانگرها */
+async function computePackUpdateSnapshot(m: UpdateManifest): Promise<void> {
+  try {
+    const installed = await listInstalledPacks();
+    const byId = new Map(installed.map((p) => [p.meta.id, p]));
+    const next: PackUpdateSnapshot = {};
+    for (const meta of m.packs) {
+      if (meta.kind !== "course" || !meta.courseId) continue;
+      const inst = byId.get(meta.id);
+      if (inst && inst.meta.version === meta.version) continue; // نصب و به‌روز
+      next[meta.courseId] = { packId: meta.id, version: meta.version, title: meta.title, notes: meta.notes };
+    }
+    packUpdateSnapshot = next;
+    emitPackUpdates();
+  } catch {
+    /* IndexedDB در دسترس نیست — بی‌خیال */
+  }
+}
+
+/**
+ * بررسی تازهٔ به‌روزرسانی‌های محتوایی (با تُرتل ۳ دقیقه‌ای تا هر باز کردن
+ * صفحهٔ کتاب درخواست شبکه نزند). آفلاین/خطا = اسنپ‌شات فعلی می‌ماند.
+ */
+export async function refreshPackUpdates(): Promise<void> {
+  const now = Date.now();
+  if (now - packUpdateLastFetch < 180_000) return;
+  packUpdateLastFetch = now;
+  try {
+    const m = await checkForUpdates();
+    await computePackUpdateSnapshot(m);
+  } catch {
+    /* آفلاین — نشانگر فعلی می‌ماند */
+  }
+}
+
+/**
+ * نصب فوری به‌روزرسانی یک دوره از خود سرتیتر کتاب — خروجی: متن «تازه‌ها».
+ * محتوای جدید بلافاصله در همان صفحه اعمال می‌شود (بدون آپدیت اپ).
+ */
+export async function applyCourseUpdate(courseId: string): Promise<string | null> {
+  const info = packUpdateSnapshot[courseId];
+  if (!info) return null;
+  const m = cachedManifest() ?? (await checkForUpdates());
+  const meta = m.packs.find((p) => p.id === info.packId);
+  if (!meta) throw new Error("بسته در مانیفست پیدا نشد");
+  await installPack(meta);
+  const next = { ...packUpdateSnapshot };
+  delete next[courseId];
+  packUpdateSnapshot = next;
+  emitPackUpdates();
+  return meta.notes ?? null;
+}
+
 /* ─── استارتاپ ────────────────────────────────────────────────────────────── */
 
 let started = false;
-
 /** کلید کلید‌زرخشک نصب خودکار — اگر «off» باشد رفتار قدیمی (نصب دستی) می‌ماند */
 const AUTO_INSTALL_KEY = "lexa-auto-packs";
 
@@ -390,11 +487,16 @@ export async function initContentPacks(): Promise<void> {
   }
 
   // ۲) بررسی بی‌صدای مانیفست + نصب خودکار بسته‌های تازه (جزوه/تدریس بدون تنظیمات)
-  void checkForUpdates()
-    .then((m) => autoInstallFromManifest(m))
-    .catch(() => {
+  //    سپس اسنپ‌شات نشانگرهای «به‌روزرسانی جدید» برای سرتیتر کتاب‌ها تازه می‌شود
+  void (async () => {
+    try {
+      const m = await checkForUpdates();
+      await autoInstallFromManifest(m);
+      await computePackUpdateSnapshot(m);
+    } catch {
       /* آفلاین یا مخزن در دسترس نیست — مشکلی نیست */
-    });
+    }
+  })();
 }
 
 /**
