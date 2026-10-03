@@ -3,7 +3,7 @@
 // ۲) نشان جدید لنگر متنی (pfx/sfx) ذخیره می‌کند
 // ۳) با آپدیت محتوا: تغییر بی‌ربطِ قبل از جمله → نشان نمی‌پرد (لنگر)؛
 //    حذف/تغییر خود جمله → نشان رها می‌شود
-// ۴) ویرایش بازهٔ نشان: ابتدا/انتها −/+ یک کلمه عقب/جلو
+// ۴) ویرایش بازهٔ نشان: لمس نشان → انتخاب بومی + دستگیره‌ها؛ بدون دکمهٔ ابتدا/انتها
 // ۵) آیکون ابر کنار اواتار حذف شد + منوی حساب ابری با لمس باز می‌شود (پورتال)
 // ۶) دکمهٔ معلق «از استاد بپرس» در موبایل حذف شد (کارت سایدبار دسکتاپ سر جایش)
 // ۷) کارت «دفترچه‌های آمادهٔ آزمون / از کتابخانهٔ خودم آزمون بسازم» حذف شد
@@ -158,16 +158,47 @@ async function clickMark(id) {
   throw new Error("نوار ویرایش روی نشان باز نشد");
 }
 
-// ── کلیک روی نشان → نوار ویرایش با دکمه‌های تنظیم بازه ──
+// ── کلیک روی نشان → نوار ویرایش بدون دکمه‌های ابتدا/انتها + انتخاب بومی ──
+const t0 = marked.text.trim();
 await clickMark(recId);
 ok("نوار ویرایش باز شد", await page.locator("[data-mark-toolbar]").isVisible());
-for (const lbl of ["ابتدا −", "ابتدا +", "انتها −", "انتها +"]) {
-  ok(`دکمهٔ «${lbl}» هست`, (await page.locator(`[data-mark-toolbar] button[aria-label*='${lbl.split(" ")[0]}']`).count()) > 0 || (await page.locator(`[data-mark-toolbar] button:has-text("${lbl}")`).count()) > 0);
-}
+const fourGone = await page.evaluate(() => {
+  const btns = [...document.querySelectorAll("[data-mark-toolbar] button")];
+  return btns.filter((b) => /ابتدا|انتها/.test(b.textContent || "") || /ابتدا|انتها/.test(b.getAttribute("aria-label") || "")).length;
+});
+ok("دکمه‌های ابتدا/انتها حذف شدند", fourGone === 0, `count=${fourGone}`);
+const nativeSel = await page.evaluate(() => {
+  const sel = window.getSelection();
+  return { active: !!sel && sel.rangeCount > 0 && !sel.isCollapsed, text: (sel?.toString() || "").replace(/\s+/g, " ").trim() };
+});
+ok(`لمس نشان، متنش را بومی انتخاب کرد («${nativeSel.text}»)`, nativeSel.active && nativeSel.text === t0);
 
-// ── گسترش: انتها + → یک کلمه جلوتر ──
-const t0 = marked.text.trim();
-await page.locator("[data-mark-toolbar] button[title*='پایان نشان را یک کلمه جلوتر']").click();
+// ── گسترش با «دستگیره» — کشیدن انتهای انتخاب تا کلمهٔ بعد (شبیه‌سازی درگ دستگیره) ──
+const growInfo = await page.evaluate((id) => {
+  const mk = document.querySelector(`article mark[data-lexa-mark][data-mid='${id}']`);
+  if (!mk) return null;
+  const walker = document.createTreeWalker(mk.parentNode, NodeFilter.SHOW_TEXT);
+  let tn;
+  let sawMark = false;
+  let nextWord = null;
+  while ((tn = walker.nextNode())) {
+    if ((tn.parentElement || {}).closest?.("mark[data-lexa-mark]")) { sawMark = true; continue; }
+    if (sawMark) {
+      const m2 = (tn.nodeValue || "").match(/\S+/);
+      if (m2) { nextWord = { node: tn, idx: tn.nodeValue.indexOf(m2[0]), word: m2[0] }; break; }
+    }
+  }
+  if (!nextWord) return null;
+  const sel = window.getSelection();
+  const rng = sel.getRangeAt(0);
+  rng.setEnd(nextWord.node, nextWord.idx + nextWord.word.length);
+  document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+  return { word: nextWord.word };
+}, recId);
+ok(`انتخاب با «دستگیره» تا کلمهٔ بعد گسترش یافت (+ «${growInfo?.word}»)`, !!growInfo);
+await page.waitForTimeout(500); // دیبانس selectionchange
+ok("نوار ویرایش پس از گسترش هنوز باز است", await page.locator("[data-mark-toolbar]").isVisible());
+await page.locator("[data-mark-toolbar] button[title='رنگ نشان']").first().click();
 await page.waitForTimeout(600);
 const grown = await page.evaluate((id) => {
   const mk = document.querySelector(`article mark[data-lexa-mark][data-mid='${id}']`);
@@ -176,28 +207,29 @@ const grown = await page.evaluate((id) => {
   return { dom: mk ? mk.textContent.trim() : null, rec: (list.find((m) => m.id === id) ?? {}).text };
 }, recId);
 const grewEnd = grown.rec && grown.rec.startsWith(t0) && grown.rec.length > t0.length;
-ok(`«انتها +» مارک را از انتها بزرگ کرد («${t0}» → «${grown.rec}»)`, !!grewEnd);
+ok(`کشیدن دستگیره + رنگ، مارک را از انتها بزرگ کرد («${t0}» → «${grown.rec}»)`, !!grewEnd);
 ok("DOM نشان هم متن بزرگ‌شده را دارد", grown.dom === grown.rec);
 
-// ── گسترش از ابتدا: ابتدا − ──
+// ── کوچک‌سازی با دستگیره — کشیدن انتهای انتخاب به عقب (فقط کلمهٔ اصلی) ──
 await clickMark(recId);
-await page.locator("[data-mark-toolbar] button[title*='شروع نشان را یک کلمه عقب‌تر']").click();
-await page.waitForTimeout(600);
-const grownStart = await page.evaluate((id) => {
-  const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
-  return (store?.state?.marks?.["m-l1-1"] ?? []).find((m) => m.id === id)?.text ?? "";
-}, recId);
-ok(`«ابتدا −» مارک را از ابتدا بزرگ کرد («${grownStart}»)`, grownStart.length > (grown.rec || "").length && grownStart.endsWith(grown.rec));
-
-// ── کوچک‌سازی: ابتدا + → مرز ابتدا جلو می‌رود (توکن چسبیدهٔ مرز پاراگراف یکجا جلو می‌رود) ──
-await clickMark(recId);
-await page.locator("[data-mark-toolbar] button[title*='شروع نشان را یک کلمه جلوتر']").click();
+await page.evaluate(({ id, word }) => {
+  const mk = document.querySelector(`article mark[data-lexa-mark][data-mid='${id}']`);
+  if (!mk) return;
+  const tn = mk.firstChild;
+  const idx = ((tn?.nodeValue) || "").indexOf(word);
+  const sel = window.getSelection();
+  const rng = sel.getRangeAt(0);
+  rng.setEnd(tn, idx + word.length);
+  document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+}, { id: recId, word: t0 });
+await page.waitForTimeout(500);
+await page.locator("[data-mark-toolbar] button[title='رنگ نشان']").first().click();
 await page.waitForTimeout(600);
 const shrunk = await page.evaluate((id) => {
   const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
   return (store?.state?.marks?.["m-l1-1"] ?? []).find((m) => m.id === id)?.text ?? "";
 }, recId);
-ok(`«ابتدا +» مرز ابتدا را جلو برد («${shrunk}»)`, shrunk.length < grownStart.length && grownStart.endsWith(shrunk));
+ok(`کشیدن دستگیره به عقب، بازه را کوچک کرد («${shrunk}»)`, shrunk === t0, `rec=${shrunk}`);
 
 // ── حذف نشان از نوار ویرایش ──
 await clickMark(recId);

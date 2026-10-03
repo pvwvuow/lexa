@@ -9,7 +9,6 @@ export type Route =
   | { view: "quiz"; id?: string }
   | { view: "case"; id?: string }
   | { view: "cards" }
-  | { view: "progress" }
   | { view: "settings" }
   | { view: "import" }
   | { view: "admin" }
@@ -50,7 +49,7 @@ export function parseHash(h: string): Route {
   if (head === "law") return { view: "law", id: id || undefined };
   if (head === "write" && (parts[1] === "post" || parts[1] === "course"))
     return { view: "write", kind: parts[1], id: parts[2] };
-  if (["cards", "progress", "settings", "import", "admin", "teachers", "studio", "library", "study"].includes(head)) return { view: head as never };
+  if (["cards", "settings", "import", "admin", "teachers", "studio", "library", "study"].includes(head)) return { view: head as never };
   return { view: "home" };
 }
 

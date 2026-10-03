@@ -30,6 +30,10 @@ export function readStoredTheme(): AppTheme {
 
 export function applyTheme(t: AppTheme) {
   const root = document.documentElement;
+  // ضدلگ: در لحظهٔ سوییچ همهٔ گذارهای CSS خاموش می‌شوند تا کل صفحه یکجا و بی‌معطلی
+  // رنگ عوض کند (به‌جای انیمیشنِ هم‌زمان صدها المان که روی موبایل لگ می‌سازد)؛
+  // دو فریم بعد کلید برداشته می‌شود و گذارها برمی‌گردند.
+  root.classList.add("theme-switching");
   root.classList.toggle("dark", t === "dark");
   root.classList.toggle("theme-glass", t === "glass");
   try {
@@ -37,6 +41,58 @@ export function applyTheme(t: AppTheme) {
     // next-themes و sonner فقط روز/شب می‌فهمند — شیشه‌ای از خانوادهٔ روشن است
     localStorage.setItem("theme", t === "dark" ? "dark" : "light");
   } catch {}
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => root.classList.remove("theme-switching"));
+  });
+}
+
+/* ── استور مشترک تم — همهٔ دکمه‌ها یک منبع حقیقت دارند ────────────────────────
+ * باگ قدیمی: هر ThemeToggle وضعیت محلیِ خودش را داشت؛ دکمهٔ نوار بالا و دکمهٔ
+ * منوی کشویی از هم جا می‌ماندند و چرخهٔ روز/شب/شیشه‌ای از حالت کهنه شروع می‌شد.
+ * حالا تم در یک استور ماژول‌سطح است و هر دکمه با useSyncExternalStore از همان
+ * می‌خواند — تغییر از هر دکمه‌ای، بقیه را بلافاصله همگام می‌کند. */
+let activeTheme: AppTheme | null = null;
+const themeSubs = new Set<() => void>();
+
+function ensureTheme(): AppTheme {
+  if (activeTheme == null) activeTheme = readStoredTheme();
+  return activeTheme;
+}
+
+export function subscribeTheme(cb: () => void): () => void {
+  themeSubs.add(cb);
+  return () => {
+    themeSubs.delete(cb);
+  };
+}
+
+export function getThemeSnapshot(): AppTheme {
+  return ensureTheme();
+}
+
+export function getServerThemeSnapshot(): AppTheme {
+  return "light";
+}
+
+/** تعویض تم از هر دکمه‌ای — استور مشترک همهٔ دکمه‌ها را هم‌زمان به‌روز می‌کند */
+export function setAppTheme(t: AppTheme) {
+  if (ensureTheme() === t) return;
+  activeTheme = t;
+  applyTheme(t);
+  themeSubs.forEach((l) => l());
+}
+
+// همگام‌سازی بین‌تبی — اگر تم در تب دیگری عوض شد، این تب هم بی‌صدا می‌چرخد
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== THEME_KEY) return;
+    const v = e.newValue;
+    if (v !== "light" && v !== "dark" && v !== "glass") return;
+    if (ensureTheme() === v) return;
+    activeTheme = v;
+    applyTheme(v);
+    themeSubs.forEach((l) => l());
+  });
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -61,16 +117,12 @@ const NEXT_THEME_LABEL: Record<AppTheme, string> = {
   glass: "رفتن به حالت روز",
 };
 export function ThemeToggle() {
+  const theme = React.useSyncExternalStore(subscribeTheme, getThemeSnapshot, getServerThemeSnapshot);
   const [mounted, setMounted] = React.useState(false);
-  const [theme, setTheme] = React.useState<AppTheme>("light");
-  React.useEffect(() => {
-    setMounted(true);
-    setTheme(readStoredTheme());
-  }, []);
+  React.useEffect(() => setMounted(true), []);
   const toggle = () => {
     const next = THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length];
-    applyTheme(next);
-    setTheme(next);
+    setAppTheme(next);
   };
   const isDark = mounted && theme === "dark";
   const isGlass = mounted && theme === "glass";

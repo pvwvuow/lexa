@@ -20,7 +20,7 @@ import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./co
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { FeedbackDialog } from "./FeedbackDialog";
-import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor, adjustMarkText } from "@/lib/marks";
+import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -96,9 +96,9 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
  * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
 const TOOLBAR_GAP = 36;
 
-/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف + تنظیم سر و ته نشان */
+/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف؛ تنظیم بازه با دستگیره‌های بومی انتخاب */
 function MarkToolbar({
-  mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, onAdjust, onDone,
+  mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, getLive, onDone,
 }: {
   mode: "new" | "edit";
   rect: { top: number; bottom: number; centerX: number };
@@ -109,7 +109,8 @@ function MarkToolbar({
   occ?: number;
   pfx?: string;
   sfx?: string;
-  onAdjust?: (which: "start" | "end", dir: -1 | 1) => void;
+  /** وضعیت زندهٔ انتخاب — کاربر با دستگیره‌های موبایل بازه را کشیده و بی‌درنگ رنگ می‌زند */
+  getLive?: () => { text: string; occ: number; pfx: string; sfx: string; secId: string } | null;
   onDone: () => void;
 }) {
   const applyMark = useApp((s) => s.applyMark);
@@ -134,7 +135,13 @@ function MarkToolbar({
       applyMark(lessonId, { id: Math.random().toString(36).slice(2) + Date.now().toString(36), secId, text, color, occ, pfx, sfx });
       try { window.getSelection()?.removeAllRanges(); } catch {}
     } else if (mode === "edit" && markId) {
-      applyMark(lessonId, { id: markId, secId: secId ?? "", text: text ?? "", color, occ, pfx, sfx });
+      // بازهٔ زندهٔ دستگیره‌ها مقدم است — کاربر ممکن است بازه را کشیده و بلافاصله رنگ زده باشد
+      const live = getLive?.() ?? null;
+      const base = live && live.secId === (secId ?? "")
+        ? live
+        : { text: text ?? "", occ, pfx, sfx, secId: secId ?? "" };
+      applyMark(lessonId, { id: markId, secId: base.secId || (secId ?? ""), text: base.text, color, occ: base.occ, pfx: base.pfx, sfx: base.sfx });
+      try { window.getSelection()?.removeAllRanges(); } catch {}
     }
     onDone();
   }
@@ -160,6 +167,7 @@ function MarkToolbar({
       aria-label="نشان‌گذاری و کپی متن"
     >
       {mode === "new" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">نشان کن:</span>}
+      {mode === "edit" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">بازه را با دستگیره بکش، بعد رنگ بزن:</span>}
       {Object.entries(MARK_COLORS).map(([key, c]) => (
         <button
           key={key}
@@ -182,25 +190,6 @@ function MarkToolbar({
       </button>
       {mode === "edit" && markId && (
         <>
-          <span className="mx-0.5 h-5 w-px bg-border" />
-          {/* تنظیم سر و ته نشان — هر لمس مرز را یک کلمه عقب/جلو می‌برد */
-          /* − = به سمت ابتدای متن (عقب) ، + = به سمت انتهای متن (جلو) */}
-          {([
-            { which: "start" as const, dir: -1 as const, label: "ابتدا −", title: "شروع نشان را یک کلمه عقب‌تر ببر (بزرگ‌تر شدن از اول)" },
-            { which: "start" as const, dir: 1 as const, label: "ابتدا +", title: "شروع نشان را یک کلمه جلوتر ببر (کوچک‌تر شدن از اول)" },
-            { which: "end" as const, dir: -1 as const, label: "انتها −", title: "پایان نشان را یک کلمه عقب‌تر ببر (کوچک‌تر شدن از آخر)" },
-            { which: "end" as const, dir: 1 as const, label: "انتها +", title: "پایان نشان را یک کلمه جلوتر ببر (بزرگ‌تر شدن از آخر)" },
-          ]).map(({ which, dir, label, title }) => (
-            <button
-              key={label}
-              onClick={() => onAdjust?.(which, dir)}
-              title={title}
-              aria-label={title}
-              className="inline-flex h-8 items-center rounded-lg border border-border px-1.5 text-[10px] font-bold text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze sm:h-7"
-            >
-              {label}
-            </button>
-          ))}
           <span className="mx-0.5 h-5 w-px bg-border" />
           <button
             onClick={() => { removeMark(lessonId, markId); onDone(); }}
@@ -297,6 +286,10 @@ export function LearnView({ id }: { id: string }) {
   const textState = useLessonContent(ctx?.lesson);
 
   // ── رندر نشان‌های ذخیره‌شده روی DOM (بعد از هر تغییر مرتبط) ──
+  // گارد امضا: اگر همان نشان‌ها با همان رنگ/متن سالم روی همین DOM هستند، دست
+  // نمی‌زنیم — چون unwrap/rewrap نودهای متنی را عوض می‌کند و انتخاب بومیِ
+  // دستگیره‌های موبایل (در حال کشیدن) از بین می‌رود. تغییر محتوا (طول متن) یا
+  // نشان‌های ناموجود در DOM → اعمال دوباره، مثل قبل.
   React.useLayoutEffect(() => {
     const root = articleRef.current;
     if (!root) return;
@@ -306,10 +299,20 @@ export function LearnView({ id }: { id: string }) {
       if (sid) sectionEls.set(sid, el);
     });
     if (!sectionEls.size) return;
+    const sig =
+      marksForLesson.map((m) => `${m.id}|${m.color}|${m.text}`).join("§") +
+      "#" + (root.textContent?.length ?? 0);
+    const allPresent = marksForLesson.every((m) =>
+      root.querySelector(`mark[data-lexa-mark][data-mid="${CSS.escape(m.id)}"]`));
+    if (root.getAttribute("data-marks-sig") === sig && allPresent) return;
     applyMarksToSections(sectionEls, marksForLesson);
-  }); // بدون آرگومان — بعد از هر رندر، idempotent است
+    root.setAttribute("data-marks-sig", sig);
+  }); // بدون آرگومان — اما با گارد امضا؛ اعمال فقط وقتی لازم است
 
   // ── تشخیص انتخاب متن → نوار ابزار نشان‌گذاری ──
+  // انتخابِ روی یک نشان موجود → همان نشان «ویرایش» می‌شود (تغییر بازه با دستگیره‌های
+  // بومی موبایل)؛ انتخاب روی متن ساده → «نشان جدید». این همان جایگزین دکمه‌های
+  // ابتدا/انتهاست: کاربر مثل انتخاب معمولی، سر و ته بازه را می‌کشد.
   React.useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     function check() {
@@ -326,23 +329,27 @@ export function LearnView({ id }: { id: string }) {
       if (!located) return;
       const r = range.getBoundingClientRect();
       if (!r || (!r.width && !r.height)) return;
-      setMarkBar({
-        mode: "new",
-        rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
-        text: located.text,
-        secId,
-        occ: located.occ,
-        pfx: located.pfx,
-        sfx: located.sfx,
-      });
+      const rect = { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 };
+      const hits = Array.from(secEl.querySelectorAll("mark[data-lexa-mark]")).filter((mk) => range.intersectsNode(mk));
+      if (hits.length === 1) {
+        const mid = (hits[0] as HTMLElement).dataset.mid;
+        const mark = mid ? marksForLesson.find((m) => m.id === mid) : undefined;
+        if (mark) {
+          setMarkBar({ mode: "edit", markId: mark.id, secId: mark.secId, text: located.text, occ: located.occ, pfx: located.pfx, sfx: located.sfx, rect });
+          return;
+        }
+      }
+      setMarkBar({ mode: "new", rect, text: located.text, secId, occ: located.occ, pfx: located.pfx, sfx: located.sfx });
+    }
+    function settle() {
+      timer = null;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { setMarkBar(null); return; }
+      check();
     }
     function onChange() {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
-        setMarkBar((cur) => (cur?.mode === "new" ? null : cur));
-        check();
-      }, 260);
+      timer = setTimeout(settle, 260);
     }
     function onPointerDown(e: Event) {
       const t = e.target as Element | null;
@@ -350,7 +357,20 @@ export function LearnView({ id }: { id: string }) {
       setMarkBar(null);
     }
     function onScroll() {
-      setMarkBar(null);
+      setMarkBar((cur) => {
+        if (!cur) return cur;
+        if (cur.mode === "new") return null;
+        // ویرایش: کشیدن دستگیره می‌تواند صفحه را اسکرول کند — نوار با انتخاب زنده جابه‌جا می‌شود
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount && !sel.isCollapsed) {
+          const r = sel.getRangeAt(0).getBoundingClientRect();
+          if (r && (r.width || r.height) && Math.abs(r.top - cur.rect.top) > 8) {
+            return { ...cur, rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 } };
+          }
+          return cur;
+        }
+        return null;
+      });
     }
     document.addEventListener("selectionchange", onChange);
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -360,20 +380,51 @@ export function LearnView({ id }: { id: string }) {
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("scroll", onScroll);
     };
+  }, [secIdOf, marksForLesson]);
+
+  /** آخرین وضعیت انتخاب زنده — برای ذخیرهٔ بی‌وقفهٔ بازهٔ کشیده‌شده با دستگیره‌ها */
+  const getLiveSelection = React.useCallback((): { text: string; occ: number; pfx: string; sfx: string; secId: string } | null => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+    const range = sel.getRangeAt(0);
+    const anchor = range.startContainer.parentElement ?? null;
+    const root = articleRef.current;
+    if (!anchor || !root || !root.contains(anchor)) return null;
+    if (!isSelectableNode(anchor)) return null;
+    const { secEl, secId } = secIdOf(anchor);
+    if (!secEl || !secId) return null;
+    const located = locateSelection(secEl, range);
+    return located ? { ...located, secId } : null;
   }, [secIdOf]);
 
-  // ── کلیک روی نشان موجود → نوار ویرایش/حذف/تنظیم بازه ──
+  // ── کلیک/لمس روی نشان موجود → انتخاب بومی متن نشان (دستگیره‌های موبایل) + نوار ویرایش ──
   function handleArticleClick(e: React.MouseEvent) {
     const target = e.target as Element;
     const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
     if (!mk) return;
     const sel = window.getSelection();
-    if (sel && !sel.isCollapsed) return; // کاربر در حال انتخاب است — دخالت نکن
+    if (sel && !sel.isCollapsed) return; // انتخاب دستی فعال است — selectionchange خودش نوار را می‌سازد
     const mid = mk.dataset.mid;
     if (!mid) return;
     const mark = marksForLesson.find((m) => m.id === mid);
     if (!mark) return;
-    const r = mk.getBoundingClientRect();
+    // انتخاب بومی متن نشان — دو دستگیرهٔ پیش‌فرض موبایل سر و ته انتخاب می‌نشینند و
+    // کاربر با کشیدن همان‌ها بازه را گسترش/کوچک می‌کند (جایگزین ۴ دکمهٔ ابتدا/انتها)
+    const segs = Array.from(articleRef.current?.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(mid)}"]`) ?? []);
+    if (!segs.length) return;
+    const first = segs[0].firstChild;
+    const last = segs[segs.length - 1].lastChild;
+    if (!first || !last) return;
+    try {
+      const range = document.createRange();
+      range.setStart(first, 0);
+      range.setEnd(last, last.nodeValue?.length ?? 0);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    } catch {
+      return;
+    }
+    const r = sel && sel.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : mk.getBoundingClientRect();
     setMarkBar({
       mode: "edit",
       markId: mid,
@@ -384,30 +435,6 @@ export function LearnView({ id }: { id: string }) {
       sfx: mark.sfx,
       rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
     });
-  }
-
-  // ── تنظیم سر و ته نشان — هر لمس مرز را یک کلمه عقب/جلو می‌برد ──
-  function handleAdjustMark(which: "start" | "end", dir: -1 | 1) {
-    const cur = markBar;
-    if (!cur || cur.mode !== "edit") return;
-    const mark = marksForLesson.find((m) => m.id === cur.markId);
-    if (!mark) return;
-    const root = articleRef.current;
-    const secEl = root?.querySelector(`[data-sec-id="${CSS.escape(mark.secId)}"]`) ?? null;
-    const next = adjustMarkText(secEl, mark, which, dir);
-    if (!next) return; // مرز جابه‌جا نشد (اول/آخر متن یا نشان تک‌کلمه‌ای)
-    applyMark(id, { id: mark.id, secId: mark.secId, text: next.text, color: mark.color, occ: next.occ, pfx: next.pfx, sfx: next.sfx });
-    // نوار باز می‌ماند و روی نشان تازه می‌نشیند — کاربر می‌تواند چند بار پشت‌سرهم تنظیم کند.
-    // اگر کاربر در فاصلهٔ بین نوار را بسته (اسکرول/لمس دیگر)، دوباره بازش نمی‌کنیم.
-    window.setTimeout(() => {
-      setMarkBar((cur) => {
-        if (!cur || cur.mode !== "edit" || cur.markId !== mark.id) return cur;
-        const mkEl = articleRef.current?.querySelector(`mark[data-lexa-mark][data-mid="${CSS.escape(mark.id)}"]`);
-        if (!mkEl) return cur;
-        const r = mkEl.getBoundingClientRect();
-        return { ...cur, text: next.text, occ: next.occ, pfx: next.pfx, sfx: next.sfx, rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 } };
-      });
-    }, 40);
   }
 
   if (!ctx) return <LessonNotFoundGrace />;
@@ -913,7 +940,7 @@ export function LearnView({ id }: { id: string }) {
           occ={markBar.occ}
           pfx={markBar.pfx}
           sfx={markBar.sfx}
-          onAdjust={handleAdjustMark}
+          getLive={getLiveSelection}
           onDone={() => setMarkBar(null)}
         />
       )}

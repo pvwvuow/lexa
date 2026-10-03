@@ -318,89 +318,11 @@ export function applyMarksToSections(
   }
 }
 
-/* ── ویرایش بازهٔ نشان — حرکت سر و ته مارک عقب/جلو (درخواست کاربر) ─────────── */
-
-export interface LocatedMark { start: number; end: number; full: string }
-
-/** جای دقیق نشان در ایندکس نرمال‌شدهٔ بخش — با لنگر متنی اگر بود */
-export function locateMarkRange(
-  secEl: Element | null,
-  mark: { text: string; occ?: number; pfx?: string; sfx?: string },
-): LocatedMark | null {
-  if (!secEl) return null;
-  // includeMarks=true — متن خودِ نشان باید در ایندکس دیده شود
-  const idx = buildIndex(secEl, true);
-  const needle = norm(mark.text).trim();
-  if (!needle) return null;
-  const at = occurrences(idx.full, needle);
-  if (!at.length) return null;
-  const pos = pickOccurrence(idx.full, needle, at, mark);
-  return { start: pos, end: pos + needle.length, full: idx.full };
-}
-
-/** آغاز کلمهٔ قبل از pos — null یعنی جایی برای عقب رفتن نیست */
-function wordStartBefore(full: string, pos: number): number | null {
-  let i = pos;
-  while (i > 0 && full[i - 1] === " ") i--;
-  if (i === 0) return null;
-  while (i > 0 && full[i - 1] !== " ") i--;
-  return i;
-}
-
-/** آغاز کلمهٔ بعد از pos (تا مرز end) — null یعنی دیگر کلمه‌ای در بازه نیست */
-function wordStartAfter(full: string, pos: number, end: number): number | null {
-  let i = pos;
-  while (i < end && full[i] !== " ") i++; // عبور از کلمهٔ فعلی
-  while (i < end && full[i] === " ") i++;
-  return i < end ? i : null;
-}
-
-/** پایان کلمهٔ بعد از end — null یعنی انتهای متن */
-function wordEndAfter(full: string, end: number): number | null {
-  let i = end;
-  while (i < full.length && full[i] === " ") i++;
-  if (i >= full.length) return null;
-  while (i < full.length && full[i] !== " ") i++;
-  return i;
-}
-
-/** پایان کلمهٔ قبل از end (تا مرز start) — null یعنی دیگر کلمه‌ای در بازه نیست */
-function wordEndBefore(full: string, end: number, start: number): number | null {
-  let i = end;
-  while (i > start && full[i - 1] === " ") i--;
-  if (i === start) return null;
-  while (i > start && full[i - 1] !== " ") i--;
-  return i;
-}
-
-/**
- * جابه‌جایی مرز نشان یک کلمه عقب/جلو و برگرداندن رکورد تازهٔ نشان.
- * which: کدام مرز (شروع/پایان) — dir: ‎-۱ یعنی به سمت ابتدای متن، ‎+۱ به سمت انتها.
- * اگر مرز نتواند حرکت کند (اول/آخر متن یا نشان تک‌کلمه‌ای می‌شود) null برمی‌گردد.
- */
-export function adjustMarkText(
-  secEl: Element | null,
-  mark: { text: string; occ?: number; pfx?: string; sfx?: string },
-  which: "start" | "end",
-  dir: -1 | 1,
-): { text: string; occ: number; pfx: string; sfx: string } | null {
-  const rng = locateMarkRange(secEl, mark);
-  if (!rng) return null;
-  const { full } = rng;
-  let { start, end } = rng;
-  if (which === "start") {
-    const ns = dir < 0 ? wordStartBefore(full, start) : wordStartAfter(full, start, end);
-    if (ns == null) return null;
-    start = ns;
-  } else {
-    const ne = dir < 0 ? wordEndBefore(full, end, start) : wordEndAfter(full, end);
-    if (ne == null) return null;
-    end = ne;
-  }
-  const text = full.slice(start, end).trim();
-  if (text.length < 2) return null; // نشان خیلی کوتاه نمی‌شود
-  return { text, occ: 0, pfx: ctxBefore(full, start), sfx: ctxAfter(full, end) };
-}
+/* ── ویرایش بازهٔ نشان — با انتخاب بومی و دستگیره‌های موبایل ──────────────────
+ * بازهٔ نشان دیگر با دکمه عقب/جلو نمی‌شود؛ کاربر روی نشان لمس می‌کند تا متن آن
+ * «انتخاب بومی» شود، دستگیره‌های پیش‌فرض موبایل می‌نشینند و با کشیدن همان‌ها بازه
+ * عوض می‌شود. جایابی بازهٔ انتخاب همان مسیر locateSelection است و ذخیره با
+ * applyMark روی همان id انجام می‌شود (upsert در استور). */
 
 /** آیا المان داخل یک ناحیهٔ قابل انتخاب است (نه دکمه و ورودی) */
 export function isSelectableNode(el: Element | null): boolean {

@@ -291,6 +291,14 @@ html {
   font-family: var(--font-display);
 }
 
+/* تعویض تم بدون لگ — هنگام سوییچ همهٔ گذارها خاموش می‌شوند (کلید در applyTheme
+ * گذاشته و دو فریم بعد برداشته می‌شود) تا کل صفحه یکجا رنگ عوض کند، نه المان‌به‌المان */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+
 body {
   background:
     radial-gradient(1200px 380px at 85% -140px, color-mix(in srgb, var(--bronze) 7%, transparent), transparent 70%),

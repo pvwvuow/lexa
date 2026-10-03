@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  Home, BookOpen, TrendingUp, Settings, Upload, Scale,
+  Home, BookOpen, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
   LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree, NotebookTabs,
 } from "lucide-react";
@@ -21,7 +21,6 @@ import { LearnView } from "./LearnView";
 import { QuizView } from "./QuizView";
 import { FlashcardsView } from "./FlashcardsView";
 import { CaseStudyView } from "./CaseStudyView";
-import { ProgressView } from "./ProgressView";
 import { SettingsView } from "./SettingsView";
 import { ImportView } from "./ImportView";
 import { CourseIcon } from "./common";
@@ -340,7 +339,6 @@ export function AppShell() {
 
         {/* تست و آزمون — یک ورود یکتا: تست از کتابخانه + دفترچه‌های آماده در دو تب داخل همان صفحه */}
         <SideItem icon={NotebookTabs} label="تست و آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
-        <SideItem icon={TrendingUp} label="پیشرفت" rail={rail} active={current === "progress"} onClick={() => go({ view: "progress" })} />
         {/* کتابخانهٔ عمومی — دوره‌های آماده (آفلاین) + مطالب اساتید — در اندروید هم فعال */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
@@ -476,7 +474,6 @@ export function AppShell() {
           {route.view === "quiz" && !route.id?.startsWith("pack-") && <QuizView key={route.id ?? "mixed"} id={route.id} />}
           {route.view === "case" && <CaseStudyView id={route.id} />}
           {route.view === "cards" && <FlashcardsView />}
-          {route.view === "progress" && <ProgressView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && (IS_APK ? <ApkUnavailable title="افزودن کتاب" /> : <ImportView />)}
           {route.view === "teachers" && (IS_APK ? <ApkUnavailable title="اساتید و مقالات" /> : <TeachersView />)}
@@ -550,7 +547,6 @@ export function AppShell() {
                 </div>
               )}
               <SideItem icon={NotebookTabs} label="تست و آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
-              <SideItem icon={TrendingUp} label="پیشرفت" rail={false} active={current === "progress"} onClick={() => go({ view: "progress" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
               {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
