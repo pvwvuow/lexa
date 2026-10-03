@@ -6,7 +6,7 @@ set -e
 cd /home/z/my-project
 
 export ANDROID_HOME=${ANDROID_HOME:-/home/z/android-sdk}
-export JAVA_HOME=${JAVA_HOME:-/home/z/jdk-21.0.12.1+1}
+export JAVA_HOME=${JAVA_HOME:-/home/z/jdk-21.0.5+11}
 export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
 echo "[1/5] پارک موقت مسیرهای API…"

@@ -1405,3 +1405,26 @@ Stage Summary:
 - v0.9.3 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.9.3 — هر ۶ مورد گزارش‌شده فیکس/تست/ریلیز شد
 - آپدیتر دسکتاپ اکنون در برابر نصبِ نیمه‌کاره مقاوم است و خودش ترمیم می‌کند؛ برای کاربری که هم‌اکنون با «Application error» گیر کرده: نصب zip تازهٔ 0.9.3 به‌تنهایی کافی است (بوت از باندل + ترمیم خودکار appdata) — یا پاک‌کردن پوشهٔ %APPDATA%\Lexa\appdata و گرفتن آپدیت از نسخهٔ قبلی
 - درس مدنی ۷ جلسهٔ ۱ غایبی همچنان منتظر رونویسی کاربر است (بدون ساخت محتوا)
+
+---
+Task ID: 16
+Agent: main (Super Z)
+Task: بیلد و ریلیز v0.10.0 به درخواست کاربر («خب باید نسخه جدیدو بیلد کنی») — شامل درگ زندهٔ ۱:۱ منو + ادغام 0.9.3 + امنیت داده
+
+Work Log:
+- وضعیت ورودی: سورس 0.10.0 قبلاً کامیت شده بود (1492a54: ادغام 0.9.3 + دراِر + db در userData/آپلود در پروفایل/بکاپ مخزن خصوصی)؛ package.json 0.10.0 / sw v42 / DESIGN 1.9.10 بامپ‌شده، ولی build.gradle هنوز 93/0.9.3 و هیچ تگ/بیلدی برای 0.10.0 وجود نداشت
+- پیش‌پاکسازی: ۸۴۹ «تغییر» فقط mode-change (chmod ناخواستهٔ ابزارها) با git restore برگشت؛ زبالهٔ ۲۹MB «qa-dbheal.VxAE» (اسنپ‌شات QA با ۱۳۹ خطای lint) از مخزن untrack و حذف و به .gitignore آمد؛ lint سورس = صفر خطا
+- بامپ: gradle versionCode 100 / versionName 0.10.0
+- بیلد وب+استاندالون ✓ (SYMLINKS_CLEANED + TEMPLATE_DB_OK؛ بدون static/static و public/public)
+- QA پرود: qa-drawer-live ۱۶/۱۶ (کلیک ۵۶ms تا حرکت، باز شدن ۲۴۹ms، درگ ۱:۱ دقیق، فلیک، پرده، اسکرول عمودی، صفر خطا) + qa090-web ۱۰/۱۰ (سیم‌کشی sw v42) + qa090-table ۳/۳ — درس محیط: سرور QA حتماً در همان فراخوانیِ تست (پروسهٔ detach کشته می‌شود) و با node
+- بیلد الکترون: AppImage ۱۲۱.۷MiB + win-unpacked ۱۸۳۸ فایل (+۱۴۷ نسبت به ۰.۹.۳ — منطقی برای ریلیز فیچری؛ texts/data/db طبق yml خارج) + zip دستی ریشه‌ای ۱۷۴.۳MiB با unzip -t سالم
+- بیلد APK — سه مانع محیطی پس از ریست محیط رفع شد: (۱) /home/z/jdk-21 حذف شده بود و /usr/lib/jvm فقط JRE بود (بدون javac) → Temurin JDK 21.0.5 در /home/z/jdk-21.0.5+11 و فیکس پیش‌فرض build-apk.sh (۲) /home/z/android-sdk حذف شده بود → scripts/setup-android-sdk.sh دوباره اجرا شد + android/local.properties نوشته شد (۳) keystore ساین از download/android/ به android/ کپی شد. خروجی: Lexa-0.10.0.apk ۵.۹MiB، apksigner OK، versionCode=100/versionName=0.10.0
+- checksums.txt سه‌گانه + کامیت سورس 6b54827 + push (همراه کامیت‌های معلق قبلی)
+- ریلیز: release-app-update.py 0.10.0 → مانیفست/دلتا (کامیت bea8f92) + تگ app-v0.10.0 + purge jsDelivr + ریلیز گیت‌هاب v0.10.0 (id 402348818) با ۴ asset (AppImage/WinZip/checksums/APK)
+- راستی‌آزمایی زندهٔ scripts/verify-release-0100.py — ۱۷/۱۷: مانیفست 0.10.0 روی @main و @tag (۱۶۹۱ entry، صفر هم‌هش، صفر آشغال)؛ دلتاهای 0.6.0/0.7.0/0.8.0/0.8.1/0.9.0/0.9.1/0.9.2/0.9.3 همه MISSING: ۰ (فقط client-only/index.js صفر-بایتی است که در خود پکیج npm هم خالی است — از قبل موجود)؛ @main==@tag؛ ریلیز در صدر لیست
+- تست رگرسیون موتور دلتا پس از تغییرات ادغام (۴ الگوی استثنای db/uploads/backups/.env در scanDir): ۳۱/۳۱ سبز
+
+Stage Summary:
+- v0.10.0 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.0 — منوی موبایل باز شدن فوری + درگ زندهٔ ۱:۱ دارد و همهٔ بهبودهای 0.9.3 + امنیت داده (db در userData) را حمل می‌کند
+- مسیر آپدیت: 0.6.0 تا 0.9.3 همه با «بررسی به‌روزرسانی» داخل برنامه به 0.10.0 می‌رسند (دلتای 0.9.3→0.10.0 فقط ۵۶ فایل)
+- یادداشت محیطی: پس از هر ریست محیط، پیش از بیلد APK سه چیز باید برگردد: JDK کامل (فقط JRE کافی نیست)، android-sdk (setup-android-sdk.sh) و keystore ساین (از download/android/)
