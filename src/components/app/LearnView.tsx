@@ -19,12 +19,41 @@ import { askAi } from "@/lib/aiClient";
 import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./common";
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor, adjustMarkText } from "@/lib/marks";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
+
+/**
+ * درس یافت نشد — با مهلت آماده‌سازی: دوره‌های بستهٔ محتوایی (مثل تدریس اساتید)
+ * به‌صورت ناهمگام از IndexedDB/CDN ادغام می‌شوند؛ اگر همین حالا پیام «پیدا نشد»
+ * بدهیم، کاربر صفحهٔ خالی می‌بیند. تا ۳.۵ ثانیه لودر، بعد پیام واقعی.
+ */
+function LessonNotFoundGrace() {
+  const [graceOver, setGraceOver] = React.useState(false);
+  React.useEffect(() => {
+    const t = window.setTimeout(() => setGraceOver(true), 3500);
+    return () => window.clearTimeout(t);
+  }, []);
+  if (!graceOver) {
+    return (
+      <div className="flex flex-col items-center gap-3 p-14 text-center">
+        <Loader2 className="h-6 w-6 animate-spin text-bronze" />
+        <p className="text-sm text-muted-foreground">در حال آماده‌سازی درس…</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-3 p-14 text-center">
+      <AlertCircle className="h-6 w-6 text-bronze/70" />
+      <p className="text-sm leading-relaxed text-muted-foreground">جلسه پیدا نشد.</p>
+      <button onClick={() => navigate({ view: "home" })} className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-bold shadow-card hover:border-bronze/50 hover:text-bronze">
+        بازگشت به خانه
+      </button>
+    </div>
+  );
+}
 const EMPTY_MARKS: import("@/lib/store").LessonMark[] = [];
 
 /** زوم متن درس — مرز منطقی ۹۰٪ تا ۱۶۰٪ با گام ۱۰٪ (درخواست کاربر) */
@@ -232,6 +261,18 @@ export function LearnView({ id }: { id: string }) {
   const [showTocMobile, setShowTocMobile] = React.useState(false);
   const [tab, setTab] = React.useState<"teach" | "toc" | "laws">("teach");
   const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+  // شیت درون‌خطی «بیشتر» — بدون پورتال؛ الگوی همان نوار نشان که روی اندروید پایدار است
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+  const runMoreAction = React.useCallback((fn: () => void) => {
+    setMoreOpen(false);
+    fn();
+  }, []);
 
   // ── زوم متن درس — بزرگ/کوچک کردن اندازهٔ متون با مرز منطقی و ماندگاری ──
   const [zoom, setZoomState] = React.useState(1);
@@ -369,7 +410,7 @@ export function LearnView({ id }: { id: string }) {
     }, 40);
   }
 
-  if (!ctx) return <p className="p-10 text-center text-muted-foreground">جلسه پیدا نشد.</p>;
+  if (!ctx) return <LessonNotFoundGrace />;
 
   const { lesson, chapter, course } = ctx;
   const sections: LessonSection[] = lesson.sections ?? [];
@@ -770,58 +811,82 @@ export function LearnView({ id }: { id: string }) {
               </>
             )}
 
-            {/* همهٔ کنش‌های فرعی فقط داخل منوی بیشتر — بدون شلوغی پایین صفحه */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  disabled={!!loadingFor}
-                  aria-label="کنش‌های بیشتر"
-                  title="موارد کمکی و تکمیلی"
-                  className="inline-flex h-[46px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-45"
-                >
-                  <MoreHorizontal className="h-5 w-5" /> بیشتر
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={10} className="w-72 rounded-xl p-1.5">
-                <DropdownMenuItem
-                  onClick={() => handleAction("simple")}
-                  disabled={!!loadingFor}
-                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
-                >
-                  <HelpCircle className="h-4 w-4 shrink-0 text-bronze" /> متوجه نشدم؛ ساده‌تر توضیح بده
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleAction("examples")}
-                  disabled={!!loadingFor}
-                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
-                >
-                  <Lightbulb className="h-4 w-4 shrink-0 text-bronze" /> مثال بیشتر بده
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setFeedbackOpen(true)}
-                  disabled={!!loadingFor}
-                  title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر"
-                  className="cursor-pointer rounded-lg gap-2.5 py-2.5"
-                >
-                  <MessageSquareWarning className="h-4 w-4 shrink-0 text-bronze" /> نقد تدریس این جلسه…
-                </DropdownMenuItem>
-                {atEnd && (
-                  <DropdownMenuItem onClick={() => navigate({ view: "case", id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
-                    <Scale className="h-4 w-4 shrink-0 text-bronze" /> تمرین کیس واقعی
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate({ view: "course", id: course.id })} className="cursor-pointer rounded-lg gap-2.5 py-2.5">
-                  <RotateCcw className="h-4 w-4 shrink-0 text-bronze" /> بازگشت به فهرست درس
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* همهٔ کنش‌های فرعی فقط داخل شیت «بیشتر» — بدون شلوغی پایین صفحه */}
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
+              disabled={!!loadingFor}
+              aria-label="کنش‌های بیشتر"
+              aria-expanded={moreOpen}
+              title="موارد کمکی و تکمیلی"
+              className={`inline-flex h-[46px] items-center gap-1.5 rounded-xl border px-4 text-sm font-semibold shadow-card transition-colors disabled:opacity-45 ${
+                moreOpen ? "border-bronze/60 bg-bronze/10 text-bronze" : "border-border bg-card text-muted-foreground hover:border-bronze/60 hover:text-bronze"
+              }`}
+            >
+              <MoreHorizontal className="h-5 w-5" /> بیشتر
+            </button>
           </div>
         </article>
       </main>
 
       {Sidebar}
+
+      {/* شیت «بیشتر» — درون‌خطی و fixed (بدون پورتال/بدون فوکوس-اسکرول)؛ بالای داک موبایل */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-[85]" onMouseDown={() => setMoreOpen(false)} onTouchStart={() => setMoreOpen(false)} aria-hidden />
+      )}
+      {moreOpen && (
+        <div
+          role="menu"
+          aria-label="کنش‌های بیشتر جلسه"
+          className="fixed inset-x-3 z-[90] mx-auto max-w-md overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-card"
+          style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)" }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            role="menuitem"
+            onClick={() => runMoreAction(() => handleAction("simple"))}
+            disabled={!!loadingFor}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-start text-sm hover:bg-bronze/10 disabled:opacity-45"
+          >
+            <HelpCircle className="h-4 w-4 shrink-0 text-bronze" /> متوجه نشدم؛ ساده‌تر توضیح بده
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => runMoreAction(() => handleAction("examples"))}
+            disabled={!!loadingFor}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-start text-sm hover:bg-bronze/10 disabled:opacity-45"
+          >
+            <Lightbulb className="h-4 w-4 shrink-0 text-bronze" /> مثال بیشتر بده
+          </button>
+          <div className="mx-2 my-1 h-px bg-border/70" />
+          <button
+            role="menuitem"
+            onClick={() => runMoreAction(() => setFeedbackOpen(true))}
+            disabled={!!loadingFor}
+            title="انتقاد از تدریس این جلسه؛ تحلیل با جزوه و ارسال به مدیر"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-start text-sm hover:bg-bronze/10 disabled:opacity-45"
+          >
+            <MessageSquareWarning className="h-4 w-4 shrink-0 text-bronze" /> نقد تدریس این جلسه…
+          </button>
+          {atEnd && (
+            <button
+              role="menuitem"
+              onClick={() => runMoreAction(() => navigate({ view: "case", id }))}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-start text-sm hover:bg-bronze/10"
+            >
+              <Scale className="h-4 w-4 shrink-0 text-bronze" /> تمرین کیس واقعی
+            </button>
+          )}
+          <div className="mx-2 my-1 h-px bg-border/70" />
+          <button
+            role="menuitem"
+            onClick={() => runMoreAction(() => navigate({ view: "course", id: course.id }))}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-start text-sm hover:bg-bronze/10"
+          >
+            <RotateCcw className="h-4 w-4 shrink-0 text-bronze" /> بازگشت به فهرست درس
+          </button>
+        </div>
+      )}
 
       {/* نوار ابزار نشان‌گذاری متن — پنج رنگ یا ویرایش/حذف/تنظیم بازهٔ نشان موجود */}
       {markBar && markBar.mode === "new" && (

@@ -14,6 +14,7 @@ import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { usePublicLibrary, toggleBuiltinHidden, type TCourseCard, type FeedPost } from "@/lib/social-client";
+import { listInstalledPacks } from "@/lib/updater";
 import { IS_APK } from "@/lib/app-mode";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
 import { OfflineDownloadButton } from "./offline-ui";
@@ -342,6 +343,24 @@ export function PublicLibraryView() {
   const auth = useAuth();
   // شروع از «دوره‌های آماده» — جایی که جزوات رسمی اپ همیشه اینجاست
   const [cat, setCat] = React.useState("builtin");
+  // دوره‌های بستهٔ محتوایی اساتید که روی همین دستگاه نصب‌اند (مثل تدریس استاد غایبی) —
+  // این‌ها دورهٔ سروری نیستند؛ بدون این بخش کاربر در کتابخانه پیدایشان نمی‌کند
+  const customCourses = useApp((s) => s.customCourses);
+  const [packIds, setPackIds] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    let alive = true;
+    const load = () => {
+      listInstalledPacks()
+        .then((inst) => {
+          if (alive) setPackIds(new Set(inst.filter((p) => p.meta.kind === "course").map((p) => p.contentId)));
+        })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener("lexa-packs-autoinstalled", load);
+    return () => { alive = false; window.removeEventListener("lexa-packs-autoinstalled", load); };
+  }, []);
+  const packCourses = React.useMemo(() => customCourses.filter((c) => packIds.has(c.id)), [customCourses, packIds]);
   // تب داخلی هیچ فراخوانی شبکه‌ای نمی‌زند؛ داده‌اش از خود باندل می‌آید.
   // در APK (بدون سرور) بخش اساتید اصلاً درخواست نمی‌زند — پیام راهنما جای آن می‌نشیند.
   const { courses, posts, loading } = usePublicLibrary(cat, cat !== "builtin" && !IS_APK);
@@ -413,14 +432,56 @@ export function PublicLibraryView() {
         </section>
       )}
 
+      {/* ═══ دوره‌های بستهٔ محتوایی اساتید — نصب‌شده روی همین دستگاه (وب و APK) ═══ */}
+      {cat !== "builtin" && packCourses.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های اساتید روی این دستگاه ({fa(packCourses.length)})</h2>
+          <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            تدریس‌های ضبط‌شدهٔ اساتید که به‌صورت بستهٔ محتوایی روی همین دستگاه نصب شده‌اند —
+            آپدیت‌هایشان همین‌جا روی سرتیتر خود کتاب اعلام و با یک لمس نصب می‌شود.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {packCourses.map((c) => (
+              <div key={c.id} className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5">
+                <span aria-hidden className="absolute -top-[7px] start-1/2 h-px w-16 -translate-x-1/2 rtl:translate-x-1/2 bg-gradient-to-l from-transparent via-bronze/60 to-transparent" />
+                <div className="flex items-start gap-3">
+                  <button
+                    onClick={() => navigate({ view: "course", id: c.id })}
+                    className="grid h-11 w-11 shrink-0 rotate-45 place-items-center rounded-[11px] bg-primary/10 shadow-card transition-transform hover:scale-105"
+                    aria-hidden
+                  >
+                    <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-primary" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <button onClick={() => navigate({ view: "course", id: c.id })} className="block w-full truncate text-start font-bold hover:text-bronze">{c.title}</button>
+                    {c.tagline && <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>}
+                    <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-bronze/10 px-2 py-0.5 text-[9.5px] font-bold text-bronze">
+                      <GraduationCap className="h-3 w-3" /> تدریس استاد — نصب‌شده
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="truncate text-[10.5px] text-muted-foreground">{c.sourceLabel ?? ""}</p>
+                  <button
+                    onClick={() => navigate({ view: "course", id: c.id })}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-card transition-transform active:scale-[.98]"
+                  >
+                    مطالعه
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ═══ بخش اساتید ═══ */}
       {IS_APK && cat !== "builtin" && (
         <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center shadow-card">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-bronze/10 text-2xl">📚</div>
           <p className="font-bold">مطالب و دوره‌های اساتید</p>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-loose text-muted-foreground">
-            این بخش از سرور مرکزی خوانده می‌شود و در نسخهٔ اندروید فعلاً در دسترس نیست؛
-            ولی «دوره‌های آماده» همین‌جا کامل است — با نسخهٔ وب یا دسکتاپ هم می‌توانی مطالب اساتید را ببینی و برای مطالعهٔ آفلاین بارگیری کنی.
+            دوره‌های سروری اساتید در نسخهٔ اندروید فعلاً در دسترس نیست؛ ولی تدریس‌های نصب‌شده روی همین دستگاه بالا نشان داده می‌شود و «دوره‌های آماده» هم همین‌جا کامل است.
           </p>
         </div>
       )}
