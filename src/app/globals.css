@@ -539,37 +539,7 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(12px) saturate(1.7) brightness(1.22);
 }
 
-/* کارت «جدیدترین مطالب» — سفیدِ مات با فقط «ذره‌ای» شیشه:
-   بدنهٔ سفیدِ تقریباً کدر روی هیروی سبز، بلورِ خفیف و لبهٔ روشن
-   (بازخورد کاربر: کارتِ کاملاً شیشه‌ای خوب نیست — سفید و مات با کمی شیشه) */
-.feed-card {
-  /* کارت همیشه سفید است (روی هیروی همیشه‌سبز) — پالت متنش هم باید همیشه
-     «روشن» بماند؛ در تم شب که foreground سراسری روشن می‌شود، این متغیرها
-     داخل کارت به مقدار روز قفل می‌شوند تا متن روی سفید خوانا بماند */
-  --foreground: #212831;
-  --card-foreground: #212831;
-  --muted-foreground: #6d766f;
-  --border: #e2dfd2;
-  border: 1px solid rgb(255 255 255 / 0.85);
-  background: linear-gradient(165deg,
-    rgb(255 255 255 / 0.97) 0%,
-    rgb(255 255 255 / 0.92) 55%,
-    rgb(255 255 255 / 0.95) 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.85),
-    0 16px 36px -18px rgb(3 12 9 / 0.55),
-    0 4px 12px -6px rgb(3 12 9 / 0.28);
-  backdrop-filter: blur(7px) saturate(1.12);
-}
-.feed-card:hover {
-  border-color: rgb(255 255 255 / 0.95);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.85),
-    0 22px 44px -18px rgb(3 12 9 / 0.62),
-    0 6px 16px -6px rgb(3 12 9 / 0.32);
-}
-
-/* اسکلت/حالت خالی — همان شیشه، کم‌رنگ‌تر که با کارت واقعی قاطی نشود */
+/* اسکلت/حالت خالی — شیشهٔ کم‌رنگ که با کارت واقعی قاطی نشود */
 .lg-skeleton {
   border: 1px solid rgb(255 255 255 / 0.22);
   background: linear-gradient(120deg, rgb(255 255 255 / 0.10), rgb(255 255 255 / 0.04));
@@ -760,40 +730,6 @@ h1, h2, h3, h4, h5, h6 {
   scroll-snap-align: start;
 }
 
-/* ─── صحنهٔ تئاتری خانه — نورافکن، ورود آیتم و تایمر ─────────────────────── */
-.stage-spotlight {
-  isolation: isolate;
-}
-/* ورود نرم آیتم تازه روی صحنه: از عمق و کمی پایین به مرکز نور می‌آید */
-.stage-in {
-  animation: stage-in 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes stage-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-    filter: blur(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
-}
-/* نوار تایمر هفت‌ثانیه‌ای — پسرفت زمان تا آیتم بعدی */
-.stage-timer {
-  animation: stage-timer linear both;
-  animation-duration: 7s;
-}
-@keyframes stage-timer {
-  from { width: 0%; }
-  to { width: 100%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .stage-in { animation-duration: 1ms; }
-  .stage-timer { animation-duration: 1ms; }
-}
-
 /* ─── کتابخانهٔ قوانین — پیکر «نسخهٔ خطی» متفاوت از دوره‌ها ───────────────── */
 .law-paper {
   background:
@@ -893,7 +829,6 @@ mark.lexa-mark:hover {
 .perf-lite .lg-dock,
 .perf-lite .lg-panel,
 .perf-lite .lg-card,
-.perf-lite .feed-card,
 .perf-lite .lg-skeleton {
   backdrop-filter: none !important;
 }

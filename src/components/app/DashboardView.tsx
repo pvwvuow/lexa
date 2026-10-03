@@ -200,7 +200,7 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-9 px-4 pb-28 pt-5 sm:px-6">
-      {/* ═══ هیروی کربنی — جستجو + سلام + ادامهٔ یادگیری + صحنهٔ تئاتری تازه‌ترین‌ها ═══ */}
+      {/* ═══ هیروی کربنی — صحنهٔ آرام: جستجو + سلام + یک دعوت ═══ */}
       <HeroPanel
         greeting={greeting}
         courses={shelfCourses}
@@ -209,6 +209,9 @@ export function DashboardView() {
 
       {/* پیام وضعیت کتابخانه (حذف/افزودن) */}
       <ToastHost />
+
+      {/* ═══ جدیدترین مطالب — از دل هیرو بیرون آمد؛ بخشی آرام با کارت سبک ═══ */}
+      <LatestPostsSection />
 
       {/* ═══ قفسهٔ کتابخانهٔ من — اسلایدر ═══ */}
       <MyLibraryShelf courses={shelfCourses} progress={progress} />
@@ -273,13 +276,7 @@ function GoldCta({
   );
 }
 
-/* ═══ هیروی کربنی v3 — بدون حلقهٔ پیشرفت؛ صحنهٔ تئاتری تک‌آیتم تایم‌دار ═══ */
-
-type StageItem =
-  | { kind: "post"; id: string; title: string; summary?: string; authorId: string; authorName: string; avatarUrl?: string | null; commentsCount: number; ratingAvg?: number; date: string }
-  | { kind: "lesson"; lessonId: string; courseTitle: string; lessonTitle: string; owner?: string; isPrep: boolean; icon?: string };
-
-const STAGE_DELAY = 7000; // هفت ثانیه روی هر آیتم، بعد آیتم تازه
+/* ═══ هیروی کربنی v4 — صحنهٔ آرام: جستجو + سلام + یک دعوت واحد؛ بدون هیچ لیستی داخلش ═══ */
 
 function HeroPanel({
   greeting, courses, resumeTarget,
@@ -291,7 +288,7 @@ function HeroPanel({
   return (
     <section
       aria-label="خانه"
-      className="relative overflow-hidden rounded-[28px] border border-primary-foreground/10 bg-gradient-to-bl from-primary via-primary to-[#123628] p-5 text-primary-foreground shadow-card sm:p-8"
+      className="relative overflow-hidden rounded-[28px] border border-primary-foreground/10 bg-gradient-to-bl from-primary via-primary to-[#123628] p-6 text-primary-foreground shadow-card sm:p-10"
     >
       {/* بافت فیبرکربنی و هالهٔ برنزی */}
       <div aria-hidden className="pattern-quilt absolute inset-0 opacity-90" />
@@ -305,19 +302,19 @@ function HeroPanel({
       <div aria-hidden className="absolute -top-28 start-1/4 h-64 w-64 rounded-full bg-bronze/25 blur-3xl" />
       <div aria-hidden className="absolute -bottom-32 end-0 h-56 w-56 rounded-full bg-bronze/10 blur-3xl" />
 
-      <div className="relative space-y-6">
+      <div className="relative space-y-5">
         {/* نوار باریک جستجو — وسط‌چین بالای المان؛ با اسکرول به نوار اصلی بالا می‌پیوندد */}
         <div className="flex justify-center">
           <GlobalSearch courses={courses} variant="hero" />
         </div>
 
-        {/* سطر بالایی: سلام + جلسهٔ بعدی — در دسکتاپ در نیمهٔ راست */}
-        <div className="space-y-3 lg:max-w-[55%]">
+        {/* سلام + یک دعوت واحد — هیچ چیز دیگری؛ بقیهٔ محتوا در بخش‌های زیر هیرو */}
+        <div className="space-y-3 py-3 sm:py-6 lg:max-w-[55%]">
           <p className="text-sm font-medium text-primary-foreground/75">{greeting}</p>
           {resumeTarget ? (
             <>
-              <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">جلسهٔ بعدی آماده است</h1>
-              <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+              <h1 className="text-2xl font-extrabold leading-relaxed sm:text-3xl">جلسهٔ بعدی آماده است</h1>
+              <p className="-mt-1 text-sm leading-relaxed text-primary-foreground/85 sm:text-[15px]">
                 <span className="font-semibold text-bronze">{resumeTarget.courseTitle}</span> · {resumeTarget.lesson.title}
               </p>
               <GoldCta icon={PlayCircle} onClick={() => navigate({ view: "learn", id: resumeTarget.lesson.id })}>
@@ -326,8 +323,8 @@ function HeroPanel({
             </>
           ) : (
             <>
-              <h1 className="text-xl font-extrabold leading-relaxed sm:text-2xl">به استاد حقوقی هوشمند خوش آمدی</h1>
-              <p className="-mt-1.5 text-sm leading-relaxed text-primary-foreground/85">
+              <h1 className="text-2xl font-extrabold leading-relaxed sm:text-3xl">به استاد حقوقی هوشمند خوش آمدی</h1>
+              <p className="-mt-1 text-sm leading-relaxed text-primary-foreground/85 sm:text-[15px]">
                 یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
               </p>
               <GoldCta icon={LibraryBig} onClick={() => navigate({ view: "library" })}>
@@ -336,15 +333,12 @@ function HeroPanel({
             </>
           )}
         </div>
-
-        {/* جدیدترین مطالب — کارت‌های فید مثل طرح مرجع */}
-        <LatestPosts />
       </div>
     </section>
   );
 }
 
-/* ─── جدیدترین مطالب — کاروسل کارت فید با جلد دسته‌بندی، نویسنده و زمان مطالعه ── */
+/* ─── جدیدترین مطالب — بخش مستقل زیر هیرو؛ سرصفحهٔ استاندارد و کارت سبک ── */
 
 const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ className?: string }> }> = {
   tejarat: { bg: "from-[#96742f] to-[#413113]", Icon: Briefcase },
@@ -354,104 +348,40 @@ const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ c
   other: { bg: "from-[#3c5148] to-[#1c2b24]", Icon: BookOpen },
 };
 
-function LatestPosts() {
+function LatestPostsSection() {
   const { feed, loading } = useSocial();
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [edge, setEdge] = React.useState({ prev: false, next: false });
-
-  const measure = React.useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const max = el.scrollWidth - el.clientWidth;
-    if (max <= 4) return setEdge({ prev: false, next: false });
-    const d = Math.abs(el.scrollLeft);
-    setEdge({ prev: d > 4, next: max - d > 4 });
-  }, []);
-
-  React.useEffect(() => {
-    measure();
-    const el = ref.current;
-    if (!el) return;
-    el.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
-    const t = setTimeout(measure, 500); // پس از نشست فونت‌ها
-    return () => {
-      el.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
-      clearTimeout(t);
-    };
-  }, [measure, feed.length]);
-
-  function slide(dir: 1 | -1) {
-    const el = ref.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.82), behavior: "smooth" });
-  }
 
   return (
-    <div className="space-y-3" aria-label="جدیدترین مطالب استادها">
-      {/* سرصفحه: عنوان + «مشاهده همه» */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[13px] font-extrabold text-white">
-          <Rss className="h-4 w-4 text-bronze" /> جدیدترین مطالب
-        </span>
+    <SectionSlider
+      icon={Rss}
+      title="جدیدترین مطالب"
+      hint="تازه‌های اساتید"
+      ariaLabel="جدیدترین مطالب استادها"
+      padEnds
+      action={
+        <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
+          مشاهده همه ←
+        </button>
+      }
+    >
+      {loading && feed.length === 0 ? (
+        [0, 1, 2, 3].map((i) => <FeedCardSkeleton key={i} />)
+      ) : feed.length > 0 ? (
+        feed.slice(0, 10).map((p) => <FeedCard key={p.id} p={p} />)
+      ) : (
         <button
           onClick={() => navigate({ view: "teachers" })}
-          className="rounded-full border border-bronze/60 bg-bronze/15 px-3 py-1 text-[10.5px] font-bold text-bronze transition-colors hover:bg-bronze/25"
+          className="flex min-w-[240px] flex-1 items-center justify-center gap-3 self-stretch rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-start text-xs leading-relaxed text-muted-foreground transition-colors hover:border-bronze/50"
         >
-          مشاهده همه
+          <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
+          هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
         </button>
-        <span className="ms-auto hidden text-[10px] font-medium text-primary-foreground/50 sm:inline">
-          تازه‌ترین نوشته‌های اساتید
-        </span>
-      </div>
-
-      {/* سینی شیشه‌ای «مستطیل کرو» — لبهٔ چپش (سمت end در RTL) عمداً صاف است و با
-          منفی‌کردن پدینگ هیرو (p-5/sm:p-8) دقیقاً روی خطِ سمت چپِ هیروی سبز می‌نشیند
-          و بدون بوردر چپ در دیوار سبز ادغام می‌شود */}
-      <div className="relative -me-5 rounded-s-[20px] rounded-e-none border-y border-s border-white/[0.14] bg-white/[0.10] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_12px_28px_-16px_rgba(0,0,0,0.5)] backdrop-blur-[2px] sm:-me-8 sm:p-3">
-        <div className="relative">
-        <div ref={ref} className="hslider flex gap-3 overflow-x-auto px-1 pb-1.5 pt-1">
-          {loading && feed.length === 0 ? (
-            [0, 1, 2, 3].map((i) => <FeedCardSkeleton key={i} />)
-          ) : feed.length > 0 ? (
-            feed.slice(0, 10).map((p) => <FeedCard key={p.id} p={p} />)
-          ) : (
-            <button
-              onClick={() => navigate({ view: "teachers" })}
-              className="lg-skeleton flex w-full items-center justify-center gap-3 rounded-[24px] border-dashed px-4 py-6 text-xs leading-relaxed text-primary-foreground/80 transition-colors hover:border-bronze/50"
-            >
-              <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
-              هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
-            </button>
-          )}
-        </div>
-
-        {edge.next && (
-          <button
-            onClick={() => slide(-1)}
-            aria-label="مطالب بعدی"
-            className="absolute end-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        )}
-        {edge.prev && (
-          <button
-            onClick={() => slide(1)}
-            aria-label="مطالب قبلی"
-            className="absolute start-0 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-white/35 bg-white/15 text-white shadow-card backdrop-blur-md transition-colors hover:border-bronze hover:text-bronze"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        )}
-        </div>
-      </div>
-    </div>
+      )}
+    </SectionSlider>
   );
 }
 
-/** کارت مطلب — تامنیل آپلودی استاد اگر بود، وگرنه جلد رنگی دسته + چیپ دسته + عنوان + نویسنده + تاریخ + زمان مطالعه */
+/** کارت مطلب سبک — جلد + عنوان + نویسنده؛ جزئیات (کامنت، امتیاز، دانلود) در صفحهٔ خود مطلب */
 function FeedCard({
   p,
 }: {
@@ -468,70 +398,38 @@ function FeedCard({
   const cover = CATEGORY_COVER[cat] ?? CATEGORY_COVER.other;
   const Icon = cover.Icon;
   const catLabel = categoryLabelOf(cat);
-  // برآورد زمان مطالعه از حجم خلاصه — تشریفاتی ولی منطقی
-  const minutes = Math.min(12, Math.max(3, Math.ceil((p.summary?.length ?? 140) / 150) + 3));
   const hasThumb = typeof p.thumbnail === "string" && p.thumbnail.trim() !== "";
-
-  const offlineCard = {
-    id: p.id,
-    title: p.title,
-    summary: p.summary ?? "",
-    tags: "",
-    category: p.category,
-    categories: p.categories,
-    thumbnail: hasThumb ? p.thumbnail : undefined,
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-    commentsCount: p.commentsCount,
-    rating: p.rating,
-    author: {
-      id: p.author.id,
-      username: p.author.username ?? "",
-      displayName: p.author.displayName,
-      avatarUrl: p.author.avatarUrl,
-    },
-  };
+  const hasMeta = p.commentsCount > 0 || !!p.rating?.count;
 
   return (
-    <div className="relative w-[240px] shrink-0 snap-start sm:w-[268px]">
-      <button
-        onClick={() => navigate({ view: "post", id: p.id })}
-        className="feed-card group relative block w-full overflow-hidden rounded-[24px] text-start text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze/70"
-      >
-      {/* جلد — قاب شیشه‌ای داخلی: تامنیل/جلد دسته با گوشهٔ کرو و فاصلهٔ یکسان از بوردر کارت */}
+    <button
+      onClick={() => navigate({ view: "post", id: p.id })}
+      className="group relative block w-[232px] shrink-0 snap-start overflow-hidden rounded-2xl border border-border bg-card text-start shadow-card transition-colors duration-200 hover:border-bronze/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze/70 sm:w-[256px]"
+    >
+      {/* جلد — تامنیل استاد یا جلد رنگی دسته با آیکن لوزی */}
       {hasThumb ? (
-        <span className="relative block px-3 pt-3">
-          <span className="relative mx-auto block h-[116px] w-full overflow-hidden rounded-[14px] shadow-[0_4px_14px_-4px_rgba(0,0,0,0.5)] transition-shadow duration-300 group-hover:shadow-[0_6px_20px_-6px_rgba(0,0,0,0.6)]">
-            <img
-              src={p.thumbnail}
-              alt=""
-              dir="ltr"
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
-            />
-            <span aria-hidden className="absolute inset-0 rounded-[14px] ring-1 ring-inset ring-white/30" />
-          </span>
-          <span className="absolute bottom-2.5 start-1/2 -translate-x-1/2 rtl:translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+        <span className="relative block h-[104px] w-full overflow-hidden">
+          <img
+            src={p.thumbnail}
+            alt=""
+            dir="ltr"
+            loading="lazy"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
+          />
+          <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+          <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
             {catLabel}
           </span>
         </span>
       ) : (
-      <span className="relative block px-3 pt-3">
-        <span className={`relative block h-[116px] w-full overflow-hidden rounded-[14px] bg-gradient-to-bl ${cover.bg}`}>
-        <>
-          <span aria-hidden className="pattern-quilt absolute inset-0 opacity-30" />
-          <span aria-hidden className="absolute -bottom-6 -start-4 select-none font-display text-[64px] leading-none text-white/10">
-            {p.title.slice(0, 1)}
-          </span>
-          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card backdrop-blur-[2px] transition-transform duration-200 group-hover:scale-110">
+        <span className={`relative block h-[104px] w-full overflow-hidden bg-gradient-to-bl ${cover.bg}`}>
+          <span aria-hidden className="absolute inset-0 m-auto grid h-11 w-11 rotate-45 place-items-center rounded-[11px] border border-white/40 bg-white/15 shadow-card transition-transform duration-200 group-hover:scale-110">
             <Icon className="h-4.5 w-4.5 -rotate-45 text-white" />
           </span>
-        </>
-        <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
-          {catLabel}
+          <span className="absolute bottom-2 start-2.5 rounded-full bg-black/55 px-2.5 py-0.5 text-[9.5px] font-bold text-white backdrop-blur">
+            {catLabel}
+          </span>
         </span>
-        </span>
-      </span>
       )}
 
       <span className="block space-y-2 p-3.5">
@@ -543,73 +441,38 @@ function FeedCard({
           <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-foreground/80">{p.author.displayName}</span>
           <span dir="ltr" className="shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">{faDate(p.createdAt)}</span>
         </span>
-        <span className="flex items-center gap-2 border-t border-border/70 pt-2 text-[10px] font-semibold text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{fa(minutes)} دقیقه مطالعه</span>
-          <span className="ms-auto inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
-          {!!p.rating?.count && (
-            <span className="inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
-          )}
-        </span>
+        {hasMeta && (
+          <span className="flex items-center gap-2 pt-0.5 text-[10px] font-semibold text-muted-foreground">
+            {!!p.commentsCount && (
+              <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{fa(p.commentsCount)} گفتگو</span>
+            )}
+            {!!p.rating?.count && (
+              <span className="ms-auto inline-flex items-center gap-0.5 font-bold text-bronze"><Star className="h-3 w-3 fill-current" />{fa(Math.round(p.rating.avg * 10) / 10)}</span>
+            )}
+          </span>
+        )}
       </span>
-      </button>
-
-      {/* دکمهٔ دانلود آفلاین — لایهٔ شناور گوشهٔ جلد */}
-      <span className="absolute end-2 top-2 z-10">
-        <OfflineDownloadButton kind="post" id={p.id} serverUpdatedAt={p.updatedAt} card={offlineCard} className="!h-8 !w-8 shadow-card backdrop-blur" />
-      </span>
-    </div>
+    </button>
   );
 }
 
 function FeedCardSkeleton() {
   return (
-    <span className="feed-card block w-[240px] shrink-0 animate-pulse overflow-hidden rounded-[24px] sm:w-[268px]">
-      <span className="block px-3 pt-3"><span className="block h-[92px] rounded-[14px] bg-black/[0.06]" /></span>
+    <span className="block w-[232px] shrink-0 animate-pulse overflow-hidden rounded-2xl border border-border bg-card shadow-card sm:w-[256px]">
+      <span className="block h-[104px] bg-muted" />
       <span className="block space-y-2 p-3.5">
-        <span className="block h-3.5 w-4/5 rounded bg-black/[0.09]" />
-        <span className="block h-3 w-2/5 rounded bg-black/[0.06]" />
-        <span className="block h-2.5 w-3/5 rounded bg-black/[0.05]" />
+        <span className="block h-3.5 w-4/5 rounded bg-muted" />
+        <span className="block h-3 w-2/5 rounded bg-muted" />
       </span>
     </span>
   );
 }
 
-/** برچسب فارسی دسته — بدون وابستگی به social-shared (سبک‌وزن برای هیرو) */
+/** برچسب فارسی دسته — بدون وابستگی به social-shared (سبک‌وزن) */
 function categoryLabelOf(slug: string): string {
   return (
     { tejarat: "تجارت", "ayin-dadresi": "آیین دادرسی مدنی", "azmoon-vekalat": "آزمون وکالت", takhassosi: "دروس تخصصی", other: "مطلب آموزشی" } as Record<string, string>
   )[slug] ?? "مطلب آموزشی";
-}
-
-/** آواتار + نام کوچک روشن روی پنل تیره — کلیک به پروفایل استاد */
-function ToTeacherProfileLight({
-  id, displayName, avatarUrl,
-}: { id: string; displayName: string; avatarUrl?: string | null }) {
-  return (
-    <span
-      role="link"
-      tabIndex={0}
-      onClick={(e) => { e.stopPropagation(); navigate({ view: "teacher", id }); }}
-      onKeyDown={(e) => e.key === "Enter" && navigate({ view: "teacher", id })}
-      title={`پروفایل ${displayName}`}
-      className="flex w-fit shrink-0 items-center gap-2 rounded-lg p-0.5 transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bronze"
-    >
-      <UserAvatar src={avatarUrl} name={displayName} size="sm" />
-      <span className="hidden truncate text-[11.5px] font-bold text-white/90 sm:block max-w-24">{displayName}</span>
-    </span>
-  );
-}
-
-function HeroRowSkeleton() {
-  return (
-    <span className="flex animate-pulse items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3.5 py-3">
-      <span className="h-8 w-8 shrink-0 rounded-full bg-white/15" />
-      <span className="flex-1 space-y-1.5">
-        <span className="block h-3 w-3/4 rounded bg-white/15" />
-        <span className="block h-2.5 w-1/3 rounded bg-white/10" />
-      </span>
-    </span>
-  );
 }
 
 /** پیام لحظه‌ای وضعیت کتابخانه — بازخورد «حذف شد ولی داده‌ات ماند» */
