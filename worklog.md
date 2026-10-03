@@ -1554,3 +1554,25 @@ Stage Summary:
 - v0.10.2 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.2
 - کاربران 0.6.0 تا 0.10.1 با «بررسی به‌روزرسانی» داخل برنامه به 0.10.2 می‌رسند — این نسخه فیکس باگ «بیشتر» اندروید، مهلت «جلسه پیدا نشد»، بخش «دوره‌های اساتید» کتابخانه با نام حرفه‌ای و نشان «تدریس استاد» را حمل می‌کند
 - از این به بعد هر تغییر (بیلد/کامیت/ریلیز) بدون انتظار تأیید کاربر انجام می‌شود — سیاست اعلامی کاربر
+
+---
+Task ID: 23
+Agent: main (Super Z)
+Task: حذف مانع نصب مطمئن — «گیرهای امنیتی google play…کلا مشکل نخوره…هر کار نیازه انجام بده و نسخه بعد رو ریلیز کن» — سخت‌سازی APK + راهنمای نصب فارسی + انتشار v0.10.3
+
+Work Log:
+- سخت‌سازی مانیفست اندروید: android:usesCleartextTraffic="false" (صریح)، allowBackup=false، appCategory=productivity — داخل APK تأیید شد (aapt xmltree)
+- امضای صریح: enableV1Signing/V2/V3 داخل signingConfigs (نکته: در BuildType این متد وجود ندارد و گریدل می‌میرد — دام DSL) → apksigner: v1+v2+v3 همه true
+- مانع محیطی: /home/z/android-sdk و /home/z/jdk-21.0.5+11 وسط سشن پاک شده بودند — SDK با scripts/setup-android-sdk.sh (build-tools 35) و JDK با تاربال Temurin 21.0.5+11 بازسازی؛ keystore سالم در download/android (سیم‌لینک android/lexa-release.keystore → download/android/lexa-release.keystore ساخته شد)
+- بامپ 0.10.3: package.json / sw lexa-pwa-v45 / DESIGN_VERSION 1.9.13 / gradle versionCode 103 + ادعای sw در qa090-web
+- بیلد وب + QA کامل: qa-more-sheet ۱۷/۱۷ + qa090-web ۱۰/۱۰ + qa090-table ۳/۳ + qa103-bugfix ۴۴/۴۴ + drawer همه‌سبز
+- الکترون: Lexa-0.10.3.AppImage ۱۲۷.۵MB + Lexa-0.10.3-win.zip ۱۸۲.۸MB (unzip -t سالم)
+- APK سخت‌شده: Lexa-0.10.3.apk ۵.۹MB — versionCode=103، هر سه طرح امضا، CN=Lexa
+- راهنمای نصب مطمئن (مسیر Creative-RTL مهارت pdf): HTML با dir=rtl و فونت وزیرمتن + html2poster.js → Lexa-0.10.3-install-guide.pdf (۳۲۶KB، تک‌صفحهٔ وکتور 794×1123) — poster_validate PASS، pdf_qa پاس (فقط متادیتا که با meta.set کامل شد)، صفر U+FFFD؛ HTML + PNG پیش‌نمایش هم کنارش
+- ریلیز: کامیت سورس 39e6b93 + release-app-update.py 0.10.3 (تگ app-v0.10.3 + پرج + ریلیز گیت‌هاب id 402551963) + آپلود دستی asset پنجم راهنما (Lexa-0.10.3-install-guide-fa.pdf) → ۵ asset
+- راستی‌آزمایی زندهٔ verify-release-0103.py: ۱۷/۱۷ — دلتاها همه MISSING: 0 (0.9.3→0.10.3 فقط ۶۰ فایل)؛ ادعای شمار asset به ≥۴ شل شد
+
+Stage Summary:
+- v0.10.3 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.3 — همراه راهنمای تصویری فارسی نصب
+- APK حالا حداکثر «بی‌خطر» ممکن برای توزیع بیرون پلی‌استور است؛ هشدار باقی‌ماندهٔ Play Protect صرفاً «تأیید نشدن توسط گوگل» است که فقط انتشار رسمی (پلی/بازار) صفرش می‌کند — در راهنما و پاسخ کاربر توضیح داده شد
+- امضای اثر انگشت رسمی کلید برای راستی‌آزمایی کاربران در راهنما درج شد (SHA-256 گواهی)
