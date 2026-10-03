@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>راهنمای نصب مطمئن Lexa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 794px; background: #faf7f2; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Vazirmatn', 'Noto Sans Arabic', sans-serif; color: #1c1917; }
+  .poster { width: 794px; height: 1123px; position: relative; background: #faf7f2; padding: 52px 56px 44px; display: flex; flex-direction: column; }
+  /* ── هدر ── */
+  .kicker { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #b45309; margin-bottom: 10px; }
+  h1 { font-size: 40px; font-weight: 900; line-height: 1.25; margin: 0 0 10px; }
+  .lead { font-size: 14.5px; font-weight: 400; line-height: 1.9; color: #57534e; max-width: 640px; margin: 0; }
+  .lead b { color: #1c1917; font-weight: 700; }
+  .rule { height: 2px; background: linear-gradient(to left, #b45309, rgba(180,83,9,0)); border: 0; margin: 26px 0 24px; width: 100%; }
+  /* ── گام‌ها ── */
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step { display: flex; gap: 16px; align-items: flex-start; background: #ffffff; border: 1px solid #f0e9df; border-radius: 14px; padding: 16px 18px; }
+  .num { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: rgba(180,83,9,0.10); color: #b45309; font-size: 19px; font-weight: 900; display: flex; align-items: center; justify-content: center; transform: rotate(45deg); margin-top: 2px; }
+  .num span { transform: rotate(-45deg); }
+  .step h2 { font-size: 15.5px; font-weight: 700; margin: 0 0 4px; }
+  .step p { font-size: 12.5px; line-height: 1.85; color: #57534e; margin: 0; }
+  .step p b { color: #1c1917; font-weight: 700; }
+  /* ── جعبهٔ اعتماد ── */
+  .trust { margin-top: 18px; border: 1.5px solid rgba(180,83,9,0.45); border-radius: 14px; background: rgba(180,83,9,0.06); padding: 16px 18px; }
+  .trust h3 { font-size: 14px; font-weight: 900; color: #92400e; margin: 0 0 8px; }
+  .trust p { font-size: 12px; line-height: 1.85; color: #57534e; margin: 0 0 8px; }
+  .fp { direction: ltr; font-family: 'Vazirmatn', monospace; font-size: 10.5px; letter-spacing: 0.4px; color: #1c1917; background: #ffffff; border: 1px solid #f0e9df; border-radius: 8px; padding: 8px 10px; text-align: center; margin: 0; }
+  /* ── فوتر ── */
+  .foot { margin-top: auto; padding-top: 16px; border-top: 0.5px solid #e7e0d6; display: flex; justify-content: space-between; align-items: center; }
+  .foot .l { font-size: 11px; font-weight: 700; color: #b45309; }
+  .foot .r { font-size: 10.5px; color: #a8a29e; }
+  /* پیش‌نمایش مرورگر */
+  @media screen {
+    html { height: auto; display: flex; justify-content: center; background: #faf7f2; }
+    body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(28,25,23,0.18); }
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+  <p class="kicker">LEXA · ANDROID · راهنمای نصب</p>
+  <h1>نصب مطمئن Lexa روی اندروید</h1>
+  <p class="lead">چون Lexa بیرون از گوگل‌پلی توزیع می‌شود، <b>Play Protect</b> پیش از نصب پیام «تأیید نشده» نشان می‌دهد. این یک <b>هشدار معمول برای همهٔ اپ‌های خارج از پلی‌استور است، نه نشانهٔ ویروس</b> — با ۴ گام زیر خیال راحت نصب کن.</p>
+  <hr class="rule">
+
+  <div class="steps">
+    <div class="step">
+      <div class="num"><span>۱</span></div>
+      <div>
+        <h2>فایل را فقط از منبع رسمی بگیر</h2>
+        <p>فایل <b>Lexa-0.10.3-android.apk</b> را از صفحهٔ ریلیز رسمی گیت‌هاب (pvwvuow/lexa) یا لینکی که خود تیم می‌فرستد دانلود کن؛ فایل را از کانال‌های ناشناس برندار.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num"><span>۲</span></div>
+      <div>
+        <h2>اجازهٔ نصب را یک‌بار بده</h2>
+        <p>اولین نصب، اندروید می‌پرسد: «اجازهٔ نصب از این منبع؟» → روی فایل‌منیجر یا مرورگرِ دانلود <b>Allow from this source</b> را بزن. فقط یک‌بار لازم است.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num"><span>۳</span></div>
+      <div>
+        <h2>اگر Play Protect هشدار داد</h2>
+        <p>روی پیام، <b>More details</b> را بزن و گزینهٔ <b>Install anyway / نصب بدون اسکن</b> را انتخاب کن. امضای رسمی اپ سالم است؛ هشدار فقط به‌خاطر خارج‌بودن از پلی‌استور است.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num"><span>۴</span></div>
+      <div>
+        <h2>آپدیت‌های بعدی داخل خود اپ است</h2>
+        <p>برای نسخه‌های بعدی لازم نیست دوباره APK نصب کنی؛ از <b>تنظیمات ← بررسی به‌روزرسانی</b> داخل خود Lexa، فقط فایل‌های تغییرکرده نصب می‌شود.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="trust">
+    <h3>چرا می‌شود اعتماد کرد؟</h3>
+    <p>اپ فقط یک مجوز می‌خواهد (اینترنت)، ترافیک صرفاً رمزنگاری‌شده (HTTPS) است، و هر نسخه با <b>همین یک کلید رسمی امضا شده</b>. اگر خواستی اصالت فایل را دقیق چک کنی، SHA-256 آن را با checksums.txt کنار ریلیز مقایسه کن — اثر انگشت امضای رسمی:</p>
+    <p class="fp">18:37:6F:72:B1:14:21:2E:C0:02:CF:B2:E7:E3:93:96:17:DA:B7:12:65:26:1D:62:52:9D:22:B6:1E:31:CD:82</p>
+  </div>
+
+  <div class="foot">
+    <span class="l">LEXA · نسخهٔ 0.10.3 · versionCode 103</span>
+    <span class="r">github.com/pvwvuow/lexa/releases</span>
+  </div>
+</div>
+</body>
+</html>
