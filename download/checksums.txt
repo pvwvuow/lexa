@@ -1,3 +1,3 @@
-c74b4c36bcd9db967ea2b83ae653bc91d38da884abc0fb5e3f4ec8553b6b6514  electron/Lexa-0.10.1.AppImage
-92d885d93aa4ddc8f839a7a7e55b34ff24665891f850e427e6aa6d8b7c26aa7c  electron/Lexa-0.10.1-win.zip
-00b41cd8cebe7afe79420a85a783f67d06936a6f3f274f1cdf24a99cef0240ed  android/Lexa-0.10.1.apk
+b9927434236b358824604c6c2245f87f125206acd68bdcd3742be49f2061ee52  electron/Lexa-0.10.2.AppImage
+ee9a403025578e144e57709c873e72d1d65ee552fbea61b260dabaf93fc2e506  electron/Lexa-0.10.2-win.zip
+1abd5995e52a74eb04ede113d81b39cad1e579b37a18c9a087ef25bd108f250d  android/Lexa-0.10.2.apk
