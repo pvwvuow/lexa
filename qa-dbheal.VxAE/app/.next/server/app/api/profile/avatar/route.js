@@ -1,7 +1,0 @@
-var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/profile/avatar/route.js")
-R.c("server/chunks/[root-of-the-server]__e5ad84ee._.js")
-R.c("server/chunks/[root-of-the-server]__f408c708._.js")
-R.c("server/chunks/[root-of-the-server]__4199db55._.js")
-R.c("server/chunks/_next-internal_server_app_api_profile_avatar_route_actions_b3079548.js")
-R.m(46681)
-module.exports=R.m(46681).exports
