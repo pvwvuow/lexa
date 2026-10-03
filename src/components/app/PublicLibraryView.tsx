@@ -432,13 +432,13 @@ export function PublicLibraryView() {
         </section>
       )}
 
-      {/* ═══ دوره‌های بستهٔ محتوایی اساتید — نصب‌شده روی همین دستگاه (وب و APK) ═══ */}
+      {/* ═══ دوره‌های اساتید — بسته‌های محتوایی نصب‌شده (وب و APK) ═══ */}
       {cat !== "builtin" && packCourses.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های اساتید روی این دستگاه ({fa(packCourses.length)})</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های اساتید ({fa(packCourses.length)})</h2>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            تدریس‌های ضبط‌شدهٔ اساتید که به‌صورت بستهٔ محتوایی روی همین دستگاه نصب شده‌اند —
-            آپدیت‌هایشان همین‌جا روی سرتیتر خود کتاب اعلام و با یک لمس نصب می‌شود.
+            تدریس‌های ضبط‌شدهٔ اساتید، آمادهٔ مطالعه — تازه‌های هر دوره روی سرتیتر خودِ کتاب اعلام
+            و با یک لمس نصب می‌شود.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             {packCourses.map((c) => (
@@ -456,7 +456,7 @@ export function PublicLibraryView() {
                     <button onClick={() => navigate({ view: "course", id: c.id })} className="block w-full truncate text-start font-bold hover:text-bronze">{c.title}</button>
                     {c.tagline && <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>}
                     <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-bronze/10 px-2 py-0.5 text-[9.5px] font-bold text-bronze">
-                      <GraduationCap className="h-3 w-3" /> تدریس استاد — نصب‌شده
+                      <GraduationCap className="h-3 w-3" /> تدریس استاد
                     </p>
                   </div>
                 </div>
@@ -481,7 +481,7 @@ export function PublicLibraryView() {
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-bronze/10 text-2xl">📚</div>
           <p className="font-bold">مطالب و دوره‌های اساتید</p>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-loose text-muted-foreground">
-            دوره‌های سروری اساتید در نسخهٔ اندروید فعلاً در دسترس نیست؛ ولی تدریس‌های نصب‌شده روی همین دستگاه بالا نشان داده می‌شود و «دوره‌های آماده» هم همین‌جا کامل است.
+            دوره‌های سروری اساتید در نسخهٔ اندروید فعلاً در دسترس نیست؛ ولی دوره‌های اساتید همین بالا نمایش داده می‌شود و «دوره‌های آماده» هم کامل است.
           </p>
         </div>
       )}

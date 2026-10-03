@@ -130,9 +130,15 @@ const errors = [];
   await page.waitForTimeout(2500);
   const lib = await page.evaluate(() => {
     const txt = document.body.innerText || "";
-    return { section: txt.includes("دوره‌های اساتید روی این دستگاه"), ghayebi: txt.includes("تدریس مدنی ۷ — استاد غایبی"), apkBox: txt.includes("در دسترس نیست") };
+    return {
+      section: txt.includes("دوره‌های اساتید") && !txt.includes("روی این دستگاه"),
+      badge: txt.includes("تدریس استاد") && !txt.includes("نصب‌شده"),
+      ghayebi: txt.includes("تدریس مدنی ۷ — استاد غایبی"),
+      apkBox: txt.includes("در دسترس نیست"),
+    };
   });
-  ok("بخش «دوره‌های اساتید روی این دستگاه» در کتابخانه", lib.section, JSON.stringify(lib));
+  ok("بخش «دوره‌های اساتید» در کتابخانه (نام حرفه‌ای، بدون «روی این دستگاه»)", lib.section, JSON.stringify(lib));
+  ok("نشان کارت «تدریس استاد» بدون پسوند فنی", lib.badge);
   ok("کارت درس غایبی در کتابخانه دیده می‌شود", lib.ghayebi);
   // باز کردن درس از خود کارت غایبی (کارت شامل عنوان)
   const ghCard = page.locator("div.rounded-2xl", { hasText: "تدریس مدنی ۷ — استاد غایبی" }).filter({ has: page.locator("button:text-is('مطالعه')") }).first();
