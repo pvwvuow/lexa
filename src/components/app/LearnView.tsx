@@ -96,6 +96,38 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
  * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
 const TOOLBAR_GAP = 36;
 
+/** انتخاب بومیِ همهٔ قطعه‌های یک نشان — برای بازکردن نوار ویرایش و بازسازی
+ * انتخابی که وب‌ویو اندروید بلافاصله بعد از تپ می‌کُشد (باگ «پاپ‌آپ می‌آمد و
+ * درجا غیب می‌شد»). نشانِ جمله‌ای معمولاً چند قطعهٔ <mark> با یک id دارد؛
+ * بازه از اولین قطعه تا آخرین قطعه کشیده می‌شود. */
+function selectMarkSegments(rootEl: Element | null, markId: string): boolean {
+  const segs = Array.from(rootEl?.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(markId)}"]`) ?? []);
+  if (!segs.length) return false;
+  const first = segs[0].firstChild;
+  const last = segs[segs.length - 1].lastChild;
+  if (!first || !last) return false;
+  try {
+    const range = document.createRange();
+    range.setStart(first, 0);
+    range.setEnd(last, last.nodeValue?.length ?? 0);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** وضعیت نوار نشان — «نشان جدید» یا «ویرایش نشان موجود» */
+type MarkBar =
+  | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
+  | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string };
+
+/** سقفِ بازسازی انتخاب — وب‌ویوهای بدرفتار ممکن است چند بار بکُشند؛
+ * بعد از سقف، نوار با متن ذخیره‌شدهٔ نشان باز می‌ماند و رنگ‌زدن همان بازهٔ قبلی را ذخیره می‌کند */
+const REASSERT_LIMIT = 6;
+
 /** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف؛ تنظیم بازه با دستگیره‌های بومی انتخاب */
 function MarkToolbar({
   mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, getLive, onDone,
@@ -223,11 +255,19 @@ export function LearnView({ id }: { id: string }) {
   const marksForLesson = marksAll[id] ?? EMPTY_MARKS;
   const applyMark = useApp((s) => s.applyMark);
   const articleRef = React.useRef<HTMLElement | null>(null);
-  const [markBar, setMarkBar] = React.useState<
-    | null
-    | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
-    | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string }
-  >(null);
+  const [markBar, setMarkBar] = React.useState<MarkBar | null>(null);
+  // آینهٔ نوار برای هندلرهای رویدادی (selectionchange/scroll) — همیشه همگام با state
+  const markBarRef = React.useRef<MarkBar | null>(null);
+  const setBar = React.useCallback((v: MarkBar | null | ((prev: MarkBar | null) => MarkBar | null)) => {
+    const next = typeof v === "function" ? v(markBarRef.current) : v;
+    markBarRef.current = next;
+    setMarkBar(next);
+  }, []);
+  // آیا کاربر بعد از باز شدن نوار، خودش جای دیگری از صفحه را لمس/کلیک کرده؟
+  // (تنها دلیل مشروع برای مرگ انتخاب — در غیر این صورت وب‌ویو انتخاب را می‌کُشد و باید بازسازی شود)
+  const tapSinceBarRef = React.useRef(false);
+  // شمارندهٔ بازسازی انتخاب در یک دورهٔ باز بودن نوار
+  const reassertRef = React.useRef(0);
   const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
     const host = el?.closest("[data-sec-id]") ?? null;
     return { secEl: host, secId: host?.getAttribute("data-sec-id") ?? null };
@@ -330,21 +370,39 @@ export function LearnView({ id }: { id: string }) {
       const r = range.getBoundingClientRect();
       if (!r || (!r.width && !r.height)) return;
       const rect = { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 };
-      const hits = Array.from(secEl.querySelectorAll("mark[data-lexa-mark]")).filter((mk) => range.intersectsNode(mk));
-      if (hits.length === 1) {
-        const mid = (hits[0] as HTMLElement).dataset.mid;
-        const mark = mid ? marksForLesson.find((m) => m.id === mid) : undefined;
+      // نشانِ جمله‌ای چند قطعهٔ <mark> با یک id دارد — با «id» یکتا شمارش می‌شود،
+      // نه تعداد المان‌ها (باگ: نوار ویرایش ۲۶۰ms بعد به «نشان کن» فلیپ می‌کرد)
+      const hitIds = new Set(
+        Array.from(secEl.querySelectorAll("mark[data-lexa-mark]"))
+          .filter((mk) => range.intersectsNode(mk))
+          .map((mk) => (mk as HTMLElement).dataset?.mid)
+          .filter((v): v is string => !!v),
+      );
+      if (hitIds.size === 1) {
+        const mid = [...hitIds][0];
+        const mark = marksForLesson.find((m) => m.id === mid);
         if (mark) {
-          setMarkBar({ mode: "edit", markId: mark.id, secId: mark.secId, text: located.text, occ: located.occ, pfx: located.pfx, sfx: located.sfx, rect });
+          setBar({ mode: "edit", markId: mark.id, secId: mark.secId, text: located.text, occ: located.occ, pfx: located.pfx, sfx: located.sfx, rect });
           return;
         }
       }
-      setMarkBar({ mode: "new", rect, text: located.text, secId, occ: located.occ, pfx: located.pfx, sfx: located.sfx });
+      setBar({ mode: "new", rect, text: located.text, secId, occ: located.occ, pfx: located.pfx, sfx: located.sfx });
     }
     function settle() {
       timer = null;
       const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { setMarkBar(null); return; }
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        // انتخاب مُرد. اگر کاربر خودش جای دیگری زده باشد طبیعی است — نوار بسته شود.
+        // وگرنه وب‌ویو (مخصوصاً اندروید بعد از تپ) انتخابِ برنامه‌ای ما را کشته —
+        // باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد»: بازسازی می‌کنیم و نوار باز می‌ماند.
+        const cur = markBarRef.current;
+        if (cur && cur.mode === "edit" && !tapSinceBarRef.current && reassertRef.current < REASSERT_LIMIT) {
+          reassertRef.current += 1;
+          if (selectMarkSegments(articleRef.current, cur.markId)) return;
+        }
+        setBar(null);
+        return;
+      }
       check();
     }
     function onChange() {
@@ -354,10 +412,11 @@ export function LearnView({ id }: { id: string }) {
     function onPointerDown(e: Event) {
       const t = e.target as Element | null;
       if (t?.closest?.("[data-mark-toolbar]")) return;
-      setMarkBar(null);
+      tapSinceBarRef.current = true;
+      setBar(null);
     }
     function onScroll() {
-      setMarkBar((cur) => {
+      setBar((cur) => {
         if (!cur) return cur;
         if (cur.mode === "new") return null;
         // ویرایش: کشیدن دستگیره می‌تواند صفحه را اسکرول کند — نوار با انتخاب زنده جابه‌جا می‌شود
@@ -380,7 +439,7 @@ export function LearnView({ id }: { id: string }) {
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [secIdOf, marksForLesson]);
+  }, [secIdOf, marksForLesson, setBar]);
 
   /** آخرین وضعیت انتخاب زنده — برای ذخیرهٔ بی‌وقفهٔ بازهٔ کشیده‌شده با دستگیره‌ها */
   const getLiveSelection = React.useCallback((): { text: string; occ: number; pfx: string; sfx: string; secId: string } | null => {
@@ -410,22 +469,12 @@ export function LearnView({ id }: { id: string }) {
     if (!mark) return;
     // انتخاب بومی متن نشان — دو دستگیرهٔ پیش‌فرض موبایل سر و ته انتخاب می‌نشینند و
     // کاربر با کشیدن همان‌ها بازه را گسترش/کوچک می‌کند (جایگزین ۴ دکمهٔ ابتدا/انتها)
-    const segs = Array.from(articleRef.current?.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(mid)}"]`) ?? []);
-    if (!segs.length) return;
-    const first = segs[0].firstChild;
-    const last = segs[segs.length - 1].lastChild;
-    if (!first || !last) return;
-    try {
-      const range = document.createRange();
-      range.setStart(first, 0);
-      range.setEnd(last, last.nodeValue?.length ?? 0);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    } catch {
-      return;
-    }
+    // نشانِ جمله‌ای چند قطعه دارد — بازه از اولین تا آخرین قطعه کشیده می‌شود
+    if (!selectMarkSegments(articleRef.current, mid)) return;
+    tapSinceBarRef.current = false; // همین تپ نوار را باز کرده — مرگِ بعدیِ انتخاب = تقصیر وب‌ویو
+    reassertRef.current = 0;
     const r = sel && sel.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : mk.getBoundingClientRect();
-    setMarkBar({
+    setBar({
       mode: "edit",
       markId: mid,
       secId: mark.secId,
@@ -926,7 +975,7 @@ export function LearnView({ id }: { id: string }) {
           occ={markBar.occ}
           pfx={markBar.pfx}
           sfx={markBar.sfx}
-          onDone={() => setMarkBar(null)}
+          onDone={() => setBar(null)}
         />
       )}
       {markBar && markBar.mode === "edit" && (
@@ -941,7 +990,7 @@ export function LearnView({ id }: { id: string }) {
           pfx={markBar.pfx}
           sfx={markBar.sfx}
           getLive={getLiveSelection}
-          onDone={() => setMarkBar(null)}
+          onDone={() => setBar(null)}
         />
       )}
 

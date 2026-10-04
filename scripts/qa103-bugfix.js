@@ -8,6 +8,8 @@
 // ۶) دکمهٔ معلق «از استاد بپرس» در موبایل حذف شد (کارت سایدبار دسکتاپ سر جایش)
 // ۷) کارت «دفترچه‌های آمادهٔ آزمون / از کتابخانهٔ خودم آزمون بسازم» حذف شد
 // ۸) صفر خطای کنسول
+// ۹) نشان جمله‌ای (چندقطعه‌ای): کلیک روی آن → نوار ویرایش می‌ماند، فلیپ به «نشان کن:» ندارد؛
+//    مرگ انتخاب توسط وب‌ویو → بازسازی خودکار انتخاب و نوار باز می‌ماند (باگ «درجا غیب میشه»)
 import { chromium } from "playwright";
 
 const BASE = process.env.BASE || "http://127.0.0.1:3210";
@@ -237,6 +239,100 @@ await page.locator("[data-mark-toolbar] button[aria-label='حذف نشان']").c
 await page.waitForTimeout(500);
 const afterDel = await page.evaluate((id) => (JSON.parse(localStorage.getItem("lexa-store-v1") || "{}")?.state?.marks?.["m-l1-1"] ?? []).length);
 ok("حذف نشان از نوار ویرایش کار می‌کند", afterDel === 0, `marks=${afterDel}`);
+
+// ── ۹) نشان جمله‌ای (چندقطعه‌ای) — باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد» ──
+// جمله‌ای که از دُم پاراگراف اول شروع و سر پاراگراف دوم تمام می‌شود → چند قطعهٔ <mark> با یک id
+const sentPick = await page.evaluate(() => {
+  const secs = [...document.querySelectorAll("article [data-sec-id]")];
+  for (const sec of secs) {
+    const ps = [...sec.querySelectorAll("p")].filter((p) => (p.textContent || "").trim().length > 60);
+    if (ps.length < 2) continue;
+    const wa = document.createTreeWalker(ps[0], NodeFilter.SHOW_TEXT);
+    const wb = document.createTreeWalker(ps[1], NodeFilter.SHOW_TEXT);
+    let ta = null, tb = null, n;
+    while ((n = wa.nextNode())) if ((n.nodeValue || "").trim().length > 20) ta = n;
+    while ((n = wb.nextNode())) { if ((n.nodeValue || "").trim().length > 20) { tb = n; break; } }
+    if (!ta || !tb) continue;
+    const va = ta.nodeValue || "";
+    const vb = tb.nodeValue || "";
+    const rng = document.createRange();
+    rng.setStart(ta, Math.max(0, va.length - 20));
+    rng.setEnd(tb, Math.min(vb.length, 20));
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(rng);
+    document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+    return { secId: sec.getAttribute("data-sec-id") };
+  }
+  return null;
+});
+ok("بازهٔ بین‌پاراگرافی برای نشان جمله‌ای ساخته شد", !!sentPick);
+await page.waitForTimeout(120); // اسکرول بومی کروم
+await page.evaluate(() => {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  window.scrollBy({ top: r.top - innerHeight / 2 - 60, behavior: "instant" });
+});
+await page.waitForSelector("[data-mark-toolbar]", { timeout: 6000 });
+await page.waitForTimeout(300);
+await page.locator("[data-mark-toolbar] button[title='رنگ نشان']").first().click();
+await page.waitForTimeout(700);
+const sentInfo = await page.evaluate(() => {
+  const segs = [...document.querySelectorAll("article mark[data-lexa-mark]")];
+  const mid = segs[0]?.dataset?.mid ?? null;
+  const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
+  const rec = (store?.state?.marks?.["m-l1-1"] ?? []).find((m) => m.id === mid);
+  return { id: mid, text: rec?.text, count: segs.length };
+});
+ok("نشان جمله‌ای ساخته شد", !!sentInfo.id && !!sentInfo.text, JSON.stringify(sentInfo));
+ok("نشان جمله‌ای چندقطعه‌ای است (≥۲ قطعهٔ mark با یک id)", sentInfo.count >= 2, `segments=${sentInfo.count}`);
+
+// کلیک واقعی روی نشان جمله‌ای → نوار ویرایش باید باز بماند (فلیپ به «نشان کن:» رفع شده)
+await clickMark(sentInfo.id);
+await page.waitForTimeout(700); // بیشتر از دیبانس ۲۶۰ms — لحظهٔ فلیپ قبلی
+const barMode = await page.evaluate(() => {
+  const tb = document.querySelector("[data-mark-toolbar]");
+  const txt = tb?.textContent || "";
+  return { open: !!tb, hasEditLabel: /دستگیره/.test(txt), hasNewLabel: /نشان کن:/.test(txt) };
+});
+ok("کلیک روی نشان جمله‌ای → نوار باز شد", barMode.open);
+ok("نوار در حالت ویرایش ماند (فلیپ به «نشان کن:» ندارد)", barMode.hasEditLabel && !barMode.hasNewLabel, JSON.stringify(barMode));
+
+// مرگ انتخاب توسط وب‌ویو (شبیه‌سازی) → بازسازی خودکار انتخاب + نوار باز می‌ماند
+await page.evaluate(() => {
+  window.getSelection()?.removeAllRanges();
+  document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+});
+await page.waitForTimeout(700); // دیبانس ۲۶۰ms + بازسازی + settle دوم
+const revived = await page.evaluate((id) => {
+  const sel = window.getSelection();
+  const segs = [...document.querySelectorAll(`article mark[data-lexa-mark][data-mid='${id}']`)];
+  return {
+    selActive: !!sel && sel.rangeCount > 0 && !sel.isCollapsed,
+    selText: (sel?.toString() || "").replace(/\s+/g, " ").trim(),
+    barOpen: !!document.querySelector("[data-mark-toolbar]"),
+    markText: segs.map((s) => s.textContent).join(" ").replace(/\s+/g, " ").trim(),
+  };
+}, sentInfo.id);
+ok("انتخاب کشته‌شده بازسازی شد (ضدِ «درجا غیب میشه»)", revived.selActive && revived.selText === revived.markText, JSON.stringify({ sel: revived.selText?.slice(0, 40), mark: revived.markText?.slice(0, 40) }));
+ok("نوار ویرایش پس از مرگ انتخاب باز ماند", revived.barOpen);
+
+// تپ کاربر بیرون از نوار → بسته شود (بستنِ مشروع)
+await page.evaluate(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+await page.waitForTimeout(150);
+ok("تپ بیرون از نوار، نوار را بست", !(await page.evaluate(() => !!document.querySelector("[data-mark-toolbar]"))));
+
+// حذف نشان چندقطعه‌ای از نوار — همهٔ قطعه‌ها پاک شوند
+await clickMark(sentInfo.id);
+await page.locator("[data-mark-toolbar] button[aria-label='حذف نشان']").click();
+await page.waitForTimeout(700);
+const sentDel = await page.evaluate((id) => {
+  const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
+  const list = store?.state?.marks?.["m-l1-1"] ?? [];
+  return { inStore: list.some((m) => m.id === id), segs: document.querySelectorAll(`article mark[data-lexa-mark][data-mid='${id}']`).length };
+}, sentInfo.id);
+ok("حذف نشان چندقطعه‌ای همهٔ قطعه‌ها را پاک کرد", !sentDel.inStore && sentDel.segs === 0, JSON.stringify(sentDel));
 
 // ── ساخت دوبارهٔ نشان روی کلمهٔ اصلی — برای تست لنگر متنی ──
 async function selectWord(word) {
