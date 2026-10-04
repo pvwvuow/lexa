@@ -99,7 +99,7 @@ await page.evaluate(() => {
 });
 await page.waitForSelector("[data-mark-toolbar]", { timeout: 6000 });
 await page.waitForTimeout(400);
-ok("نوار نشان‌گذاری با انتخاب متن باز شد", await page.locator("[data-mark-toolbar]").isVisible());
+ok("نوار نشان‌گذاری با انتخاب متن باز شد", await page.locator('[data-mark-toolbar][role="toolbar"]').isVisible());
 
 // ── نوار باید کاملاً بالای جملهٔ انتخاب‌شده باشد (سنجش هم‌زمان — بی‌ریس) ──
 const posChk = await page.evaluate(() => {
@@ -163,7 +163,7 @@ async function clickMark(id) {
 // ── لمس نشان → نوار ویرایش (بدون انتخاب برنامه‌ای + بدون دکمهٔ ابتدا/انتها + بدون متن توضیحی) ──
 const t0 = marked.text.trim();
 await clickMark(recId);
-ok("نوار ویرایش باز شد", await page.locator("[data-mark-toolbar]").isVisible());
+ok("نوار ویرایش باز شد", await page.locator('[data-mark-toolbar][role="toolbar"]').isVisible());
 const fourGone = await page.evaluate(() => {
   const btns = [...document.querySelectorAll("[data-mark-toolbar] button")];
   return btns.filter((b) => /ابتدا|انتها/.test(b.textContent || "") || /ابتدا|انتها/.test(b.getAttribute("aria-label") || "")).length;
@@ -200,7 +200,7 @@ const longPressSel = await page.evaluate(() => {
   return { active: !!sel && sel.rangeCount > 0 && !sel.isCollapsed, text: (sel?.toString() || "").replace(/\s+/g, " ").trim() };
 });
 ok(`لمس طولانی روی نشان → انتخاب بومی سر و ته جمله («${longPressSel.text}»)`, longPressSel.active && longPressSel.text === t0);
-ok("نوار ویرایش روی انتخاب بومی باز است", await page.locator("[data-mark-toolbar]").isVisible());
+ok("نوار ویرایش روی انتخاب بومی باز است", await page.locator('[data-mark-toolbar][role="toolbar"]').isVisible());
 
 // ── گسترش با «دستگیره» — کشیدن انتهای انتخاب تا کلمهٔ بعد (شبیه‌سازی درگ دستگیره) ──
 const growInfo = await page.evaluate((id) => {
@@ -226,7 +226,7 @@ const growInfo = await page.evaluate((id) => {
 }, recId);
 ok(`انتخاب با «دستگیره» تا کلمهٔ بعد گسترش یافت (+ «${growInfo?.word}»)`, !!growInfo);
 await page.waitForTimeout(500); // دیبانس selectionchange
-ok("نوار ویرایش پس از گسترش هنوز باز است", await page.locator("[data-mark-toolbar]").isVisible());
+ok("نوار ویرایش پس از گسترش هنوز باز است", await page.locator('[data-mark-toolbar][role="toolbar"]').isVisible());
 await page.locator("[data-mark-toolbar] button[title='رنگ نشان']").first().click();
 await page.waitForTimeout(600);
 const grown = await page.evaluate((id) => {
