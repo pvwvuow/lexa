@@ -6,7 +6,7 @@ import type { SyncSnapshot, SyncLessonProgress, LessonMarkSync } from '@/lib/aut
 
 // ─── مهاجرت یک‌بارهٔ برند: انتقال دادهٔ persist از کلید قدیمی به کلید جدید ──────
 // نام اپ از «همیار حقوق» به Lexa تغییر کرد؛ اگر کلید جدید خالی باشد و کلید
-// قدیمی موجود باشد، دادهٔ کاربر (پیشرفت، جزئات، دوره‌ها و…) حفظ می‌شود.
+// قدیمی موجود، دادهٔ کاربر (پیشرفت، جزئات، دوره‌ها و…) حفظ می‌شود.
 if (typeof window !== 'undefined') {
   try {
     const NEW_KEY = 'lexa-store-v1';
@@ -130,11 +130,15 @@ export const useApp = create<AppState>()(
         const next: LessonMark = existing
           ? {
               ...existing,
+              secId: mark.secId || existing.secId,
               text: mark.text, // تنظیم بازه می‌تواند متن را تغییر دهد
               color: mark.color,
               occ: mark.occ ?? existing.occ,
               pfx: mark.pfx ?? existing.pfx,
               sfx: mark.sfx ?? existing.sfx,
+              // 0.10.9: نسخهٔ ویرایش‌شده باید از نسخهٔ ابری جدیدتر باشد — وگرنه ادغام
+              // با سرور (createdAt مساوی → سرور برنده) تغییر بازه/رنگ را برمی‌گرداند
+              createdAt: Math.max(Date.now(), (existing.createdAt ?? 0) + 1),
             }
           : { ...mark, createdAt: at };
         const others = list.filter((m) => (existing ? m.id !== existing.id : true));

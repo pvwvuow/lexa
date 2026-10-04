@@ -5,9 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Lexa',
   webDir: 'out',
   android: {
-    // WebView مدرن اندروید — اجازهٔ بارگذاری همهٔ منابع محلی
     allowMixedContent: false,
-    captureInput: true,
+    // ⚠️ captureInput باید false بماند (0.10.9): با true، کاپاسیتور ورودی کیبورد را با
+    // BaseInputConnection ساده جایگزین می‌کند و برای حروف غیرلاتین (فارسی) رویداد input
+    // تا وقتی حرفی پاک نشود نمی‌رسد — ریشهٔ باگ «جستجو تا پاک‌کردن آخرین حرف نتیجه نمی‌دهد».
+    // (ionic-team/capacitor#757 و #8193)
+    captureInput: false,
     webContentsDebuggingEnabled: false,
   },
   server: {
