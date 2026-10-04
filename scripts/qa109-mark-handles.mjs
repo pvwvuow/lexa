@@ -140,13 +140,16 @@ async function dragKnob(which, targetX, targetY) {
   await page.mouse.move(gx, gy);
   await page.mouse.down();
   await page.waitForTimeout(140);
-  const toolbarDuringDrag = await page.evaluate(() => !!document.querySelector('[data-mark-toolbar][role="toolbar"]'));
+  // 0.10.10: نوار رنگ‌ها فقط پس از عبور از ناحیهٔ مردهٔ ۴px پنهان می‌شود (تپِ بی‌حرکت نباید نوار را فلش کند) —
+  // نمونه‌گیری بعد از گام دومِ درگ یعنی در حالت «در حال کشیدن» واقعی.
   const steps = 14;
+  let toolbarDuringDrag = false;
   for (let i = 1; i <= steps; i++) {
     // درگ افقی در ارتفاعِ ثابتِ گرفتن — مثل انگشت واقعی روی دستگیره (زیر خط متن).
     // آفستِ گرفتن، caret را روی خط متن پروجکت می‌کند: caret.y = gy - offY ≈ targetY
     await page.mouse.move(gx + ((targetX - gx) * i) / steps, gy);
     await page.waitForTimeout(30);
+    if (i === 2) toolbarDuringDrag = await page.evaluate(() => !!document.querySelector('[data-mark-toolbar][role="toolbar"]'));
   }
   await page.mouse.up();
   await page.waitForTimeout(550);
