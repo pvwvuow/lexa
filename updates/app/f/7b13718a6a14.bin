@@ -1,0 +1,72 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,74360,e=>{"use strict";let t=`تو \xabاستاد حقوقی هوشمند\xbb هستی؛ مدرس متخصص حقوق ایران که در اپلیکیشن آموزشی \xabLexa\xbb به دانشجویان کارشناسی حقوق تدریس می‌کنی.
+
+هویت و لحن:
+- لحن رسمی اما صمیمی و تشویق‌کننده، مثل یک استاد باتجربه دانشگاه.
+- اصطلاحات حقوقی دقیق را به کار ببر و همیشه معادل ساده‌اش را هم توضیح بده.
+- پاسخ‌ها را برای دانشجوی سال اول حقوق (نه متخصص) بنویس.
+- این ابزار صرفاً آموزشی است؛ اگر کاربر مشاوره برای پرونده واقعی خواست، محترمانه توضیح بده و جنبه آموزشی موضوع را کاوش کن.
+- فارسی روان، چیدمان راست‌به‌چپ، اعداد فارسی.
+
+قاعدهٔ طلایی استناد (ضد جعل ماده — مهم‌ترین قاعده):
+- منبع اصلی تو \xabمحتوای جلسه\xbb و \xabفهرست مواد قانونی معتبر\xbb است که در پیام کاربر آمده؛ پاسخ را بر همان اساس بده.
+- شمارهٔ ماده، نام قانون یا رأی وحدت رویه را فقط وقتی بیاور که عیناً در فهرست مواد معتبر جلسه یا در متن جلسه موجود است؛ یا از مواد مشهور و قطعی که مطمئنی (مثل مادهٔ ۹۵۶ ق.م دربارهٔ آغاز شخصیت) — و در مورد شک، هرگز شماره نیاور.
+- هرگز مادهٔ قانونی \xabنساز\xbb و شماره را حدس نزن؛ جعل شمارهٔ ماده خطای آموزشی جدی و غیرقابل بخشش است.
+- تکلیف سؤالِ خارج از محتوای جلسه: اول در یک خط صریح بگو \xabاین مبحث خارج از جلسهٔ فعلی است\xbb و بلافاصله پاسخ کامل، دقیق و آموزندهٔ همان سؤال را از دانش حقوقی‌ات بده — هرگز سؤال را بی‌پاسخ نگذار و طفره نرو؛ فقط برای شمارهٔ ماده‌ای که مطمئن نیستی شماره نیاور.
+- اگر دربارهٔ چیزی مطمئن نیستی، به‌جای حدس بگو \xabنیاز به بررسی دقیق‌تر دارد\xbb.
+- در صورت اختلاف دکترین، دیدگاه غالب را بگو و اختلاف مهم را اشاره کن (کاتوزیان، شهیدی، صفایی، اسکینی).
+- اگر رأی وحدت رویه مرتبط می‌دانی، شماره/سال آن را ذکر کن؛ در غیر این صورت اشاره نکن.
+
+قالب خروجی متن آزاد (Markdown ساده):
+- از ## برای تیتر بخش‌ها، **پررنگ** برای کلیدواژه‌ها و لیست \xab- \xbb استفاده کن.
+- ماده قانونی را داخل خط جدا با پیشوند 📜 بیاور تا در رابط کاربری در باکس مجزا نمایش داده شود.`,n={TEACH:"حالت فعلی TEACH: طبق الگوی ۸بخشی تدریس کن (مقدمه، تعریف و مفهوم، مستند قانونی، نکات کلیدی، مثال کاربردی، جدول مقایسه‌ای در صورت وجود، جمع‌بندی تیتروار، سؤال تعاملی).",QUIZ:"حالت فعلی QUIZ: فقط سؤال بساز یا پاسخ کاربر را ارزیابی و تصحیح کن. فرمت سؤال: سوال/الف/ب/ج/د/پاسخ صحیح/تشریح با ارجاع به ماده. هر سؤال فقط یک پاسخ صحیحِ قطعی و منحصربه‌فرد دارد؛ گزینه‌های دیگر باید کاملاً نادرست و قابل‌تفکیک باشند، نه شبیه پاسخ صحیح؛ تشریح باید با استناد به متن منبع/جلسه باشد، نه حافظهٔ تو.",REVIEW:"حالت فعلی REVIEW: مرور فشرده؛ فقط نکات کلیدی تیتروار، بدون توضیح مفصل.",CASE_STUDY:"حالت فعلی CASE_STUDY: یک پرونده فرضی ارائه کن و تحلیل حقوقی بخواه؛ سپس پاسخ را با بخش‌های «نقاط قوت پاسخ شما» و «نکات جامانده» نقد کن.",QA:"حالت فعلی QA: فقط به سؤال مشخص کاربر پاسخ کوتاه و دقیق بده؛ وارد تدریس کامل مبحث نشو. اگر سؤال خارج از محتوای جلسهٔ ارائه‌شده بود، یک خط اعلام کن خارج است و بعد پاسخ کامل بده — بی‌پاسخ نگذار. هر مستند قانونی را در خط جدا با پیشوند 📜 بیاور و فقط از فهرست مواد معتبر یا مواد قطعیِ مطمئن شماره بیاور."},r=`یک جلسه کامل بر اساس الگوی تدریس ۸بخشی بساز و فقط JSON خالص برگردان (بدون هیچ متن اضافه، بدون \`\`\`):
+{
+ "title": string,
+ "sections": [
+   {"type":"intro"|"concept"|"law"|"notes"|"example"|"compare"|"summary"|"question",
+    "title": string,
+    "body": string,                  // چند پاراگراف با \\n\\n
+    "bullets": string[],             // اختیاری – برای notes و summary
+    "law": [{"no":string,"source":string,"text":string}],  // اختیاری
+    "table": {"headers":[..],"rows":[[..]]},               // فقط type=compare
+    "questionText": string,          // فقط type=question
+    "suggestedAnswer": string        // فقط type=question
+   }
+ ]
+ ,"quiz":[{"q":string,"options":[{"key":"a"|"b"|"c"|"d","text":string}],"answer":"a|b|c|d","explanation":string}]  // حداقل ۳ سؤال
+}
+قواعد: ترتیب بخش‌ها دقیقا intro, concept, law, notes, example, compare(اختیاری), summary, question؛ هر بدنهٔ متنی حداقل ۳ جمله دارد؛ شمارهٔ مادهٔ قانونی فقط از متنی که در \xabمنبع آموزشی\xbb عیناً آمده بیاور — هرگز شماره ماده را از حافظه یا حدس اضافه نکن و اگر متن منبع شماره‌ای نداشت، بدون شماره توضیح بده؛ هر سؤال تست فقط یک پاسخ صحیح قطعی دارد و گزینه‌های دیگر کاملاً نادرست‌اند و تشریح هر سؤال به متن منبع استناد می‌کند؛ سطح: سال اول کارشناسی.`;function i(e){return`${t}
+
+${n[e]??n.QA}`}function s(e){if(!e||!e.lessonTitle&&!e.extra&&!e.lawRegistry?.length)return"";let t=[e.courseTitle&&`درس: ${e.courseTitle}`,e.chapterTitle&&`فصل: ${e.chapterTitle}`,e.lessonTitle&&`جلسهٔ جاری: ${e.lessonTitle}`,e.seenSections?.length&&`بخش‌هایی که دانشجو دیده: ${e.seenSections.join("، ")}`,e.lawRegistry?.length&&`فهرست مواد قانونی معتبر همین جلسه (تنها شماره‌های مجاز برای ارجاع شماره‌ای):
+${e.lawRegistry.map(e=>`- ${e}`).join("\n")}`,e.extra&&`محتوای جلسه (منبع اصلی پاسخ تو — خارج از این متن دربارهٔ جزئیات جلسه اطلاعات نداری):
+"""${e.extra.slice(0,4500)}"""`].filter(Boolean);return`
+
+زمینهٔ جلسه:
+${t.join("\n\n")}`}async function o(e,t,n,r){let i=e.apiKey,s=e.model||"gemini-2.0-flash",o=e.baseUrl?.replace(/\/$/,"")||"https://generativelanguage.googleapis.com/v1beta",a=await fetch(`${o}/models/${encodeURIComponent(s)}:generateContent?key=${i}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({systemInstruction:{parts:[{text:t}]},contents:[{role:"user",parts:[{text:n}]}],generationConfig:{temperature:r??e.temperature??.4}}),signal:AbortSignal.timeout(9e4)});if(!a.ok)throw l("Gemini",a.status);let c=await a.json(),u=c?.candidates?.[0]?.content?.parts?.map(e=>e.text??"").join("")??"";if(!u)throw Error("پاسخی از Gemini دریافت نشد.");return u}async function a(e,t,n,r){let i=(e.baseUrl||"https://api.openai.com/v1").replace(/\/$/,""),s=e.model||"gpt-4o-mini",o=await fetch(`${i}/chat/completions`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${e.apiKey??""}`},body:JSON.stringify({model:s,temperature:r??e.temperature??.4,messages:[{role:"system",content:t},{role:"user",content:n}]}),signal:AbortSignal.timeout(9e4)});if(!o.ok)throw l("سرویس هوشمند",o.status);let a=await o.json(),c=a?.choices?.[0]?.message?.content??"";if(!c)throw Error("پاسخی از مدل دریافت نشد.");return c}function l(e,t){return 401===t||403===t?Error(`کلید ${e} معتبر نیست — از تنظیمات، کلید شخصی را بررسی کن.`):429===t?Error(`سرویس ${e} موقتاً شلوغ است — چند لحظه بعد دوباره امتحان کن.`):t>=500?Error(`سرور ${e} موقتاً در دسترس نیست — چند لحظه بعد دوباره امتحان کن.`):Error(`ارتباط با ${e} برقرار نشد — اتصال اینترنت را بررسی کن و دوباره تلاش کن.`)}async function c(e,t,n,r){switch(e.provider){case"gemini":return o(e,t,n,r);case"openai":return a(e,t,n,r);default:throw Error("برای استفاده از استاد هوشمند در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن.")}}function u(e){let t=e.trim(),n=(t=t.replace(/^```(?:json)?/m,"").replace(/```\s*$/m,"").trim()).indexOf("{"),r=t.lastIndexOf("}");if(n<0||r<n)return null;try{return JSON.parse(t.slice(n,r+1))}catch{return null}}async function g(e,t=c){let n=e.ai??{},o=e.context??{};switch(e.task){case"free":{let r=i(e.mode??"QA"),a=e.modeDirective?`
+
+⚠️ دستور ویژه: ${e.modeDirective}`:"",l=`${e.question??""}${a}${s(o)}`;return{text:await t(n,r,l)}}case"generate_lesson":{let s=String(e.content??"").slice(0,9e3),a=`بر اساس منبع زیر، جلسهٔ \xab${e.question}\xbb در دورهٔ \xab${String(o.courseTitle??"")}\xbb را کاملاً تدریس‌شده تولید کن.
+
+${r}
+
+--- منبع آموزشی ---
+${s}`;for(let e=0;e<2;e++){let e=u(await t(n,i("TEACH"),a));if(e&&Array.isArray(e.sections)&&e.sections.length>=5)return{lesson:e}}throw new p("تحلیل ساختار جلسه ناموفق بود.")}case"gen_quiz":{let r=String(e.content??"").slice(0,8e3),a=Math.min(Math.max(e.n??5,3),10),l=`از منبع زیر ${a} سؤال تستی چهارگزینه‌ای دانشگاهی (تراز آزمون وکالت) بساز و فقط JSON برگردان:
+{"quiz":[{"q":string,"options":[{"key":"a|b|c|d","text":string}],"answer":"a|b|c|d","explanation":string,"topic":string}]}
+
+⚠️ قواعد کیفیت (اجباری):
+- هر سؤال فقط از متن منبع طراحی شود؛ موضوع خارج از منبع ممنوع.
+- فقط یک گزینه صحیحِ قطعی باشد؛ سه گزینهٔ دیگر کاملاً نادرست و قابل‌تفکیک، نه دوپهلو یا شبیه صحیح.
+- سؤال مفهومی/تحلیلی بساز؛ عین‌جملهٔ حفظی بدون تغییر ممنوع.
+- تشریح هر سؤال با استناد به متن منبع باشد؛ شمارهٔ ماده فقط اگر عیناً در منبع آمده، وگرنه بدون شماره.
+- موضوعات بین سؤال‌ها متنوع باشد.
+
+--- منبع ---
+${r}
+${s(o)}`;for(let e=0;e<2;e++){let e=u(await t(n,i("QUIZ"),l,.3)),r=e?.quiz?(e.quiz??[]).filter(e=>{if("string"!=typeof e.q||!e.q.trim()||!Array.isArray(e.options)||e.options.length<3||"string"!=typeof e.answer||!["a","b","c","d"].includes(e.answer))return!1;let t=e.options;return!(!t.some(t=>String(t?.key??"")===e.answer)||t.some(e=>"string"!=typeof e?.text||!e.text.trim()))&&"string"==typeof e.explanation&&!!e.explanation.trim()&&new Set(t.map(e=>e.text.trim())).size===t.length}):[];if(r.length)return{quiz:r}}throw new p("تولید تست ناموفق بود.")}case"case_feedback":{let r=i("CASE_STUDY"),a=`${e.question??""}
+
+فقط JSON با این شکل برگردان:
+{"strengths":string[],"gaps":string[],"verdict":string,"suggestedOutline":string[]}
+(verdict دو-three جمله؛ suggestedOutline نقشهٔ پاسخ استاندارد.)
+${s(o)}`,l=await t(n,r,a),c=u(l);if(c?.strengths)return c;return{verdict:l.slice(0,1500),strengths:[],gaps:[],suggestedOutline:[]}}case"outline_import":{let r=String(e.content??"").slice(0,28e3),s=`متن استخراج‌شدهٔ زیر از یک کتاب/جزوهٔ حقوقی است. نقشهٔ دوره تحصیلی آن را استخراج کن؛ فقط JSON:
+{"courseTitle":string,"chapters":[{"title":string,"sessions":[{"title":string,"keywords":[string]}]}]}
+حداکثر ۸ فصل و هر فصل ۲ تا ۵ جلسه. keywords واژه‌های مشخص (اسامی ماده‌ها/اصطلاحات) هستند که بعداً متنِ هر جلسه را با آن‌ها پیدا می‌کنیم؛ پس بین جلسات متمایز باشند.
+
+${r}`,o=u(await t(n,i("TEACH"),s));if(o?.chapters?.length)return o;throw new p("تحلیل نقشهٔ کتاب ناموفق بود.")}default:throw new p("task ناشناخته.")}}class p extends Error{}e.s(["AiTaskError",()=>p,"runAiTask",()=>g],7010),e.i(7010),e.s(["AiTaskError",()=>p,"PERSIAN_FAIL",0,"استاد هوشمند فعلاً در دسترس نیست — چند لحظه بعد دوباره امتحان کن. اگر ادامه داشت، اتصال اینترنت را بررسی کن.","runAiTask",()=>g],74360)}]);
