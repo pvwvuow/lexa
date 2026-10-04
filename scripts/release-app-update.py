@@ -77,6 +77,24 @@ subprocess.run(
     shell=True, check=True,
 )
 
+# ۳ب) APK در مخزن هم استیج می‌شود — منبع دانلود درون‌برنامه‌ای (jsDelivr CDN)
+apk_path = f"download/android/Lexa-{VERSION}.apk"
+if os.path.exists(apk_path):
+    import hashlib, shutil
+    print("\n── استیج APK برای دانلود درون‌برنامه‌ای ──")
+    os.makedirs("updates/app", exist_ok=True)
+    shutil.copyfile(apk_path, "updates/app/lexa-latest.apk")
+    h = hashlib.sha256()
+    with open(apk_path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    apk_sha = h.hexdigest()
+    mpath = "updates/app/manifest.json"
+    mjson = json.load(open(mpath))
+    mjson["apk"] = {"file": "lexa-latest.apk", "sha256": apk_sha, "size": os.path.getsize(apk_path)}
+    json.dump(mjson, open(mpath, "w"), ensure_ascii=False, indent=2)
+    print(f"  ✓ lexa-latest.apk استیج شد — sha256 {apk_sha[:16]}…")
+
 # ۴) commit + push + تگ
 print("\n── push مخزن + تگ ──")
 subprocess.run("git add updates/app", shell=True, check=True)
@@ -87,14 +105,15 @@ else:
     print("  (چیزی برای commit نبود)")
 subprocess.run(f"git tag -f {APP_TAG} && git push origin {APP_TAG} -f", shell=True, check=True)
 
-# ۵) purge کش jsDelivr برای مانیفست
+# ۵) purge کش jsDelivr برای مانیفست + APK
 print("\n── purge jsDelivr ──")
-try:
-    urllib.request.urlopen(
-        f"https://purge.jsdelivr.net/gh/{REPO}@main/updates/app/manifest.json", timeout=30)
-    print("  ✓ purge شد — مانیفست از همین حالا تازه سرو می‌شود")
-except Exception as e:
-    print("  ⚠ purge ناموفق (مهم نیست — raw همیشه تازه است):", e)
+for purge_path in ("updates/app/manifest.json", "updates/app/lexa-latest.apk"):
+    try:
+        urllib.request.urlopen(
+            f"https://purge.jsdelivr.net/gh/{REPO}@main/{purge_path}", timeout=30)
+        print(f"  ✓ purge شد — {purge_path}")
+    except Exception as e:
+        print(f"  ⚠ purge ناموفق ({purge_path}) — مهم نیست (raw همیشه تازه است):", e)
 
 # ۶) ریلیز گیت‌هاب
 print("\n── ریلیز گیت‌هاب ──")

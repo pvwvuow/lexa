@@ -40,4 +40,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- به‌روزرسانی درون‌برنامه‌ای: دانلود APK نسخهٔ جدید و نصب آن از داخل خود اپ -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

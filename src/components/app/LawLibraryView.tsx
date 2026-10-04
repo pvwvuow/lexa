@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
+import { ImeSearchInput, type ImeSearchHandle } from "./common";
 import {
   LAW_CODES, LAW_CATEGORIES, getLaw, lawArticleCount, flatLawArticles,
   lawCategoryLabel, type LawCode, type LawArticle,
@@ -102,9 +103,10 @@ function ArticleSeal({ no, word = "ماده" }: { no: string; word?: string }) {
 
 function norm(s: string): string {
   return s
+    .normalize("NFKC") // فورم‌های پریزنتیشن عربی (از PDF) و حروف هم‌ریخت را یکدست می‌کند
     .replace(/[ىي]/g, "ی")
     .replace(/ك/g, "ک")
-    .replace(/[\u064B-\u0652\u200c]/g, "")
+    .replace(/[\u064B-\u0652\u0640\u200c]/g, "")
     .replace(/[\u06F0-\u06F9\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) & 0xf))
     .toLowerCase();
 }
@@ -114,6 +116,7 @@ function norm(s: string): string {
 function LawIndex({ marks, full }: { marks: string[]; full: FullLawData | null }) {
   const [cat, setCat] = React.useState("");
   const [q, setQ] = React.useState("");
+  const indexSearchRef = React.useRef<ImeSearchHandle | null>(null);
 
   const list = React.useMemo(() => {
     let out = LAW_CODES.map((l) => withFull(l, full));
@@ -187,18 +190,18 @@ function LawIndex({ marks, full }: { marks: string[]; full: FullLawData | null }
         ))}
       </nav>
 
-      {/* جستجو در همهٔ قانون‌ها */}
+      {/* جستجو در همهٔ قانون‌ها — ورودی کنترل‌نشده (مقاوم به IME اندروید؛ باگ «مدنی → هیچ، مدن → نتیجه») */}
       <div className="law-field relative">
         <Search className="pointer-events-none absolute inset-y-0 start-4 my-auto h-4 w-4 text-bronze" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+        <ImeSearchInput
+          onValue={setQ}
+          handleRef={indexSearchRef}
           placeholder="جستجو در متن همهٔ مواد… مثلاً «ضمان» یا «۴۴ ساعت»"
           aria-label="جستجو در متن قوانین"
           className="h-12 w-full rounded-2xl border border-border bg-card ps-11 pe-10 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-bronze/60"
         />
         {q && (
-          <button onClick={() => setQ("")} aria-label="پاک کردن" className="absolute inset-y-0 end-3 my-auto grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted">
+          <button onClick={() => indexSearchRef.current?.clear()} aria-label="پاک کردن" className="absolute inset-y-0 end-3 my-auto grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted">
             <X className="h-4 w-4" />
           </button>
         )}
@@ -284,6 +287,7 @@ function MarkedSummary({ marks }: { marks: string[] }) {
 function LawReader({ law }: { law: LawCode }) {
   const { marks, toggle } = useLawMarks();
   const [q, setQ] = React.useState("");
+  const readerSearchRef = React.useRef<ImeSearchHandle | null>(null);
   const [font, setFont] = React.useState(17);
   const [onlyMarked, setOnlyMarked] = React.useState(false);
   const [copied, setCopied] = React.useState("");
@@ -376,9 +380,9 @@ function LawReader({ law }: { law: LawCode }) {
       <div className="no-print sticky top-16 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-card backdrop-blur">
         <div className="relative min-w-[180px] flex-1">
           <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-bronze" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+          <ImeSearchInput
+            onValue={setQ}
+            handleRef={readerSearchRef}
             placeholder="جستجو در این قانون…"
             aria-label="جستجو در این قانون"
             className="h-10 w-full rounded-xl border border-border bg-background ps-9 pe-3 text-[13px] outline-none placeholder:text-muted-foreground/60 focus:border-bronze/60"
@@ -531,5 +535,5 @@ export function LawLibraryView({ id }: { id?: string }) {
       </div>
     );
   }
-  return law ? <LawReader law={law} /> : <LawIndex marks={marks} full={full} />;
+  return law ? <LawReader key={law.id} law={law} /> : <LawIndex marks={marks} full={full} />;
 }

@@ -32,7 +32,7 @@ const PASS = "Qa09" + STAMP + "!";
     const r = await fetch("/sw.js");
     return ((await r.text()).match(/lexa-pwa-v\d+/) || ["?"])[0];
   });
-  assert(swVer === "lexa-pwa-v49", "سرویس‌ورکر v47 سرو می‌شود", swVer);
+  assert(swVer === "lexa-pwa-v50", "سرویس‌ورکر v47 سرو می‌شود", swVer);
 
   console.log("[۲] ساخت حساب سروری تازه (ورود / ثبت‌نام — دکمهٔ فرعی سپر: حساب سروری)");
   await page.goto(BASE + "/#/", { waitUntil: "networkidle", timeout: 45000 });

@@ -6,7 +6,7 @@ set -e
 cd /home/z/my-project
 
 export ANDROID_HOME=${ANDROID_HOME:-/home/z/android-sdk}
-export JAVA_HOME=${JAVA_HOME:-/home/z/jdk-21.0.5+11}
+export JAVA_HOME=${JAVA_HOME:-/home/z/jdk-21}
 export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
 echo "[1/5] پارک موقت مسیرهای API…"
@@ -16,7 +16,8 @@ trap 'if [ -d .api-parked ]; then rm -rf src/app/api; mv .api-parked src/app/api
 
 echo "[2/5] اکسپورت ایستا (NEXT_PUBLIC_APP_MODE=apk)…"
 rm -rf out
-bun run build:apk
+# نسخهٔ بیلد به کلاینت تزریق می‌شود تا به‌روزرسانی درون‌برنامه‌ای بتواند مقایسه کند
+NEXT_PUBLIC_APP_MODE=apk NEXT_PUBLIC_APP_VERSION="${VERSION:-}" bun run build:apk
 
 echo "[3/5] بازگردانی API و سینک کاپاسییتور…"
 rm -rf src/app/api

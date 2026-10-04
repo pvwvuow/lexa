@@ -160,7 +160,7 @@ async function clickMark(id) {
   throw new Error("نوار ویرایش روی نشان باز نشد");
 }
 
-// ── کلیک روی نشان → نوار ویرایش بدون دکمه‌های ابتدا/انتها + انتخاب بومی ──
+// ── لمس نشان → نوار ویرایش (بدون انتخاب برنامه‌ای + بدون دکمهٔ ابتدا/انتها + بدون متن توضیحی) ──
 const t0 = marked.text.trim();
 await clickMark(recId);
 ok("نوار ویرایش باز شد", await page.locator("[data-mark-toolbar]").isVisible());
@@ -169,11 +169,38 @@ const fourGone = await page.evaluate(() => {
   return btns.filter((b) => /ابتدا|انتها/.test(b.textContent || "") || /ابتدا|انتها/.test(b.getAttribute("aria-label") || "")).length;
 });
 ok("دکمه‌های ابتدا/انتها حذف شدند", fourGone === 0, `count=${fourGone}`);
-const nativeSel = await page.evaluate(() => {
+const noSelAfterTap = await page.evaluate(() => {
+  const sel = window.getSelection();
+  return !sel || sel.rangeCount === 0 || sel.isCollapsed;
+});
+ok("لمس سادهٔ نشان، انتخاب برنامه‌ای نمی‌سازد (دستگیره فقط با لمس طولانی کاربر)", noSelAfterTap);
+const labelsGone = await page.evaluate(() => {
+  const tb = document.querySelector("[data-mark-toolbar]");
+  const txt = tb?.textContent || "";
+  return { hasNewLabel: /نشان کن:/.test(txt), hasDragHint: /دستگیره بکش/.test(txt) };
+});
+ok("نوار بدون متن توضیحی است (حرفه‌ای و آیکن‌محور)", !labelsGone.hasNewLabel && !labelsGone.hasDragHint, JSON.stringify(labelsGone));
+
+// لمس طولانی (شبیه‌سازی انتخاب بومی کاربر روی نشان) → نوار ویرایش با بازهٔ زندهٔ همان نشان
+await page.evaluate((id) => {
+  const segs = [...document.querySelectorAll(`article mark[data-lexa-mark][data-mid='${id}']`)];
+  const first = segs[0].firstChild;
+  const last = segs[segs.length - 1].lastChild;
+  const rng = document.createRange();
+  rng.setStart(first, 0);
+  rng.setEnd(last, last.nodeValue?.length ?? 0);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(rng);
+  document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+}, recId);
+await page.waitForTimeout(500);
+const longPressSel = await page.evaluate(() => {
   const sel = window.getSelection();
   return { active: !!sel && sel.rangeCount > 0 && !sel.isCollapsed, text: (sel?.toString() || "").replace(/\s+/g, " ").trim() };
 });
-ok(`لمس نشان، متنش را بومی انتخاب کرد («${nativeSel.text}»)`, nativeSel.active && nativeSel.text === t0);
+ok(`لمس طولانی روی نشان → انتخاب بومی سر و ته جمله («${longPressSel.text}»)`, longPressSel.active && longPressSel.text === t0);
+ok("نوار ویرایش روی انتخاب بومی باز است", await page.locator("[data-mark-toolbar]").isVisible());
 
 // ── گسترش با «دستگیره» — کشیدن انتهای انتخاب تا کلمهٔ بعد (شبیه‌سازی درگ دستگیره) ──
 const growInfo = await page.evaluate((id) => {
@@ -214,6 +241,20 @@ ok("DOM نشان هم متن بزرگ‌شده را دارد", grown.dom === gro
 
 // ── کوچک‌سازی با دستگیره — کشیدن انتهای انتخاب به عقب (فقط کلمهٔ اصلی) ──
 await clickMark(recId);
+// لمس طولانی دوباره — انتخاب بومی کامل نشان
+await page.evaluate((id) => {
+  const segs = [...document.querySelectorAll(`article mark[data-lexa-mark][data-mid='${id}']`)];
+  const first = segs[0].firstChild;
+  const last = segs[segs.length - 1].lastChild;
+  const rng = document.createRange();
+  rng.setStart(first, 0);
+  rng.setEnd(last, last.nodeValue?.length ?? 0);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(rng);
+  document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+}, recId);
+await page.waitForTimeout(400);
 await page.evaluate(({ id, word }) => {
   const mk = document.querySelector(`article mark[data-lexa-mark][data-mid='${id}']`);
   if (!mk) return;
@@ -288,24 +329,40 @@ const sentInfo = await page.evaluate(() => {
 ok("نشان جمله‌ای ساخته شد", !!sentInfo.id && !!sentInfo.text, JSON.stringify(sentInfo));
 ok("نشان جمله‌ای چندقطعه‌ای است (≥۲ قطعهٔ mark با یک id)", sentInfo.count >= 2, `segments=${sentInfo.count}`);
 
-// کلیک واقعی روی نشان جمله‌ای → نوار ویرایش باید باز بماند (فلیپ به «نشان کن:» رفع شده)
+// کلیک واقعی روی نشان جمله‌ای → نوار ویرایش باز می‌ماند؛ چون هیچ انتخاب
+// برنامه‌ای ساخته نمی‌شود، باگ «می‌آمد و درجا غیب می‌شد» اساساً ممکن نیست رخ دهد
 await clickMark(sentInfo.id);
 await page.waitForTimeout(700); // بیشتر از دیبانس ۲۶۰ms — لحظهٔ فلیپ قبلی
-const barMode = await page.evaluate(() => {
+const barMode = await page.evaluate((id) => {
   const tb = document.querySelector("[data-mark-toolbar]");
   const txt = tb?.textContent || "";
-  return { open: !!tb, hasEditLabel: /دستگیره/.test(txt), hasNewLabel: /نشان کن:/.test(txt) };
-});
+  const sel = window.getSelection();
+  return {
+    open: !!tb,
+    isEditMode: !!tb?.querySelector("button[aria-label='حذف نشان']"),
+    hasNewLabel: /نشان کن:/.test(txt),
+    selActive: !!sel && sel.rangeCount > 0 && !sel.isCollapsed,
+  };
+}, sentInfo.id);
 ok("کلیک روی نشان جمله‌ای → نوار باز شد", barMode.open);
-ok("نوار در حالت ویرایش ماند (فلیپ به «نشان کن:» ندارد)", barMode.hasEditLabel && !barMode.hasNewLabel, JSON.stringify(barMode));
+ok("نوار در حالت ویرایش است (دکمهٔ حذف دارد، فلیپ به «نشان کن:» ندارد)", barMode.isEditMode && !barMode.hasNewLabel, JSON.stringify(barMode));
+ok("کلیک هیچ انتخابی نمی‌سازد (چیزی برای کشته‌شدن وجود ندارد)", !barMode.selActive);
 
-// مرگ انتخاب توسط وب‌ویو (شبیه‌سازی) → بازسازی خودکار انتخاب + نوار باز می‌ماند
-await page.evaluate(() => {
-  window.getSelection()?.removeAllRanges();
+// لمس طولانی روی نشان جمله‌ای (هر دو قطعه) → انتخاب بومی + نوار ویرایش باز
+await page.evaluate((id) => {
+  const segs = [...document.querySelectorAll(`article mark[data-lexa-mark][data-mid='${id}']`)];
+  const first = segs[0].firstChild;
+  const last = segs[segs.length - 1].lastChild;
+  const rng = document.createRange();
+  rng.setStart(first, 0);
+  rng.setEnd(last, last.nodeValue?.length ?? 0);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(rng);
   document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
-});
-await page.waitForTimeout(700); // دیبانس ۲۶۰ms + بازسازی + settle دوم
-const revived = await page.evaluate((id) => {
+}, sentInfo.id);
+await page.waitForTimeout(500);
+const longPressBar = await page.evaluate((id) => {
   const sel = window.getSelection();
   const segs = [...document.querySelectorAll(`article mark[data-lexa-mark][data-mid='${id}']`)];
   return {
@@ -315,8 +372,8 @@ const revived = await page.evaluate((id) => {
     markText: segs.map((s) => s.textContent).join(" ").replace(/\s+/g, " ").trim(),
   };
 }, sentInfo.id);
-ok("انتخاب کشته‌شده بازسازی شد (ضدِ «درجا غیب میشه»)", revived.selActive && revived.selText === revived.markText, JSON.stringify({ sel: revived.selText?.slice(0, 40), mark: revived.markText?.slice(0, 40) }));
-ok("نوار ویرایش پس از مرگ انتخاب باز ماند", revived.barOpen);
+ok("لمس طولانی روی نشان جمله‌ای → انتخاب هر دو قطعه", longPressBar.selActive && longPressBar.selText === longPressBar.markText, JSON.stringify({ sel: longPressBar.selText?.slice(0, 40), mark: longPressBar.markText?.slice(0, 40) }));
+ok("نوار ویرایش روی انتخاب بومی باز ماند", longPressBar.barOpen);
 
 // تپ کاربر بیرون از نوار → بسته شود (بستنِ مشروع)
 await page.evaluate(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));

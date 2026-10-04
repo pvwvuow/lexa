@@ -42,6 +42,7 @@ import { FeedBell } from "./FeedBell";
 import { IS_APK } from "@/lib/app-mode";
 import { MobileMenuDrawer } from "./MobileMenuDrawer";
 import { UpdateBanner } from "./UpdateBanner";
+import { ApkUpdateBanner } from "./ApkUpdateBanner";
 
 type NavMode = "expanded" | "rail";
 
@@ -494,6 +495,8 @@ export function AppShell() {
 
         {/* به‌روزرسانی خودکار دسکتاپ — قرص کوچک گوشهٔ صفحه؛ فقط در اپ الکترون رندر می‌شود */}
         <UpdateBanner />
+        {/* به‌روزرسانی درون‌برنامه‌ای اندروید — کشف بی‌صدای نسخهٔ جدید + دانلود/نصب داخل اپ؛ فقط در APK */}
+        <ApkUpdateBanner />
 
         {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass): بلور/اشباع + برق نور و لبهٔ روشن */}
         <nav

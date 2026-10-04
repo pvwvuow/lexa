@@ -879,3 +879,51 @@ export function StarRating({
     </span>
   );
 }
+
+/* ═══ ورودی جستجوی مقاوم به IME اندروید ═══════════════════════════════════════
+ * ورودیِ «کنترل‌شدهٔ» ری‌اکت (value=…) روی وب‌ویو اندروید هنگام تایپ فارسی
+ * می‌شکند: re-render وسط composition، متنِ درحال‌ساخت را به‌عقب برمی‌گرداند و
+ * نتیجه‌اش این است که «تایپ کاملِ کلمه → هیچ نتیجه؛ پاک‌کردن یک حرف → نتیجه».
+ * (GlobalSearch همان باگ را داشت و با همین الگو بسته شد.)
+ * الگو: ورودی کنترل‌نشده (defaultValue) + شنیدن رویداد بومی input در فاز capture
+ * سند — قبل از ردیاب مقدارِ ری‌اکت؛ مقدار همیشه همان است که کاربر می‌بیند. */
+export interface ImeSearchHandle {
+  clear(): void;
+  value(): string;
+}
+
+export function ImeSearchInput({
+  onValue, handleRef, ...rest
+}: {
+  onValue: (v: string) => void;
+  handleRef?: React.MutableRefObject<ImeSearchHandle | null>;
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "defaultValue">) {
+  const ref = React.useRef<HTMLInputElement | null>(null);
+  const cbRef = React.useRef(onValue);
+  React.useEffect(() => { cbRef.current = onValue; }, [onValue]);
+  const sid = React.useId();
+
+  React.useEffect(() => {
+    const onInput = (e: Event) => {
+      const t = e.target as HTMLInputElement | null;
+      if (!t || t.getAttribute("data-imesearch") !== sid) return;
+      cbRef.current(t.value);
+    };
+    document.addEventListener("input", onInput, true);
+    return () => document.removeEventListener("input", onInput, true);
+  }, [sid]);
+
+  React.useImperativeHandle(handleRef, () => ({
+    clear() {
+      const el = ref.current;
+      if (!el) return;
+      el.value = "";
+      cbRef.current("");
+    },
+    value() {
+      return ref.current?.value ?? "";
+    },
+  }), []);
+
+  return <input ref={ref} defaultValue="" data-imesearch={sid} {...rest} />;
+}

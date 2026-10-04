@@ -16,9 +16,10 @@ import { IS_APK } from "@/lib/app-mode";
 /* ─── نرمال‌سازی متنی فارسی برای جستجو ─────────────────────────────────── */
 function norm(s: string): string {
   return s
+    .normalize("NFKC") // فورم‌های پریزنتیشن عربی (از PDF) و حروف هم‌ریخت را یکدست می‌کند
     .replace(/[ىي]/g, "ی")
     .replace(/ك/g, "ک")
-    .replace(/[\u064B-\u0652\u200c]/g, "")
+    .replace(/[\u064B-\u0652\u0640\u200c]/g, "")
     .replace(/[\u06F0-\u06F9\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) & 0xf))
     .toLowerCase();
 }

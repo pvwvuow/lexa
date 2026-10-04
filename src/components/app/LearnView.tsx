@@ -96,39 +96,21 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
  * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
 const TOOLBAR_GAP = 36;
 
-/** انتخاب بومیِ همهٔ قطعه‌های یک نشان — برای بازکردن نوار ویرایش و بازسازی
- * انتخابی که وب‌ویو اندروید بلافاصله بعد از تپ می‌کُشد (باگ «پاپ‌آپ می‌آمد و
- * درجا غیب می‌شد»). نشانِ جمله‌ای معمولاً چند قطعهٔ <mark> با یک id دارد؛
- * بازه از اولین قطعه تا آخرین قطعه کشیده می‌شود. */
-function selectMarkSegments(rootEl: Element | null, markId: string): boolean {
-  const segs = Array.from(rootEl?.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(markId)}"]`) ?? []);
-  if (!segs.length) return false;
-  const first = segs[0].firstChild;
-  const last = segs[segs.length - 1].lastChild;
-  if (!first || !last) return false;
-  try {
-    const range = document.createRange();
-    range.setStart(first, 0);
-    range.setEnd(last, last.nodeValue?.length ?? 0);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.8):
+ * انتخابِ برنامه‌ای (addRange از کد) روی وب‌ویو اندروید هرگز «دستگیرهٔ» بومی
+ * نمی‌سازد — دستگیره‌ها فقط با لمسِ خود کاربر (لمس طولانی/کشیدن) ظاهر می‌شوند.
+ * پس لمسِ سادهٔ نشان فقط نوار ویرایش را باز می‌کند و دست به انتخاب نمی‌زند؛
+ * برای تغییر بازه، کاربر مثل هر متن دیگری لمسِ طولانی می‌کند — دستگیره‌های
+ * پیش‌فرض موبایل سر و ته جمله می‌نشینند و با کشیدن همان‌ها بازه عوض می‌شود. */
 
 /** وضعیت نوار نشان — «نشان جدید» یا «ویرایش نشان موجود» */
 type MarkBar =
   | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
   | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string };
 
-/** سقفِ بازسازی انتخاب — وب‌ویوهای بدرفتار ممکن است چند بار بکُشند؛
- * بعد از سقف، نوار با متن ذخیره‌شدهٔ نشان باز می‌ماند و رنگ‌زدن همان بازهٔ قبلی را ذخیره می‌کند */
-const REASSERT_LIMIT = 6;
-
-/** نوار ابزار شناور نشان‌گذاری — کپی + پنج رنگ + حذف؛ تنظیم بازه با دستگیره‌های بومی انتخاب */
+/** نوار ابزار شناور نشان‌گذاری — فقط آیکن: پنج رنگ + کپی + حذف.
+ * بدون هیچ متن توضیحی — رنگ‌ها خودشان گویا هستند و تنظیم بازه با دستگیره‌های
+ * بومی موبایل انجام می‌شود (لمس طولانی روی متن). */
 function MarkToolbar({
   mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, getLive, onDone,
 }: {
@@ -198,8 +180,6 @@ function MarkToolbar({
       role="toolbar"
       aria-label="نشان‌گذاری و کپی متن"
     >
-      {mode === "new" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">نشان کن:</span>}
-      {mode === "edit" && <span className="ms-1 text-[11px] font-bold text-muted-foreground">بازه را با دستگیره بکش، بعد رنگ بزن:</span>}
       {Object.entries(MARK_COLORS).map(([key, c]) => (
         <button
           key={key}
@@ -255,6 +235,7 @@ export function LearnView({ id }: { id: string }) {
   const marksForLesson = marksAll[id] ?? EMPTY_MARKS;
   const applyMark = useApp((s) => s.applyMark);
   const articleRef = React.useRef<HTMLElement | null>(null);
+  // ── نوار نشان‌گذاری متن ──
   const [markBar, setMarkBar] = React.useState<MarkBar | null>(null);
   // آینهٔ نوار برای هندلرهای رویدادی (selectionchange/scroll) — همیشه همگام با state
   const markBarRef = React.useRef<MarkBar | null>(null);
@@ -263,11 +244,6 @@ export function LearnView({ id }: { id: string }) {
     markBarRef.current = next;
     setMarkBar(next);
   }, []);
-  // آیا کاربر بعد از باز شدن نوار، خودش جای دیگری از صفحه را لمس/کلیک کرده؟
-  // (تنها دلیل مشروع برای مرگ انتخاب — در غیر این صورت وب‌ویو انتخاب را می‌کُشد و باید بازسازی شود)
-  const tapSinceBarRef = React.useRef(false);
-  // شمارندهٔ بازسازی انتخاب در یک دورهٔ باز بودن نوار
-  const reassertRef = React.useRef(0);
   const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
     const host = el?.closest("[data-sec-id]") ?? null;
     return { secEl: host, secId: host?.getAttribute("data-sec-id") ?? null };
@@ -350,9 +326,10 @@ export function LearnView({ id }: { id: string }) {
   }); // بدون آرگومان — اما با گارد امضا؛ اعمال فقط وقتی لازم است
 
   // ── تشخیص انتخاب متن → نوار ابزار نشان‌گذاری ──
-  // انتخابِ روی یک نشان موجود → همان نشان «ویرایش» می‌شود (تغییر بازه با دستگیره‌های
-  // بومی موبایل)؛ انتخاب روی متن ساده → «نشان جدید». این همان جایگزین دکمه‌های
-  // ابتدا/انتهاست: کاربر مثل انتخاب معمولی، سر و ته بازه را می‌کشد.
+  // انتخابِ روی یک نشان موجود → همان نشان «ویرایش» می‌شود؛ انتخاب روی متن ساده →
+  // «نشان جدید». انتخاب همیشه از خود کاربر می‌آید (لمس طولانی/کشیدن) تا
+  // دستگیره‌های بومی موبایل ظاهر بمانند — هیچ انتخابِ برنامه‌ای انجام نمی‌شود؛
+  // بنابراین باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد» اساساً ممکن نیست رخ بدهد.
   React.useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     function check() {
@@ -370,8 +347,7 @@ export function LearnView({ id }: { id: string }) {
       const r = range.getBoundingClientRect();
       if (!r || (!r.width && !r.height)) return;
       const rect = { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 };
-      // نشانِ جمله‌ای چند قطعهٔ <mark> با یک id دارد — با «id» یکتا شمارش می‌شود،
-      // نه تعداد المان‌ها (باگ: نوار ویرایش ۲۶۰ms بعد به «نشان کن» فلیپ می‌کرد)
+      // نشانِ جمله‌ای چند قطعهٔ <mark> با یک id دارد — با «id» یکتا شمارش می‌شود
       const hitIds = new Set(
         Array.from(secEl.querySelectorAll("mark[data-lexa-mark]"))
           .filter((mk) => range.intersectsNode(mk))
@@ -392,13 +368,16 @@ export function LearnView({ id }: { id: string }) {
       timer = null;
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-        // انتخاب مُرد. اگر کاربر خودش جای دیگری زده باشد طبیعی است — نوار بسته شود.
-        // وگرنه وب‌ویو (مخصوصاً اندروید بعد از تپ) انتخابِ برنامه‌ای ما را کشته —
-        // باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد»: بازسازی می‌کنیم و نوار باز می‌ماند.
+        // انتخاب جمع شده. اما اگر caret روی خودِ نشانِ نوارِ باز است، یعنی همین
+        // تپِ روی نشان، نوار را باز کرده (کلیک روی متن caret را جابه‌جا می‌کند و
+        // selectionchange می‌فرستد) — نوار باید باز بماند؛ بستنش یعنی بازگشتِ
+        // باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد».
         const cur = markBarRef.current;
-        if (cur && cur.mode === "edit" && !tapSinceBarRef.current && reassertRef.current < REASSERT_LIMIT) {
-          reassertRef.current += 1;
-          if (selectMarkSegments(articleRef.current, cur.markId)) return;
+        if (cur && cur.mode === "edit" && sel && sel.rangeCount > 0) {
+          const node = sel.anchorNode;
+          const el = node ? (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element)) : null;
+          const mid = el?.closest?.("mark[data-lexa-mark]")?.getAttribute("data-mid");
+          if (mid && mid === cur.markId) return;
         }
         setBar(null);
         return;
@@ -412,7 +391,6 @@ export function LearnView({ id }: { id: string }) {
     function onPointerDown(e: Event) {
       const t = e.target as Element | null;
       if (t?.closest?.("[data-mark-toolbar]")) return;
-      tapSinceBarRef.current = true;
       setBar(null);
     }
     function onScroll() {
@@ -428,7 +406,7 @@ export function LearnView({ id }: { id: string }) {
           }
           return cur;
         }
-        return null;
+        return cur; // حالت ویرایش بدون انتخاب (لمس سادهٔ نشان) — نوار باز می‌ماند
       });
     }
     document.addEventListener("selectionchange", onChange);
@@ -456,7 +434,11 @@ export function LearnView({ id }: { id: string }) {
     return located ? { ...located, secId } : null;
   }, [secIdOf]);
 
-  // ── کلیک/لمس روی نشان موجود → انتخاب بومی متن نشان (دستگیره‌های موبایل) + نوار ویرایش ──
+  // ── لمس/کلیک روی نشان موجود → نوار ویرایش (بدون دست‌زدن به انتخاب) ──
+  // انتخابِ برنامه‌ای هرگز ساخته نمی‌شود: (۱) روی وب‌ویو اندروید بلافاصله کشته
+  // می‌شد (باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد»)، (۲) دستگیرهٔ بومی نمی‌سازد.
+  // کاربر برای تنظیم بازه، مثل هر متن دیگری لمس طولانی می‌کند و با دستگیره‌های
+  // پیش‌فرض موبایل بازه را می‌کشد؛ لمس ساده فقط نوار (رنگ/کپی/حذف) را می‌دهد.
   function handleArticleClick(e: React.MouseEvent) {
     const target = e.target as Element;
     const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
@@ -467,13 +449,8 @@ export function LearnView({ id }: { id: string }) {
     if (!mid) return;
     const mark = marksForLesson.find((m) => m.id === mid);
     if (!mark) return;
-    // انتخاب بومی متن نشان — دو دستگیرهٔ پیش‌فرض موبایل سر و ته انتخاب می‌نشینند و
-    // کاربر با کشیدن همان‌ها بازه را گسترش/کوچک می‌کند (جایگزین ۴ دکمهٔ ابتدا/انتها)
-    // نشانِ جمله‌ای چند قطعه دارد — بازه از اولین تا آخرین قطعه کشیده می‌شود
-    if (!selectMarkSegments(articleRef.current, mid)) return;
-    tapSinceBarRef.current = false; // همین تپ نوار را باز کرده — مرگِ بعدیِ انتخاب = تقصیر وب‌ویو
-    reassertRef.current = 0;
-    const r = sel && sel.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : mk.getBoundingClientRect();
+    const r = mk.getBoundingClientRect();
+    if (!r || (!r.width && !r.height)) return;
     setBar({
       mode: "edit",
       markId: mid,
