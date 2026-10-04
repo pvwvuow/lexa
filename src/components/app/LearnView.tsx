@@ -21,6 +21,7 @@ import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
+import { MarkHandles, type MarkHandlesCommit } from "./MarkHandles";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -96,21 +97,42 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
  * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
 const TOOLBAR_GAP = 36;
 
-/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.8):
- * انتخابِ برنامه‌ای (addRange از کد) روی وب‌ویو اندروید هرگز «دستگیرهٔ» بومی
- * نمی‌سازد — دستگیره‌ها فقط با لمسِ خود کاربر (لمس طولانی/کشیدن) ظاهر می‌شوند.
- * پس لمسِ سادهٔ نشان فقط نوار ویرایش را باز می‌کند و دست به انتخاب نمی‌زند؛
- * برای تغییر بازه، کاربر مثل هر متن دیگری لمسِ طولانی می‌کند — دستگیره‌های
- * پیش‌فرض موبایل سر و ته جمله می‌نشینند و با کشیدن همان‌ها بازه عوض می‌شود. */
+/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.9):
+ * انتخابِ برنامه‌ای روی وب‌ویو اندروید دستگیرهٔ بومی نمی‌سازد و لمس طولانی فقط یک
+ * کلمه را انتخاب می‌کند. پس لمس سادهٔ نشان: نوار (رنگ/کپی/حذف) + دو دستگیرهٔ
+ * اختصاصی اپ دقیقاً روی سر و ته نشان (MarkHandles) — با کشیدن آن‌ها بازه عوض می‌شود.
+ * نواری که با لمس باز شده (via: "tap") با جمع‌شدن/پاک‌شدن انتخاب بومی بسته نمی‌شود
+ * (ریشهٔ باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد»)؛ فقط لمس بیرون از نوار آن را می‌بندد. */
 
 /** وضعیت نوار نشان — «نشان جدید» یا «ویرایش نشان موجود» */
 type MarkBar =
   | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
-  | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string };
+  | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string; via?: "tap" };
+
+/** مستطیل کل قطعه‌های یک نشان (نشان جمله‌ای چند <mark> با یک id دارد) */
+function markRectOf(root: Element | null, mid: string): { top: number; bottom: number; centerX: number } | null {
+  if (!root) return null;
+  const els = root.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(mid)}"]`);
+  if (!els.length) return null;
+  let top = Infinity;
+  let bottom = -Infinity;
+  let left = Infinity;
+  let right = -Infinity;
+  els.forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return;
+    top = Math.min(top, r.top);
+    bottom = Math.max(bottom, r.bottom);
+    left = Math.min(left, r.left);
+    right = Math.max(right, r.right);
+  });
+  if (!Number.isFinite(top)) return null;
+  return { top, bottom, centerX: (left + right) / 2 };
+}
 
 /** نوار ابزار شناور نشان‌گذاری — فقط آیکن: پنج رنگ + کپی + حذف.
  * بدون هیچ متن توضیحی — رنگ‌ها خودشان گویا هستند و تنظیم بازه با دستگیره‌های
- * بومی موبایل انجام می‌شود (لمس طولانی روی متن). */
+ * سر و ته نشان انجام می‌شود. */
 function MarkToolbar({
   mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, getLive, onDone,
 }: {
@@ -244,6 +266,18 @@ export function LearnView({ id }: { id: string }) {
     markBarRef.current = next;
     setMarkBar(next);
   }, []);
+  // حین کشیدن دستگیره‌های نشان، نوار رنگ‌ها پنهان می‌شود تا متن زیرش دیده شود
+  const [markDragging, setMarkDragging] = React.useState(false);
+  React.useEffect(() => {
+    if (!markBar) setMarkDragging(false);
+  }, [markBar]);
+  const onHandlesCommit = React.useCallback((c: MarkHandlesCommit) => {
+    setBar((cur) =>
+      cur && cur.mode === "edit" && cur.markId === c.markId
+        ? { ...cur, secId: c.secId, text: c.text, occ: c.occ, pfx: c.pfx, sfx: c.sfx, rect: c.rect ?? cur.rect }
+        : cur,
+    );
+  }, [setBar]);
   const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
     const host = el?.closest("[data-sec-id]") ?? null;
     return { secEl: host, secId: host?.getAttribute("data-sec-id") ?? null };
@@ -327,9 +361,7 @@ export function LearnView({ id }: { id: string }) {
 
   // ── تشخیص انتخاب متن → نوار ابزار نشان‌گذاری ──
   // انتخابِ روی یک نشان موجود → همان نشان «ویرایش» می‌شود؛ انتخاب روی متن ساده →
-  // «نشان جدید». انتخاب همیشه از خود کاربر می‌آید (لمس طولانی/کشیدن) تا
-  // دستگیره‌های بومی موبایل ظاهر بمانند — هیچ انتخابِ برنامه‌ای انجام نمی‌شود؛
-  // بنابراین باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد» اساساً ممکن نیست رخ بدهد.
+  // «نشان جدید». انتخاب همیشه از خود کاربر می‌آید (لمس طولانی/کشیدن).
   React.useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     function check() {
@@ -368,11 +400,11 @@ export function LearnView({ id }: { id: string }) {
       timer = null;
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-        // انتخاب جمع شده. اما اگر caret روی خودِ نشانِ نوارِ باز است، یعنی همین
-        // تپِ روی نشان، نوار را باز کرده (کلیک روی متن caret را جابه‌جا می‌کند و
-        // selectionchange می‌فرستد) — نوار باید باز بماند؛ بستنش یعنی بازگشتِ
-        // باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد».
         const cur = markBarRef.current;
+        // نوارِ بازشده با لمسِ نشان هیچ ربطی به انتخاب بومی ندارد: وب‌ویو اندروید
+        // بعد از تپ، انتخاب را جمع/پاک می‌کند (گاهی بدون هیچ range) و همین
+        // selectionchange قبلاً نوار را درجا می‌بست. بستن فقط با لمس بیرون از نوار.
+        if (cur && cur.mode === "edit" && cur.via === "tap") return;
         if (cur && cur.mode === "edit" && sel && sel.rangeCount > 0) {
           const node = sel.anchorNode;
           const el = node ? (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element)) : null;
@@ -397,7 +429,13 @@ export function LearnView({ id }: { id: string }) {
       setBar((cur) => {
         if (!cur) return cur;
         if (cur.mode === "new") return null;
-        // ویرایش: کشیدن دستگیره می‌تواند صفحه را اسکرول کند — نوار با انتخاب زنده جابه‌جا می‌شود
+        if (cur.via === "tap") {
+          // نوار همراه خود نشان جابه‌جا می‌شود
+          const nr = markRectOf(articleRef.current, cur.markId);
+          if (nr && Math.abs(nr.top - cur.rect.top) > 4) return { ...cur, rect: nr };
+          return cur;
+        }
+        // ویرایش با انتخاب بومی: نوار با انتخاب زنده جابه‌جا می‌شود
         const sel = window.getSelection();
         if (sel && sel.rangeCount && !sel.isCollapsed) {
           const r = sel.getRangeAt(0).getBoundingClientRect();
@@ -406,13 +444,14 @@ export function LearnView({ id }: { id: string }) {
           }
           return cur;
         }
-        return cur; // حالت ویرایش بدون انتخاب (لمس سادهٔ نشان) — نوار باز می‌ماند
+        return cur;
       });
     }
     document.addEventListener("selectionchange", onChange);
     document.addEventListener("pointerdown", onPointerDown, true);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      if (timer) clearTimeout(timer);
       document.removeEventListener("selectionchange", onChange);
       document.removeEventListener("pointerdown", onPointerDown, true);
       window.removeEventListener("scroll", onScroll);
@@ -434,11 +473,9 @@ export function LearnView({ id }: { id: string }) {
     return located ? { ...located, secId } : null;
   }, [secIdOf]);
 
-  // ── لمس/کلیک روی نشان موجود → نوار ویرایش (بدون دست‌زدن به انتخاب) ──
-  // انتخابِ برنامه‌ای هرگز ساخته نمی‌شود: (۱) روی وب‌ویو اندروید بلافاصله کشته
-  // می‌شد (باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد»)، (۲) دستگیرهٔ بومی نمی‌سازد.
-  // کاربر برای تنظیم بازه، مثل هر متن دیگری لمس طولانی می‌کند و با دستگیره‌های
-  // پیش‌فرض موبایل بازه را می‌کشد؛ لمس ساده فقط نوار (رنگ/کپی/حذف) را می‌دهد.
+  // ── لمس/کلیک روی نشان موجود → نوار ویرایش + دستگیره‌های سر و ته نشان ──
+  // انتخابِ برنامه‌ای هرگز ساخته نمی‌شود؛ نوار با via: "tap" از selectionchange
+  // مستقل است و فقط با لمس بیرون از نوار/دستگیره بسته می‌شود.
   function handleArticleClick(e: React.MouseEvent) {
     const target = e.target as Element;
     const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
@@ -449,17 +486,18 @@ export function LearnView({ id }: { id: string }) {
     if (!mid) return;
     const mark = marksForLesson.find((m) => m.id === mid);
     if (!mark) return;
-    const r = mk.getBoundingClientRect();
-    if (!r || (!r.width && !r.height)) return;
+    const rect = markRectOf(articleRef.current, mid);
+    if (!rect) return;
     setBar({
       mode: "edit",
+      via: "tap",
       markId: mid,
       secId: mark.secId,
       text: mark.text,
       occ: mark.occ,
       pfx: mark.pfx,
       sfx: mark.sfx,
-      rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 },
+      rect,
     });
   }
 
@@ -713,6 +751,11 @@ export function LearnView({ id }: { id: string }) {
       <LawBox laws={laws} />
     ) : null;
 
+  const editMarkColor =
+    markBar && markBar.mode === "edit"
+      ? marksForLesson.find((m) => m.id === markBar.markId)?.color ?? "yellow"
+      : "yellow";
+
   return (
     <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-6 px-4 pt-6 pb-[124px] sm:px-6 lg:grid-cols-[1fr_320px] lg:pb-12">
       {/* ستون اصلی */}
@@ -955,7 +998,7 @@ export function LearnView({ id }: { id: string }) {
           onDone={() => setBar(null)}
         />
       )}
-      {markBar && markBar.mode === "edit" && (
+      {markBar && markBar.mode === "edit" && !markDragging && (
         <MarkToolbar
           mode="edit"
           rect={markBar.rect}
@@ -968,6 +1011,19 @@ export function LearnView({ id }: { id: string }) {
           sfx={markBar.sfx}
           getLive={getLiveSelection}
           onDone={() => setBar(null)}
+        />
+      )}
+      {/* دستگیره‌های سر و ته نشان — فقط وقتی نوار با لمس نشان باز شده (نه همزمان با دستگیرهٔ بومی) */}
+      {markBar && markBar.mode === "edit" && markBar.via === "tap" && tab === "teach" && (
+        <MarkHandles
+          key={markBar.markId}
+          rootRef={articleRef}
+          lessonId={id}
+          markId={markBar.markId}
+          color={editMarkColor}
+          version={marksForLesson}
+          onDragChange={setMarkDragging}
+          onCommit={onHandlesCommit}
         />
       )}
 
