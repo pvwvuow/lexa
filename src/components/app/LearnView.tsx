@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import {
@@ -21,6 +22,7 @@ import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
+import { toBarRect } from "@/lib/mark-geom";
 import { MarkHandles, type MarkHandlesCommit } from "./MarkHandles";
 
 interface AiNote { sectionId: string; text: string }
@@ -97,20 +99,20 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
  * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
 const TOOLBAR_GAP = 36;
 
-/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.9):
- * انتخابِ برنامه‌ای روی وب‌ویو اندروید دستگیرهٔ بومی نمی‌سازد و لمس طولانی فقط یک
- * کلمه را انتخاب می‌کند. پس لمس سادهٔ نشان: نوار (رنگ/کپی/حذف) + دو دستگیرهٔ
- * اختصاصی اپ دقیقاً روی سر و ته نشان (MarkHandles) — با کشیدن آن‌ها بازه عوض می‌شود.
- * نواری که با لمس باز شده (via: "tap") با جمع‌شدن/پاک‌شدن انتخاب بومی بسته نمی‌شود
- * (ریشهٔ باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد»)؛ فقط لمس بیرون از نوار آن را می‌بندد. */
+/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.10):
+ * لمس سادهٔ نشان: نوار (رنگ/کپی/حذف) + دو دستگیرهٔ اختصاصی دقیقاً روی اولین و
+ * آخرین حرف نشان (MarkHandles). نوار و دستگیره‌ها به body پورتال می‌شوند و مختصاتشان
+ * کالیبره است (mark-geom) تا transform والدها یا زوم متن جایشان را بهم نزند.
+ * نواری که با لمس باز شده (via: "tap") با جمع‌شدن انتخاب بومی بسته نمی‌شود؛
+ * فقط لمس بیرون از نوار/دستگیره آن را می‌بندد. */
 
 /** وضعیت نوار نشان — «نشان جدید» یا «ویرایش نشان موجود» */
 type MarkBar =
   | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
   | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string; via?: "tap" };
 
-/** مستطیل کل قطعه‌های یک نشان (نشان جمله‌ای چند <mark> با یک id دارد) */
-function markRectOf(root: Element | null, mid: string): { top: number; bottom: number; centerX: number } | null {
+/** مستطیل کل قطعه‌های یک نشان در فضای نوار شناور (نشان جمله‌ای چند <mark> با یک id دارد) */
+function markRectOf(root: Element | null, mid: string, zoom: number): { top: number; bottom: number; centerX: number } | null {
   if (!root) return null;
   const els = root.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(mid)}"]`);
   if (!els.length) return null;
@@ -119,20 +121,20 @@ function markRectOf(root: Element | null, mid: string): { top: number; bottom: n
   let left = Infinity;
   let right = -Infinity;
   els.forEach((el) => {
-    const r = el.getBoundingClientRect();
-    if (!r.width && !r.height) return;
-    top = Math.min(top, r.top);
-    bottom = Math.max(bottom, r.bottom);
-    left = Math.min(left, r.left);
-    right = Math.max(right, r.right);
+    for (const r of Array.from(el.getClientRects())) {
+      if (!r.width && !r.height) continue;
+      top = Math.min(top, r.top);
+      bottom = Math.max(bottom, r.bottom);
+      left = Math.min(left, r.left);
+      right = Math.max(right, r.right);
+    }
   });
   if (!Number.isFinite(top)) return null;
-  return { top, bottom, centerX: (left + right) / 2 };
+  return toBarRect({ left, top, right, bottom }, root, zoom);
 }
 
 /** نوار ابزار شناور نشان‌گذاری — فقط آیکن: پنج رنگ + کپی + حذف.
- * بدون هیچ متن توضیحی — رنگ‌ها خودشان گویا هستند و تنظیم بازه با دستگیره‌های
- * سر و ته نشان انجام می‌شود. */
+ * به body پورتال می‌شود تا هیچ والد transform‌داری جایش را جابه‌جا نکند. */
 function MarkToolbar({
   mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, getLive, onDone,
 }: {
@@ -192,7 +194,7 @@ function MarkToolbar({
     }
   }
 
-  return (
+  return createPortal(
     <div
       ref={boxRef}
       className="fixed z-[90] flex max-w-[min(96vw,42rem)] flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-card"
@@ -235,7 +237,8 @@ function MarkToolbar({
           </button>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -315,6 +318,11 @@ export function LearnView({ id }: { id: string }) {
 
   // ── زوم متن درس — بزرگ/کوچک کردن اندازهٔ متون با مرز منطقی و ماندگاری ──
   const [zoom, setZoomState] = React.useState(1);
+  // آینهٔ زوم برای هندلرهای رویدادی — کالیبراسیون مختصات نوار نشان
+  const zoomRef = React.useRef(1);
+  React.useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
   React.useEffect(() => {
     try {
       const v = Number(localStorage.getItem(ZOOM_KEY) || "1");
@@ -378,7 +386,7 @@ export function LearnView({ id }: { id: string }) {
       if (!located) return;
       const r = range.getBoundingClientRect();
       if (!r || (!r.width && !r.height)) return;
-      const rect = { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 };
+      const rect = toBarRect(r, root, zoomRef.current);
       // نشانِ جمله‌ای چند قطعهٔ <mark> با یک id دارد — با «id» یکتا شمارش می‌شود
       const hitIds = new Set(
         Array.from(secEl.querySelectorAll("mark[data-lexa-mark]"))
@@ -431,7 +439,7 @@ export function LearnView({ id }: { id: string }) {
         if (cur.mode === "new") return null;
         if (cur.via === "tap") {
           // نوار همراه خود نشان جابه‌جا می‌شود
-          const nr = markRectOf(articleRef.current, cur.markId);
+          const nr = markRectOf(articleRef.current, cur.markId, zoomRef.current);
           if (nr && Math.abs(nr.top - cur.rect.top) > 4) return { ...cur, rect: nr };
           return cur;
         }
@@ -439,8 +447,9 @@ export function LearnView({ id }: { id: string }) {
         const sel = window.getSelection();
         if (sel && sel.rangeCount && !sel.isCollapsed) {
           const r = sel.getRangeAt(0).getBoundingClientRect();
-          if (r && (r.width || r.height) && Math.abs(r.top - cur.rect.top) > 8) {
-            return { ...cur, rect: { top: r.top, bottom: r.bottom, centerX: r.left + r.width / 2 } };
+          if (r && (r.width || r.height)) {
+            const nb = toBarRect(r, articleRef.current, zoomRef.current);
+            if (Math.abs(nb.top - cur.rect.top) > 8) return { ...cur, rect: nb };
           }
           return cur;
         }
@@ -486,7 +495,7 @@ export function LearnView({ id }: { id: string }) {
     if (!mid) return;
     const mark = marksForLesson.find((m) => m.id === mid);
     if (!mark) return;
-    const rect = markRectOf(articleRef.current, mid);
+    const rect = markRectOf(articleRef.current, mid, zoom);
     if (!rect) return;
     setBar({
       mode: "edit",
@@ -824,7 +833,7 @@ export function LearnView({ id }: { id: string }) {
           key={id}
           ref={articleRef}
           className="space-y-6"
-          style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none", zoom } as React.CSSProperties}
+          style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none", zoom, position: "relative" } as React.CSSProperties}
           onClick={handleArticleClick}
           // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا فقط
           // نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید
@@ -1021,6 +1030,7 @@ export function LearnView({ id }: { id: string }) {
           lessonId={id}
           markId={markBar.markId}
           color={editMarkColor}
+          zoom={zoom}
           version={marksForLesson}
           onDragChange={setMarkDragging}
           onCommit={onHandlesCommit}
