@@ -15,7 +15,7 @@ export async function askAi<T = { text: string }>(body: Record<string, unknown>)
     const { runAiTask, PERSIAN_FAIL, AiTaskError } = await import("@/lib/ai/tasks");
     if (!ai.apiKey || ai.provider === "builtin") {
       throw new Error(
-        "در نسخهٔ اندروید، استاد هوشمند با کلید API شخصی شما کار می‌کند — از تنظیمات، یکی از پروایدرهای Gemini یا سازگار با OpenAI و کلیدش را ثبت کن."
+        "برای استفاده از استاد هوشمند در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن."
       );
     }
     try {
@@ -23,7 +23,7 @@ export async function askAi<T = { text: string }>(body: Record<string, unknown>)
       return result as T;
     } catch (e) {
       if (e instanceof AiTaskError) throw e;
-      throw new Error(`${PERSIAN_FAIL}\n(${e instanceof Error ? e.message : String(e)})`);
+      throw new Error(PERSIAN_FAIL);
     }
   }
 

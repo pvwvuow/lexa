@@ -1,33 +1,21 @@
 "use client";
 
-/* ─── حساب ابری Lexa — ثبت‌نام/ورود و سینک کامل داده‌ها روی Supabase ──────────
- * هر کاربر یک ردیف در lexa_state دارد (RLS: فقط مالک). سینک شامل کل فروشگاه
- * برنامه (پیشرفت، کتابخانهٔ شخصی، درس‌های وارداتی، تنظیمات) + مباحث ضعیف و
- * نشانک‌های قانون است. آفلاین کامل کار می‌کند؛ سینک دستی + خودکار پس از ورود.
+/* ─── حساب ابری Lexa — همه‌چیز خودکار ────────────────────────────────────────
+ * سینک کاملاً خودکار است (useCloudAutoSync): هر تغییر با چند ثانیه تأخیر بی‌صدا
+ * روی ابر ذخیره می‌شود و با ورود در هر دستگاهی خودش برمی‌گردد. کاربر هیچ دکمهٔ
+ * «همگام‌سازی/بازیابی» دستی لازم ندارد — این کارت فقط وضعیت را نشان می‌دهد و
+ * ورود/خروج + یک بازیابی اضطراری کوچک دارد.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 import * as React from "react";
-import { CloudUpload, CloudDownload, Loader2, LogIn, LogOut, UserPlus, CheckCircle2, CloudCog, TriangleAlert } from "lucide-react";
-import { sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState, onAuthChange, type SbUser } from "@/lib/supabase";
-import { wipeLocalUserData } from "@/lib/cloud-sync";
+import { Loader2, LogIn, LogOut, UserPlus, CheckCircle2, CloudCog, TriangleAlert, CloudCheck } from "lucide-react";
+import { sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState, collectLocal, applyLocal, onAuthChange, type SbUser } from "@/lib/supabase";
+import { wipeLocalUserData, cloudLastPushAt } from "@/lib/cloud-sync";
+import { fa as faNum } from "@/lib/fa";
 
-const STORE_KEY = "lexa-store-v1";
-const WEAK_KEY = "hoh_weak_topics";
-const MARKS_KEY = "lexa-law-marks";
-
-function collectLocal(): Record<string, unknown> {
-  const read = (k: string) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
-  return { store: read(STORE_KEY), weakTopics: read(WEAK_KEY), lawMarks: read(MARKS_KEY), savedAt: Date.now() };
-}
-
-function applyLocal(data: Record<string, unknown>): string[] {
-  const done: string[] = [];
-  const put = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); done.push(k); } catch { /* ignore */ } };
-  const d = data as { store?: unknown; weakTopics?: unknown; lawMarks?: unknown };
-  if (d.store) put(STORE_KEY, d.store);
-  if (d.weakTopics) put(WEAK_KEY, d.weakTopics);
-  if (d.lawMarks) put(MARKS_KEY, d.lawMarks);
-  return done;
+/** پیام خطای دوستانه — جزئیات فنی هرگز به کاربر نشان داده نمی‌شود */
+function friendlyCloudError(): string {
+  return "اتصال به حساب ابری برقرار نشد — اینترنت را بررسی کن و دوباره تلاش کن؛ داده‌هایت روی همین دستگاه امن‌اند.";
 }
 
 export function CloudSyncCard() {
@@ -35,11 +23,18 @@ export function CloudSyncCard() {
   const [mode, setMode] = React.useState<"in" | "up">("in");
   const [email, setEmail] = React.useState("");
   const [pw, setPw] = React.useState("");
-  const [busy, setBusy] = React.useState<"" | "auth" | "push" | "pull">("");
+  const [busy, setBusy] = React.useState<"" | "auth" | "restore" | "out">("");
   const [msg, setMsg] = React.useState("");
   const [err, setErr] = React.useState("");
+  const [lastPush, setLastPush] = React.useState<number>(() => cloudLastPushAt());
 
-  React.useEffect(() => onAuthChange(() => setUser(sbUser())), []);
+  React.useEffect(() => onAuthChange(() => { setUser(sbUser()); setLastPush(cloudLastPushAt()); }), []);
+
+  // زمان «آخرین ذخیره» هر از گاهی تازه شود (سینک خودکار در پس‌زمینه در جریان است)
+  React.useEffect(() => {
+    const iv = setInterval(() => setLastPush(cloudLastPushAt()), 30_000);
+    return () => clearInterval(iv);
+  }, []);
 
   const valid = /.+@.+\..+/.test(email) && pw.length >= 6;
 
@@ -47,52 +42,74 @@ export function CloudSyncCard() {
     setBusy("auth"); setMsg(""); setErr("");
     const e = mode === "in" ? await sbSignIn(email.trim(), pw) : await sbSignUp(email.trim(), pw);
     setBusy("");
-    if (e) setErr(e); else { setMsg(mode === "in" ? "خوش آمدی! حالا می‌توانی سینک کنی." : "ثبت‌نام انجام شد."); setPw(""); }
+    if (e) { setErr(friendlyCloudError()); return; }
+    setUser(sbUser());
+    setMsg(mode === "in" ? "خوش آمدی! از این پس همه‌چیز خودکار همگام می‌شود." : "حسابت ساخته شد؛ از این پس همه‌چیز خودکار همگام می‌شود.");
+    setPw("");
   }
 
-  async function doPush() {
-    setBusy("push"); setMsg(""); setErr("");
-    const e = await sbPushState(collectLocal());
-    setBusy("");
-    if (e) setErr("ارسال به ابر ناموفق بود (" + e + ")");
-    else setMsg("همهٔ داده‌هایت روی ابر ذخیره شد ✅");
-  }
-
-  async function doPull() {
-    if (!window.confirm("داده‌های این دستگاه با نسخهٔ ابر جایگزین می‌شود و صفحه تازه‌سازی می‌گردد. ادامه می‌دهی؟")) return;
-    setBusy("pull"); setMsg(""); setErr("");
+  /** بازیابی اضطراری — فقط برای مواقعی که کاربر فکر می‌کند چیزی گم شده؛ در حالت عادی هرگز لازم نیست */
+  async function doRestore() {
+    if (!window.confirm("همهٔ داده‌های همین دستگاه با نسخهٔ ذخیره‌شدهٔ ابر جایگزین می‌شود و صفحه تازه‌سازی می‌گردد. ادامه می‌دهی؟")) return;
+    setBusy("restore"); setMsg(""); setErr("");
     const { err: e, data } = await sbPullState();
     setBusy("");
-    if (e) { setErr("دریافت از ابر ناموفق بود (" + e + ")"); return; }
-    if (!data) { setMsg("روی ابر هنوز داده‌ای نداری — اول «همگام‌سازی روی ابر» را بزن."); return; }
+    if (e) { setErr(friendlyCloudError()); return; }
+    if (!data) { setMsg("روی ابر هنوز داده‌ای ثبت نشده است."); return; }
     const done = applyLocal(data as Record<string, unknown>);
-    setMsg(done.length ? "بازیابی شد؛ صفحه تازه‌سازی می‌شود…" : "دادهٔ ابر خالی بود.");
+    setMsg(done.length ? "بازیابی شد؛ صفحه تازه‌سازی می‌شود…" : "داده‌ای برای بازیابی نبود.");
     if (done.length) setTimeout(() => window.location.reload(), 900);
   }
+
+  async function doLogout() {
+    setBusy("out"); setMsg(""); setErr("");
+    try { await sbPushState(collectLocal()); } catch { /* بی‌اثر — سینک خودکار قبلاً ذخیره کرده است */ }
+    await sbSignOut();
+    wipeLocalUserData();
+    setUser(null);
+    setBusy("");
+    setMsg("از حساب خارج شدی؛ داده‌هایت روی ابر محفوظ است و با ورود دوباره برمی‌گردد.");
+  }
+
+  const savedTime = lastPush
+    ? new Date(lastPush).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
       <h2 className="mb-1 flex items-center gap-2 font-bold">
-        <CloudCog className="h-5 w-5 text-bronze" /> حساب ابری و سینک
+        <CloudCog className="h-5 w-5 text-bronze" /> حساب ابری
       </h2>
       <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-        با حساب ابری، پیشرفت درس‌ها، کتابخانهٔ شخصی، تلاش‌های آزمون و تنظیماتت روی سرور امن ذخیره می‌شود و روی هر دستگاهی با ورود بازیابی می‌شود.
+        با حساب ابری، پیشرفت درس‌ها، کتابخانهٔ شخصی، تلاش‌های آزمون و تنظیماتت به‌صورت خودکار روی سرور امن
+        ذخیره می‌شود و روی هر دستگاهی که وارد شوی، خودش برمی‌گردد — نیازی به کاری از سمت تو نیست.
       </p>
 
       {user ? (
         <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl bg-success/10 px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm">
             <span className="flex items-center gap-2 font-bold text-success"><CheckCircle2 className="h-4 w-4" /> {user.email}</span>
-            <button onClick={async () => { await sbPushState(collectLocal()).catch(() => {}); await sbSignOut(); wipeLocalUserData(); setMsg("از حساب ابری خارج شدی؛ داده‌ات روی ابر محفوظ است."); }} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted/50">
-              <LogOut className="h-3.5 w-3.5" /> خروج
-            </button>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-success/90">
+              <CloudCheck className="h-3.5 w-3.5" />
+              همگام‌سازی خودکار فعال{savedTime ? ` · آخرین ذخیره: ${savedTime}` : ""}
+            </span>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button onClick={doPush} disabled={busy !== ""} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-45">
-              {busy === "push" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />} همگام‌سازی روی ابر
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              onClick={doLogout}
+              disabled={busy !== ""}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted/50 disabled:opacity-45"
+            >
+              {busy === "out" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />} خروج
             </button>
-            <button onClick={doPull} disabled={busy !== ""} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold hover:bg-muted/50 disabled:opacity-45">
-              {busy === "pull" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudDownload className="h-4 w-4" />} بازیابی از ابر
+            <button
+              onClick={doRestore}
+              disabled={busy !== ""}
+              title="فقط برای مواقع اضطراری — در حالت عادی همگام‌سازی خودکار همه‌چیز را انجام می‌دهد"
+              className="text-[11px] font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-45"
+            >
+              {busy === "restore" ? <Loader2 className="me-1 inline h-3 w-3 animate-spin" /> : null}
+              بازیابی نسخهٔ ابر روی این دستگاه
             </button>
           </div>
         </div>
@@ -127,3 +144,6 @@ export function CloudSyncCard() {
     </section>
   );
 }
+
+// جلوگیری از هشدار unused برای faNum در پیکربندی‌های مختلف eslint
+void faNum;

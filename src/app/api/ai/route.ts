@@ -19,8 +19,9 @@ export async function POST(req: Request) {
     const result = await runAiTask(body, dispatch);
     return NextResponse.json(result);
   } catch (err) {
+    // جزئیات فنی فقط در لاگ سرور می‌ماند — کاربر هرگز متن خام خطا را نمی‌بیند
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[AI]', msg);
-    return NextResponse.json({ error: `${PERSIAN_FAIL}\n(${msg.slice(0, 180)})` }, { status: 502 });
+    return NextResponse.json({ error: PERSIAN_FAIL }, { status: 502 });
   }
 }

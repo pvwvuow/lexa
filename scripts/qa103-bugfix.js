@@ -385,7 +385,7 @@ const menuState = await page.evaluate(() => {
 ok("با لمس اواتار، منوی حساب باز شد", menuState.open);
 ok("منو بیرون از هدر رندر می‌شود (پورتال — دیگر کلیپ نمی‌شود)", menuState.outsideHeader === true);
 ok("منو با محتوای کامل و قابل‌دیدن است", menuState.visibleHeight === true, JSON.stringify(menuState.items?.length));
-ok("اقلام منوی حساب ابری کامل است", JSON.stringify(menuState.items || []).includes("همگام‌سازی روی ابر") && JSON.stringify(menuState.items || []).includes("بازیابی از ابر") && JSON.stringify(menuState.items || []).includes("خروج"));
+ok("منوی حساب ابری ساده شد: خروج + تنظیمات، بدون دکمهٔ دستی همگام‌سازی (سینک خودکار است)", JSON.stringify(menuState.items || []).includes("خروج") && JSON.stringify(menuState.items || []).includes("تنظیمات و پروفایل") && !JSON.stringify(menuState.items || []).includes("همگام‌سازی روی ابر") && !JSON.stringify(menuState.items || []).includes("بازیابی از ابر"));
 await page.keyboard.press("Escape");
 await page.waitForTimeout(300);
 ok("بستن منو با Escape", (await page.evaluate(() => !!document.querySelector("[role='menu']"))) === false);

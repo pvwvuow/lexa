@@ -31,7 +31,7 @@ async function refresh(): Promise<boolean>{
   }catch{ return false; }
 }
 export async function sbSignUp(email: string, password: string): Promise<string|null>{
-  if(!supaConfigured()) return "ساپابیس تنظیم نشده است";
+  if(!supaConfigured()) return "اتصال به حساب ابری برقرار نشد — سرویس در دسترس نیست";
   try{
     const res = await fetch(supaUrl()+"/auth/v1/signup",{method:"POST",headers:{apikey:supaKey(),"Content-Type":"application/json"},body:JSON.stringify({email,password})});
     const j = await res.json();
@@ -42,7 +42,7 @@ export async function sbSignUp(email: string, password: string): Promise<string|
   }catch(e){ return String(e); }
 }
 export async function sbSignIn(email: string, password: string): Promise<string|null>{
-  if(!supaConfigured()) return "ساپابیس تنظیم نشده است";
+  if(!supaConfigured()) return "اتصال به حساب ابری برقرار نشد — سرویس در دسترس نیست";
   try{
     const res = await fetch(supaUrl()+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:supaKey(),"Content-Type":"application/json"},body:JSON.stringify({email,password})});
     const j = await res.json();

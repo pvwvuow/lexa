@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth-client";
 import { fa, fa as faNum } from "@/lib/fa";
 import {
   usePwaInstall, precacheDesignAssets, storageEstimate, formatBytes, faDateTime,
-  DESIGN_VERSION, getDesignMeta, saveDesignMeta, designPackOutdated,
+  getDesignMeta, saveDesignMeta, designPackOutdated,
   listOfflineMetas, removeOfflineItem, clearOfflineItems, downloadPostOffline, downloadCourseOffline,
   isServerNewer, ensureOfflineCache, purgeBrowserCache,
   type DesignMeta, type OfflineItemMeta, type OfflineCardPost, type OfflineCardCourse,
@@ -342,7 +342,7 @@ function GeneralSettings() {
   );
 }
 
-/* ═══ زبانهٔ هوش مصنوعی (همان تنظیمات قبلی) ═════════════════════════════════ */
+/* ═══ زبانهٔ هوش مصنوعی — حالت پیش‌فرض «همه‌چیز خودکار است»؛ جزئیات فنی پشت بازکننده ═══ */
 
 const PROVIDERS: { key: AiProvider; title: string; desc: string; hint: string }[] = [
   ...(!IS_APK
@@ -357,6 +357,8 @@ function AiSettings() {
   const update = useApp((s) => s.updateAi);
   const [testing, setTesting] = React.useState(false);
   const [result, setResult] = React.useState<{ ok: boolean; msg: string } | null>(null);
+  // تنظیمات پیشرفته — در اندروید کلید شخصی لازم است، پس آنجا باز؛ بقیه‌جا بسته
+  const [advanced, setAdvanced] = React.useState<boolean>(() => IS_APK || ai.provider !== "builtin");
 
   async function testConnection() {
     setTesting(true); setResult(null);
@@ -370,76 +372,112 @@ function AiSettings() {
     }
   }
 
+  const readyWithoutConfig = !IS_APK && ai.provider === "builtin";
+  const readyWithKey = IS_APK ? !!ai.apiKey && ai.provider !== "builtin" : ai.provider !== "builtin" && !!ai.apiKey;
+
   return (
-    <div className="space-y-6">
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        موتور «استاد حقوقی هوشمند» را انتخاب کن. کلید API فقط در مرورگر خودت ذخیره میشود و به هیچ سروری ارسال نمیشود جز مستقیم برای همان ارائهدهنده.
-      </p>
-
-      <section className="space-y-3">
-        {PROVIDERS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => update({ provider: p.key })}
-            aria-pressed={ai.provider === p.key}
-            className={`w-full rounded-2xl border p-4 text-start transition-all duration-200 ${ai.provider === p.key ? "border-bronze bg-gradient-to-l from-bronze/[0.09] to-transparent shadow-card ring-1 ring-inset ring-bronze/30" : "border-border bg-card hover:-translate-y-px hover:border-muted-foreground/40 hover:shadow-card"}`}
-          >
-            <div className="flex items-center gap-3">
-              {p.key === "builtin" ? <Bot className="h-5 w-5 text-primary" /> : p.key === "gemini" ? <Wand2 className="h-5 w-5 text-primary" /> : <KeyRound className="h-5 w-5 text-primary" />}
-              <div className="flex-1">
-                <p className="font-bold">{p.title}</p>
-                <p className="text-xs leading-relaxed text-muted-foreground">{p.desc}</p>
-              </div>
-              <span className={`h-4 w-4 rounded-full border-[5px] transition-colors ${ai.provider === p.key ? "border-bronze bg-white" : "border-border"}`} />
-            </div>
-          </button>
-        ))}
-      </section>
-
-      {ai.provider !== "builtin" && (
-        <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <Field label={ai.provider === "gemini" ? "مدل Gemini" : "نام مدل"} value={ai.model} onChange={(m) => update({ model: m })} placeholder={ai.provider === "gemini" ? "gemini-2.0-flash" : "gpt-4o-mini"} />
-          {ai.provider === "openai" && (
-            <Field label="آدرس پایه (Base URL)" value={ai.baseUrl} onChange={(b) => update({ baseUrl: b })} placeholder="https://api.openai.com/v1" />
-          )}
-          <div>
-            <label className="mb-1 block text-sm font-semibold">کلید API <span className="text-danger">*</span></label>
-            <input
-              type="password"
-              value={ai.apiKey}
-              onChange={(e) => update({ apiKey: e.target.value })}
-              placeholder="AIza… یا sk-…"
-              autoComplete="off"
-              className="h-11 w-full rounded-xl border border-input bg-background px-3 outline-none transition-colors focus:border-bronze"
-            />
-          </div>
-        </section>
-      )}
-
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <label className="mb-2 block text-sm font-semibold" htmlFor="temp">سطح پیروی از متن (دمای مدل): {ai.temperature}</label>
-        <input id="temp" type="range" min={0} max={1} step={0.05} value={ai.temperature}
-          onChange={(e) => update({ temperature: Number(e.target.value) })} className="w-full accent-[var(--bronze)]" />
-        <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>دقیق و قانون‌محور</span><span>خلاق و آزاد</span></div>
-      </section>
-
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <p className="mb-3 text-sm font-semibold">بررسی سلامت استاد</p>
-        <button onClick={testConnection} disabled={testing} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-          {testing && <Loader2 className="h-4 w-4 animate-spin" />}
-          تست اتصال
-        </button>
-        {result && (
-          <p className={`mt-3 rounded-xl p-3 text-sm leading-relaxed ${result.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-            {result.ok && <CheckCircle2 className="me-1 inline h-4 w-4 align-text-bottom" />}{result.msg}
+    <div className="space-y-5">
+      {/* کارت ساده — برای کاربر عادی همین کافی است */}
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <h2 className="flex items-center gap-2 font-bold"><Bot className="h-5 w-5 text-bronze" /> استاد هوشمند</h2>
+        {readyWithoutConfig ? (
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            فعال و آماده است — همه‌چیز خودکار است و نیازی به هیچ تنظیمی نیست. همین حالا می‌توانی در جلسه‌ها،
+            آزمون‌ها و تحلیل کیس‌ها از استاد استفاده کنی.
+          </p>
+        ) : readyWithKey ? (
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            با کلید شخصی تو فعال است — بقیهٔ جزئیات فنی خودکار مدیریت می‌شود.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            برای فعال‌شدن استاد در این نسخه، یک کلید شخصی لازم است — «تنظیمات پیشرفته» را باز کن؛
+            بیشتر از دو دقیقه طول نمی‌کشد.
           </p>
         )}
+        <button
+          onClick={() => setAdvanced((v) => !v)}
+          aria-expanded={advanced}
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-bronze underline-offset-4 hover:underline"
+        >
+          <Wand2 className="h-3.5 w-3.5" />
+          {advanced ? "بستن تنظیمات پیشرفته" : "تنظیمات پیشرفته — وصل‌کردن استاد به سرویس دیگر"}
+        </button>
       </section>
 
-      <p className="flex items-start gap-2 rounded-2xl bg-accent p-4 text-xs leading-relaxed text-muted-foreground">
-        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-        امنیت: کلید تو فقط روی همین دستگاه (localStorage مرورگر) میماند. اگر دستگاه مشترک است، پس از استفاده آن را پاک کن.
-      </p>
+      {advanced && (
+        <>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            این بخش فقط برای وقتی است که بخواهی استاد را به سرویس دیگری وصل کنی. کلید تو فقط روی همین
+            دستگاه ذخیره می‌شود و جز به خودِ سرویس‌دهنده، جایی فرستاده نمی‌شود.
+          </p>
+
+          <section className="space-y-3">
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => update({ provider: p.key })}
+                aria-pressed={ai.provider === p.key}
+                className={`w-full rounded-2xl border p-4 text-start transition-all duration-200 ${ai.provider === p.key ? "border-bronze bg-gradient-to-l from-bronze/[0.09] to-transparent shadow-card ring-1 ring-inset ring-bronze/30" : "border-border bg-card hover:-translate-y-px hover:border-muted-foreground/40 hover:shadow-card"}`}
+              >
+                <div className="flex items-center gap-3">
+                  {p.key === "builtin" ? <Bot className="h-5 w-5 text-primary" /> : p.key === "gemini" ? <Wand2 className="h-5 w-5 text-primary" /> : <KeyRound className="h-5 w-5 text-primary" />}
+                  <div className="flex-1">
+                    <p className="font-bold">{p.title}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{p.desc}</p>
+                  </div>
+                  <span className={`h-4 w-4 rounded-full border-[5px] transition-colors ${ai.provider === p.key ? "border-bronze bg-white" : "border-border"}`} />
+                </div>
+              </button>
+            ))}
+          </section>
+
+          {ai.provider !== "builtin" && (
+            <section className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <Field label={ai.provider === "gemini" ? "مدل Gemini" : "نام مدل"} value={ai.model} onChange={(m) => update({ model: m })} placeholder={ai.provider === "gemini" ? "gemini-2.0-flash" : "gpt-4o-mini"} />
+              {ai.provider === "openai" && (
+                <Field label="آدرس سرویس" value={ai.baseUrl} onChange={(b) => update({ baseUrl: b })} placeholder="https://api.openai.com/v1" hint="اگر سرویس‌ات آدرس مخصوص دارد، این‌جا وارد کن — وگرنه خالی بگذار." />
+              )}
+              <div>
+                <label className="mb-1 block text-sm font-semibold">کلید شخصی <span className="text-danger">*</span></label>
+                <input
+                  type="password"
+                  value={ai.apiKey}
+                  onChange={(e) => update({ apiKey: e.target.value })}
+                  placeholder="کلید سرویس‌دهنده"
+                  autoComplete="off"
+                  className="h-11 w-full rounded-xl border border-input bg-background px-3 outline-none transition-colors focus:border-bronze"
+                />
+              </div>
+            </section>
+          )}
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <label className="mb-2 block text-sm font-semibold" htmlFor="temp">سبک پاسخ‌گویی استاد</label>
+            <input id="temp" type="range" min={0} max={1} step={0.05} value={ai.temperature}
+              onChange={(e) => update({ temperature: Number(e.target.value) })} className="w-full accent-[var(--bronze)]" />
+            <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>همیشه دقیق و قانون‌محور</span><span>با آزادی بیشتر</span></div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <p className="mb-3 text-sm font-semibold">آزمودن استاد</p>
+            <button onClick={testConnection} disabled={testing} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+              {testing && <Loader2 className="h-4 w-4 animate-spin" />}
+              امتحان کن
+            </button>
+            {result && (
+              <p className={`mt-3 rounded-xl p-3 text-sm leading-relaxed ${result.ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                {result.ok && <CheckCircle2 className="me-1 inline h-4 w-4 align-text-bottom" />}{result.msg}
+              </p>
+            )}
+          </section>
+
+          <p className="flex items-start gap-2 rounded-2xl bg-accent p-4 text-xs leading-relaxed text-muted-foreground">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+            امنیت: کلید تو فقط روی همین دستگاه ذخیره می‌ماند و به هیچ سروری جز خودِ سرویس‌دهنده ارسال نمی‌شود. اگر دستگاه مشترک است، پس از استفاده آن را پاک کن.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -519,12 +557,8 @@ function ContentUpdates() {
       setLastCheck(lastCheckAt());
       setMsg("بررسی انجام شد — لیست بسته‌های موجود تازه شد.");
       setTimeout(() => setMsg(""), 4000);
-    } catch (e) {
-      setErr(
-        e instanceof Error
-          ? `دریافت مانیفست ناموفق بود (${e.message}). اتصال اینترنت را بررسی کن — منابع jsDelivr و گیت‌هاب به‌ترتیب امتحان می‌شوند.`
-          : "دریافت مانیفست ناموفق بود.",
-      );
+    } catch {
+      setErr("دریافت فهرست به‌روزرسانی‌ها ناموفق بود — اتصال اینترنت را بررسی کن و دوباره تلاش کن.");
     } finally {
       setChecking(false);
     }
@@ -538,8 +572,8 @@ function ContentUpdates() {
       await installPack(st.meta);
       await refreshInstalled();
       setMsg(`✓ «${st.meta.title}» نصب شد — بسته‌ها بلافاصله در اپ فعال‌اند.`);
-    } catch (e) {
-      setErr(e instanceof Error ? `نصب ناموفق بود: ${e.message}` : "نصب ناموفق بود.");
+    } catch {
+      setErr("نصب ناموفق بود — اتصال اینترنت را بررسی کن و دوباره تلاش کن.");
     } finally {
       setRowBusy("");
     }
@@ -621,8 +655,7 @@ function ContentUpdates() {
             </p>
             {manifest && (
               <p className="mt-0.5">
-                نسخهٔ کاتالوگ برخط: <b className="text-foreground" dir="ltr">{manifest.version}</b>
-                {" "}· {faNum(manifest.packs.length)} بسته
+                {faNum(manifest.packs.length)} بسته در فهرست رسمی
               </p>
             )}
           </div>
@@ -682,9 +715,6 @@ function ContentUpdates() {
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                         {kindLabel(st.meta.kind)}
                       </span>
-                      <span dir="ltr" className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                        v{st.meta.version}
-                      </span>
                     </div>
                     {st.meta.description && (
                       <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">{st.meta.description}</p>
@@ -734,14 +764,13 @@ function ContentUpdates() {
         </section>
       ) : (
         <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-center text-sm leading-relaxed text-muted-foreground">
-          هنوز کاتالوگی دریافت نشده است. دکمهٔ «بررسی به‌روزرسانی» را بزن — اگر اینترنت داری ولی خطا تکرار شد،
-          احتمالاً مخزن موقتاً در دسترس نیست؛ بعداً دوباره تلاش کن.
+          هنوز فهرست به‌روزرسانی‌ها دریافت نشده — با اتصال اینترنت خودش دریافت می‌شود؛
+          یا دکمهٔ «بررسی به‌روزرسانی» را بزن.
         </p>
       )}
 
       <p className="rounded-xl bg-muted/60 px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">
-        منبع بسته‌ها: پوشهٔ <span dir="ltr">updates/</span> مخزن رسمی Lexa در گیت‌هاب — ابتدا از
-        <span dir="ltr"> jsDelivr </span> دریافت می‌شود و در خطا از خود گیت‌هاب. هیچ محتوایی خارج از کاتالوگ رسمی نصب نمی‌شود.
+        بسته‌ها فقط از منبع رسمی Lexa دریافت می‌شوند — هیچ محتوایی خارج از آن نصب نمی‌شود.
       </p>
     </div>
   );
@@ -831,7 +860,7 @@ function OfflineSettings() {
       setDmeta(getDesignMeta());
       setDOutdated(false);
     } else {
-      setPreMsg("ذخیره ناموفق بود — مرورگرت Service Worker را پشتیبانی نمی‌کند.");
+      setPreMsg("ذخیره ناموفق بود — مرورگرت این قابلیت را پشتیبانی نمی‌کند.");
     }
     refreshEstimate();
   }
@@ -961,9 +990,9 @@ function OfflineSettings() {
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/50 bg-amber-400/10 px-3.5 py-3 text-[12px] leading-relaxed text-amber-700 dark:text-amber-300">
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              <b>نسخهٔ آفلاین شما به‌روز نیست — لطفاً آپدیت کنید.</b>
+              <b>نسخهٔ ذخیره‌شدهٔ آفلاین قدیمی شده — با یک لمس تازه می‌شود.</b>
               <br />
-              طراحی و المان‌های سایت از زمان آخرین ذخیره تغییر کرده است؛ برای اینکه بعداً به مشکل نخوری، بستهٔ طراحی را دوباره دانلود کن.
+              طراحی و المان‌های سایت از زمان آخرین ذخیره عوض شده است؛ بستهٔ طراحی را دوباره ذخیره کن تا آفلاین هم با ظاهر تازه بالا بیاید.
             </span>
           </div>
         )}
@@ -979,12 +1008,12 @@ function OfflineSettings() {
           </button>
           {dmeta && !dOutdated && (
             <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-success">
-              <CheckCircle2 className="h-3.5 w-3.5" /> بستهٔ طراحی به‌روز است — نسخهٔ {faNum(DESIGN_VERSION)} · {faDateTime(dmeta.savedAt)}
+              <CheckCircle2 className="h-3.5 w-3.5" /> بستهٔ طراحی به‌روز است — آخرین ذخیره: {faDateTime(dmeta.savedAt)}
             </span>
           )}
           {dmeta && dOutdated && (
             <span className="text-[11px] text-muted-foreground">
-              نسخهٔ ذخیره‌شده روی دستگاه: {faNum(dmeta.version)} — نسخهٔ فعلی سایت: {faNum(DESIGN_VERSION)}
+              طراحی سایت از زمان آخرین ذخیره تغییر کرده — با دکمهٔ کنار، تازه‌اش کن.
             </span>
           )}
         </div>
@@ -995,8 +1024,8 @@ function OfflineSettings() {
         {/* مسیر نجات: اگر صفحه‌ای بالا نیامد یا رفتار عجیب دید */}
         <div className="mt-4 border-t border-border/70 pt-3">
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            اگر روزی صفحه سفید شد، چیزی باز نشد یا رفتار عجیب دیدی، این دکمه حافظهٔ موقت مرورگر
-            (نسخهٔ کش‌شدهٔ آفلاین) را یک‌جا پاک می‌کند و سایت با نسخهٔ تازهٔ سرور دوباره بالا می‌آید؛
+            اگر روزی صفحه سفید شد، چیزی باز نشد یا رفتار عجیب دیدی، این دکمه نسخهٔ ذخیره‌شدهٔ آفلاین را
+            یک‌جا پاک می‌کند و سایت با نسخهٔ تازه دوباره بالا می‌آید؛
             حساب، پروفایل و داده‌های تو پاک نمی‌شود.
           </p>
           <button

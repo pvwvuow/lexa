@@ -25,8 +25,11 @@ const { chromium } = require("playwright");
   const settingsText = await page.evaluate(() => document.body.innerText);
   ok("صفحهٔ تنظیمات باز شد", settingsText.includes("تنظیمات") || settingsText.includes("حساب"));
 
-  // ۳) کارت حساب ابری ساپابیس باید باشد
-  ok("کارت «حساب ابری و سینک» در تنظیمات هست", settingsText.includes("حساب ابری"));
+  // ۳) کارت حساب ابری — ساده و خودکار: بدون دکمهٔ دستی همگام‌سازی/بازیابی
+  ok("کارت «حساب ابری» در تنظیمات هست", settingsText.includes("حساب ابری"));
+  ok("کارت حساب ابری: «خودکار» تضمین شده", settingsText.includes("خودکار"));
+  ok("دکمهٔ دستی «همگام‌سازی روی ابر» حذف شد (سینک خودکار است)", !settingsText.includes("همگام‌سازی روی ابر"));
+  ok("دکمهٔ دستی «بازیابی از ابر» حذف شد", !settingsText.includes("بازیابی از ابر"));
 
   // ۴) استاد داخلی در تنظیمات AI نباید باشد
   await page.evaluate(() => {
@@ -38,6 +41,9 @@ const { chromium } = require("playwright");
   const aiText = await page.evaluate(() => document.body.innerText);
   ok("پروایدر «استاد داخلی» در APK حذف شده", !aiText.includes("استاد داخلی"));
   ok("پروایدر Gemini موجود است", aiText.includes("Gemini"));
+  ok("در APK تنظیمات پیشرفته خودبه‌خود باز است (کلید شخصی لازم است)", aiText.includes("کلید شخصی"));
+  ok("کارت سادهٔ «استاد هوشمند» هست", aiText.includes("استاد هوشمند"));
+  ok("پیام قدیمی «پروایدر» در خطاها حذف شد", !aiText.includes("پروایدر"));
 
   // ۵) درس داخلی از متون باندل‌شده
   await page.evaluate(() => { window.location.hash = "#/learn/cp-l11"; });

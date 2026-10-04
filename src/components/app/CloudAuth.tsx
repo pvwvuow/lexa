@@ -18,14 +18,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Scale, UserRound, KeyRound, Loader2, CloudUpload, CloudDownload,
-  ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert,
+  Scale, UserRound, KeyRound, Loader2, CloudUpload, CloudCheck,
+  ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert, Settings,
 } from "lucide-react";
 import {
   sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState,
   collectLocal, onAuthChange, type SbUser,
 } from "@/lib/supabase";
-import { adoptCloudBlob, forceApplyCloudBlob, wipeLocalUserData, handleAccountSwitch } from "@/lib/cloud-sync";
+import { adoptCloudBlob, wipeLocalUserData, handleAccountSwitch } from "@/lib/cloud-sync";
+import { navigate } from "@/lib/router";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
 
@@ -252,34 +253,14 @@ export function CloudAuthDialog({
   );
 }
 
-/** بخش حساب ابری در هدر APK: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب و سینک */
+/** بخش حساب ابری در هدر APK: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب (همه‌چیز خودکار) */
 export function CloudAccountArea() {
   const [user, setUser] = React.useState<SbUser | null>(() => sbUser());
   const [open, setOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [busy, setBusy] = React.useState<"" | "push" | "pull" | "out">("");
-  const [note, setNote] = React.useState("");
+  const [busy, setBusy] = React.useState<"" | "out">("");
 
   React.useEffect(() => onAuthChange(() => setUser(sbUser())), []);
-
-  async function doPush() {
-    setBusy("push"); setNote("");
-    const err = await sbPushState(collectLocal());
-    setBusy("");
-    setNote(err ? "ارسال به ابر ناموفق بود" : "همهٔ داده‌ها روی ابر ذخیره شد");
-    if (!err) setTimeout(() => setNote(""), 2500);
-  }
-
-  async function doPull() {
-    setBusy("pull"); setNote("");
-    const { err, data } = await sbPullState();
-    setBusy("");
-    if (err) { setNote("دریافت از ابر ناموفق بود"); return; }
-    if (!data) { setNote("روی ابر هنوز داده‌ای نداری"); return; }
-    const done = forceApplyCloudBlob(data);
-    if (done) setTimeout(() => window.location.reload(), 300);
-    else setNote("دادهٔ ابر خالی بود");
-  }
 
   if (!user) {
     return (
@@ -321,23 +302,17 @@ export function CloudAccountArea() {
           <DropdownMenuLabel dir="rtl" className="space-y-0.5 px-2">
             <p className="text-[10px] font-bold text-muted-foreground">حساب ابری</p>
             <p className="truncate text-xs font-bold" dir="ltr">{user.email}</p>
+            <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-success">
+              <CloudCheck className="h-3 w-3" /> همگام‌سازی خودکار فعال — همه‌چیز ذخیره می‌شود
+            </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() => void doPush()}
-            disabled={busy !== ""}
+            onClick={() => { setMenuOpen(false); navigate({ view: "settings" }); }}
             className="cursor-pointer rounded-lg gap-2.5 py-2.5"
           >
-            {busy === "push" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-bronze" /> : <CloudUpload className="h-4 w-4 shrink-0 text-bronze" />}
-            همگام‌سازی روی ابر
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => void doPull()}
-            disabled={busy !== ""}
-            className="cursor-pointer rounded-lg gap-2.5 py-2.5"
-          >
-            {busy === "pull" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-bronze" /> : <CloudDownload className="h-4 w-4 shrink-0 text-bronze" />}
-            بازیابی از ابر
+            <Settings className="h-4 w-4 shrink-0 text-bronze" />
+            تنظیمات و پروفایل
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -353,11 +328,8 @@ export function CloudAccountArea() {
             className="cursor-pointer rounded-lg gap-2.5 py-2.5 text-danger focus:text-danger"
           >
             {busy === "out" ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <LogOut className="h-4 w-4 shrink-0" />}
-            خروج (با سینک نهایی)
+            خروج
           </DropdownMenuItem>
-          {note && (
-            <p className="mt-1 rounded-lg bg-success/10 px-3 py-2 text-[11px] font-bold text-success">{note}</p>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

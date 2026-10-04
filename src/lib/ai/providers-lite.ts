@@ -24,7 +24,7 @@ export async function callGemini(conf: AiConf, system: string, user: string, tem
     }),
     signal: AbortSignal.timeout(90_000),
   });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) throw friendlyProviderError("Gemini", res.status);
   const data = await res.json();
   const text: string =
     data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
@@ -51,7 +51,7 @@ export async function callOpenAiCompatible(conf: AiConf, system: string, user: s
     }),
     signal: AbortSignal.timeout(90_000),
   });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) throw friendlyProviderError("سرویس هوشمند", res.status);
   const data = await res.json();
   const text: string = data?.choices?.[0]?.message?.content ?? '';
   if (!text) throw new Error('پاسخی از مدل دریافت نشد.');
@@ -59,7 +59,21 @@ export async function callOpenAiCompatible(conf: AiConf, system: string, user: s
 }
 
 export const BUILTIN_CLIENT_MSG =
-  'استاد داخلی فقط روی نسخهٔ وب/دسکتاپ سرور فعال است. در نسخهٔ اندروید از تنظیمات، پروایدر Gemini یا سازگار با OpenAI و کلید API خودت را ثبت کن.';
+  'برای استفاده از استاد هوشمند در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن.';
+
+/** خطای دوستانه برای کاربر — هیچ متن خام فنی (JSON/HTTP) نمایش داده نمی‌شود */
+function friendlyProviderError(name: string, status: number): Error {
+  if (status === 401 || status === 403) {
+    return new Error(`کلید ${name} معتبر نیست — از تنظیمات، کلید شخصی را بررسی کن.`);
+  }
+  if (status === 429) {
+    return new Error(`سرویس ${name} موقتاً شلوغ است — چند لحظه بعد دوباره امتحان کن.`);
+  }
+  if (status >= 500) {
+    return new Error(`سرور ${name} موقتاً در دسترس نیست — چند لحظه بعد دوباره امتحان کن.`);
+  }
+  return new Error(`ارتباط با ${name} برقرار نشد — اتصال اینترنت را بررسی کن و دوباره تلاش کن.`);
+}
 
 /** dispatch سبک — بدون استاد داخلی (کلاینت) */
 export async function dispatch(conf: AiConf, system: string, user: string, tempOverride?: number): Promise<string> {
@@ -81,4 +95,4 @@ export function extractJson<T>(raw: string): T | null {
 }
 
 export const PERSIAN_FAIL =
-  'استاد در حال حاضر در دسترس نیست. از صفحهٔ تنظیمات، کلید API (Gemini یا سازگار با OpenAI) را بررسی کنید یا بعداً تلاش کنید.';
+  'استاد هوشمند فعلاً در دسترس نیست — چند لحظه بعد دوباره امتحان کن. اگر ادامه داشت، اتصال اینترنت را بررسی کن.';

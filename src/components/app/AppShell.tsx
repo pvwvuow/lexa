@@ -41,6 +41,7 @@ import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
 import { IS_APK } from "@/lib/app-mode";
 import { MobileMenuDrawer } from "./MobileMenuDrawer";
+import { UpdateBanner } from "./UpdateBanner";
 
 type NavMode = "expanded" | "rail";
 
@@ -490,6 +491,9 @@ export function AppShell() {
         <footer className="mt-auto hidden border-t border-border/70 py-4 text-center text-xs leading-relaxed text-muted-foreground lg:block">
           Lexa — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
+
+        {/* به‌روزرسانی خودکار دسکتاپ — قرص کوچک گوشهٔ صفحه؛ فقط در اپ الکترون رندر می‌شود */}
+        <UpdateBanner />
 
         {/* داک شناور موبایل — شیشهٔ مایع (Liquid Glass): بلور/اشباع + برق نور و لبهٔ روشن */}
         <nav

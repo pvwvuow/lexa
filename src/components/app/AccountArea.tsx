@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogIn, LogOut, RefreshCw, ShieldCheck, UserRound, CloudCheck, Loader2, GraduationCap, Settings } from "lucide-react";
+import { LogIn, LogOut, ShieldCheck, CloudCheck, Loader2, GraduationCap, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -157,18 +157,6 @@ export function AccountArea() {
               <ShieldCheck className="h-4 w-4" /> پنل مدیریت
             </DropdownMenuItem>
           )}
-
-          <DropdownMenuItem
-            onClick={async () => { setMenuOpen(false); await auth.syncNow(); }}
-            className="cursor-pointer rounded-lg gap-2"
-          >
-            {auth.syncing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            همگام‌سازی اکنون
-          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 

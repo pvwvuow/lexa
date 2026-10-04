@@ -71,7 +71,7 @@ export function AuthDialog({
               حساب کاربری Lexa
             </DialogTitle>
             <p className="text-xs leading-relaxed opacity-85">
-              با ساخت حساب، همهٔ پیشرفت شما امن در پایگاه داده ذخیره و برای همیشه نگه‌داری می‌شود.
+              با ساخت حساب، همهٔ پیشرفتت امن ذخیره می‌شود و روی هر دستگاهی که وارد شوی، خودش برمی‌گردد.
             </p>
           </DialogHeader>
         </div>

@@ -237,7 +237,7 @@ export function FeedbackDialog({
               <Megaphone className="mx-auto mb-2 h-7 w-7 text-bronze" />
               <p className="text-sm font-bold">برای ثبت انتقاد وارد حساب خود شوید</p>
               <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                بازخوردها به نام حساب تو در پایگاه داده ثبت می‌شوند تا مدیر بتواند
+                بازخوردت به نام حساب تو ثبت می‌شود تا مدیر بتواند
                 پیشنهادهای هر دانشجو را مستقیم بررسی کند.
               </p>
             </div>
@@ -391,7 +391,7 @@ export function FeedbackDialog({
             تحلیل نهایی و ثبت پیشنهاد برای مدیر
           </button>
           <p className="mt-1.5 text-center text-[10.5px] text-muted-foreground">
-            هر ثبت، رکورد ابدی می‌سازد و هیچ‌گاه از پایگاه داده پاک نمی‌شود.
+            بازخورد پس از ثبت حذف نمی‌شود؛ لطفاً با دقت و احترام بنویس.
           </p>
         </div>
       </div>

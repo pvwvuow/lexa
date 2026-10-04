@@ -42,6 +42,11 @@ export function priorCloudUid(): string | null {
   try { return localStorage.getItem(LAST_UID); } catch { return null; }
 }
 
+/** زمان آخرین ذخیرهٔ موفق روی ابر برای حساب جاری (ms) — برای نمایش «آخرین ذخیره» به کاربر */
+export function cloudLastPushAt(): number {
+  return lastPush();
+}
+
 /**
  * پاک‌سازی کامل «دادهٔ کاربر» از دستگاه — برای تعویض حساب و خروج.
  * نشان‌ها/پیشرفت/یادداشت‌ها/کتاب‌ها/تاریخچهٔ آزمون/مباحث ضعیف/نشان‌های قانون
@@ -80,14 +85,6 @@ export function adoptCloudBlob(data: unknown): boolean {
     return done.length > 0;
   }
   return false;
-}
-
-/** بازیابی دستی از ابر (منوی حساب) — بدون شرطِ تازه‌تربودن همیشه اعمال می‌شود */
-export function forceApplyCloudBlob(data: unknown): boolean {
-  const savedAt = Number((data as { savedAt?: number } | null)?.savedAt || Date.now());
-  const done = applyLocal(data as Record<string, unknown>);
-  setLastPush(savedAt);
-  return done.length > 0;
 }
 
 /** هوک سراسری — یک بار در AppShell سوار می‌شود */
