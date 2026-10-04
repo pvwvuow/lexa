@@ -1,0 +1,125 @@
+name: release
+
+# این فایل را به .github/workflows/release.yml منتقل کن.
+# هر بار version داخل package.json روی main عوض شود و تگ v<version> نباشد،
+# APK + AppImage + zip ویندوز ساخته و ریلیز گیت‌هاب منتشر می‌شود.
+# سکرت‌های لازم: LEXA_KS_B64 (base64 فایل lexa-release.keystore) و LEXA_KS_PASS
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      exists: ${{ steps.v.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - id: v
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if git ls-remote --tags origin "refs/tags/v$V" | grep -q .; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+
+  android:
+    needs: meta
+    if: needs.meta.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: android-actions/setup-android@v3
+      - name: keystore
+        env:
+          KS: ${{ secrets.LEXA_KS_B64 }}
+        run: |
+          if [ -z "$KS" ]; then echo "::error::secret LEXA_KS_B64 missing"; exit 1; fi
+          echo "$KS" | base64 -d > android/lexa-release.keystore
+      - run: bun install --frozen-lockfile || bun install
+      - name: static export (apk mode)
+        run: |
+          mv src/app/api .api-parked
+          NEXT_PUBLIC_APP_MODE=apk NEXT_PUBLIC_APP_VERSION="$VERSION" bun run build:apk
+          rm -rf src/app/api && mv .api-parked src/app/api
+      - run: bunx cap sync android
+      - name: gradle
+        env:
+          LEXA_KS_PASS: ${{ secrets.LEXA_KS_PASS }}
+        run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon -q
+      - run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/Lexa-$VERSION-android.apk"
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: dist/* }
+
+  linux:
+    needs: meta
+    if: needs.meta.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: bun install --frozen-lockfile || bun install
+      - run: bun run build
+      - run: bunx electron-builder --linux AppImage --publish never
+      - run: |
+          mkdir -p dist
+          f=$(find download/electron dist-electron release -maxdepth 2 -name '*.AppImage' 2>/dev/null | head -n1)
+          cp "$f" "dist/Lexa-$VERSION-linux.AppImage"
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: dist/*.AppImage }
+
+  windows:
+    needs: meta
+    if: needs.meta.outputs.exists == 'false'
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: bun install --frozen-lockfile || bun install
+      - run: bun run build
+      - run: bunx electron-builder --win zip --publish never
+      - run: |
+          mkdir -p dist
+          f=$(find download/electron dist-electron release -maxdepth 2 -name '*.zip' 2>/dev/null | head -n1)
+          cp "$f" "dist/Lexa-$VERSION-win.zip"
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/*.zip }
+
+  publish:
+    needs: [meta, android, linux, windows]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - run: cd dist && sha256sum * > "checksums-$VERSION.txt" && cat "checksums-$VERSION.txt"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Lexa v${{ env.VERSION }}
+          files: dist/*
+          generate_release_notes: true
