@@ -33,7 +33,9 @@ run_qa() {
   fi
 }
 
-if [ "$GROUP" = "B2" ]; then
+if [ "$GROUP" = "C" ]; then
+  for f in qa110-law-nav-marks.mjs; do run_qa "$f"; done
+elif [ "$GROUP" = "B2" ]; then
   for f in qa109-mark-handles.mjs; do run_qa "$f"; done
 elif [ "$GROUP" = "A" ]; then
   for f in qa090-web.js qa090-table.js qa-more-sheet.mjs qa105-theme-progress.mjs qa106-auto-simple.mjs; do run_qa "$f"; done
