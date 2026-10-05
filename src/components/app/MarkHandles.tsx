@@ -1,22 +1,27 @@
 "use client";
-/* ─── دستگیره‌های اختصاصی تنظیم بازهٔ نشان (بازنویسی 0.10.10) ───────────────
+/* ─── دستگیره‌های اختصاصی تنظیم بازهٔ نشان (بازنویسی 0.10.11) ───────────────
  * با لمس یک نشان، دو دستگیره دقیقاً روی اولین و آخرین حرف نشان می‌نشینند.
- * چرا قبلاً «جای رندوم» می‌نشستند و حالا چه شد:
- *  • پورتال به body + کالیبراسیون fixed (mark-geom): دیگر هیچ transform/filter والدی
- *    مرجع مختصات را جابه‌جا نمی‌کند؛ زوم متن درس هم جبران می‌شود.
- *  • لبهٔ هر دستگیره از مستطیل خودِ حرف اول/آخر و جهت همان حرف (فارسی راست‌به‌چپ،
- *    اعداد/لاتین چپ‌به‌راست) محاسبه می‌شود — نه از جهت کلی بلوک؛ فاصله/نیم‌فاصله رد می‌شود.
- *  • اندازه‌گیری خودترمیم: اسکرول، تغییر اندازه، لود فونت، بازچینی DOM نشان‌ها (نودهای
- *    جداشده → بازخوانی از DOM).
- *  • پیش‌نمایش زنده با CSS Highlight API (بدون هیچ محاسبهٔ مختصات)؛ فال‌بک: مستطیل‌ها.
- *  • ناحیهٔ مردهٔ ۴ پیکسلی: لمس سادهٔ دستگیره بازه را تکان نمی‌دهد.
+ * 0.10.10: پورتال به body + کالیبراسیون fixed (mark-geom)، لبهٔ حرف‌به‌حرف با جهت خودِ
+ *   حرف، اندازه‌گیری خودترمیم، پیش‌نمایش CSS Highlight API، ناحیهٔ مردهٔ ۴ پیکسلی.
+ * 0.10.11 — بازطراحی کامل کشیدن (ریشهٔ «خیلی باگ داره»):
+ *  • همه‌چیز روی اندیس‌های ایندکس کاراکتری بخش (marks.ts) است، نه نقطه‌های DOM:
+ *    بازهٔ پیش‌نمایش، بازهٔ اندازه‌گیری و بازهٔ ذخیره یکی‌اند — دیگر نشان بعد از رها
+ *    کردن یک حرف جلو/عقب نمی‌پرد و نودهای مرزی (ابتدا/انتهای <mark>) گیج نمی‌کنند.
+ *  • چسبیدن به کلمه: سرِ نشان به ابتدای کلمه و تهِ آن به انتهای کلمه می‌چسبد (مثل
+ *    دستگیره‌های بومی اندروید) — لرزش انگشت روی مرز حرف‌ها بازه را تکان نمی‌دهد.
+ *  • عبور دستگیره از روی دیگری: نقش‌ها تمیز جابه‌جا می‌شوند و بازه هیچ‌وقت خالی نمی‌شود.
+ *  • نقطه‌های خارج از متن درس (نوار ابزار، دستگیرهٔ دیگر) نادیده گرفته می‌شوند.
+ *  • اسکرول خودکار نزدیک لبهٔ بالا/پایین صفحه حین کشیدن.
  * با رها کردن، همان نشان (همان id و رنگ) با بازهٔ تازه ذخیره می‌شود.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "@/lib/store";
-import { locateSelection, markBg } from "@/lib/marks";
+import {
+  markBg, markSpan, pointToIndex, sectionIndex, spanInfo, spanRange, spanSegments,
+  type SectionIndex,
+} from "@/lib/marks";
 import { makeGeo, type Box, type Geo } from "@/lib/mark-geom";
 
 export interface MarkHandlesCommit {
@@ -30,15 +35,40 @@ export interface MarkHandlesCommit {
 }
 
 type Pt = { node: Text; offset: number };
+type Seg = { t: Text; s: number; e: number };
 /** لبهٔ دستگیره در فضای true */
 interface Edge { x: number; top: number; bottom: number }
 interface Geom { start: Edge; end: Edge; boxes: Box[]; rect: Box; geo: Geo }
+/** وضعیت بازهٔ در حال ویرایش — اندیس‌های [s,e) روی ایندکس بخش */
+interface Span { secEl: Element; idx: SectionIndex; s: number; e: number; range: Range }
 
-const SKIP = "button,input,textarea,select,script,style";
 const DIGIT = /[0-9\u0660-\u0669\u06F0-\u06F9]/;
 const RTL_CH = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
 const LTR_CH = /[A-Za-z\u00C0-\u024F\u0370-\u04FF]/;
 const INVISIBLE = /[\s\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/;
+/** مرز کلمه: فاصله و علائم — نیم‌فاصله (ZWNJ) مرز نیست تا «می‌شود» یک کلمه بماند */
+const BOUNDARY = /[\s\u060C\u061B\u061F.,;:!?()[\]{}\u00AB\u00BB"'\u201C\u201D\u2018\u2019\-\u2013\u2014/\\]/;
+const isB = (c: string | undefined) => c === undefined || BOUNDARY.test(c);
+
+/** ابتدای بازه ← ابتدای کلمه (روی مرز بود: اولین کلمهٔ بعدی) */
+function snapStart(full: string, i: number): number {
+  const len = full.length;
+  if (!len) return 0;
+  i = Math.max(0, Math.min(i, len - 1));
+  if (isB(full[i])) { while (i < len - 1 && isB(full[i])) i++; }
+  else { while (i > 0 && !isB(full[i - 1])) i--; }
+  return i;
+}
+
+/** انتهای بازه (انحصاری) ← انتهای کلمه (بعد از مرز بود: انتهای کلمهٔ قبلی) */
+function snapEnd(full: string, j: number): number {
+  const len = full.length;
+  if (!len) return 0;
+  j = Math.max(1, Math.min(j, len));
+  if (isB(full[j - 1])) { while (j > 1 && isB(full[j - 1])) j--; }
+  else { while (j < len && !isB(full[j])) j++; }
+  return j;
+}
 
 function isRtlChar(ch: string, paraRtl: boolean): boolean {
   if (DIGIT.test(ch)) return false; // اعداد حتی فارسی چپ‌به‌راست چیده می‌شوند
@@ -47,35 +77,29 @@ function isRtlChar(ch: string, paraRtl: boolean): boolean {
   return paraRtl; // علائم خنثی جهت پاراگراف را می‌گیرند
 }
 
-function textNodesIn(el: Node): Text[] {
-  const out: Text[] = [];
-  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  let n = w.nextNode();
-  while (n) {
-    if ((n as Text).length) out.push(n as Text);
-    n = w.nextNode();
-  }
-  return out;
-}
-
 function markEls(root: Element, mid: string): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(`mark[data-lexa-mark][data-mid="${CSS.escape(mid)}"]`));
 }
 
-/** بازهٔ کامل نشان (از اولین تا آخرین قطعهٔ <mark> با همان id) روی نودهای متنی */
-function rangeOfMark(root: Element, mid: string): { range: Range; secEl: Element } | null {
+/** بازهٔ فعلی نشان از روی DOM — بخش ← ایندکس ← اندیس‌ها */
+function loadSpan(root: Element, mid: string): Span | null {
   const els = markEls(root, mid);
   if (!els.length) return null;
   const secEl = els[0].closest("[data-sec-id]");
   if (!secEl) return null;
-  const first = textNodesIn(els[0])[0];
-  const tail = textNodesIn(els[els.length - 1]);
-  const last = tail[tail.length - 1];
-  if (!first || !last) return null;
-  const r = document.createRange();
-  r.setStart(first, 0);
-  r.setEnd(last, last.length);
-  return { range: r, secEl };
+  const idx = sectionIndex(secEl);
+  const sp = markSpan(idx, mid);
+  if (!sp) return null;
+  const range = spanRange(idx, sp.s, sp.e);
+  if (!range) return null;
+  return { secEl, idx, s: sp.s, e: sp.e, range };
+}
+
+function spanAlive(st: Span | null): boolean {
+  if (!st || !st.secEl.isConnected) return false;
+  const a = st.idx.map[st.s];
+  const b = st.idx.map[st.e - 1];
+  return !!a && !!b && a.node.isConnected && b.node.isConnected;
 }
 
 /** نقطهٔ متنی زیر مختصات واقعی صفحه — استاندارد و فال‌بک وبکیت */
@@ -102,42 +126,6 @@ function caretFromPoint(x: number, y: number): Pt | null {
   return { node: node as Text, offset };
 }
 
-/** ترتیب سندی دو نقطه: ‎-1 یعنی a قبل از b */
-function order(a: Pt, b: Pt): number {
-  if (a.node === b.node) return a.offset === b.offset ? 0 : a.offset < b.offset ? -1 : 1;
-  const r = document.createRange();
-  r.setStart(a.node, a.offset);
-  r.collapse(true);
-  return -r.comparePoint(b.node, b.offset);
-}
-
-/** ابتدا نباید «انتهای» یک نود باشد و انتها نباید «ابتدای» نود — هم‌خوان با locateSelection */
-function normStart(p: Pt, nodes: Text[]): Pt {
-  if (p.offset < p.node.length) return p;
-  const i = nodes.indexOf(p.node);
-  return i >= 0 && i + 1 < nodes.length ? { node: nodes[i + 1], offset: 0 } : p;
-}
-function normEnd(p: Pt, nodes: Text[]): Pt {
-  if (p.offset > 0) return p;
-  const i = nodes.indexOf(p.node);
-  return i > 0 ? { node: nodes[i - 1], offset: nodes[i - 1].length } : p;
-}
-
-/** قطعه‌های متنی بازه به ترتیب سند */
-function segsOf(range: Range): { t: Text; s: number; e: number }[] {
-  const out: { t: Text; s: number; e: number }[] = [];
-  const c = range.commonAncestorContainer;
-  const host: Node | null = c.nodeType === Node.TEXT_NODE ? c.parentNode : c;
-  if (!host) return out;
-  for (const t of textNodesIn(host)) {
-    if (!range.intersectsNode(t)) continue;
-    const s = t === range.startContainer ? range.startOffset : 0;
-    const e = t === range.endContainer ? range.endOffset : t.length;
-    if (e > s) out.push({ t, s, e });
-  }
-  return out;
-}
-
 function charRects(t: Text, i: number): DOMRect[] {
   const r = document.createRange();
   r.setStart(t, i);
@@ -151,7 +139,7 @@ function paraRtl(t: Text): boolean {
 }
 
 /** لبهٔ شروع: اولین حرف دیدنی بازه؛ لبهٔ راستِ حرف راست‌به‌چپ یا لبهٔ چپِ حرف چپ‌به‌راست */
-function startEdge(segs: { t: Text; s: number; e: number }[], geo: Geo): Edge | null {
+function startEdge(segs: Seg[], geo: Geo): Edge | null {
   for (const { t, s, e } of segs) {
     const v = t.data;
     const pr = paraRtl(t);
@@ -167,7 +155,7 @@ function startEdge(segs: { t: Text; s: number; e: number }[], geo: Geo): Edge | 
 }
 
 /** لبهٔ پایان: آخرین حرف دیدنی بازه؛ لبهٔ چپِ حرف راست‌به‌چپ یا لبهٔ راستِ حرف چپ‌به‌راست */
-function endEdge(segs: { t: Text; s: number; e: number }[], geo: Geo): Edge | null {
+function endEdge(segs: Seg[], geo: Geo): Edge | null {
   for (let k = segs.length - 1; k >= 0; k--) {
     const { t, s, e } = segs[k];
     const v = t.data;
@@ -184,7 +172,7 @@ function endEdge(segs: { t: Text; s: number; e: number }[], geo: Geo): Edge | nu
   return null;
 }
 
-function boxesOf(segs: { t: Text; s: number; e: number }[], geo: Geo): Box[] {
+function boxesOf(segs: Seg[], geo: Geo): Box[] {
   const out: Box[] = [];
   for (const { t, s, e } of segs) {
     const r = document.createRange();
@@ -193,6 +181,17 @@ function boxesOf(segs: { t: Text; s: number; e: number }[], geo: Geo): Box[] {
     for (const b of Array.from(r.getClientRects())) if (b.width > 0.5 && b.height > 0.5) out.push(geo.t(b));
   }
   return out;
+}
+
+/** نزدیک‌ترین والد اسکرول‌شونده — برای اسکرول خودکار حین کشیدن */
+function scrollerOf(el: Element | null): Element | null {
+  let n = el?.parentElement ?? null;
+  while (n && n !== document.body && n !== document.documentElement) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) return n;
+    n = n.parentElement;
+  }
+  return document.scrollingElement;
 }
 
 /* ── پیش‌نمایش زنده با CSS Custom Highlight API ── */
@@ -227,6 +226,24 @@ function showHighlight(range: Range | null, bg: string): boolean {
 }
 
 const DEAD_ZONE = 4;
+const EDGE_TOP = 90;
+const EDGE_BOTTOM = 110;
+const MAX_SCROLL_STEP = 16;
+
+interface Drag {
+  which: "start" | "end";
+  offX: number;
+  offY: number;
+  pid: number;
+  x0: number;
+  y0: number;
+  x: number;
+  y: number;
+  moved: boolean;
+  s0: number;
+  e0: number;
+  raf: number;
+}
 
 export function MarkHandles({
   rootRef, lessonId, markId, color, zoom, version, onDragChange, onCommit,
@@ -245,11 +262,9 @@ export function MarkHandles({
   const applyMark = useApp((s) => s.applyMark);
   const [geom, setGeom] = React.useState<Geom | null>(null);
   const [overlay, setOverlay] = React.useState(false);
-  const stRef = React.useRef<{ range: Range; secEl: Element } | null>(null);
-  const dragRef = React.useRef<{
-    which: "start" | "end"; offX: number; offY: number; pid: number; nodes: Text[];
-    x0: number; y0: number; moved: boolean;
-  } | null>(null);
+  const geomRef = React.useRef<Geom | null>(null);
+  const stRef = React.useRef<Span | null>(null);
+  const dragRef = React.useRef<Drag | null>(null);
   const zoomRef = React.useRef(zoom);
   const colorRef = React.useRef(color);
   const cbRef = React.useRef({ onDragChange, onCommit });
@@ -259,37 +274,36 @@ export function MarkHandles({
     cbRef.current = { onDragChange, onCommit };
   }, [zoom, color, onDragChange, onCommit]);
 
-  const reloadRange = React.useCallback(() => {
+  const reloadSpan = React.useCallback(() => {
     const root = rootRef.current;
-    stRef.current = root ? rangeOfMark(root, markId) : null;
+    stRef.current = root ? loadSpan(root, markId) : null;
   }, [rootRef, markId]);
 
   const measure = React.useCallback(() => {
-    let st = stRef.current;
     // بازچینی DOM نشان‌ها نودها را عوض می‌کند — بازهٔ کهنه هرگز اندازه گرفته نمی‌شود
-    if (!dragRef.current && (!st || !st.range.startContainer.isConnected || !st.range.endContainer.isConnected)) {
-      reloadRange();
-      st = stRef.current;
-    }
-    if (!st) { setGeom(null); return; }
+    if (!dragRef.current && !spanAlive(stRef.current)) reloadSpan();
+    const st = stRef.current;
+    if (!st) { geomRef.current = null; setGeom(null); return; }
     const geo = makeGeo(rootRef.current, zoomRef.current);
-    const segs = segsOf(st.range);
+    const segs = spanSegments(st.idx, st.s, st.e);
     const start = startEdge(segs, geo);
     const end = endEdge(segs, geo);
-    if (!start || !end) { setGeom(null); return; }
+    if (!start || !end) { geomRef.current = null; setGeom(null); return; }
     const boxes = boxesOf(segs, geo);
     let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
     for (const x of boxes) {
       l = Math.min(l, x.left); t = Math.min(t, x.top); r = Math.max(r, x.right); b = Math.max(b, x.bottom);
     }
     const rect = Number.isFinite(l) ? { left: l, top: t, right: r, bottom: b } : { left: start.x, top: start.top, right: end.x, bottom: end.bottom };
-    setGeom({ start, end, boxes, rect, geo });
-  }, [rootRef, reloadRange]);
+    const g = { start, end, boxes, rect, geo };
+    geomRef.current = g;
+    setGeom(g);
+  }, [rootRef, reloadSpan]);
 
   // بازخوانی بازه بعد از هر تغییر نشان‌ها/زوم + یک اندازه‌گیری دوم بعد از چیدمان نهایی
   React.useEffect(() => {
     if (dragRef.current) return;
-    reloadRange();
+    reloadSpan();
     measure();
     let raf2 = 0;
     const raf1 = requestAnimationFrame(() => {
@@ -297,7 +311,7 @@ export function MarkHandles({
       raf2 = requestAnimationFrame(() => measure());
     });
     return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2); };
-  }, [reloadRange, measure, version, zoom]);
+  }, [reloadSpan, measure, version, zoom]);
 
   // اندازه‌گیری خودکار (یک‌بار در هر فریم)
   React.useEffect(() => {
@@ -343,33 +357,116 @@ export function MarkHandles({
     setOverlay(false);
   }, [hideMarks]);
 
-  React.useEffect(() => () => {
-    if (dragRef.current) {
-      const moved = dragRef.current.moved;
-      dragRef.current = null;
-      endVisuals();
-      if (moved) cbRef.current.onDragChange?.(false);
-    }
+  /** پایان کشیدن بدون ذخیره (قطع شدن، بازچینی DOM، unmount) */
+  const abortDrag = React.useCallback(() => {
+    const d = dragRef.current;
+    if (!d) return;
+    dragRef.current = null;
+    if (d.raf) cancelAnimationFrame(d.raf);
+    endVisuals();
+    if (d.moved) cbRef.current.onDragChange?.(false);
   }, [endVisuals]);
+
+  React.useEffect(() => () => abortDrag(), [abortDrag]);
+
+  /** موقعیت اشاره‌گر ← بازهٔ تازه (اندیسی، چسبیده به کلمه) */
+  const applyAt = React.useCallback((cx: number, cy: number) => {
+    const d = dragRef.current;
+    const st = stRef.current;
+    const root = rootRef.current;
+    if (!d || !st || !root) return;
+    if (!spanAlive(st)) {
+      // متن زیر دست بازچینی شد — کشیدن بی‌خطر قطع و بازه از نو خوانده می‌شود
+      abortDrag();
+      reloadSpan();
+      measure();
+      return;
+    }
+    const raw = caretFromPoint(cx - d.offX, cy - d.offY);
+    // فقط متن خودِ درس — نه نوار ابزار، نه پنل‌های دیگر
+    if (!raw || !root.contains(raw.node) || raw.node.parentElement?.closest("[data-mark-toolbar]")) return;
+    const full = st.idx.full;
+    if (full.length < 2) return;
+    const p = pointToIndex(st.idx, raw.node, raw.offset);
+    if (p < 0) return;
+    let s = st.s;
+    let e = st.e;
+    let which = d.which;
+    if (which === "start") {
+      const ns = snapStart(full, p);
+      if (ns >= e) {
+        // سر از روی ته رد شد: آخرین کلمهٔ قبلی لنگر می‌ماند و این دستگیره «ته» می‌شود
+        s = snapStart(full, e - 1);
+        e = snapEnd(full, Math.max(p, e));
+        which = "end";
+      } else {
+        s = ns;
+      }
+    } else {
+      const ne = snapEnd(full, p);
+      if (ne <= s) {
+        e = snapEnd(full, s + 1);
+        s = snapStart(full, Math.min(p, s));
+        which = "start";
+      } else {
+        e = ne;
+      }
+    }
+    if (e <= s) return;
+    if (full.slice(s, e).replace(/\s+/g, "").length < 2) return;
+    d.which = which;
+    if (s === st.s && e === st.e) return;
+    const range = spanRange(st.idx, s, e);
+    if (!range) return;
+    stRef.current = { ...st, s, e, range };
+    showHighlight(range, markBg(colorRef.current));
+    measure();
+  }, [rootRef, abortDrag, reloadSpan, measure]);
+
+  /** اسکرول خودکار وقتی انگشت نزدیک لبهٔ بالا/پایین صفحه است */
+  const tick = React.useCallback(() => {
+    const d = dragRef.current;
+    if (!d) return;
+    d.raf = 0;
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    let dy = 0;
+    if (d.y < EDGE_TOP) dy = -Math.ceil(((EDGE_TOP - d.y) / EDGE_TOP) * MAX_SCROLL_STEP);
+    else if (d.y > vh - EDGE_BOTTOM) dy = Math.ceil(((d.y - (vh - EDGE_BOTTOM)) / EDGE_BOTTOM) * MAX_SCROLL_STEP);
+    if (dy) {
+      const sc = scrollerOf(rootRef.current);
+      if (sc) {
+        const before = sc.scrollTop;
+        sc.scrollTop = before + Math.max(-MAX_SCROLL_STEP, Math.min(MAX_SCROLL_STEP, dy));
+        if (sc.scrollTop !== before) applyAt(d.x, d.y);
+      }
+    }
+    d.raf = requestAnimationFrame(tick);
+  }, [rootRef, applyAt]);
 
   function onDown(which: "start" | "end") {
     return (e: React.PointerEvent<HTMLDivElement>) => {
+      const g = geomRef.current;
+      if (!spanAlive(stRef.current)) { reloadSpan(); measure(); }
       const st = stRef.current;
-      if (!st || !geom) return;
+      if (!st || !g) return;
       e.preventDefault();
       e.stopPropagation();
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
-      const edge = which === "start" ? geom.start : geom.end;
-      const nodes = textNodesIn(st.secEl).filter((t) => !t.parentElement?.closest(SKIP));
+      const edge = which === "start" ? g.start : g.end;
       dragRef.current = {
         which,
+        // فاصلهٔ انگشت تا لبهٔ حرف حفظ می‌شود — نقطهٔ آزمون همیشه وسط همان خط است
         offX: e.clientX - edge.x,
         offY: e.clientY - (edge.top + edge.bottom) / 2,
         pid: e.pointerId,
-        nodes,
         x0: e.clientX,
         y0: e.clientY,
+        x: e.clientX,
+        y: e.clientY,
         moved: false,
+        s0: st.s,
+        e0: st.e,
+        raf: 0,
       };
     };
   }
@@ -379,6 +476,8 @@ export function MarkHandles({
     const st = stRef.current;
     if (!d || !st || e.pointerId !== d.pid) return;
     e.preventDefault();
+    d.x = e.clientX;
+    d.y = e.clientY;
     if (!d.moved) {
       if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DEAD_ZONE) return;
       d.moved = true;
@@ -386,41 +485,16 @@ export function MarkHandles({
       const ok = showHighlight(st.range, markBg(colorRef.current));
       setOverlay(!ok);
       cbRef.current.onDragChange?.(true);
+      d.raf = requestAnimationFrame(tick);
     }
-    const raw = caretFromPoint(e.clientX - d.offX, e.clientY - d.offY);
-    if (!raw || !d.nodes.includes(raw.node)) return;
-    const curS: Pt = { node: st.range.startContainer as Text, offset: st.range.startOffset };
-    const curE: Pt = { node: st.range.endContainer as Text, offset: st.range.endOffset };
-    let ns = d.which === "start" ? normStart(raw, d.nodes) : curS;
-    let ne = d.which === "end" ? normEnd(raw, d.nodes) : curE;
-    const o = order(ns, ne);
-    if (o === 0) return;
-    const crossed = o > 0;
-    if (crossed) {
-      // دستگیره از روی دیگری رد شد — نقش‌ها جابه‌جا می‌شوند (مثل دستگیره‌های بومی)
-      const a = ne;
-      ne = normEnd(ns, d.nodes);
-      ns = normStart(a, d.nodes);
-    }
-    if (ns.node === curS.node && ns.offset === curS.offset && ne.node === curE.node && ne.offset === curE.offset) return;
-    const r = document.createRange();
-    try {
-      r.setStart(ns.node, ns.offset);
-      r.setEnd(ne.node, ne.offset);
-    } catch {
-      return;
-    }
-    if (r.collapsed || r.toString().replace(/\s+/g, "").length < 2) return;
-    if (crossed) d.which = d.which === "start" ? "end" : "start";
-    st.range = r;
-    showHighlight(r, markBg(colorRef.current));
-    measure();
+    applyAt(e.clientX, e.clientY);
   }
 
   function onUp(e: React.PointerEvent<HTMLDivElement>) {
     const d = dragRef.current;
     if (!d || e.pointerId !== d.pid) return;
     dragRef.current = null;
+    if (d.raf) cancelAnimationFrame(d.raf);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
     if (!d.moved) return; // لمس سادهٔ دستگیره — هیچ تغییری
     endVisuals();
@@ -428,18 +502,20 @@ export function MarkHandles({
     const st = stRef.current;
     if (!st) return;
     const secId = st.secEl.getAttribute("data-sec-id") ?? "";
-    const located = secId ? locateSelection(st.secEl, st.range) : null;
+    const info = secId !== "" && spanAlive(st) ? spanInfo(st.idx, st.s, st.e) : null;
     const mark = (useApp.getState().marks[lessonId] ?? []).find((m) => m.id === markId);
-    if (!located || !mark) {
-      reloadRange();
+    if (!info || !mark) {
+      reloadSpan();
       measure();
       return;
     }
-    const g = geom;
+    measure();
+    const g = geomRef.current;
     const barRect = g
       ? (() => { const b = g.geo.f(g.rect); return { top: b.top, bottom: b.bottom, centerX: (b.left + b.right) / 2 }; })()
       : null;
-    if (located.text !== mark.text || secId !== mark.secId) {
+    const located = { text: info.text, occ: info.occ, pfx: info.pfx, sfx: info.sfx };
+    if (located.text !== mark.text || secId !== mark.secId || info.s !== d.s0 || info.e !== d.e0) {
       applyMark(lessonId, {
         id: markId, secId, text: located.text, color: mark.color,
         occ: located.occ, pfx: located.pfx, sfx: located.sfx,
