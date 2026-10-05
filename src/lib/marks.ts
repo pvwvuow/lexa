@@ -52,33 +52,163 @@ function collectTextNodes(rootEl: Element, includeMarks = false): Text[] {
   return nodes;
 }
 
-interface TextIndex {
+/** ایندکس کاراکتری یک بخش — مبنای مشترک ذخیره، اعمال و ویرایش بازهٔ نشان */
+export interface SectionIndex {
   full: string;
-  /** به‌ازای هر کاراکتر از full: نود مبدأ + آفست محلی */
-  map: { node: Text; local: number }[];
+  /** به‌ازای هر کاراکتر از full: نود مبدأ + آفست محلی + شمارهٔ نود در nodes */
+  map: { node: Text; local: number; ni: number }[];
+  nodes: Text[];
+  pos: Map<Text, number>;
 }
+type TextIndex = SectionIndex;
 
-/** ایندکس متن نرمال‌شدهٔ یکپارچهٔ بخش (فاصله‌های تکراری جمع می‌شوند) */
-function buildIndex(secEl: Element, includeMarks = false): TextIndex {
-  // includeMarks=true: متن نشان‌های موجود هم جزو ایندکس می‌آید — برای ویرایش/گسترش نشان
-  // و برای انتخاب متنی که روی نشان قبلی می‌افتد. اعمال نشان همیشه بعد از unwrap است و به این فلگ نیازی ندارد.
+/** ایندکس متن نرمال‌شدهٔ یکپارچه از نودها (فاصله‌های تکراری جمع می‌شوند) */
+function indexFromNodes(nodes: Text[]): TextIndex {
   let full = "";
   const map: TextIndex["map"] = [];
-  for (const node of collectTextNodes(secEl, includeMarks)) {
+  const pos = new Map<Text, number>();
+  nodes.forEach((node, ni) => {
+    pos.set(node, ni);
     const v = node.nodeValue ?? "";
     for (let i = 0; i < v.length; i++) {
       const ch = v[i];
       if (/\s/.test(ch)) {
         if (full.length === 0 || full.endsWith(" ")) continue;
         full += " ";
-        map.push({ node, local: i });
+        map.push({ node, local: i, ni });
       } else {
         full += ch;
-        map.push({ node, local: i });
+        map.push({ node, local: i, ni });
       }
     }
+  });
+  return { full, map, nodes, pos };
+}
+
+/** ایندکس متن نرمال‌شدهٔ یکپارچهٔ بخش */
+function buildIndex(secEl: Element, includeMarks = false): TextIndex {
+  // includeMarks=true: متن نشان‌های موجود هم جزو ایندکس می‌آید — برای ویرایش/گسترش نشان
+  // و برای انتخاب متنی که روی نشان قبلی می‌افتد. اعمال نشان همیشه بعد از unwrap است و به این فلگ نیازی ندارد.
+  return indexFromNodes(collectTextNodes(secEl, includeMarks));
+}
+
+/** ایندکس کامل بخش همراه متن نشان‌های موجود — برای ویرایش بازه */
+export function sectionIndex(secEl: Element): SectionIndex {
+  return buildIndex(secEl, true);
+}
+
+/** نقطهٔ DOM ← اندیس اولین نویسهٔ ایندکس که در آن نقطه یا بعد از آن است (0..full.length)
+ *  ‎-1 یعنی نقطهٔ نامعتبر. */
+export function pointToIndex(idx: SectionIndex, node: Node, offset: number): number {
+  const map = idx.map;
+  const pi = node.nodeType === Node.TEXT_NODE ? idx.pos.get(node as Text) : undefined;
+  if (pi !== undefined) {
+    // جستجوی دودویی روی (ni, local) — ترتیب سندی
+    let lo = 0, hi = map.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      const m = map[mid];
+      if (m.ni < pi || (m.ni === pi && m.local < offset)) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
   }
-  return { full, map };
+  const r = document.createRange();
+  try {
+    r.setStart(node, offset);
+    r.collapse(true);
+  } catch {
+    return -1;
+  }
+  let lo = 0, hi = map.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    let c = 0;
+    try { c = r.comparePoint(map[mid].node, map[mid].local); } catch { return -1; }
+    if (c < 0) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/** بازهٔ [s,e) ایندکس ← متن، اندیس وقوع و لنگر متنی (همان قالب ذخیره) */
+export function spanInfo(
+  idx: SectionIndex,
+  s: number,
+  e: number,
+): { text: string; occ: number; pfx: string; sfx: string; s: number; e: number } | null {
+  const full = idx.full;
+  s = Math.max(0, s);
+  e = Math.min(full.length, e);
+  while (s < e && full[s] === " ") s++;
+  while (e > s && full[e - 1] === " ") e--;
+  if (e <= s) return null;
+  const text = full.slice(s, e);
+  if (text.length < 2) return null;
+  // چندمین وقوع از این عبارت در متنِ قبل از بازه؟ (هم‌خوان با applyMarksToSections)
+  let occ = 0;
+  let p = full.indexOf(text);
+  while (p >= 0 && p < s) {
+    occ++;
+    p = full.indexOf(text, p + text.length);
+  }
+  return { text, occ, pfx: ctxBefore(full, s), sfx: ctxAfter(full, e), s, e };
+}
+
+/** بازهٔ [s,e) ایندکس ← Range واقعی DOM (از اولین تا آخرین نویسه) */
+export function spanRange(idx: SectionIndex, s: number, e: number): Range | null {
+  if (s < 0 || e > idx.map.length || e <= s) return null;
+  const a = idx.map[s];
+  const b = idx.map[e - 1];
+  const r = document.createRange();
+  try {
+    r.setStart(a.node, a.local);
+    r.setEnd(b.node, b.local + 1);
+  } catch {
+    return null;
+  }
+  return r;
+}
+
+/** قطعه‌های متنی بازهٔ [s,e) به ترتیب سند — هر نود یک قطعه */
+export function spanSegments(idx: SectionIndex, s: number, e: number): { t: Text; s: number; e: number }[] {
+  const out: { t: Text; s: number; e: number }[] = [];
+  for (let i = Math.max(0, s); i < e && i < idx.map.length; i++) {
+    const m = idx.map[i];
+    const last = out[out.length - 1];
+    if (last && last.t === m.node) last.e = m.local + 1;
+    else out.push({ t: m.node, s: m.local, e: m.local + 1 });
+  }
+  return out;
+}
+
+/** بازهٔ فعلی یک نشان در ایندکس — از اولین تا آخرین نویسه‌ای که داخل <mark> همان id است */
+export function markSpan(idx: SectionIndex, mid: string): { s: number; e: number } | null {
+  let s = -1;
+  let e = -1;
+  let lastNode: Text | null = null;
+  let inMark = false;
+  for (let i = 0; i < idx.map.length; i++) {
+    const m = idx.map[i];
+    if (m.node !== lastNode) {
+      lastNode = m.node;
+      const mk = m.node.parentElement?.closest("mark[data-lexa-mark]") as HTMLElement | null;
+      inMark = !!mk && mk.dataset.mid === mid;
+      if (!inMark && mk) {
+        // نشان تودرتو: نشان کوتاه‌تر داخل این نشان — والدهای بالاتر هم بررسی شوند
+        let up = mk.parentElement?.closest("mark[data-lexa-mark]") as HTMLElement | null;
+        while (up && !inMark) {
+          inMark = up.dataset.mid === mid;
+          up = up.parentElement?.closest("mark[data-lexa-mark]") as HTMLElement | null;
+        }
+      }
+    }
+    if (inMark) {
+      if (s < 0) s = i;
+      e = i + 1;
+    }
+  }
+  return s >= 0 && e > s ? { s, e } : null;
 }
 
 /* ── لنگر متنی (context anchor) — حفظ نشان در برابر آپدیت محتوا ──────────────
@@ -207,7 +337,8 @@ function unwrapAll(rootEl: Element) {
   } catch { /* بی‌اثر */ }
 }
 
-/** اندیس وقوع + لنگر متنی یک بازهٔ انتخاب‌شده را در بخش پیدا می‌کند — زمان ذخیره */
+/** اندیس وقوع + لنگر متنی یک بازهٔ انتخاب‌شده را در بخش پیدا می‌کند — زمان ذخیره
+ *  0.10.11: مبتنی بر pointToIndex (ترتیب سندی دقیق، حتی وقتی سر/تهٔ انتخاب روی المان است) */
 export function locateSelection(
   secEl: Element | null,
   range: Range,
@@ -215,41 +346,12 @@ export function locateSelection(
   if (!secEl) return null;
   // includeMarks: انتخاب ممکن است روی متن نشان قبلی بیفتد — باید کامل دیده شود
   const idx = buildIndex(secEl, true);
-  const sc = range.startContainer;
-  const ec = range.endContainer;
-  const so = range.startOffset;
-  const eo = range.endOffset;
-  let start = -1;
-  let end = -1;
-  for (let i = 0; i < idx.map.length; i++) {
-    const m = idx.map[i];
-    // 0.10.9: شروع دقیقاً از نویسهٔ so — قبلاً «so - 1» یک نویسهٔ اضافهٔ قبل از
-    // انتخاب را هم می‌گرفت (تنظیم سرِ نشان یک حرف عقب‌تر می‌نشست)
-    if (start < 0 && m.node === sc && m.local >= so) start = i;
-    if (start >= 0 && m.node === ec && m.local >= eo - 1) { end = i + 1; break; }
-  }
-  if (start < 0) {
-    // کل نود شروع انتخاب است
-    for (let i = 0; i < idx.map.length; i++) {
-      if (idx.map[i].node === sc) { start = i; break; }
-    }
-  }
-  if (end < 0) {
-    for (let i = idx.map.length - 1; i >= 0; i--) {
-      if (idx.map[i].node === ec) { end = i + 1; break; }
-    }
-  }
-  if (start < 0 || end <= start) return null;
-  const text = norm(idx.full.slice(start, end)).trim();
-  if (text.length < 2) return null;
-  // چندمین وقوع از این عبارت در متنِ قبل از انتخاب؟
-  let occ = 0;
-  let p = idx.full.indexOf(text);
-  while (p >= 0 && p < start) {
-    occ++;
-    p = idx.full.indexOf(text, p + text.length);
-  }
-  return { text, occ, pfx: ctxBefore(idx.full, start), sfx: ctxAfter(idx.full, end) };
+  const s = pointToIndex(idx, range.startContainer, range.startOffset);
+  const e = pointToIndex(idx, range.endContainer, range.endOffset);
+  if (s < 0 || e < 0 || e <= s) return null;
+  const info = spanInfo(idx, s, e);
+  if (!info) return null;
+  return { text: norm(info.text), occ: info.occ, pfx: info.pfx, sfx: info.sfx };
 }
 
 /** همهٔ نشان‌های ذخیره‌شده را روی DOM بخش‌ها اعمال می‌کند (idempotent) */
@@ -321,9 +423,10 @@ export function applyMarksToSections(
 }
 
 /* ── ویرایش بازهٔ نشان ───────────────────────────────────────────────────────────
- * 0.10.9: لمس سادهٔ نشان → دو دستگیرهٔ اختصاصی روی سر و ته نشان (MarkHandles.tsx)؛
- * کشیدن هرکدام بازه را عوض و با رها کردن همان id را ذخیره می‌کند (upsert).
- * جایابی بازه همان مسیر locateSelection است. */
+ * لمس سادهٔ نشان → دو دستگیرهٔ اختصاصی روی سر و ته نشان (MarkHandles.tsx).
+ * 0.10.11: ویرایش کاملاً روی اندیس‌های همین ایندکس کاراکتری انجام می‌شود
+ * (sectionIndex/markSpan/pointToIndex/spanInfo) — همان مبنایی که نشان با آن ذخیره و
+ * اعمال می‌شود؛ پس بازهٔ پیش‌نمایش و بازهٔ ذخیره‌شده هرگز از هم جدا نمی‌افتند. */
 
 /** آیا المان داخل یک ناحیهٔ قابل انتخاب است (نه دکمه و ورودی) */
 export function isSelectableNode(el: Element | null): boolean {

@@ -16,7 +16,8 @@ export type Route =
   | { view: "studio" }
   | { view: "post"; id: string }
   | { view: "library" }
-  | { view: "law"; id?: string }
+  /** no = شمارهٔ ماده/اصل مقصد — صفحهٔ قانون مستقیم به همان ماده می‌رود */
+  | { view: "law"; id?: string; no?: string }
   | { view: "teacher"; id: string }
   | { view: "study" }
   | { view: "write"; kind: "post" | "course"; id?: string };
@@ -30,10 +31,14 @@ export function routeToHash(r: Route): string {
     case "case": return r.id ? `#/case/${r.id}` : "#/case";
     case "post": return `#/post/${r.id}`;
     case "teacher": return `#/teacher/${r.id}`;
-    case "law": return r.id ? `#/law/${r.id}` : "#/law";
+    case "law": return r.id ? `#/law/${r.id}${r.no ? `/${encodeURIComponent(r.no)}` : ""}` : "#/law";
     case "write": return `#/write/${r.kind}${r.id ? `/${r.id}` : ""}`;
     default: return `#/${r.view}`;
   }
+}
+
+function safeDecode(s: string): string {
+  try { return decodeURIComponent(s); } catch { return s; }
 }
 
 export function parseHash(h: string): Route {
@@ -46,7 +51,7 @@ export function parseHash(h: string): Route {
   if (head === "case") return { view: "case", id };
   if (head === "post" && id) return { view: "post", id };
   if (head === "teacher" && id) return { view: "teacher", id };
-  if (head === "law") return { view: "law", id: id || undefined };
+  if (head === "law") return { view: "law", id: id ? safeDecode(id) : undefined, no: parts[2] ? safeDecode(parts[2]) : undefined };
   if (head === "write" && (parts[1] === "post" || parts[1] === "course"))
     return { view: "write", kind: parts[1], id: parts[2] };
   if (["cards", "settings", "import", "admin", "teachers", "studio", "library", "study"].includes(head)) return { view: head as never };

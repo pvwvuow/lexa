@@ -7,6 +7,7 @@ import {
   LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree, NotebookTabs,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
+import { setChromeHidden } from "@/lib/chrome";
 import { useOnlineStatus } from "@/lib/offline";
 import { useApp } from "@/lib/store";
 import { mergeVisible } from "@/lib/books";
@@ -175,6 +176,11 @@ export function AppShell() {
 
   // در خانه نوار بالا همیشه دیده می‌شود تا نوار جستجوی چسبیده جای خود را داشته باشد
   const headerHidden = route.view === "home" ? false : chromeHidden;
+
+  // نوارهای چسبان صفحه‌ها (مثل نوار جستجوی قانون) باید بدانند نوار اصلی پنهان است تا جایش را بگیرند
+  React.useEffect(() => {
+    setChromeHidden(headerHidden);
+  }, [headerHidden]);
 
   // پیوند نوار جستجوی هیرو به نوار بالا — پس از خروج جستجو از دید، قرص جستجو در نوار بالا می‌نشیند
   const [searchDocked, setSearchDocked] = React.useState(false);
