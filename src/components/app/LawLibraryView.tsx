@@ -7,7 +7,8 @@ import {
   Scale, Search, Bookmark, BookmarkCheck, Copy, Check, Printer,
   AArrowDown, AArrowUp, Landmark, ScrollText, Diamond, FileSearch, X,
 } from "lucide-react";
-import { navigate } from "@/lib/router";
+import { navigate, parseHash } from "@/lib/router";
+import { useChromeHidden } from "@/lib/chrome";
 import { fa } from "@/lib/fa";
 import { ImeSearchInput, type ImeSearchHandle } from "./common";
 import {
@@ -109,6 +110,31 @@ function norm(s: string): string {
     .replace(/[\u064B-\u0652\u0640\u200c]/g, "")
     .replace(/[\u06F0-\u06F9\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) & 0xf))
     .toLowerCase();
+}
+
+/** شناسهٔ DOM هر ماده — مقصد پرش از جستجوی سراسری/نشان‌شده‌ها */
+function artDomId(lawId: string, no: string): string {
+  return `law-art-${lawId}-${norm(String(no)).replace(/\s+/g, "_")}`;
+}
+
+/** شمارهٔ مادهٔ مقصد از هش (#/law/<id>/<no>) — فقط اگر برای همین قانون باشد */
+function readTargetNo(lawId: string): string | null {
+  if (typeof window === "undefined") return null;
+  const r = parseHash(window.location.hash || "");
+  return r.view === "law" && r.id === lawId && r.no ? r.no : null;
+}
+
+/** آیا نمایشگر موبایلی است (نوار اصلی فقط زیر lg پنهان می‌شود) */
+function useIsMobile(): boolean {
+  const [m, setM] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023.98px)");
+    const on = () => setM(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return m;
 }
 
 // ═══ فهرست کتابخانهٔ قوانین ═══════════════════════════════════════════════════
@@ -249,7 +275,7 @@ function LawIndex({ marks, full }: { marks: string[]; full: FullLawData | null }
   );
 }
 
-/** خلاصهٔ نشان‌شده‌ها در فهرست — کلیک به متن‌خوان همان قانون */
+/** خلاصهٔ نشان‌شده‌ها در فهرست — کلیک مستقیم به همان ماده در متن‌خوان */
 function MarkedSummary({ marks }: { marks: string[] }) {
   const items = React.useMemo(() => {
     return marks
@@ -271,7 +297,7 @@ function MarkedSummary({ marks }: { marks: string[] }) {
         {items.map(({ law, no }) => (
           <button
             key={`${law.id}::${no}`}
-            onClick={() => navigate({ view: "law", id: law.id })}
+            onClick={() => navigate({ view: "law", id: law.id, no })}
             className="rounded-full border border-bronze/40 bg-background px-3 py-1 text-[11px] font-bold text-bronze transition-colors hover:bg-bronze/15"
           >
             {law.title} · مادهٔ {no}
@@ -293,6 +319,57 @@ function LawReader({ law }: { law: LawCode }) {
   const [copied, setCopied] = React.useState("");
   const [tocOpen, setTocOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
+  // نوار ابزار با پنهان‌شدن نوار اصلی (موبایل) جای آن را می‌گیرد و بالا می‌رود
+  const chromeHidden = useChromeHidden();
+  const isMobile = useIsMobile();
+  const barUp = chromeHidden && isMobile;
+
+  // ── مادهٔ مقصد (از جستجوی سراسری / نشان‌شده‌ها) ──
+  const [target, setTarget] = React.useState<string | null>(null);
+  const [flash, setFlash] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    const on = () => setTarget(readTargetNo(law.id));
+    on();
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, [law.id]);
+  const foundRef = React.useRef<{ no: string; at: number } | null>(null);
+  // مادهٔ مقصد نباید زیر فیلتر جستجو/نشان‌شده‌ها پنهان بماند
+  React.useEffect(() => {
+    if (!target) return;
+    foundRef.current = null;
+    setOnlyMarked(false);
+    readerSearchRef.current?.clear();
+    setQ("");
+  }, [target]);
+  React.useEffect(() => {
+    if (!target) return;
+    const done = foundRef.current;
+    // بعد از پیدا شدن، فقط تا ۳ ثانیه (رسیدن متن کامل/فونت) دوباره هم‌تراز می‌شود
+    if (done && done.no === target && Date.now() - done.at > 3000) return;
+    let cancelled = false;
+    let tries = 0;
+    const timers: number[] = [];
+    const attempt = () => {
+      if (cancelled) return;
+      const el = document.getElementById(artDomId(law.id, target));
+      if (el) {
+        el.scrollIntoView({ block: "start" });
+        if (!foundRef.current || foundRef.current.no !== target) foundRef.current = { no: target, at: Date.now() };
+        setFlash(target);
+        // هم‌ترازی دوباره پس از جاافتادن چیدمان (نوارهای چسبان/فونت)
+        timers.push(window.setTimeout(() => { if (!cancelled) el.scrollIntoView({ block: "start" }); }, 380));
+        timers.push(window.setTimeout(() => { if (!cancelled) setFlash(null); }, 2600));
+        return;
+      }
+      if (++tries < 60) timers.push(window.setTimeout(attempt, 120));
+    };
+    timers.push(window.setTimeout(attempt, 0));
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+  }, [target, law, q, onlyMarked]);
 
   React.useEffect(() => {
     try {
@@ -376,8 +453,14 @@ function LawReader({ law }: { law: LawCode }) {
         </div>
       </header>
 
-      {/* نوار ابزار */}
-      <div className="no-print sticky top-16 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-card backdrop-blur">
+      {/* نوار ابزار — چسبان زیر نوار اصلی؛ وقتی نوار اصلی پنهان شد بالای صفحه می‌نشیند */}
+      <div
+        className="no-print sticky top-16 z-20 mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-card backdrop-blur"
+        style={{
+          top: barUp ? "calc(env(safe-area-inset-top, 0px) + 8px)" : undefined,
+          transition: "top 300ms ease-out",
+        }}
+      >
         <div className="relative min-w-[180px] flex-1">
           <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto h-4 w-4 text-bronze" />
           <ImeSearchInput
@@ -454,10 +537,14 @@ function LawReader({ law }: { law: LawCode }) {
                   <h3 className="ps-1 text-[13px] font-bold text-muted-foreground">{ch.title}</h3>
                   {ch.articles.map((a) => {
                     const marked = marks.includes(`${law.id}::${a.no}`);
+                    const isFlash = flash !== null && norm(String(flash)) === norm(String(a.no));
                     return (
                       <article
                         key={a.no}
-                        className="law-paper group relative rounded-[18px] border border-bronze/25 p-4 shadow-card sm:p-5"
+                        id={artDomId(law.id, a.no)}
+                        className={`law-paper group relative scroll-mt-[150px] rounded-[18px] border p-4 shadow-card transition-[box-shadow,border-color] duration-500 sm:p-5 ${
+                          isFlash ? "border-bronze ring-2 ring-bronze/60" : "border-bronze/25"
+                        }`}
                       >
                         <div className="flex items-start gap-3.5">
                           <ArticleSeal no={a.no} word={law.articleWord === "اصل" ? "اصل" : "ماده"} />
