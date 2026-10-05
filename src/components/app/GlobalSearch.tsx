@@ -366,7 +366,8 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
   function go(item: FlatHit) {
     setOpen(false);
     if (item.kind === "teacher") navigate({ view: "teacher", id: item.t.id });
-    else if (item.kind === "law") navigate({ view: "law", id: item.h.lawId });
+    // مادهٔ قانونی: مستقیم همان ماده در متن‌خوان قانون (اسکرول + برجسته‌سازی)
+    else if (item.kind === "law") navigate({ view: "law", id: item.h.lawId, no: item.h.no });
     else navigate({ view: "learn", id: item.h.lessonId });
   }
 
@@ -433,7 +434,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
         <button
           onClick={() => setOpen(true)}
           aria-label="جستجو در کتابخانه و اساتید"
-          title="جستجو در کتابخانه و اساتид (/)"
+          title="جستجو در کتابخانه و اساتید (/)"
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-muted-foreground shadow-card transition-colors hover:text-bronze"
         >
           <Search className="h-[17px] w-[17px]" />
