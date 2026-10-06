@@ -90,3 +90,10 @@ download/electron/squashfs-root/
 /data/uploads/
 qa-dbheal.VxAE
 shots/
+
+# ─── بات تلگرام «ویس به متن» (کد commit می‌شود؛ توکن در .env که توسط قانون .env* بالا نادیده است) ───
+telegram-bot/tmp/
+telegram-bot/state.json
+
+# ─── دموی مقایسهٔ ASR (مدل/نمونه‌های صوتی) ───
+asr-demo/
