@@ -94,6 +94,7 @@ shots/
 # ─── بات تلگرام «ویس به متن» (کد commit می‌شود؛ توکن در .env که توسط قانون .env* بالا نادیده است) ───
 telegram-bot/tmp/
 telegram-bot/state.json
+telegram-bot/tvframe-models.json
 
 # ─── دموی مقایسهٔ ASR (مدل/نمونه‌های صوتی) ───
 asr-demo/
