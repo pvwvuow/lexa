@@ -1800,3 +1800,21 @@ Work Log:
 Stage Summary:
 - مقایسهٔ زنده ثابت کرد Whisper large-v3-turbo به‌مراتب قوی‌تر از موتور داخلی برای فارسی است؛ اسکریپت‌های asr-demo-fetch/asr-demo-whisper و نمونه‌ها در asr-demo/ برای تست‌های بعدی حفظ شد
 - تصمیم معماری بات تلگرام: Groq API (سریع/رایگان) با fallback لوکال turbo؛ منتظر توکن BotFather و کلید Groq از کاربر
+
+---
+Task ID: 34
+Agent: main (Super Z)
+Task: ساخت بات تلگرام «ویس به متن» @voicetotextunibot با موتور ASR قوی برای فارسی (صدای کلاس)
+
+Work Log:
+- کلیدهای کاربر راستی‌آزمایی شد: توکن بات تلگرام سالم (getMe: @voicetotextunibot «voice to text»)؛ کلید پریز tvframe احراز هویت می‌شود ولی «monthly token quota exceeded» (HTTP 429) — grok 4.7 فعلاً غیرقابل استفاده؛ نکتهٔ فنی: api.tvframe.vip روی IPv6 هنگ می‌کند، curl -4 لازم است
+- معماری بات (telegram-bot/bot.js، بدون وابستگی npm، اجرا با bun/node18): long-polling با دو حالت «once» (پردازش یک‌باره برای محیط sandbox که پردازش پس‌زمینه بین فراخوانی‌ها کشته می‌شود) و «serve» (۲۴/۷ برای سرور واقعی)
+- موتور ASR: transcribe.py sidecar با faster-whisper large-v3-turbo int8 (برندهٔ مقایسهٔ تسک ۳۳)؛ decode با ffmpeg→numpy (بدون PyAV)؛ VAD silero در صورت وجود onnxruntime
+- خط لوله: voice/audio/video_note/document → getFile دانلود (سقف ۲۰MB Bot API با پیام راهنما) → ffmpeg یک‌کاناله ۱۶k → قطعه‌بندی ۵۷۰ ثانیه‌ای → هر جزء بلافاصله ارسال می‌شود (تاب‌آوری در برابر قطع) → ذخیرهٔ آخرین متن برای /clean
+- دستورها: /start راهنمای فارسی؛ /clean ویرایش هوشمند (اختیاری، با POLISH_* در .env — برای بعد از شارژ tvframe یا کلید دیگر)
+- امنیت: توکن فقط در telegram-bot/.env (قانون .env* در .gitignore)؛ state.json و tmp/ هم نادیده؛ کد بدون هیچ راز commit شد
+- تست: sidecar روی نمونهٔ فارسی = همان کیفیت مقایسه؛ once-mode اتصال سالم (0 update، offset=0)
+
+Stage Summary:
+- بات آمادهٔ تست زنده است: کاربر ویس می‌فرستد → «چک کن» در چت → once-mode پردازش و پاسخ در تلگرام؛ برای ۲۴/۷ همان اسکریپت با serve روی سرور (node/bun + ffmpeg)
+- منتظر: ویس واقعی کاربر برای تست؛ شارژ سهمیهٔ tvframe برای فعال‌سازی /clean با grok
