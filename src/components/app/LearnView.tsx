@@ -99,12 +99,18 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
  * جمله می‌نشینند؛ نوار باید همیشه یک‌تکه بالاتر باشد تا جمله پوشانده نشود */
 const TOOLBAR_GAP = 36;
 
-/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.10):
+/** حداکثر جابه‌جایی انگشت برای «تپ» — بیشتر یعنی اسکرول/کشیدن */
+const TAP_SLOP = 12;
+/** لمس طولانی‌تر از این = انتخاب بومی، نه تپ */
+const TAP_MAX_MS = 600;
+
+/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.10 / 0.10.12):
  * لمس سادهٔ نشان: نوار (رنگ/کپی/حذف) + دو دستگیرهٔ اختصاصی دقیقاً روی اولین و
  * آخرین حرف نشان (MarkHandles). نوار و دستگیره‌ها به body پورتال می‌شوند و مختصاتشان
  * کالیبره است (mark-geom) تا transform والدها یا زوم متن جایشان را بهم نزند.
  * نواری که با لمس باز شده (via: "tap") با جمع‌شدن انتخاب بومی بسته نمی‌شود؛
- * فقط لمس بیرون از نوار/دستگیره آن را می‌بندد. */
+ * 0.10.12: فقط یک «تپ» واقعی بیرون از نوار/دستگیره آن را می‌بندد — شروع اسکرول یا
+ * لمسِ کمی کنارِ دستگیره دیگر همه‌چیز را درجا نمی‌بندد. */
 
 /** وضعیت نوار نشان — «نشان جدید» یا «ویرایش نشان موجود» */
 type MarkBar =
@@ -411,7 +417,7 @@ export function LearnView({ id }: { id: string }) {
         const cur = markBarRef.current;
         // نوارِ بازشده با لمسِ نشان هیچ ربطی به انتخاب بومی ندارد: وب‌ویو اندروید
         // بعد از تپ، انتخاب را جمع/پاک می‌کند (گاهی بدون هیچ range) و همین
-        // selectionchange قبلاً نوار را درجا می‌بست. بستن فقط با لمس بیرون از نوار.
+        // selectionchange قبلاً نوار را درجا می‌بست. بستن فقط با تپ بیرون از نوار.
         if (cur && cur.mode === "edit" && cur.via === "tap") return;
         if (cur && cur.mode === "edit" && sel && sel.rangeCount > 0) {
           const node = sel.anchorNode;
@@ -428,10 +434,52 @@ export function LearnView({ id }: { id: string }) {
       if (timer) clearTimeout(timer);
       timer = setTimeout(settle, 260);
     }
-    function onPointerDown(e: Event) {
+
+    // ── 0.10.12: تپ واقعی — باز/بستن نوار فقط با لمس کوتاه بی‌حرکت ──
+    // قبلاً هر pointerdown بیرون از نوار همه‌چیز را می‌بست: شروع اسکرول برای دیدن ادامهٔ
+    // جمله، یا لمسِ چند پیکسل کنارِ دستگیره، دستگیره‌ها را درجا غیب می‌کرد.
+    let down: { x: number; y: number; t: number; id: number } | null = null;
+    function onPointerDown(e: PointerEvent) {
+      const t = e.target as Element | null;
+      if (t?.closest?.("[data-mark-toolbar]")) { down = null; return; }
+      down = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId };
+    }
+    function onPointerUp(e: PointerEvent) {
+      const d = down;
+      down = null;
+      if (!d || d.id !== e.pointerId) return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return; // اسکرول/کشیدن بود، نه تپ
       const t = e.target as Element | null;
       if (t?.closest?.("[data-mark-toolbar]")) return;
+      const root = articleRef.current;
+      const sel = window.getSelection();
+      const hasSel = !!sel && sel.rangeCount > 0 && !sel.isCollapsed;
+      // تپ روی یک نشان → نوار ویرایش + دستگیره‌ها (مستقل از click که روی وب‌ویو گاهی نمی‌رسد)
+      const mk = t?.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
+      if (mk && root && root.contains(mk) && !hasSel && Date.now() - d.t < TAP_MAX_MS) {
+        const mid = mk.dataset.mid;
+        const mark = mid ? marksForLesson.find((m) => m.id === mid) : undefined;
+        if (mark) {
+          const cur = markBarRef.current;
+          if (cur && cur.mode === "edit" && cur.via === "tap" && cur.markId === mark.id) return;
+          const rect = markRectOf(root, mark.id, zoomRef.current);
+          if (rect) {
+            setBar({
+              mode: "edit", via: "tap", markId: mark.id, secId: mark.secId, text: mark.text,
+              occ: mark.occ, pfx: mark.pfx, sfx: mark.sfx, rect,
+            });
+            return;
+          }
+        }
+      }
+      const cur = markBarRef.current;
+      if (!cur) return;
+      // نوارِ انتخاب بومی را selectionchange مدیریت می‌کند
+      if ((cur.mode === "new" || cur.via !== "tap") && hasSel) return;
       setBar(null);
+    }
+    function onPointerCancel() {
+      down = null;
     }
     function onScroll() {
       setBar((cur) => {
@@ -458,11 +506,15 @@ export function LearnView({ id }: { id: string }) {
     }
     document.addEventListener("selectionchange", onChange);
     document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    document.addEventListener("pointercancel", onPointerCancel, true);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       if (timer) clearTimeout(timer);
       document.removeEventListener("selectionchange", onChange);
       document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerUp, true);
+      document.removeEventListener("pointercancel", onPointerCancel, true);
       window.removeEventListener("scroll", onScroll);
     };
   }, [secIdOf, marksForLesson, setBar]);
@@ -484,7 +536,8 @@ export function LearnView({ id }: { id: string }) {
 
   // ── لمس/کلیک روی نشان موجود → نوار ویرایش + دستگیره‌های سر و ته نشان ──
   // انتخابِ برنامه‌ای هرگز ساخته نمی‌شود؛ نوار با via: "tap" از selectionchange
-  // مستقل است و فقط با لمس بیرون از نوار/دستگیره بسته می‌شود.
+  // مستقل است و فقط با تپ بیرون از نوار/دستگیره بسته می‌شود.
+  // (روی لمسی، pointerup همین کار را زودتر کرده است — اینجا تکرار نمی‌شود.)
   function handleArticleClick(e: React.MouseEvent) {
     const target = e.target as Element;
     const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
@@ -493,6 +546,8 @@ export function LearnView({ id }: { id: string }) {
     if (sel && !sel.isCollapsed) return; // انتخاب دستی فعال است — selectionchange خودش نوار را می‌سازد
     const mid = mk.dataset.mid;
     if (!mid) return;
+    const cur = markBarRef.current;
+    if (cur && cur.mode === "edit" && cur.via === "tap" && cur.markId === mid) return;
     const mark = marksForLesson.find((m) => m.id === mid);
     if (!mark) return;
     const rect = markRectOf(articleRef.current, mid, zoom);
@@ -835,8 +890,8 @@ export function LearnView({ id }: { id: string }) {
           className="space-y-6"
           style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none", zoom, position: "relative" } as React.CSSProperties}
           onClick={handleArticleClick}
-          // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا فقط
-          // نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید
+          // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا
+          // فقط نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید
           onContextMenu={(e) => e.preventDefault()}
         >
           {sections.slice(0, visibleCount).map((s, i) => {
