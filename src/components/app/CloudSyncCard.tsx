@@ -5,12 +5,16 @@
  * روی ابر ذخیره می‌شود و با ورود در هر دستگاهی خودش برمی‌گردد. کاربر هیچ دکمهٔ
  * «همگام‌سازی/بازیابی» دستی لازم ندارد — این کارت فقط وضعیت را نشان می‌دهد و
  * ورود/خروج + یک بازیابی اضطراری کوچک دارد.
+ * ورود اینجا همان قواعد دیالوگ ابر را دارد: تشخیص تعویض حساب → دریافت ابر →
+ * اعمال (ابر پُر) یا پوش اولیه (ابر خالی)؛ دریافت ناموفق → خروج بدون هیچ پوشی.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 import * as React from "react";
 import { Loader2, LogIn, LogOut, UserPlus, CheckCircle2, CloudCog, TriangleAlert, CloudCheck } from "lucide-react";
 import { sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState, collectLocal, applyLocal, onAuthChange, type SbUser } from "@/lib/supabase";
-import { wipeLocalUserData, cloudLastPushAt } from "@/lib/cloud-sync";
+import { wipeLocalUserData, cloudLastPushAt, handleAccountSwitch, adoptCloudBlob, holdCloudPush, noteCloudPushed } from "@/lib/cloud-sync";
+import { builtinCourses } from "@/lib/law/courses";
+import { useApp } from "@/lib/store";
 import { fa as faNum } from "@/lib/fa";
 
 /** پیام خطای دوستانه — جزئیات فنی هرگز به کاربر نشان داده نمی‌شود */
@@ -41,11 +45,51 @@ export function CloudSyncCard() {
   async function doAuth() {
     setBusy("auth"); setMsg(""); setErr("");
     const e = mode === "in" ? await sbSignIn(email.trim(), pw) : await sbSignUp(email.trim(), pw);
-    setBusy("");
-    if (e) { setErr(friendlyCloudError()); return; }
-    setUser(sbUser());
-    setMsg(mode === "in" ? "خوش آمدی! از این پس همه‌چیز خودکار همگام می‌شود." : "حسابت ساخته شد؛ از این پس همه‌چیز خودکار همگام می‌شود.");
-    setPw("");
+    if (e) { setBusy(""); setErr(friendlyCloudError()); return; }
+    const u = sbUser();
+    if (!u) {
+      // ثبت‌نام بدون نشست خودکار (تأیید ایمیل)
+      setBusy("");
+      setMsg("ثبت‌نام انجام شد؛ ایمیل خود را تأیید کن و دوباره وارد شو.");
+      setMode("in");
+      return;
+    }
+    // تا پایان بررسی ابر، پوش خودکار معلق است — دادهٔ پاک‌شده/کهنه هرگز روی ابر نمی‌نشیند
+    holdCloudPush(true);
+    try {
+      handleAccountSwitch(u.id);
+      if (mode === "up") {
+        // سیاست «کتابخانهٔ خالی برای حساب تازه» — هم‌سو با دیالوگ ابر
+        useApp.getState().setHiddenBuiltins(builtinCourses.map((c) => c.id));
+      }
+      const { err: pullErr, data } = await sbPullState();
+      if (pullErr) {
+        await sbSignOut();
+        setUser(null);
+        setErr("داده‌های حساب از ابر دریافت نشد؛ برای حفظ اطلاعاتت کمی بعد دوباره وارد شو.");
+        return;
+      }
+      setUser(u);
+      setPw("");
+      const hasData = !!data && typeof data === "object" && Object.keys(data as object).length > 0;
+      if (hasData) {
+        if (adoptCloudBlob(data)) {
+          setMsg("داده‌های حساب بازیابی شد؛ صفحه تازه‌سازی می‌شود…");
+          setTimeout(() => window.location.reload(), 350);
+          return;
+        }
+      } else {
+        // ابر خالی → دادهٔ همین دستگاه پایهٔ حساب می‌شود
+        const blob = collectLocal();
+        const pushErr = await sbPushState(blob).catch(() => "net");
+        if (!pushErr) noteCloudPushed(blob.savedAt);
+      }
+      setLastPush(cloudLastPushAt());
+      setMsg(mode === "in" ? "خوش آمدی! از این پس همه‌چیز خودکار همگام می‌شود." : "حسابت ساخته شد؛ از این پس همه‌چیز خودکار همگام می‌شود.");
+    } finally {
+      holdCloudPush(false);
+      setBusy("");
+    }
   }
 
   /** بازیابی اضطراری — فقط برای مواقعی که کاربر فکر می‌کند چیزی گم شده؛ در حالت عادی هرگز لازم نیست */
@@ -63,7 +107,15 @@ export function CloudSyncCard() {
 
   async function doLogout() {
     setBusy("out"); setMsg(""); setErr("");
-    try { await sbPushState(collectLocal()); } catch { /* بی‌اثر — سینک خودکار قبلاً ذخیره کرده است */ }
+    // آخرین ذخیره باید واقعاً موفق باشد — وگرنه پاک‌سازی دستگاه داده را برای همیشه می‌برد
+    const blob = collectLocal();
+    const pushErr = await sbPushState(blob).catch(() => "net");
+    if (pushErr) {
+      setBusy("");
+      setErr("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشدی. اینترنت را بررسی کن و دوباره بزن.");
+      return;
+    }
+    noteCloudPushed(blob.savedAt);
     await sbSignOut();
     wipeLocalUserData();
     setUser(null);
