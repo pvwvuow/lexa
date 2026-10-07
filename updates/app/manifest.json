@@ -1,10 +1,15 @@
 {
   "schema": 1,
-  "version": "0.10.12",
-  "tag": "app-v0.10.12",
-  "generatedAt": "2026-10-07T09:10:24.161Z",
-  "notes": "نسخهٔ 0.10.12 — ویرایش نشان با لمس + شکار باگ\n\n- ویرایش نشان روی لمس: دستگیره زیر انگشت می‌ماند و بازه را دنبال می‌کند\n- بستن نوار نشان فقط با تپ واقعی — شروع اسکرول دیگر نوار را نمی‌بندد\n- تپ روی نشان = باز شدن نوار ویرایش\n- امنیت سینک ابری: ورود/خروج ابری و ذخیرهٔ آفلاین ایمن‌تر شد\n- سرویس‌ورکر آفلاین مقاوم‌تر (رفع صفحات کهنه و خراب)\n- بهبود تاریخچهٔ آزمون‌ها و جستجوی قانون\n- به‌روزرسان درون‌برنامه‌ای سخت‌گیرانه‌تر و مطمئن‌تر",
+  "version": "0.10.13",
+  "tag": "app-v0.10.13",
+  "generatedAt": "2026-10-07T10:32:24.884Z",
+  "notes": "نسخهٔ **0.10.13** — فیکس «دستگیرهٔ نشان گیر کرده»\n\n• ریشهٔ گزارش «هیچ تأثیری ندارد، نه عقب نه جلو» پیدا و بسته شد: کشیدن دستگیره فقط به رویدادهای pointer خودِ دستگیره تکیه داشت و در وب‌ویو اندروید، holdِ طولانی/ژست بومی یا افتادن کپچر همان اول جریان رویداد را قطع می‌کرد\n• کشیدن حالا روی شنونده‌های window انجام می‌شود — مهم نیست هدف رویداد کدام المان است؛ کپچر فقط بهینه‌سازی است\n• فال‌بک لمس خالص: اگر استریم pointer مُرد، touchmove خودش کشیدن را می‌راند و touchend ذخیره می‌کند\n• حین کشیدن: منوی long-press و selectstart خنثی، اسکرول بومی ممنوع — انگشت هیچ‌وقت دستگیره را از دست نمی‌دهد\n• pointercancel وسط کشیدن اگر جابه‌جایی بوده همان بازه را ذخیره می‌کند\n• QA اختصاصی جدید (qa113): ۱۶ ادعا روی هر ۵ سناریو + کل مجموعهٔ رگرسیون سبز\n• اندروید versionCode 113 — از داخل برنامه با «بررسی به‌روزرسانی» دریافت کنید",
   "history": [
+    {
+      "version": "0.10.12",
+      "date": "2026-10-07T09:10:24.161Z",
+      "notes": "نسخهٔ 0.10.12 — ویرایش نشان با لمس + شکار باگ\n\n- ویرایش نشان روی لمس: دستگیره زیر انگشت می‌ماند و بازه را دنبال می‌کند\n- بستن نوار نشان فقط با تپ واقعی — شروع اسکرول دیگر نوار را نمی‌بندد\n- تپ روی نشان = باز شدن نوار ویرایش\n- امنیت سینک ابری: ورود/خروج ابری و ذخیرهٔ آفلاین ایمن‌تر شد\n- سرویس‌ورکر آفلاین مقاوم‌تر (رفع صفحات کهنه و خراب)\n- بهبود تاریخچهٔ آزمون‌ها و جستجوی قانون\n- به‌روزرسان درون‌برنامه‌ای سخت‌گیرانه‌تر و مطمئن‌تر"
+    },
     {
       "version": "0.10.11",
       "date": "2026-10-05T19:27:25.014Z",
@@ -29,20 +34,15 @@
       "version": "0.10.7",
       "date": "2026-10-04T08:27:00.447Z",
       "notes": "رفع باگ نشان‌گذاری: پاپ‌آپ نشان دیگر بعد از کلیک روی نشانِ جمله غیب نمی‌شود — نشان‌های جمله‌ای (چندقطعه‌ای) درست در حالت ویرایش باز می‌مانند و اگر وب‌ویو انتخاب را بکُشد، خودش بازسازی می‌کند؛ دستگیره‌های موبایل سر و ته بازه پایدارتر شده‌اند. (نسخهٔ 0.10.7)"
-    },
-    {
-      "version": "0.10.6",
-      "date": "2026-10-04T07:11:29.808Z",
-      "notes": "همه‌چیز خودکار شد: همگام‌سازی ابری بدون هیچ دکمه‌ای خودش انجام می‌شود (نسخهٔ 0.10.6)؛ در نسخهٔ رایانه، به‌روزرسانی برنامه خودکار دانلود و نصب می‌شود؛ تنظیمات ساده‌تر شد و اصطلاحات فنی از برنامه حذف شد؛ پیام‌های خطا ساده و دوستانه شدند."
     }
   ],
   "files": {
     "package.json": [
-      "c4e023f8f02b8e16d389c9f6d2bdd439674ed82c3f4e5666ca88c9457788f563",
+      "b35735f5a84c42a082b60dd3f4e5a136b45550a75d8a30200aa8d0d8a41319b4",
       2767
     ],
     ".next/standalone/package.json": [
-      "8da238b28d7a2e941fcbc66295eefc28d6c8415a3b4e8a02d62193abbff302a7",
+      "cab52b77cfe8359092ba24629ef05dbef88951d4afd8aa99e8258641e5caa9da",
       4561
     ],
     ".next/standalone/asr-demo/noisy.wav": [
@@ -78,463 +78,463 @@
       1846
     ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_posts_[id]_comments_route_actions_9d525e48.js": [
-      "84bc120e86a102e757b058d1719c6c99a59fdb3f8f065be7f27623674918a09b",
-      141
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_social_feed_route_actions_f0c372de.js": [
-      "7531522f585cba8eecec813ea0cc88cbaaf312affe3f09cdfbc23c8e757072ac",
-      129
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__95092db8._.js": [
-      "411736b466eb9b92e7d10bbb51329ad4cf080487c7f7b28d2d6e05f7594b3626",
-      10218
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__ba578632._.js": [
-      "7917c733452f215dc126d66432aa56762cfc193a7fd7764995d7c6c088e6dfb0",
-      15765
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_ai_route_actions_9ece58bc.js": [
-      "3682d6678f66ca2f92ef4fc1d472ab5a195b69c75d3fe1bc0785fb93827c53e6",
-      120
-    ],
-    ".next/standalone/.next/server/chunks/src_lib_law_courses_index_ts_6e1c352c._.js": [
-      "d723e1930551387544ff5c18436104bac5fd0a5cc6fbadb5f87d223e456898cb",
-      116994
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__a3c66f9b._.js": [
-      "c24cb1d935982a70021007dc2b861cb823e010c6a40514be66e2425dc1551cf4",
-      9546
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_users_[userId]_route_actions_79297923.js": [
-      "1059ca5f79ad4a41a6d69635f27f81c36562f7140d38b6158473694f7e646143",
+      "a7a4a486d5ebfad318847a5f546fef0fe3ff4cd0a979b232777c41afac1a34bb",
       142
     ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_social_feed_route_actions_f0c372de.js": [
+      "d90c970311b49fb9c5d4948600663143d4587ad33381eee8929c02973620d1ed",
+      130
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__95092db8._.js": [
+      "b177ff79f5cddffcb30af81fec84b06b69b139bc05d9b4e5ceca46df60df80e9",
+      10257
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__ba578632._.js": [
+      "e0837239b84c20de7e202a6e0e06388d04c3051cbf4ad93f7c182ac967c1b161",
+      15800
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_ai_route_actions_9ece58bc.js": [
+      "fcd65d92773a9722fe7776fb9905186bc4c90dc3027978c8fcb08fbbb1b9e036",
+      121
+    ],
+    ".next/standalone/.next/server/chunks/src_lib_law_courses_index_ts_6e1c352c._.js": [
+      "d682f40aa3355e712c0cdc57b88f33755861c9530d2d90375c1421dc129c3df9",
+      116998
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__a3c66f9b._.js": [
+      "ef780b89fb8ce20fb89c1b8db3e739d354ed03e5abd1c970b55ff822d27f2164",
+      9578
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_users_[userId]_route_actions_79297923.js": [
+      "67ea3e4885301a9a14d9cd8e4592aae923f66e67b89ce7482d0668c1318bc9d6",
+      143
+    ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_import_route_actions_fd6c2005.js": [
-      "5c7ff90ba4406781cb37fd0f075699a6e620f953e061f13b50ac5814401fa952",
-      124
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_posts_[id]_route_actions_ba6d08ac.js": [
-      "faadedcddbf0b8d3b555fb68d879a4b2894677996cc53008fd4202a9cf383ee2",
-      132
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__40edb365._.js": [
-      "5f2531363844aa7a2e0fd4b1765dc7eaaf904ee891a350dc672684a0cf9d3224",
-      9860
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_teachers_route_actions_2a87f52e.js": [
-      "9868d9d5ac854dda9acd1bc44294d572bdbfcc3c34f51639ed7ac612aac5644d",
-      132
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__0d5a9865._.js": [
-      "39c44fcc87ce71b2b3431445fa7c7c754324d35ef5436e68b09b5fbb50cbde07",
-      3951166
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__fcff4d9a._.js": [
-      "42ef729b840e24d7344dbf92a861dec8bd6f32994f89ef1c4266be1dfecb8262",
-      7454
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_feedback_submit_route_actions_45d057e5.js": [
-      "ebcb7b84d57f74d20239e22a45f1014a4998f407dc090b34de1199e3a5da90b8",
-      133
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_profile_avatar_route_actions_b3079548.js": [
-      "cd7287aedcef9c10cc12a58291ade915fefa9b90bfddc7d32c6158f00d9138e0",
-      132
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__4199db55._.js": [
-      "5d77228b4f3818e35d36de30f3d1806e476504679b0cfab5a4ec0479f2ef2887",
-      31573
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__6620d208._.js": [
-      "0a732cc13aa93c9efac3f7c3e2439340ca4515eceaf24dfa6393af8af3ad446a",
-      8986
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__123ae74b._.js": [
-      "046f072034e58911535c21374670ce020c1a9501f6c3d38f42ae653ae9518f6a",
-      7753
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__9f80f3c3._.js": [
-      "48f587e7e3e40ab5c903fb9475cea1910338ac09dba769572331304508f70efc",
-      14978
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__cab332ac._.js": [
-      "070b0089ff47727e5eacb7acee33dfadebc5c4db87a873aa3d5a68ed72b422d5",
-      14288
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__5fc045f7._.js": [
-      "aae1a74080e8902f5e34af3bf3338750f5cb48a093e6fb5366165004b1e5f8fc",
-      9495
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_ratings_route_actions_14096098.js": [
-      "e77f0057bf9443194af75f0adab77e976a496e1033033a75e29ee67133bdb077",
+      "64870012d6b3267c42063bc8746475f1c592abe3ca064f51a89494b8a76d9c44",
       125
     ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_posts_[id]_route_actions_ba6d08ac.js": [
+      "813462f89b291ea18581d1694f4afe3a3568579ca60bb7e10e4af9eb1583f6d1",
+      133
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__40edb365._.js": [
+      "8e30bde012452662b9402faa10a4ffb723a63e388946b8edc2254ec3916e364b",
+      9892
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_teachers_route_actions_2a87f52e.js": [
+      "3ff4c217d82223c7aa0e713c0d5dd5728e25975d116f71515fd4a82ac10bd3d0",
+      133
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__0d5a9865._.js": [
+      "c664b0d4f1bd65a23494513089dae865d7fcc6f3bff39bd7cd8613fbc5a212b2",
+      3951247
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__fcff4d9a._.js": [
+      "9e55c33fff893a1aa300a6ad23d1e6a39d2baa9c74684e4414bdde47c7434d34",
+      7485
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_feedback_submit_route_actions_45d057e5.js": [
+      "220c28a3026f25ea0b383d93fb0e5b1c6faaf70fdec248b80c726330b03c412c",
+      134
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_profile_avatar_route_actions_b3079548.js": [
+      "5ff59e11f2ec157ac68af508d85dae89ae0300dbb8409e526ca1139a380ef585",
+      133
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__4199db55._.js": [
+      "6a2e10f72c98f43cfd27b2518265eadcead007db1df0068861e71911e6e80448",
+      31629
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__6620d208._.js": [
+      "4443f2aceb4ba6c8f42fa73b5686e2206982b984e4b321b8e420206c7d4f09fa",
+      9016
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__123ae74b._.js": [
+      "be54fb9833e2d74d3e0a101a8976159fa71d0b85c361fb5c2e685f8ee2ff9fc0",
+      7760
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__9f80f3c3._.js": [
+      "92464757fb8310095ab7379c61d44fc8106e62b1d32fd8099927d906f3fd5e97",
+      15010
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__cab332ac._.js": [
+      "ac684da9da51a8cfa902e71ee523641b9b2f7ed7d2f3dc66eeb8be74aa7c78e7",
+      14322
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__5fc045f7._.js": [
+      "76dc5f0055c78d2dcdc749fc9abd4a160387bfa6d08f04f48810406f5af294c7",
+      9527
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_ratings_route_actions_14096098.js": [
+      "bbbdc8cb298355eef0c7d336901bcd3fed7cf855b33a7bdd15b33d65d9784afd",
+      126
+    ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__adacba92._.js": [
-      "13054a010ab3322ac7f845017ad1b791986551bd72cdeaa7f1f10b14f4eb0aab",
-      13186
+      "db9e9bfb3f4d51345d997294278be1523623145e754dccfb298ee7db641eb1fe",
+      13222
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__e26afac4._.js": [
-      "597e1e43e043fef631bed3827cf503451652e19f682140308069916fe0cd9943",
-      7852
+      "74005b42a041f9a7dbcaff24241126115d1c3288c3b6313dc1c1b9f2196bad4a",
+      7884
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__c965a0c9._.js": [
-      "ac4602e8f537988742a6a354c5a7a5395ec6d4e373f89ae3e7710ed61557c7a3",
-      3767
+      "20885d4721adbd85c0c61ac8c73ccbbf41059d9c60303bc269f8bf0424017ba0",
+      3779
     ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_register_route_actions_3564e727.js": [
-      "2fa81fd494cde6f909066e4391ae0882e9d7ced3f102197f73c10e56b93bfd65",
-      131
+      "373fbb8fdd8f361b111b72684de9815570c14b09eb4c8fe7f4cdadecc9ebf73b",
+      132
     ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_users_[userId]_route_actions_ea0e8663.js": [
-      "c4c2cfa55663753727975f5eb133f13254d0970768791672aa549da1591806e4",
-      136
+      "9e63e09ad2b47800bb962eb3af46f0c5d3d4a003722d5d7c553adef43dfcfed1",
+      137
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__b1793bc6._.js": [
-      "d7c1654c2312d1bf39369e9ac33e20b758beec23b3eda5c5d42ff7d243ee1a19",
-      8270
+      "6e23ac53aa5d78e6fad90e5a3db8142e7a36559d2a1ab6220cd34f8adcd990f8",
+      8300
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__1ff80952._.js": [
-      "44e516b9c4e52fcce2a395de3a22c207f7793657e0b576427983d85d5240caa9",
-      7465
+      "cd685df853ae4e1109c9757d8756bf13bf70462cdb966e6ef2842bef14286667",
+      7494
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_client_components_builtin_forbidden_45780354.js": [
-      "9c5ab16911957f05269b5542cdf5d7b96550f1d8bfb6807121dd519be114c66e",
-      625
+      "b0d29272861299830c37f63400e9817812210284a88ce49ca855712cf393717a",
+      629
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__8917694c._.js": [
-      "43b5c77bb6effc08796aa4f47493e060cb6546e3a3cbde66c54e84e317c2c95d",
-      412
+      "b0210d7c9165fe7dd6d45870d70f3430c897387005250faa7ac05de9de214e70",
+      419
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_08570d7f._.js": [
-      "6931a5038195327c5cad529aa2677d9c0a8f99579f99ffcc4dedbb23e46c71eb",
-      16842
+      "b4a06269069b8e670db9722d1c34e295f3fea45b190f85e3e728c566b6152e44",
+      16882
     ],
     ".next/standalone/.next/server/chunks/ssr/src_lib_law_courses_index_ts_cf66d52b._.js": [
-      "46905aaa65dc787f142cded7c4c5810c3e6962451dc3c88c6b0feba4326df265",
-      116989
+      "d29c1d3fff89392afda18c835110555aafecaa747d579bb5d27743a2eab48064",
+      116993
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_client_components_builtin_unauthorized_15817684.js": [
-      "ab7feb34c180f66c9895961ade44bd4324c2ffc4d0d53d7bf6795c7bb5729ed4",
-      638
+      "7a8bdc63e9722c13043a4563e60609b200aaa153bf283e5d235bdfe9a1d802de",
+      642
     ],
     ".next/standalone/.next/server/chunks/ssr/src_lib_ai_tasks_ts_7fb70457._.js": [
-      "cf500b400f8e3c0c16edb659f76c9687c887d36943d3a3af4b72a799cc4685ca",
-      13835
+      "5cb1cc01f0619e132c59ad574e9a0397555a98fe9fffc28d84372991343feb67",
+      13839
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__6ee89430._.js": [
-      "f1b4fe1d85f0af12cefc96b999cdbfeaf6ad9c145c36a5dff3a06988c0e5a315",
-      3740
+      "72378e072c4b74314d66468c8937f884fe6d6ac04e0b6e1f5a3a2b154bdf0e7f",
+      3766
     ],
     ".next/standalone/.next/server/chunks/ssr/src_lib_store_ts_85460e28._.js": [
-      "a7bb01ccaf874f86d410dfc13b6f3fb4320ece90b0c1873224f025beab47cf9b",
-      10417
+      "78db0fc1ad3935b160323073142ed725fbcd05e1d40e2b49b80e2e570e1e27f3",
+      10422
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__3cc33b2f._.js": [
-      "3f6a4125f25135900ff5afddca8e41da4c76d16516da8991b319d98ac91ed80c",
-      985139
+      "cf6e5888a0fee3fb922131f804d6c2773cca40d37d74588578c3b7c43e4f3374",
+      986315
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_client_components_builtin_global-error_ece394eb.js": [
-      "ffb756d1bb7ac24b0f0f88b41905e8e95202784987f23089df4c19dce2c1bf85",
-      482
+      "c05a5534c743d888312da946b39417af37bcaff10e5b8a88f87a361c918372eb",
+      491
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b9356576._.js": [
-      "4e8aa75812a4537d0893fbe68833a3dfc18883d84d95c0b5bccb8d6458473273",
-      1893
+      "6016c6171db578dcb35e64ffe733d7ae284840e506c51b362b5daf8212095bf7",
+      1903
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_65a7265e.js": [
-      "ddcf91189b6c6413de0466ceb73c2d608ccd4928ec40ee475adfa15d1b3ad19a",
-      17239
+      "384276c9ba176f14b080a7649e49abda84b7935ef2fc1bbb9978cc66c7ac1b28",
+      17279
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_77ec7569._.js": [
-      "ab9a0dfbdd6c9feb2cdcce9c8e0150f69097804cf84a7df06fd05ed27ab0a5b7",
-      53862
+      "1511a6ece452da2d954a3970dac70c769673496ce17a907161caf19166306e0d",
+      53944
     ],
     ".next/standalone/.next/server/chunks/ssr/_95f2efeb._.js": [
-      "355e32dd48dbddb4b04cfd23db0290ed4141d21b9a2d43388fb8c3001b6f3b8e",
-      26789
+      "9c38eb5914dba2431199cb28f5ebdd58c67153d232315dac3c5d7183d438ae04",
+      26808
     ],
     ".next/standalone/.next/server/chunks/ssr/[turbopack]_runtime.js": [
       "774280cec942b7e2bb78a61db62d29755d9c03b3bec58b6bfb7a9f7cf543ca19",
       29887
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__41563ddb._.js": [
-      "161365b2d2aff9f6fa78e34857a975a5967a6b713fa308037983b495d0bdbfb1",
-      3848
+      "647cf8bc5fd1e0380bfff39e71b447fa40b0b8c1d221f5931cad269a94b0b768",
+      3871
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_6c178803._.js": [
-      "e3dc80ccb921aca604fe744111b10889b612ab6f3bfe642cab0baf7d67feac9b",
-      45942
+      "8cf0676ca1a465c9cc680a5421365e7aa42cbd22e146e1e9e446475a1d6f20cd",
+      46082
     ],
     ".next/standalone/.next/server/chunks/ssr/_next-internal_server_app__not-found_page_actions_554ec2bf.js": [
-      "76cfcde77f7d10e7ac7000a73bb5d810912e8fb8ae31dd39e509e544c4754c8f",
-      123
+      "0b998b5fddf8255ef0b28764ec62ba18a56d7adff7bf936a7263d62ed470657f",
+      124
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_client_components_9774470f._.js": [
-      "1bb92e8951223425c1d0be75d524d86dfcb855cc1a51a219db3572fb88d9b138",
-      2494
+      "484820dec54498bbd52c621a39588c541571dbb28b2c9e4c7dc305ca05230943",
+      2503
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__994d3ab6._.js": [
-      "477d0d9d961457170ba01f31453c14011da1b6779948c6a167177865f97328c9",
-      1640
+      "627bbbf5eb1b927f73fe6ebdc985573a24c7a3778274707dc935cbe701f97797",
+      1658
     ],
     ".next/standalone/.next/server/chunks/ssr/_next-internal_server_app_page_actions_39d4fc33.js": [
-      "c96cea188535eef61a3e960fec592d9011953d9d189594dc11a2409095c5492d",
-      112
+      "44892f8bbb5f6681a7b01c35ee1f27553b03db197e8a692b87b59cfa176dc341",
+      113
     ],
     ".next/standalone/.next/server/chunks/ssr/_next-internal_server_app__global-error_page_actions_75761787.js": [
-      "c179e52cc764e88ea377a25dc7c1eb4329d0258e97d419722a2277dbcf18d263",
-      126
-    ],
-    ".next/standalone/.next/server/chunks/ssr/src_53569be9._.js": [
-      "c2cc263e94dc7d070ddf51c580c3070db36eaa5bc0ff7b4189ca61084c251cb5",
-      19153
-    ],
-    ".next/standalone/.next/server/chunks/ssr/src_lib_law_courses_index_ts_0cc8a43a._.js": [
-      "eddd3e4e784cd2beae0f540b4a9eb92d2980eb85104c581dbd4ed4fe9573e576",
-      183
-    ],
-    ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_4b9a0874._.js": [
-      "e9b748677d897e15e9ad5e5ad4cabaf8ecfb9a8d55c6eb9e506c43635042f102",
-      19316
-    ],
-    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__3131adfa._.js": [
-      "f1ae07906ed7eeacd56381aa56b3ff1ae3c580eb5946fef1371881458aef0e12",
-      1129
-    ],
-    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b08049c5._.js": [
-      "1c386152fd7f4c1ca6b30ea6bb585029c35331a8f9e9dec0f344fe29b069995e",
-      3194
-    ],
-    ".next/standalone/.next/server/chunks/ssr/src_lib_law_examPacks_ts_3075be39._.js": [
-      "3b270d5b1145fa7fb11a3f2afa9c8e9de60eaab1f44800d6b1d26da18f8a3856",
-      399699
-    ],
-    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b6f476c5._.js": [
-      "9fc14a2598330af9b85fb1d029ab4269c8611e0885c9c65a60d116ab7100bc8b",
-      890
-    ],
-    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__1690ee0d._.js": [
-      "10c23302305279577da61ccde6ff37d298410881b964a6e84dd4bdcf7363388a",
-      97511
-    ],
-    ".next/standalone/.next/server/chunks/ssr/_d6d00830._.js": [
-      "c9a53554f125694cc495c31b0fb160032ac9af94dddf9d1ac06e1603cc9c796d",
-      17235
-    ],
-    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__84368e23._.js": [
-      "613de38170f08ebb3d677f5e21f55fc0dc86cbb3db920ed6358855585dd39e9a",
-      2005
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_feedback_chat_route_actions_4fb94f89.js": [
-      "868dda7e2cdac880a909a8a111db710e342541ccd83965e7769ee993afdfe59e",
-      131
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_tcourses_route_actions_d8a6bd11.js": [
-      "598000c210a85bf9bc5b39c322e98901bafa5c474d47157f5b87e91448d1f494",
-      126
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_social_follow_route_actions_2fd5b55b.js": [
-      "1efd158b20b544f5a3ef59ce76e48c13a7d16d64691a16b3f35dd30bf3949e05",
-      131
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__00990194._.js": [
-      "4360c7f5159d89d9c2522c0df96330c8af1234ae36e2435166702ef50ad40ca6",
-      8982
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_login_route_actions_d02a8f19.js": [
-      "9bd0ab3733005a92fdbd4f631c50601c437589e3a4c2bbb88faa8ab71b883bf4",
+      "fd9e7668c08decbc42deaa57f6667b3c40612b236c3ca78d62253a77b844d9ef",
       127
     ],
+    ".next/standalone/.next/server/chunks/ssr/src_53569be9._.js": [
+      "be33150883c50ebaa73f09ad94f55b0b0a50982f61fa9341dfe02b91760cf2fa",
+      19175
+    ],
+    ".next/standalone/.next/server/chunks/ssr/src_lib_law_courses_index_ts_0cc8a43a._.js": [
+      "b9bf323b82a838b06c4d4c2163508a191c0b8ba76ca91ee6eb02413039d2ba1d",
+      186
+    ],
+    ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_4b9a0874._.js": [
+      "698af00dd7a7782aa675ff201f410c7d42ef6ae57b76697ac9de3c914fdcf782",
+      19369
+    ],
+    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__3131adfa._.js": [
+      "ab49e867d1055878814a76f2bd11393aa64fac104f8a004d6b182434173210b5",
+      1143
+    ],
+    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b08049c5._.js": [
+      "c46b89f22a57c5bc9fa34dca3ab7d9e67eeb1a9c0414a4bfe3d2a17d88d6f081",
+      3210
+    ],
+    ".next/standalone/.next/server/chunks/ssr/src_lib_law_examPacks_ts_3075be39._.js": [
+      "cd16f778ef808ab98520f119fe4a80720e44dd428ffc654185879a1458483878",
+      399701
+    ],
+    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b6f476c5._.js": [
+      "b7a06581a61848d2b3ad433abe82518b1751d8ca067a764b6dd76c1b71243cf0",
+      903
+    ],
+    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__1690ee0d._.js": [
+      "816a60dc1839ef9be6799fa1d6ef5baa48ea2e142c161acd3570ef4b730baa68",
+      97674
+    ],
+    ".next/standalone/.next/server/chunks/ssr/_d6d00830._.js": [
+      "c733112240065d125dec5b84fb70bcfbeb131cba8c2a3de12ca2e2cf06e11f6c",
+      17281
+    ],
+    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__84368e23._.js": [
+      "c23c24ec683b19500de6842f851f8effaed4ceb45ada0551af796c7c92949833",
+      2032
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_feedback_chat_route_actions_4fb94f89.js": [
+      "15deefbd3d193a0d77787e3fa443fd3e8fbb54258dcf4934d29ad4506bd5d36f",
+      132
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_tcourses_route_actions_d8a6bd11.js": [
+      "a32181eccccdb8220102fb531be17dbb824ef3bd8eacd9cca552c75ebfed3a1c",
+      127
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_social_follow_route_actions_2fd5b55b.js": [
+      "91e1e85427fb1a451ccf53a95ef626f8747000dbd418a379368db7f923c05a33",
+      132
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__00990194._.js": [
+      "bf511110293c56bfadf11c4b9723347e7917ebb8e3033294085d2aa889bf8c2d",
+      9012
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_login_route_actions_d02a8f19.js": [
+      "1cd36a8f6818e7572da509040d6c01708cb84014a8acba5c760375b0d56edbc1",
+      129
+    ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__e5eab963._.js": [
-      "60c45f206f562eb2ac015cac10f4d74681575bc4a6c14c0c9eda6d6daa3a98c4",
-      10356
+      "680c3af01c28d9e25deb74f4093e1e5d4b4fac8e0adfe8ad528e8cdf129ba2e7",
+      10395
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__348bae3e._.js": [
-      "81c27ff016ca1031dfdb32ec35d4cb0239e5c4dcb9838f1022a485fd98491d8a",
-      25808
+      "ede71376d18c3c4c6c091aa04d8d29fec2004ac5274711b7b030d4ee63e70059",
+      25857
     ],
     ".next/standalone/.next/server/chunks/[turbopack]_runtime.js": [
       "5bfc5cd5ae24d6daca87504e606787bd25a31d266f51890d935517a13ba542de",
       29877
     ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_feedback_route_actions_725c7d63.js": [
-      "7b394e29cda756393062b82204ee24216b1578428de0ff43ad9e270176a87557",
-      132
+      "611f13cfab21ae0fc87885f4c684192b0cfe13d21db63a72ba0e1c6b0f20c131",
+      133
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__aa8be30a._.js": [
-      "8e3ecf6152d7baca224cc85a74dbb4eb5353ee1342fc986b0b2d37a827bf553a",
-      8130
+      "f695b888eded0cfe730ef68c7c92efcbb670d512c6d2475f9595c1255b72144c",
+      8162
     ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_tcourses_[id]_route_actions_15c84b26.js": [
-      "664dbc320e8c0a5a45b15c72b56d48296828607b111787fdd83f030081498c9c",
-      134
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__bf5db229._.js": [
-      "6452b645f392aef641154eeddc6400b63d5a9b91f648616a481e2f9a099a0cb2",
-      14853
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_cover_[name]_route_actions_45d39fc8.js": [
-      "86350ab9735966affe077b8487cbaa451228029c4dfcd4ad3079593853bcc485",
-      134
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_feedback_mine_route_actions_3f239110.js": [
-      "acd1856d92b1967c1427eb7e7e96bac70f518ce6250da78044ede6d39fa6df36",
-      131
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_library_route_actions_65971070.js": [
-      "7975182280c95a4ddec0855c1284ce629a6fd6dd33912e4224a840025e9b3fdc",
-      125
-    ],
-    ".next/standalone/.next/server/chunks/src_70e2d390._.js": [
-      "228884fee5b2f29aaacd68b90839b217bffa9bf8b02f1af2079b34870178b27e",
-      291
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__cb419666._.js": [
-      "44f8ab267f4fa428fddda6fa076edaec399a097d275054ba580dd21d16a3c39d",
-      9266
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__7d8b8972._.js": [
-      "7f06875815b70743bc33bd29bdcd2a62d80104fd652e6c72486e73390d696c02",
-      11068
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_feedback_[id]_route_actions_0859f100.js": [
-      "3f78fc21e7a3a6a111466b3b4b072865190370172098b9f1956795fa19f5474d",
-      141
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_route_actions_dcc5d538.js": [
-      "56964ff61544ed65a54fc4abb93941a42565fb0836865d936b69167a5f7dce63",
-      117
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__e230b30a._.js": [
-      "f718e3ab6e99e12b1b0537f243586c715f8daa35cc62d61f983f1b4fac38dc3f",
-      10342
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__628a3eab._.js": [
-      "351060100696035fc570b5fc782cca6a633f115b987f9628039f9fb239de2398",
-      8357
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__f408c708._.js": [
-      "0aba613cd5084a9752f2bc331cd59ee8c1169fd70d34f863db0ce996d31dd534",
-      145822
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__cee26a63._.js": [
-      "06d696cee55307199a84dc9ebdb6394ea84d44bb1c3495b63911364287b4d858",
-      9155
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__475cda50._.js": [
-      "f39e3772568ae0136e6f4b335ac319d82d866760639c85031990196c33d39bc0",
-      8283
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__beb7b021._.js": [
-      "1fc173e25cf0536a5bacac1da86e7a5d8af7cc87a655f5c3ce60f7c968d288f5",
-      14011
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_me_route_actions_97ac7615.js": [
-      "5e3e05d7a1e1211887b4ef3e612a84bea22dbe61f3f30ee82bfd21728b4e9cd9",
-      125
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_user_data_route_actions_e08af07f.js": [
-      "4f7acbb14abf2e93471dbfcdf1e8cf3a81c2a50f4082e0651b4d2f33365dfaa9",
-      127
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_change-password_route_actions_2c23f77f.js": [
-      "fb331879c683fe9b0c5f3ec1486cc00e8058df89e2209e55f4cde7fcfdbccc36",
-      138
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_account_route_actions_fb98b718.js": [
-      "fc9c2ab68557d0716d3399ebebfc8775b4f506ef33aa2a4030fdf4a8ba2d5a16",
-      130
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__ad53545d._.js": [
-      "4245bbcfbc1294c33b47b23c817cd631ad1a52122a16f315b7fb56097a090e3f",
-      1619
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_laws_route_actions_7a9394f0.js": [
-      "4ad35caae88ca911ff378f027eed6fb238f1c18d53c8439035cc5b02918aa349",
-      122
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_media_[name]_route_actions_eb36fa36.js": [
-      "d9da2739e30df9c855e20ee3b1a3c34e118761ee159363530defe1d01b017c1d",
-      134
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_profile_route_actions_0369ef5c.js": [
-      "934abbfbc1a026fc49d5977c66364ccc7d610f4cb054b6a903284078fd4d4531",
-      125
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_posts_route_actions_6924107d.js": [
-      "7f9d7ea2159a1e7013b4bfab03b0fd001ee63bcbeb00eb544acbf62c805cc009",
-      123
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_users_route_actions_595e9dd9.js": [
-      "f4e9dca9528b2595394933e282146aa6a319205c5e6dbd1d3d997c51fc31c222",
-      129
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_library_public_route_actions_e749a2ef.js": [
-      "31ff87acaab77c43faf248ba71304b294978b038927655022d09efba30ca115c",
-      132
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_user_sync_route_actions_c8ac7523.js": [
-      "0abcdd77c313f144cb8fec06147e751b69ef7f19c87c524884aac0a0d7f3fa63",
-      127
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__796203e3._.js": [
-      "31bfe8f2a84e06cecf19df261da8a4c8574d3a41af65a5064d9d3fd6e3ba08a6",
-      8037
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__aed98b13._.js": [
-      "e49f39fa919225e2b422a3d20181b07ce3b32674340e0460585e39e991af0089",
-      24453
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__f902df0f._.js": [
-      "27d3ea944b35500c42956fd1a460cd9f2c627d17c8876a8ceaf4679963a2f9fe",
-      11340
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_logout_route_actions_5aa6c6ca.js": [
-      "7f2648e07e566c9394936662342fa18c64301046bdfe61ee2c7f69a52d6478ba",
-      129
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__c93ff223._.js": [
-      "66859f1f87597c4a8eda070c994701262d29aa5126244bf1e0fc74d193261627",
-      7094
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__abe06e6e._.js": [
-      "632d5f4a54298ce72c5dbfc7afdd0e0574e0423eab2eb2473ea8bde0e21e9e4c",
-      7476
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__f948089a._.js": [
-      "f2cb8bd8faf7ea6421de03a957a529cb94bc3e38977616347be9b1e18f44b6e9",
-      9059
-    ],
-    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_social_suggestions_route_actions_83ba33ba.js": [
-      "88dd6d9cfa2f03683e655c66da1b2973f60508a0e69c2f0fbd2ab1a13ea3c65d",
+      "980db5102c214080f17916f9ad1200325c848550018a293e1af9613ff874908d",
       136
     ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__bf5db229._.js": [
+      "dff5728a559cd5faef596fa391cb7fc9e0b126bea9e4b8c224ae6f5f01b7da4d",
+      14888
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_cover_[name]_route_actions_45d39fc8.js": [
+      "9fcab2e2842d8877c99965787d3c9a854e93b9948cb8dde1ed2df2d7c48ddf5c",
+      135
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_feedback_mine_route_actions_3f239110.js": [
+      "c9244569060177398ee40b2fa96044e99c750ee2caef0c96465741fbabdcad0b",
+      132
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_library_route_actions_65971070.js": [
+      "6110f34bdd5b8b1882af8872e705a5556023933cb906162e3e7e87b5f94a5c67",
+      126
+    ],
+    ".next/standalone/.next/server/chunks/src_70e2d390._.js": [
+      "01d70e623802527ba0cdf5d2dcdbd9f1ffe5d93f6c750538051e1bea0379aa47",
+      295
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__cb419666._.js": [
+      "1d64c46006e7746dda5a854541aa2c226d470bc2001d0d2e9f3210fa3fdcecf2",
+      9298
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__7d8b8972._.js": [
+      "2b9617a99252cd11eb4aaaaa9a3a0cabbd1da5dca193bc30ab6c6bbad17d0544",
+      11072
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_feedback_[id]_route_actions_0859f100.js": [
+      "bc86a9ef8fc2f59f6b27d983e11ff3751013c27713c8f374cbcf3126c1f83675",
+      142
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_route_actions_dcc5d538.js": [
+      "cc6405f9bcc378eb510492637c75d4ce1e4f0524ebc46b275f16e9e21cf78c21",
+      118
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__e230b30a._.js": [
+      "60e1ee0d35ffea68dc7ac80d5fab78eeb0f3bcfb2d524648f3c2dac2d7c119f2",
+      10379
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__628a3eab._.js": [
+      "d2565664902ba33401903a06044a4514cf7cfb04a868a10453280c7b412fce38",
+      8387
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__f408c708._.js": [
+      "93d4dc26b0771efcad4ec606eb06c1aed0160523a21936dd7c48b65e319a8078",
+      145972
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__cee26a63._.js": [
+      "02cfedae59603aa622b1f4b43745025d502271dc9b86bd25c5c324a01d6dd5f2",
+      9190
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__475cda50._.js": [
+      "0b36b39676d395c1ef994861546204c9b0601f9c0ef30900d5e539f4497993a6",
+      8317
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__beb7b021._.js": [
+      "804492f07500e7791db88a93e86e28c7db16f71e3108f3ebd5d3adaa406a5e62",
+      14043
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_me_route_actions_97ac7615.js": [
+      "ffad9f1994ea18e23811db0e46229201ba00aedab157064d28881ec7a82f1851",
+      126
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_user_data_route_actions_e08af07f.js": [
+      "a87a6bf7342368792ae47d9c0904b28ce51392398980e852f619636b50b7ce29",
+      128
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_change-password_route_actions_2c23f77f.js": [
+      "3da5e4d95107ff60f959ddba4e971bd335cd821f916fc5941a3808fe9977f9e7",
+      139
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_account_route_actions_fb98b718.js": [
+      "ef5b3e02fa336b9d6213e906d5db0fea2e85bb2444de37cca81d330ee1c07591",
+      132
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__ad53545d._.js": [
+      "63a034b3d56639cb7fd543647c53117d5c3b5d508f662dedcf23d6c6620df56b",
+      1628
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_laws_route_actions_7a9394f0.js": [
+      "8e9d964788e047a9884d34ec4d9025fb16c1ce7b10b9867201781638c54e05ca",
+      123
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_media_[name]_route_actions_eb36fa36.js": [
+      "22ec5998c2aedef450ff20a785d207c572bad383457ec157f6409deb8127a98e",
+      135
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_profile_route_actions_0369ef5c.js": [
+      "845c354f40f58aec3d2104f14ad23490ff53883ac49714a1b42934cd44210fb2",
+      126
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_posts_route_actions_6924107d.js": [
+      "9a00bb44e31440f0e73fca70f8fb539a0b67f492a7230f4d41f57de800711fed",
+      124
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_admin_users_route_actions_595e9dd9.js": [
+      "b0897c8f862532e0521dd3def40781ad19db2588465ff4dee8bd6b25de64d124",
+      130
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_library_public_route_actions_e749a2ef.js": [
+      "4c4977d352330cf407c79890103ec6a349dd2c9f6025ea4c13f2c69bc2d73245",
+      133
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_user_sync_route_actions_c8ac7523.js": [
+      "d15ce73d2585cc28b634d4ceccd47a64cd4d8325ed09b6826e1c3a99c8e9c6ca",
+      128
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__796203e3._.js": [
+      "02b14613a966ee912b1081edff138a6f6bbcaaa42dd93707bae9eeb009f77611",
+      8069
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__aed98b13._.js": [
+      "5f09cd76c21b92225fd88add5abcbbc49a8fe87d42b8bfb2fba21f3f95810532",
+      24495
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__f902df0f._.js": [
+      "60f64100f2143bcaf8525dfba9792632fa2a126673af3ed0f3843df85b9afece",
+      11370
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_auth_logout_route_actions_5aa6c6ca.js": [
+      "87e27ffd090b1adee2b91d0058f88304d43af7fe2dc8963c739c630542117a62",
+      130
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__c93ff223._.js": [
+      "58585d8b6d532afa8512ddb0207db69b1bb4fb1d924ebc8283b2a053d0f70bed",
+      7121
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__abe06e6e._.js": [
+      "000d4862169ec4a580f5ebbd60bca433ca43ab3ac8eee91a50a523f992c2b960",
+      7507
+    ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__f948089a._.js": [
+      "5e54661bd9b81341f6846b26d49929cd056b43f90f121b18f739c2d7f63edfde",
+      9091
+    ],
+    ".next/standalone/.next/server/chunks/_next-internal_server_app_api_social_suggestions_route_actions_83ba33ba.js": [
+      "ff3bf00345d797cc542f01d8e6407d41683a3886b18735fdabd50f5cd3f87bfe",
+      137
+    ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__05c79dd0._.js": [
-      "3cb702b6e216d93778b7d684d6f88c78f45b3162900b42290ae532e61658db5c",
-      8229
+      "49102a02595766542b1158bfc51e7f7c1b2877a139f944562f9218015761e3cd",
+      8257
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__058ec48f._.js": [
-      "dd9e37df424f2a04c3ccda95926405a208d3b7f3299b04b2e45621f306b2dd3e",
-      8262
+      "9195ee45c22dbd5a51403522390fc08bb4f239c5afa56e542b0e1a7c967b8975",
+      8296
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__57b9d269._.js": [
-      "a9ebbb8089c46a95605fa062f6f7a9807b51e66081d67e14fb0cea19a405f455",
-      9226
+      "0ae7798761a058638749e14d118b7a3630f0921d8c6cd147b90515ad8f8c4bc0",
+      9254
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__90d4440e._.js": [
-      "4ffe77ced5272cbc666d461eb2d287e24dfceb3913d7ba9ca6b10cbbe04ab01d",
-      27376
+      "b5adc79e283848f23327086f60974fe364cf6434ed3598acad0fdf439e84c198",
+      27418
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__3274d96f._.js": [
-      "9049d7ffbac8904c8fc54c3125f760dd676462b7fe14df3e8f872145738afcad",
-      14655
+      "01a3910000b94115c6b9fb90e6aa54546a7a01b29a7314b0b190b84dedaf7d2d",
+      14690
     ],
     ".next/standalone/.next/server/next-font-manifest.js": [
       "36feb6ff9eda2c958da55bdf3e7280596902cbaf7050cfaca0d5c68ee25d2be2",
       135
     ],
     ".next/standalone/.next/server/middleware-build-manifest.js": [
-      "94158410897a1eb3c16f07a0a6efdb1f140f8daf5f3882b6aa6553ce91e1ac02",
+      "e869f1510825bec578407eb6d3e93c82bead87964a89340eee847ed363b50d8f",
       555
     ],
     ".next/standalone/.next/server/pages-manifest.json": [
@@ -546,36 +546,36 @@
       28
     ],
     ".next/standalone/.next/server/app/index.segments/_tree.segment.rsc": [
-      "30053159998609552f664daf7104ed3d528c083187a4d74823d663324c39b146",
+      "7a74785e9a7df858b554a7f0d9512b68db6a3f1afad497ada295a2a45900b930",
       349
     ],
     ".next/standalone/.next/server/app/index.segments/__PAGE__.segment.rsc": [
-      "30ae8dd7ba2b535b00e058f6fc29c72316926803f005157244270778f724d3f4",
-      1213
+      "14728fe433a992f93a5040f1f7aa9abc6e10f5426d5023743e790ff20da302d6",
+      1216
     ],
     ".next/standalone/.next/server/app/index.segments/_head.segment.rsc": [
-      "42f62a43b2e44994d0f3dfc3e63d060d55d55d2ac0402cdaf9ae4da7a340fee9",
-      1646
+      "6f6f37e45987ea361861d67455dfae9d6cb2582b467e9cec27a91b7818143807",
+      1648
     ],
     ".next/standalone/.next/server/app/index.segments/_index.segment.rsc": [
-      "31194a14416c475a98f93ed795b71dcb0dc11e9a05046165dea7cdad0819995c",
-      9719
+      "94abd615c3f394b247b0efe08757f20ae75c0a6bfed6df8fb42f868c87ab5f6f",
+      9723
     ],
     ".next/standalone/.next/server/app/page.js.nft.json": [
       "8a6155b3fb7ff9f625ca8dddf3729e777d7e3343e93288a0910707bab7d438a3",
       4923
     ],
     ".next/standalone/.next/server/app/index.rsc": [
-      "15e606b30dd203a4e2cd20c628f7029420137378b9abf05cb8f711988fcb5243",
-      13053
+      "9eee2f7f66cf1987c4af2ca495c74af261a7d700d3ba9ed3552690d7e9e3a414",
+      13063
     ],
     ".next/standalone/.next/server/app/_global-error.html": [
-      "6389fd23c0e4082dbeaed8a1666f30656470d4c44ff35900980716ec078a90b0",
-      5088
+      "f57929be66617c5affe16d2ecb4ee8aaf94446bec103be104eb37923cce5d60b",
+      5094
     ],
     ".next/standalone/.next/server/app/_global-error.rsc": [
-      "987df6f6754a39798438d1c766e5e1f04541b7c63b0758f401c5788cfb241204",
-      2788
+      "99d2204770307bbb3cb7951b041b9f0dee4d85abc29e7a8687b3522d702c87d3",
+      2794
     ],
     ".next/standalone/.next/server/app/index.meta": [
       "ce4bbc947463e910e331c784bfdcddb51c52357fe2b731e5a2d9a58f84505ed7",
@@ -598,8 +598,8 @@
       58
     ],
     ".next/standalone/.next/server/app/api/user/sync/route.js": [
-      "fa92de5772d1627b0016b2f13a5e8059316e5edccff9debeb4bd3c95477fa17a",
-      399
+      "e8e4ebeaf3ebd59720a77e42402a3b37e0d3ff6b19ff9b4224d562c633d2e493",
+      401
     ],
     ".next/standalone/.next/server/app/api/user/data/route_client-reference-manifest.js": [
       "4f5b747f0d2a5096d2828693276e0435f9395c0f213e64543bbd32e625d58450",
@@ -614,8 +614,8 @@
       58
     ],
     ".next/standalone/.next/server/app/api/user/data/route.js": [
-      "47f72b436ba1429755d827544774e77bd5e9f7c47d5384cd2a94716f4cd406f5",
-      399
+      "d9ba8c82f0968a07bd4464e95ab99cf180c768144b8afe3736e1a77fac71d8ac",
+      401
     ],
     ".next/standalone/.next/server/app/api/profile/route_client-reference-manifest.js": [
       "3429ed5dbbf0200ecf8746f634d3b2532699acd899e72e9bfab154d17c505688",
@@ -634,20 +634,20 @@
       321
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route.js.nft.json": [
-      "10cf5a67d189972a188d7fc1af7945d8f9231bfc7e492c771c2c6ed41fd10c80",
-      138497
+      "9551a7317b282865f3a78742ed1d3f66e3e6c24ef58a525fc67847f4cbcf9a6c",
+      585273
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route/app-paths-manifest.json": [
       "927eeae613f495df7fe3c1f582693f87d9ab01b97be1aecc176098f760937e40",
       68
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route.js": [
-      "688ee1f30a6db7c6c40262898c158dfe6592515951f07ad62b6f9a39dc3fc11b",
-      409
+      "35d048a3987126f8034cbe381a8a63768bab5a4da03f6444350e94f6fec7cae2",
+      411
     ],
     ".next/standalone/.next/server/app/api/profile/route.js": [
-      "cbc4c5152d359ed7f084b2ca1103f47228939c5a82ca5fad1ac2c3b226af53f2",
-      392
+      "5b59e0b938eddb5e82146ff26ac24a0cb8ad17a664c7de342ec229c4f7c86fd4",
+      394
     ],
     ".next/standalone/.next/server/app/api/posts/route_client-reference-manifest.js": [
       "09cc3f3ea430781d708bab2fa7e809e0abf7c2119740404f65a479da1be44d80",
@@ -678,8 +678,8 @@
       78
     ],
     ".next/standalone/.next/server/app/api/posts/[id]/comments/route.js": [
-      "bbebf1ed823e2c5be4075860f2b3458acb03b8215931463ca22627ecd773b219",
-      422
+      "4bd6ff0fcbeeb8b57bed73837ace29526884d51ae82086beb928cb95c8e29cde",
+      424
     ],
     ".next/standalone/.next/server/app/api/posts/[id]/route.js.nft.json": [
       "52b4ae71c583c3d4f65d462a7f2cf8bf66d3168a3920dadbcf66d595e1eb55f4",
@@ -690,12 +690,12 @@
       60
     ],
     ".next/standalone/.next/server/app/api/posts/[id]/route.js": [
-      "7a0205c79e647d7694d14a2fcbcded655034680f4a74d89c04ef11677d085908",
-      401
+      "dc89022f6a188f639b4c3bf2e6193edd4e193f90da876626c2b0af20aca235b7",
+      403
     ],
     ".next/standalone/.next/server/app/api/posts/route.js": [
-      "97af60d6133b7a9df8ad3d96e58c52a24533712e43798f0bfedfff9d1962f561",
-      388
+      "95001941d6971fbe353c5a6b9a9e8a3b3fe51db887e2b32fa5cd99db24d75320",
+      390
     ],
     ".next/standalone/.next/server/app/api/social/follow/route_client-reference-manifest.js": [
       "72e390baf4fb31acc3d469824386eaa63a54b47c632e9b97793ddf016b4c8a7e",
@@ -726,8 +726,8 @@
       62
     ],
     ".next/standalone/.next/server/app/api/social/feed/route.js": [
-      "6914f9630817c05abce05d59c2a80d5790973cf6131a7c8938f214091aeb2814",
-      401
+      "b3b9437fb3b6d5648d89c155f74440c8d75d0c72a314dcc40be1fccafaa70b4e",
+      405
     ],
     ".next/standalone/.next/server/app/api/social/suggestions/route_client-reference-manifest.js": [
       "ff559f2f1c840b00436f62c1a446caedbaa3b9b33de993f9e03d60b4639ee4ca",
@@ -742,8 +742,8 @@
       76
     ],
     ".next/standalone/.next/server/app/api/social/suggestions/route.js": [
-      "360159df132a557e45940073d9e8ec25926747adc0dc730f138cff107dbda4d7",
-      417
+      "b36a0a7204d8c4ea3421d97783c5ed383b6322dc04bca66ec9bb6fdfc8e1bfee",
+      419
     ],
     ".next/standalone/.next/server/app/api/route.js.nft.json": [
       "9dcbefd68a4783da6be80e20ea1304396573d1bf8b5888b1049ee24d16b57ab4",
@@ -774,12 +774,12 @@
       68
     ],
     ".next/standalone/.next/server/app/api/library/public/route.js": [
-      "bab1fc608f8962936411cb03303be2aa7c57b462eb97f8ee8afa8bcfa3c2799f",
-      409
+      "fb3d27e8a725994e836f5730d307ab23111a55bf1c27c074656c153007440576",
+      411
     ],
     ".next/standalone/.next/server/app/api/library/route.js": [
-      "7b76d39c670bd1327fe5e723e876fad15bc8c89e44f0ed84ae0a540c8682d361",
-      392
+      "38921a449eec56f8df4f533be64050f756311bb9484cdf7a544b98b46967eba6",
+      394
     ],
     ".next/standalone/.next/server/app/api/route/app-paths-manifest.json": [
       "800bfd91b41b3cec945028d78d749f30a59e0a51ccdc89c0940a541bf5382a74",
@@ -798,8 +798,8 @@
       64
     ],
     ".next/standalone/.next/server/app/api/cover/[name]/route.js": [
-      "9acfb3065d5c0a48367cff81940905047d1f5d5424b2c6af0a96d22bfe08da44",
-      348
+      "96477f7f655088b775d69eacd7593003df5775e991c1a5eb0421c88ab459d4a3",
+      350
     ],
     ".next/standalone/.next/server/app/api/users/[userId]/route_client-reference-manifest.js": [
       "6ac371ff6cabe2ed70546379b5b05560155d3ead72c8237a9eef706e212dedb8",
@@ -814,8 +814,8 @@
       68
     ],
     ".next/standalone/.next/server/app/api/users/[userId]/route.js": [
-      "d5d739e4387ee20d38fc0eb04fe3024c646683a1010e2c07cd51fc403e5ef479",
-      409
+      "135426e50af45dbcb5cb8c009ef0dfab78a308423d687a145a0e9fd596445e63",
+      411
     ],
     ".next/standalone/.next/server/app/api/import/route_client-reference-manifest.js": [
       "4fc775d595b0fb5a661acfff3e66f20825f76e9e83bbd95eb9a9b4f5e7b146f6",
@@ -830,8 +830,8 @@
       52
     ],
     ".next/standalone/.next/server/app/api/import/route.js": [
-      "0355d22dd157b8cc9f61c0260f3bb4c6645410ef7efbe06ccd988d4bbeb4cab7",
-      447
+      "44c922fbfb719d4459e7883b20b16577f92473b528f99cccbe5018b4d5835525",
+      449
     ],
     ".next/standalone/.next/server/app/api/ratings/route_client-reference-manifest.js": [
       "cc2a29463d6605a8a90cf266ffffd425ff297c498275c620d9bb2892cea8b3b3",
@@ -846,8 +846,8 @@
       54
     ],
     ".next/standalone/.next/server/app/api/ratings/route.js": [
-      "8008abc3617e2c26fdb28e696054597d82cf1ec8a15666ea83f77e2900659a25",
-      392
+      "dcd58d98477d970a778c1a5e7c947aec18ab0ca0becc4b08ec77d33180eeb4eb",
+      394
     ],
     ".next/standalone/.next/server/app/api/feedback/chat/route_client-reference-manifest.js": [
       "ffb822f4097621321d213b37b728d33368d6ddfefe196234ce9a17def0164211",
@@ -862,8 +862,8 @@
       66
     ],
     ".next/standalone/.next/server/app/api/feedback/chat/route.js": [
-      "87eec3dc12f568a72d09fcb81eda1a903c869bf8208386e0baf7c7528be01d1d",
-      350
+      "c5a4394549595734ee6e7bfc293f7e59c8108087270e241b0f85af78aaffd501",
+      352
     ],
     ".next/standalone/.next/server/app/api/feedback/mine/route_client-reference-manifest.js": [
       "bb17989c35993c1f4961f637145deb65cae44c4bbb0954058a9262df1aefcb1e",
@@ -878,8 +878,8 @@
       66
     ],
     ".next/standalone/.next/server/app/api/feedback/mine/route.js": [
-      "f045ec79166d6305216dfc79a2a69fa3181e2181a249337f6a04be528a58c3f9",
-      405
+      "2f33d3a0e6c9a7efc171002b2fc437d2d528623c89ccad34ea7d7e93ecc20dcd",
+      409
     ],
     ".next/standalone/.next/server/app/api/feedback/submit/route_client-reference-manifest.js": [
       "4827359126b8f32963e017b12addf44906063bbc693636626f7cc2630555827c",
@@ -894,8 +894,8 @@
       70
     ],
     ".next/standalone/.next/server/app/api/feedback/submit/route.js": [
-      "e1c160e77074d944c580f773a7ce6c462823f9440680eb0af3d2b2463bc5a1ea",
-      409
+      "565428b1fc316dbe86d763e8890ce35e3983fd0f5ba40ed6ed8f134a4a69b198",
+      413
     ],
     ".next/standalone/.next/server/app/api/tcourses/route_client-reference-manifest.js": [
       "d945ff3bc8b4648235728e366dbfffb9dbf54d009630750e678bf61795fb4a3b",
@@ -922,12 +922,12 @@
       66
     ],
     ".next/standalone/.next/server/app/api/tcourses/[id]/route.js": [
-      "4113794128878c6f664bc254d02cd374d5ad1afdd088854352abb7dbf16baa9f",
-      403
+      "4fe74d2471339a1a38c3a6bb1f85080d671281be8a67981c6a3d492166736045",
+      409
     ],
     ".next/standalone/.next/server/app/api/tcourses/route.js": [
-      "f864760cb947ce031fe9c14961f77b1d8b052fe205b32cb0d0b5ad8b8f881306",
-      394
+      "47db4f6432123672d9111b42850b5a4f6deca4c9b853e729af069192e4cd9c31",
+      396
     ],
     ".next/standalone/.next/server/app/api/auth/logout/route_client-reference-manifest.js": [
       "665969b73f0cb24cbe5f7a5beaf442ca7a6b49ad1a10f866b8cc1ada71a93cc3",
@@ -942,8 +942,8 @@
       62
     ],
     ".next/standalone/.next/server/app/api/auth/logout/route.js": [
-      "77c3d095e2b351a7ab3937264b91e74ccef3a2f6fa062715352ac0c9932de3d7",
-      403
+      "4818b6ca6e7bc8b971f9cc59e74d7029f6c62c54b53ea1ae64dba83a0bf0ff77",
+      405
     ],
     ".next/standalone/.next/server/app/api/auth/change-password/route_client-reference-manifest.js": [
       "9dd2cf4930a85331936451be1cd6f72fa6a8fdc0077586a0b0d630c08be99eaf",
@@ -958,8 +958,8 @@
       80
     ],
     ".next/standalone/.next/server/app/api/auth/change-password/route.js": [
-      "8d71aa4dce84949cd040b4a8e5a4653835216c81b40c8023437f161dea859b7a",
-      421
+      "9561120fdc11fbc6b954717972c37a1a2104577b6ed9564dc1f38b6a2c336ede",
+      423
     ],
     ".next/standalone/.next/server/app/api/auth/me/route_client-reference-manifest.js": [
       "616d6e25865955c719794750d683802a9edf8de87d8fb77bb6d0a363fb40a292",
@@ -974,8 +974,8 @@
       54
     ],
     ".next/standalone/.next/server/app/api/auth/me/route.js": [
-      "8b16542404afc44374a0479132ac01a1a1470d7eb2e75d09ac8802e644c8bc5d",
-      395
+      "6aeb11bf517ab15df19ad19cd73188d3f16286f9bf0466957482609845b227eb",
+      397
     ],
     ".next/standalone/.next/server/app/api/auth/register/route_client-reference-manifest.js": [
       "325023e5541fbef45c974ab104e268f004d3fa85a30161ee7d8331c7570a5d5a",
@@ -990,8 +990,8 @@
       66
     ],
     ".next/standalone/.next/server/app/api/auth/register/route.js": [
-      "fe8bd46c486bbfbbdd8dad090a45361fda2db15de071909a951e646be397c92e",
-      405
+      "efc5798f1a840bcaac16e03cd9812198d2593a7e737dc981a94f939f5e5f367b",
+      409
     ],
     ".next/standalone/.next/server/app/api/auth/login/route_client-reference-manifest.js": [
       "7c6497e6a0c5a7703257663a80356212066bca3c110db841a3637427d4c44f70",
@@ -1006,8 +1006,8 @@
       60
     ],
     ".next/standalone/.next/server/app/api/auth/login/route.js": [
-      "c2dfa6d3e226f4da4eae25dea0e83614c966f1844d13da10d489c9a4b294b953",
-      401
+      "f16eea9dfaa8ea5ad4ae7f4c5de483799e520c50f348cca142e6e393fb488445",
+      403
     ],
     ".next/standalone/.next/server/app/api/admin/users/route_client-reference-manifest.js": [
       "e8b7c1bbcf76797eb86b1a7df9b4be9d75d61c187e4b2936588a044673a25a51",
@@ -1038,8 +1038,8 @@
       62
     ],
     ".next/standalone/.next/server/app/api/admin/users/route.js": [
-      "66f6aaaac0d169eba1597f427a9d5d434c666c33ee3fd2d451448ee097c9662d",
-      403
+      "4daa6c0bd20fb57db6209cb832cb8214952ebe9e77c00439dce197b6ad07985d",
+      405
     ],
     ".next/standalone/.next/server/app/api/admin/account/route_client-reference-manifest.js": [
       "319bd5061b204999ecc62ebc80af5bb1eb181bf2a33cbf5cd982725637d3fcd0",
@@ -1058,8 +1058,8 @@
       66
     ],
     ".next/standalone/.next/server/app/api/admin/account/route.js": [
-      "5858404c01513cba6ce4eed80a6fad6c09ff86f8540509a86542b885109dddcd",
-      407
+      "e5d5b6621aaa5a210528447f252709565dfee3065ad32271012bc5603c407be4",
+      409
     ],
     ".next/standalone/.next/server/app/api/admin/feedback/route_client-reference-manifest.js": [
       "62a4a283b90ed07a38a5c2ddca64420b3e34eac0d23468a648bbf21f98641a67",
@@ -1086,12 +1086,12 @@
       78
     ],
     ".next/standalone/.next/server/app/api/admin/feedback/[id]/route.js": [
-      "054ee3958ae42ad60f67fe4c096bc69da6f242259e20af1754ac9ab15f749437",
-      422
+      "590ff690c7b4dc0f7a6046aef56fcb54828f66c7d79920ddb98c7180697a1729",
+      424
     ],
     ".next/standalone/.next/server/app/api/admin/feedback/route.js": [
-      "23bcfd1081f267f63853a78d4783375c75d2c242ae62a3ac5acd92b3db7e888b",
-      409
+      "2298558e354cc0b2a74f44b8ddda34a593a0c376a1a3dafd8ebc3842449f3b71",
+      411
     ],
     ".next/standalone/.next/server/app/api/admin/teachers/route_client-reference-manifest.js": [
       "7beab73d18923f4e3aea3f1341c6cff8d9f96ee056934900e2e8883c17e8db2d",
@@ -1106,12 +1106,12 @@
       68
     ],
     ".next/standalone/.next/server/app/api/admin/teachers/route.js": [
-      "5c7c559ea2d74526ce45ae8e8bc81978de7a6d48203b4cd172c6ff7f49bd59ca",
-      409
+      "1d63b57d60e91c82e8b08458e06cfa07bdb92f4b432d3481be604a372284bb6d",
+      411
     ],
     ".next/standalone/.next/server/app/api/route.js": [
-      "dd0cc0a95c0e5e56b41949510f5d45fb2c7d6666bd7f3f7b26d4c3837fab3a6e",
-      316
+      "b139a2662fc6f78d4f044b0516b904a0e26800318abf7249c153b862cca94aa5",
+      318
     ],
     ".next/standalone/.next/server/app/api/media/[name]/route_client-reference-manifest.js": [
       "227df1eb189f0032b05de4a6e3260f06bd64dfcdb5643dc68c353de451818733",
@@ -1126,8 +1126,8 @@
       64
     ],
     ".next/standalone/.next/server/app/api/media/[name]/route.js": [
-      "b6227217e83b4ab607ccda3515eb8a75d085a421ed6d5793150a0e90164a6685",
-      348
+      "ba02811e07e397d75d19200f965a07e444da823717f0c183445446565ffa25a0",
+      350
     ],
     ".next/standalone/.next/server/app/api/ai/route_client-reference-manifest.js": [
       "740f16ad7de776d711efdb97c650a00797612b26e138746c06eddb280f636cf0",
@@ -1158,8 +1158,8 @@
       48
     ],
     ".next/standalone/.next/server/app/api/laws/route.js": [
-      "e543ba0868f17c4c4922f10b5d880af2059c14d89da6f7032ea7799013d0e3d0",
-      329
+      "54bd8ade118e40059f083f8c9c7944a631e84ebf5f13e36e7ae72cba70309a87",
+      331
     ],
     ".next/standalone/.next/server/app/_not-found.meta": [
       "9d3bde76e1dcab57cf8b3c004f9c912d51b8b68bb965e53ecd2f10fc5a8585a1",
@@ -1174,23 +1174,23 @@
       4789
     ],
     ".next/standalone/.next/server/app/_not-found/page.js": [
-      "a8fd9e5d937da0917a7b44c907e1ac59c6e41abd264f0d415662080f65f6d023",
-      837
+      "b71813e7747feb050fae59f949b4bfdd71333d99f88d27e6beeeb4b4be1b67f9",
+      839
     ],
     ".next/standalone/.next/server/app/_not-found/page_client-reference-manifest.js": [
-      "916b6f014a5f406cd3819c8bceccb065ce2deecfcf2ca36ca2bd7bf966e3add2",
-      10497
+      "82cbbbcb26b2cd9f015a47a622b9a354bea795512a8596de54517f7595caac23",
+      10551
     ],
     ".next/standalone/.next/server/app/_not-found.html": [
-      "6af44cc1e6bd63871ed080bc606c9a9ab413e90251298e8e48babb2960734d0a",
-      26863
+      "74c1d54bc48f1444e3124d4bcb5a9f0c74febce7c5317ddb983dae95d7edac64",
+      26871
     ],
     ".next/standalone/.next/server/app/_global-error/page/react-loadable-manifest.json": [
       "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
       2
     ],
     ".next/standalone/.next/server/app/_global-error/page/build-manifest.json": [
-      "1a862f9f9f55d9e5f982f5b6a47b3c1c81d76ac90b2b7270c28a2df6ea300efd",
+      "ab736aae200f7f3f75ca216b3cc7eab073626ac78127e86bed835acb1b6656b1",
       370
     ],
     ".next/standalone/.next/server/app/_global-error/page/server-reference-manifest.json": [
@@ -1214,68 +1214,68 @@
       53
     ],
     ".next/standalone/.next/server/app/_global-error/page.js": [
-      "090a0db93624b274017af979244c7a0808d0f1fec5fc71914b44fd0f3a3f96dd",
-      597
+      "1b605865e816e74bebec377046a120ff36d73aebbf047d16a545d5fb517f2080",
+      599
     ],
     ".next/standalone/.next/server/app/_global-error/page_client-reference-manifest.js": [
-      "ec4c6160b3110c5c30c43f570f3877eecdbcb56f9566fffba57bae9f3bc6e603",
-      5310
+      "1bf7b605d91b50a55e0df4427febe42e1a48f4d03f6651fc836f2724e0e3ebcf",
+      5351
     ],
     ".next/standalone/.next/server/app/_global-error.meta": [
       "68dd34d22fb045a68ae7269f9da69c84ee2719f831268154654ce829d6662dc7",
       314
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_tree.segment.rsc": [
-      "733ef205a404bf039b5634ea63735910ca6160d7ed12f52e67a7c093e7d1b623",
+      "56e5cdac6e3fe9e1c64fde48e5f7a6f5494226e49b972cd9d94f7d4624156b87",
       293
     ],
     ".next/standalone/.next/server/app/_global-error.segments/__PAGE__.segment.rsc": [
-      "298af2e20d10557a6fc8c642751d3f5ed2e66cb058959c6bfad57c0e03fea27b",
-      1592
+      "47d76305eaf861a8910dbb688f3d199e6944a9824c5a4a2aaa9f101a6312c72e",
+      1593
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_head.segment.rsc": [
-      "2e6e510c8b9f6ef53281da5a0700c3958a84a21c78d60951691dda7bee75dc11",
-      592
+      "5e1e4d4a218bd933014e4cbc4847db240c4331417bf821459c20b459c2f2e3f0",
+      594
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_index.segment.rsc": [
-      "62521a115acead6335c334150b33c721bdb0aedf1e2da1fd0d723e8bba34d733",
-      346
+      "f719c8223bfaeee8f08a581d1fb269704893fc90b64a390d77d4549ea950c76f",
+      348
     ],
     ".next/standalone/.next/server/app/page.js": [
-      "bed8eaef9207112b646da6ed706d986d6c09e4d14f2dd81cbdf6931983c8a239",
-      961
+      "1c565de6c9463ecd51b633c14fb63a331d5e32e40aac37a699ca3c3cf4c7c746",
+      963
     ],
     ".next/standalone/.next/server/app/page_client-reference-manifest.js": [
-      "ef131d51aa346f33cd282da33e5a5e768386c9e8d1ac8bef303b1a54df4bfed8",
-      9893
+      "4c2e1a61f76dff8db2c47ac15f9b6cf83f1edcf949111ae9b777f982e7ba332f",
+      9961
     ],
     ".next/standalone/.next/server/app/_not-found.rsc": [
-      "6fabfd0ca0b2ef165208c59a4e66f1d22fc3aafa1ce239b5461656b1caa79b09",
-      14655
+      "2e11b9929e2de42fefff8706c5a71f7239712333e2de15fa03f3735bbf1ac3ef",
+      14663
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_tree.segment.rsc": [
-      "278190d84378670166d111edf8ece67bd5acc0d8130486046eb24efcb955d4fd",
+      "67554ab857af64a300ef9727006c6c66f59edd12bbc22bf5de62efdca5eceff5",
       483
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_not-found.segment.rsc": [
-      "4ef85126f5e8aaa9b0b539ca1bfd8efbe67233c2b0bfdb1be57ee62af7f07969",
-      604
+      "c80aaf25c4e1faf49fba89e453edc658a503a0daf2ceb536f00cd9caf6e50413",
+      606
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_not-found/__PAGE__.segment.rsc": [
-      "f82643aee620695578f0caf5220811d131247a885bd09f3b3b79d78493f7d0a5",
-      1535
+      "22d6bd570980cb3985bb334b887d383eaf7cf1fc4a72e320c9eda76cce285623",
+      1536
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_head.segment.rsc": [
-      "7e82c68e2315dbb4caeab88629532dc2b53a224d0578ad40bf6e69b50f67626d",
-      2084
+      "83849099089101afc6986799e5aa8fa32b860dfa7d2b4c59e6d87b4c506f023c",
+      2086
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_index.segment.rsc": [
-      "760d83e25a5ebf316511557fd37ec36a407bc4bfa24b56733e843cb58820b45e",
-      10153
+      "43781e102d33e273972c4d5e8014410a27b677bfd798c5cf83f283fab8569ef2",
+      10157
     ],
     ".next/standalone/.next/server/app/index.html": [
-      "9ee43e2ad68824ac86ff7624e75ab0a6b1eb7021c93dee3d457fc6e9e9f14ab5",
-      24683
+      "2eea779381a75e163aa7e556220f44c7ac59692512fd35002471cda35487a2c4",
+      24693
     ],
     ".next/standalone/.next/server/functions-config-manifest.json": [
       "a0903448ed7ce1b8e6e90c9f79f058fe173d2072fa356a001b2233b5422f22b4",
@@ -1286,7 +1286,7 @@
       83
     ],
     ".next/standalone/.next/server/server-reference-manifest.json": [
-      "dd9a7cdbd739d3b5d8237097950db18a4a38c2f964e7f555281ba1d159ff3a5d",
+      "11b21bd78fc8b16532df92e2367cf03f9e78a620dd3d3620ea53cf2994bc040e",
       97
     ],
     ".next/standalone/.next/server/app-paths-manifest.json": [
@@ -1298,36 +1298,36 @@
       94
     ],
     ".next/standalone/.next/server/server-reference-manifest.js": [
-      "1e1b95fec982315f8fc43e6a1dbe8365568b341cf888e6c39826294ea53e01ff",
+      "6f9a498d94030eb90fc30eca04d613ac191f9869c8e85dd7a480a0382f2b995a",
       138
     ],
     ".next/standalone/.next/server/instrumentation.js": [
-      "465c8655a197ed32f8fd9f2e35f327e2b89d8b7ec957304fcd9d3e8a141f67f1",
-      162
+      "f2524c9049e35acd6d97756a5ca45600a2a4d718a578005945aa1fe5fd4a5227",
+      164
     ],
     ".next/standalone/.next/BUILD_ID": [
-      "5ffc08c21680249dc9464742a7978d64f5ba4f3ceb8b998775312cdbf39be621",
+      "48301579603d330e3530f0a0d9b84d5373e7e707cb4599752387247a5749428e",
       21
     ],
-    ".next/standalone/.next/static/chunks/8d0bfb87aa16fbdc.js": [
-      "803b49f78eed0923dbb4cb50befe2ea2a7a948f4450f732fa483af37be704d66",
-      31569
+    ".next/standalone/.next/static/chunks/ee55f7eafa0bc50e.js": [
+      "15c1234a9262931bed0f3ff7f7b005a8b439fbb04674f5f43d7893150c9fe518",
+      13876
     ],
-    ".next/standalone/.next/static/chunks/26ec8a4aed8058d1.js": [
-      "93a29a17ddf28d1a0c60039bfd1229f562851e17713c46d64859b6a52a289077",
-      224634
+    ".next/standalone/.next/static/chunks/0f69a06443ae787d.js": [
+      "122773413a20174809e2633c110bed254d46cd886e7913ae2f9d548c61efdcc0",
+      399733
     ],
-    ".next/standalone/.next/static/chunks/e112ed460a7ff762.js": [
-      "580dcd5aa843656b9c037a729bdcb6759267f3af01d104790f85cc509ba19a27",
-      274
+    ".next/standalone/.next/static/chunks/d767088fa58fc2c0.js": [
+      "d123bc31d026968a74075107757ef676b54f926a55b08a267341b5e3869eabb6",
+      31592
     ],
-    ".next/standalone/.next/static/chunks/fa34e7cb6c457ee0.js": [
-      "c4eae6e781e358a64fb54a90e3c73b266de4ec23032844cc89464536454cf119",
-      158133
+    ".next/standalone/.next/static/chunks/57ab076c0c00704e.js": [
+      "485ea4b9637faac556b1cbcc787aeff0ae7f954eab93bd866b19818ee6fc8066",
+      11837
     ],
-    ".next/standalone/.next/static/chunks/b475fe756643a716.js": [
-      "a4eff9ed63e84ff0a3f4264dacb691c3ecb5f33152725fb7141522e9762f4c3c",
-      399731
+    ".next/standalone/.next/static/chunks/e31d090e02892273.js": [
+      "813b0ec7b515df0384602de26461d973d4e978868056e75e579a900ba17568af",
+      158470
     ],
     ".next/standalone/.next/static/chunks/a6dad97d9634a72d.js.map": [
       "b26c4f42daadc4b7985198660eb4eaf2f4aedb8d5f46e8111c0128cbc11298fc",
@@ -1337,51 +1337,51 @@
       "23a21709feb0d75dc679fd809e1aed77b66b621fc33f3a57b69f7489347f27a7",
       231228
     ],
-    ".next/standalone/.next/static/chunks/43f4dc4e470a58a3.js": [
-      "8ae06f8fde3d08771df0eeb13af35ba26667c66a567dd7b8328ec0ddf4046c62",
-      11824
+    ".next/standalone/.next/static/chunks/d90026ebbe092135.js": [
+      "63ccddb2df947c7c7252a4b41a0ffa8f3cc9a8d73979ace09d628dbf45523afe",
+      16891
     ],
-    ".next/standalone/.next/static/chunks/turbopack-918d6fac6be419a2.js": [
-      "1024cb119660af250f6183a503c4b53745c7211140c48b08f386b789120609e3",
-      10196
+    ".next/standalone/.next/static/chunks/1d87c492d9accdcc.js": [
+      "142a4957dcd3b73a764b8d80a00aa2d987d5deedf0747a442ca1fdb34d24bf11",
+      117021
     ],
-    ".next/standalone/.next/static/chunks/dd6fde1d9f287786.js": [
-      "a876443022fcdcde5229802eef9fad7ab3266ecce3bc32b7736bd1ad8075c027",
-      965544
+    ".next/standalone/.next/static/chunks/6b5d264eb681d612.js": [
+      "36ce934bf0958359c41ff9a69b095153b0b38c08f78f1678146d88adef856d6f",
+      966722
     ],
-    ".next/standalone/.next/static/chunks/c39637bc9d8cb116.js": [
-      "a74c6ab864662a2d45fd3869b18874a67efdeec2220fbd6f9ad9b1f11951e177",
-      16869
+    ".next/standalone/.next/static/chunks/74a3acb8c788b23d.js": [
+      "7c05709a0dec89fbf9d98e0951717883f8cdeaf326fcef3aa0b0af2daae57de9",
+      277
+    ],
+    ".next/standalone/.next/static/chunks/452a3479b1b93bbe.js": [
+      "96d9c7203ed57cd4f35d3e9dbeac194ae09a90c8c269043af335f11a80f4a959",
+      30941
     ],
     ".next/standalone/.next/static/chunks/a6dad97d9634a72d.js": [
       "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
       112594
     ],
-    ".next/standalone/.next/static/chunks/fda79619a80ffa37.js": [
-      "a08b40d899da0a551a12a50fc09320ed75bb3c08294998e0632bc32f58b5a21b",
-      117017
+    ".next/standalone/.next/static/chunks/turbopack-ab6f585b2ad03de4.js": [
+      "a6f22b3cab87efbdb4e3b9e654f9c2c2a46487ae9c9c8bbe8d573e7de5dc80f7",
+      10197
     ],
-    ".next/standalone/.next/static/chunks/b7cbd269e22a197c.js": [
-      "7b13718a6a14681ca6879867f4ecd8d4ec171287faec0367f7596b605d056be8",
-      13870
+    ".next/standalone/.next/static/chunks/2e9c5333df59f348.js": [
+      "1877cc55ba2cf5abc286473362fec43182bafbabb247a302b16e1d365e87b771",
+      224737
     ],
-    ".next/standalone/.next/static/chunks/2f236954d6a65e12.js": [
-      "de98aefbea0cffbf2c3d5d266dfeabef219e5d805208e63bccf1fb65a875b012",
-      30849
+    ".next/standalone/.next/static/chunks/96d2f5a142f25f6c.js": [
+      "5920a7f298f9f9ca213821eca67a5d21b2c7b8b88464e1a60b0066a15e59a18a",
+      214
     ],
-    ".next/standalone/.next/static/chunks/b9f1c9de8f093099.js": [
-      "b1d0aa61bf68d18f20773c9d997ac37e7dd7777627b8a55bdefb5b215dfbbdb3",
-      211
-    ],
-    ".next/standalone/.next/static/MclgvJqxqW9kvFP7V-1KU/_clientMiddlewareManifest.json": [
+    ".next/standalone/.next/static/ko9-QVGsjmYeblu_I2RAS/_clientMiddlewareManifest.json": [
       "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       2
     ],
-    ".next/standalone/.next/static/MclgvJqxqW9kvFP7V-1KU/_ssgManifest.js": [
+    ".next/standalone/.next/static/ko9-QVGsjmYeblu_I2RAS/_ssgManifest.js": [
       "678f6ce2cb80b1fe72fc67e7412be6e2ab6ada083111b64f7c40d35e3cba5e00",
       80
     ],
-    ".next/standalone/.next/static/MclgvJqxqW9kvFP7V-1KU/_buildManifest.js": [
+    ".next/standalone/.next/static/ko9-QVGsjmYeblu_I2RAS/_buildManifest.js": [
       "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
       219
     ],
@@ -1390,11 +1390,11 @@
       8400
     ],
     ".next/standalone/.next/build-manifest.json": [
-      "c2b7e69ab81badc56fcf5268c47e3ea3a58275f5b68359b8fecf5fb1610bb291",
+      "00648a668b79b98a9f6c2bb111b7b3ad260778cb6d6558922886110871e37612",
       453
     ],
     ".next/standalone/.next/prerender-manifest.json": [
-      "9c68eb335bc5b47132ed8b0e1c8f98ecc12480e9e37e32a015429bc2d2aa2c62",
+      "f560838cac2e570d7bb47fb3c5387d7c6fdf362d6b4c0b49cb6d3abdc858dd13",
       2210
     ],
     ".next/standalone/server.js": [
@@ -1404,6 +1404,1782 @@
     ".next/standalone/lexa-template.db": [
       "5358dcd9b2d245bd51dd9cd4d87e08f7e8d91f67bbafc9ea4398491ef6ae36f7",
       237568
+    ],
+    ".next/standalone/electron/main-core.js": [
+      "2a759933ebf6f127534c154b3afb65ebf02516c7d714b6e7c7e4344f3d8be523",
+      23633
+    ],
+    ".next/standalone/electron/app-updater.js": [
+      "33ba8208f4be67a775e0a4a667325c226a84d2be69495d681a6fb6b78264c9e5",
+      32147
+    ],
+    ".next/standalone/out/_next/static/chunks/turbopack-39b917c44755d791.js": [
+      "771116df0ff0630a207a2567602e78da382fb2f03a2ede9d17eb72b8c43479fc",
+      10196
+    ],
+    ".next/standalone/out/_not-found.txt": [
+      "d6e1211d7ece1e30a9fae82fe750111ed5cd719730badc5b80161d3feb2de7b9",
+      18157
+    ],
+    ".next/standalone/out/_not-found/__next._index.txt": [
+      "5c783e95d2d39756161cf81b907c692510ab8b8e5f4fc67a3ac7d0e8ac78828c",
+      13673
+    ],
+    ".next/standalone/out/_not-found/__next._not-found.__PAGE__.txt": [
+      "01309361aa3c20f9a8ca7791ca40f3af7cb318f487991e6e6a3efc356cc00b70",
+      1535
+    ],
+    ".next/standalone/out/_not-found/__next._tree.txt": [
+      "cffd4c482f1764fbf42c0d02f47551a374c1537df7dfc99694fc59c0b5d25f2c",
+      483
+    ],
+    ".next/standalone/out/_not-found/__next._head.txt": [
+      "a8b94017fc537707b0477434ed84241a029fc23dcfd2ebbad60ecd6346c46496",
+      2084
+    ],
+    ".next/standalone/out/_not-found/__next._not-found.txt": [
+      "ffadbea90f972794fed89aad523cdc0f239f2a789c0691d3460dd8cc3fe0a835",
+      604
+    ],
+    ".next/standalone/out/_not-found.html": [
+      "c86798f8c5f777bbc7513460ffcbc977398880f1f65c5e6a70ee399f9fa75fa0",
+      34144
+    ],
+    ".next/standalone/out/updates/packs/course-online-mabani-course-01.json": [
+      "3da1e49fda4483ecefd0c493ab6957e42c8622815307cb6a0e06e321fcecffab",
+      10108
+    ],
+    ".next/standalone/out/updates/packs/pack-online-madani-mcq-01.json": [
+      "a454a4c2445b21068aa5985cda599f544f8d1481060593c5bc5f743fd7ed2b0a",
+      11568
+    ],
+    ".next/standalone/out/updates/packs/course-tadris-madani7-ghayebi-03.json": [
+      "6c80d24528f30fe1be292eaa48d84f291d563ca38862de9964726d6b35bda7e7",
+      40792
+    ],
+    ".next/standalone/out/texts/jg-160.json": [
+      "22021e8d82ef73932483ce4cca114bf90e20cd788befa829be095e7232cbc295",
+      12913
+    ],
+    ".next/standalone/out/texts/m-l1-2.json": [
+      "fa91856f02207e55f3e1cb220c38c9f442c8874a4ef4064a4ac3b02170bc6456",
+      21325
+    ],
+    ".next/standalone/out/texts/jg-134.json": [
+      "9417f42c027bdf627053539b1d634401a0949551e30704fa0e41979f10394f77",
+      11892
+    ],
+    ".next/standalone/out/texts/jg-282.json": [
+      "0470f94abab58cecc7f58eb9963af3703522a93c1c6867efe4263871011ef859",
+      16533
+    ],
+    ".next/standalone/out/texts/jg-25.json": [
+      "134bd5b67eb899411ceab176944f8ea09b04d1f169f07b741492f05a9a2181eb",
+      17103
+    ],
+    ".next/standalone/out/texts/jg-102.json": [
+      "cf0177e6c0d6dc6df5f52950667206c5e80869eaa22dd6f4e7310d85e3bc9361",
+      10267
+    ],
+    ".next/standalone/out/texts/jg-62.json": [
+      "206523c6b9abc5b5615b37ecd952e87dcf69fe9563d557557de8b4bb2536578b",
+      7875
+    ],
+    ".next/standalone/out/texts/jg-328.json": [
+      "8a64bba96d90dd4f05870a31b5c5afbc8bae540f62f8bf52ec5e3f8caa6c162d",
+      18457
+    ],
+    ".next/standalone/out/texts/m-l2-2.json": [
+      "74d1b5100c67ee78372798d9e01cb64a203095eb30c31d5b87e57c18bd8bbfd6",
+      21223
+    ],
+    ".next/standalone/out/texts/jg-56.json": [
+      "84a9bef2250cb225d2ee1e3e0352d88a1609942d4c05407de4eea8d5cccd09aa",
+      6642
+    ],
+    ".next/standalone/out/texts/jg-14.json": [
+      "1ab406af51ec8564265230be87941b3e4b5aa9d13b56dfd1ac9baf841dee873f",
+      11264
+    ],
+    ".next/standalone/out/texts/jg-253.json": [
+      "71ce351ca6e407e4718b740065d108b7e4449d20b70768ad7bf614d57eb394d2",
+      19230
+    ],
+    ".next/standalone/out/texts/jg-274.json": [
+      "e5b4dd04d25cf5c37d2bfa870ace94998219b4a4b66ec7967a15aac9ea5057e1",
+      18866
+    ],
+    ".next/standalone/out/texts/jg-205.json": [
+      "cc9c75f109a958eb89bf58eae3f058fdc6b52c1856cf299656c96929b4bf41bc",
+      18246
+    ],
+    ".next/standalone/out/texts/md4-l5-2.json": [
+      "c1b6c135545b353bd0c1e2e3687900d5229eb822e6179ca0b2a8c0b4ecb25044",
+      31897
+    ],
+    ".next/standalone/out/texts/jg-38.json": [
+      "18e8f7220989be58d2d2fdfd543cd625014ef239309cd58d28553b71f2fd2a82",
+      15789
+    ],
+    ".next/standalone/out/texts/jg-97.json": [
+      "f08eca448e6fe19f4d99658341908f8f80831923b2f582c46fb36992fae42abe",
+      11246
+    ],
+    ".next/standalone/out/texts/jg-273.json": [
+      "740db09898fc23a2d8d81b0d9372bf899217dca5dd04d3950ba0dba18d2802e3",
+      24507
+    ],
+    ".next/standalone/out/texts/jg-177.json": [
+      "d40e5145eb4e6a636c80be8cb00045f35c9d7abdbeda63769dbab7031d767eb9",
+      15436
+    ],
+    ".next/standalone/out/texts/jg-241.json": [
+      "b0da11c954fe3b257bba7267171c19675ebf2e67bc7a76985153117708196383",
+      14551
+    ],
+    ".next/standalone/out/texts/jg-171.json": [
+      "49324c59bd9a4c3c061e89ed70cb4cfe2391820fcf6fee7572fdf0aeeed8707b",
+      12651
+    ],
+    ".next/standalone/out/texts/jg-207.json": [
+      "14e00ee751321e6256447c886776096a10e952c41037632907ce76e288e8d23f",
+      19239
+    ],
+    ".next/standalone/out/texts/jg-223.json": [
+      "fa6a4d20d6cafb14afd6ae1480e3416ac6ef3e3acae6ed72415b066936b45efc",
+      17997
+    ],
+    ".next/standalone/out/texts/jg-318.json": [
+      "a4c1eabaac531c236fc3400b90a9f2f1b83297bccb829cd7e34abfbd9992f486",
+      16860
+    ],
+    ".next/standalone/out/texts/jg-138.json": [
+      "3fde6fec4e19f8379b1fac23b1ab493026a053ec8a1ee69468bc85d5769e9c16",
+      9503
+    ],
+    ".next/standalone/out/texts/jg-65.json": [
+      "cbca4332a8c60047995eec7ef23d894edfda696828f1b182d92d8335d09aded4",
+      7773
+    ],
+    ".next/standalone/out/texts/jg-85.json": [
+      "d5d80c2121fc65b99b750f266ab65c84b98f59ec55dc6bc5da3dd2b4d93cabed",
+      11225
+    ],
+    ".next/standalone/out/texts/jg-91.json": [
+      "ee78b1f5310ce91fe1f9c4b0c326c446fa97aea4d9ff6bf897cb5e08a167bc50",
+      11040
+    ],
+    ".next/standalone/out/texts/jg-157.json": [
+      "5b77a116412200083315019e4838a83bcd4529d56e4bd9b6d6a5307c83d371e8",
+      13549
+    ],
+    ".next/standalone/out/texts/md4-l3-4.json": [
+      "140414424c62960f638dbd65ba5feb27678ac182d8cbe2c8b86c6f604b0ba952",
+      21107
+    ],
+    ".next/standalone/out/texts/md4-l3-6.json": [
+      "e8156e1a3806c9e0fd82aaf854f2e1cd9b8af466acea817060fda31eb9e45d3e",
+      22402
+    ],
+    ".next/standalone/out/texts/jg-112.json": [
+      "ee538e02d4c24f9e262cdb0059287446031a162cc2b0a5707d46670212987ca0",
+      9516
+    ],
+    ".next/standalone/out/texts/jg-88.json": [
+      "bac224dd6542b6333e1169f9fe2feac63d5f3a3bc18116c3c1abd95fd39e4bfc",
+      12790
+    ],
+    ".next/standalone/out/texts/jg-275.json": [
+      "972ad9e892185db7f00412f8f9a06a04fa68e2dec892a53501101f8bb7456d6b",
+      15055
+    ],
+    ".next/standalone/out/texts/jg-188.json": [
+      "3b69dd3ed2b084780276fb74572a9b8598c60f0ed7be6bd4799dc7729add189e",
+      12792
+    ],
+    ".next/standalone/out/texts/jg-268.json": [
+      "ac73345eb3307ffc2ce668339e951f2526467634db46d5f7a118afbde595ac49",
+      19127
+    ],
+    ".next/standalone/out/texts/jg-118.json": [
+      "b6414d3c243ce53daa0b6c643b462a01d8644203f02bc1c328384e07ecdbd32f",
+      11281
+    ],
+    ".next/standalone/out/texts/jg-191.json": [
+      "bd0f24c1d251f6161afc9ef287a123ea1ff70a30830a70178d845f0379c9f386",
+      11649
+    ],
+    ".next/standalone/out/texts/jg-87.json": [
+      "3ce55d0eb5b3394ad22b4236a317a9840ccc0fd25145c97614e323f22414010e",
+      10656
+    ],
+    ".next/standalone/out/texts/jg-82.json": [
+      "0cdfc3e1456af0ca5da33f5354afff3b749bc6420672d7365e6216a092e96308",
+      8404
+    ],
+    ".next/standalone/out/texts/jg-74.json": [
+      "1d7513cbc4e1f94d02288fa0a5c62d9d8ee5ff3843bc331b99d7abfda511571e",
+      9659
+    ],
+    ".next/standalone/out/texts/jg-18.json": [
+      "30f77d6d7a97d18fd645c1b9ef06d58664bf469431da4e5c86da1964ecb1ceb1",
+      12090
+    ],
+    ".next/standalone/out/texts/jg-184.json": [
+      "18bb40d6327585d451025a9a550704a588c7a499e37caaccc20a1c9697284e73",
+      13461
+    ],
+    ".next/standalone/out/texts/jg-198.json": [
+      "604ca9c9902555d1e3e76c8be12ecf45578183dd97fe09f6cb774f3ea099fd1d",
+      9989
+    ],
+    ".next/standalone/out/texts/m-l2-1.json": [
+      "c0ed2a18bbb7fc595d7f0925c14d163505703a3ab8e8d4e5eb30f37f1556f180",
+      20914
+    ],
+    ".next/standalone/out/texts/cpr-l51.json": [
+      "16fe716fe656bdc380d1e6447ecb3424ef25d1b9fccd7c2db5b0f01aa5a938b2",
+      3552
+    ],
+    ".next/standalone/out/texts/jg-227.json": [
+      "b72ace4b4f4cf15099cf9a050327fcf733e030c8508791ea37728902eefcad95",
+      15783
+    ],
+    ".next/standalone/out/texts/jg-13.json": [
+      "11fb331c8448de20b05a04255c7739fac64246580a972123cf30232419ce924b",
+      17070
+    ],
+    ".next/standalone/out/texts/ipr-l1.json": [
+      "8ba5ac23062d9d2a0222c4c3e523e01f45926fd694bf7ca5e4f53af3719bacb7",
+      2426
+    ],
+    ".next/standalone/out/texts/jg-299.json": [
+      "5f5c5e3f6f695f96be455cc091b5db4aea9711ae319f734537561fe158a2a90b",
+      13083
+    ],
+    ".next/standalone/out/texts/jg-111.json": [
+      "1da645c858bf9f591fa039977f2f080435f905c2fcffa760cb7015cb634309c8",
+      10025
+    ],
+    ".next/standalone/out/texts/jg-292.json": [
+      "5dae0e2d01223818f3f933b18730a62b7d4b65a5532baf1fbbefd872f27d946b",
+      12446
+    ],
+    ".next/standalone/out/texts/jg-221.json": [
+      "d75ba6d0a24269ab92b73eda45c290502c5394173fbe02629086f9a754064e7c",
+      18480
+    ],
+    ".next/standalone/out/texts/jg-42.json": [
+      "03c239a778c450e91d30f8cfc11ef72315f952ae0b2655456d778d06e9a86c47",
+      7965
+    ],
+    ".next/standalone/out/texts/jg-94.json": [
+      "fd85f37423a7f62e4b4f016d98bc3aa1ba32656997ac2319847c37a68221c4bb",
+      11737
+    ],
+    ".next/standalone/out/texts/jg-133.json": [
+      "2dbd538b850e639322d74fb2070e001d16a36f43c505c34312ad619c6e647c1b",
+      8734
+    ],
+    ".next/standalone/out/texts/cp-l21.json": [
+      "ad3774cd3586d2e295da3000c7029e0892b361ee4972759c5a0f4fbad6b60112",
+      3531
+    ],
+    ".next/standalone/out/texts/md4-l3-1.json": [
+      "c8a6cf56573381447147cc571613d9b0b53d1c71b4fbe3fdc4306ab1e0627503",
+      16003
+    ],
+    ".next/standalone/out/texts/jg-161.json": [
+      "ec8280ce12a0e9fe3d66f1bffa1218b264ed7aaea38a9f3f14e6ff6b35c0ef8b",
+      12117
+    ],
+    ".next/standalone/out/texts/t-l2-4.json": [
+      "60370b045c0e6e10af860f21686103ce70c0b454fabfb02f003010c26ffab905",
+      31381
+    ],
+    ".next/standalone/out/texts/jg-280.json": [
+      "bf8498106a3195de132306add4c68a147bc22ed4ba16b4c29e7a8d16075bd5bd",
+      10823
+    ],
+    ".next/standalone/out/texts/md7-l3.json": [
+      "c6949656d490acf2105742a7d1a8838d0c25447a8d82478749547fa5a7b20c0b",
+      18980
+    ],
+    ".next/standalone/out/texts/jg-142.json": [
+      "2b8f17d15c581d2b79ba7531a52459cbd1f1fc2295641c5fa3bfc6492336e45e",
+      9491
+    ],
+    ".next/standalone/out/texts/jg-266.json": [
+      "c16cde66e70eba95504915a99d94a49f321ac131fa45891c4711e48450ae79be",
+      15360
+    ],
+    ".next/standalone/out/texts/jg-151.json": [
+      "0ccf54e7bf1611bb4c812b001c364b7f2d58299ac99fcc168e51faf2232345f7",
+      16604
+    ],
+    ".next/standalone/out/texts/jg-16.json": [
+      "bf5a508c5c9329dfb16de55bde0464e0d7e5424db31beaf8a425a795838e186a",
+      12359
+    ],
+    ".next/standalone/out/texts/jg-267.json": [
+      "9064cae842740e2a049e1d1cde86767c4625319544a7da4bd096f638f5aada30",
+      18421
+    ],
+    ".next/standalone/out/texts/jg-246.json": [
+      "d8aff94e7e3c297ffa81d16f740ff2ce3ffe611211b2380d00f89d4fb8243abf",
+      20959
+    ],
+    ".next/standalone/out/texts/jg-179.json": [
+      "e1e9d6939b9baf8385fb73912892a64c9c59fb26381ca9b8504f44338b100311",
+      15613
+    ],
+    ".next/standalone/out/texts/jg-302.json": [
+      "c5e1c9903189cb23ea7013cb657c635d559a0a7c8c20a79fbd62c09185388093",
+      14936
+    ],
+    ".next/standalone/out/texts/jg-325.json": [
+      "a715c781096c22917b649eddf056b5c5b90925182032b480b4ebaff211bebb57",
+      16127
+    ],
+    ".next/standalone/out/texts/jg-53.json": [
+      "4f0e9dab4627f32ff37f34510398de00ee3ab5013735850bfbc7e6543b1b4b2b",
+      10701
+    ],
+    ".next/standalone/out/texts/jg-44.json": [
+      "8c9c6d1d1ffb57c70b7c66fa395535b5865cd50df18acc4f1d2a80ae1ad45aa7",
+      8762
+    ],
+    ".next/standalone/out/texts/jg-15.json": [
+      "f7defa5898dfb93b1b6b9171864e6fe88fb3ca7c222c4420bd2296b4270bb8ca",
+      16707
+    ],
+    ".next/standalone/out/texts/jg-260.json": [
+      "2d073984ee75105ff86e60cb53e29a6e9b8e17a80eec028564eb647ead2a1a16",
+      17227
+    ],
+    ".next/standalone/out/texts/jg-279.json": [
+      "d189035abc6c3d7defef5600e5570f87c12648cbcceba8b9818c83068efbfc8a",
+      23442
+    ],
+    ".next/standalone/out/texts/jg-30.json": [
+      "e2fa3fbf667ce3d5167a028a2586cff8220a6501f3b61246aeb6794a745b4ff7",
+      9118
+    ],
+    ".next/standalone/out/texts/md7-l12.json": [
+      "c91edd6915aa96f39ab5edc59a92a53bcc247dab32568621a1726d4a1c064a0d",
+      30149
+    ],
+    ".next/standalone/out/texts/jg-89.json": [
+      "ab7e10e7e3e4205431d1399e49db1182e9a4c8eecba190f88afed93764c1dc55",
+      12784
+    ],
+    ".next/standalone/out/texts/jg-185.json": [
+      "9ac03b62cc7b8179d8e265f8d46cb0770fec983dbd275557ff3c83673e90d8d5",
+      17592
+    ],
+    ".next/standalone/out/texts/jg-245.json": [
+      "466e705b05f2e7f4c63089fef7133e43e6904007bef0bcf396b9555f11576485",
+      20097
+    ],
+    ".next/standalone/out/texts/jg-323.json": [
+      "c9fd3992c43e9452206dbe81529f15bbc12b939ae9118217f7fb4e32ed4a9111",
+      13228
+    ],
+    ".next/standalone/out/texts/jg-45.json": [
+      "c58c4b9838582b1d9d86a960547e258b222f02d8b17c02ef03235ed856b11e01",
+      8956
+    ],
+    ".next/standalone/out/texts/md4-l1-1.json": [
+      "033df302c87603c2cf02c3542ee531d40a14643d420df77dd2646d9654c44286",
+      13469
+    ],
+    ".next/standalone/out/texts/jg-146.json": [
+      "f3b9e7ea526ef526f0e603d73c61a1af7d16bcd1bf0f4db18c029123fbd1fae7",
+      14745
+    ],
+    ".next/standalone/out/texts/jg-57.json": [
+      "9a57f63eb6a4c1740991c8873f86cb95c4f35b791988e72538caf512c2b1dbf6",
+      7396
+    ],
+    ".next/standalone/out/texts/jg-219.json": [
+      "5eed1d9b33dead53c923c7dd97f4576d105717d283414563975ed2a3e2fe99bd",
+      13827
+    ],
+    ".next/standalone/out/texts/ip3-l2.json": [
+      "399161e1ce6baa58387a63e57de18c8b6fa8f744d1b56056d11089360cd0efbe",
+      2373
+    ],
+    ".next/standalone/out/texts/jg-81.json": [
+      "ed3ef38b7bd2e8e48999c69fa0906bc4074d4eff9425f9cb495348a2129bc92c",
+      11373
+    ],
+    ".next/standalone/out/texts/jg-200.json": [
+      "1d5ddf7b97e7e3265132abf8aa4a0e7ee795da630681b839498172bb377a30cd",
+      18486
+    ],
+    ".next/standalone/out/texts/cpr-l41.json": [
+      "d31a4f91c9c4def38878a3cdc146fa4833ceae808e8c8555c9105a44b282f5ef",
+      2871
+    ],
+    ".next/standalone/out/texts/jg-217.json": [
+      "2724c54462ae27c6a7e7be872be99ab72b851986a5b830c295e43766cf3cc015",
+      17827
+    ],
+    ".next/standalone/out/texts/md7-l8.json": [
+      "846b0a7ba80424fa0e6ed4875e3ae902f81c922a2d310ef12293899807d275cf",
+      28831
+    ],
+    ".next/standalone/out/texts/jg-172.json": [
+      "089f8ee48f4101c38b35beb137ec87177b2198c3b5234b3e6eeae9d5e43dbc2a",
+      16329
+    ],
+    ".next/standalone/out/texts/t-l2-3.json": [
+      "020e7a8f6cac4edfd24aa84a5c11d6cf220a8a386fff8a6457287c00aed525e7",
+      36064
+    ],
+    ".next/standalone/out/texts/jg-122.json": [
+      "45255c7e3a7170dbba8a72004e68a47b93970c2e80649cac2357608bc6cfa8b8",
+      11634
+    ],
+    ".next/standalone/out/texts/jg-211.json": [
+      "0579dd415ec0a5427e59b289500d7b122e122e0346bbaee632748b7264818fec",
+      18757
+    ],
+    ".next/standalone/out/texts/jg-166.json": [
+      "e4f9056f449c8db36b749c0c441fb0a27a9ad8e8840416dea2e2c8de5ac0ad92",
+      13519
+    ],
+    ".next/standalone/out/texts/jg-35.json": [
+      "fb8afc463a587fd297636ec2029e8eb013879733a7b2bdd3077011f9677ed361",
+      14043
+    ],
+    ".next/standalone/out/texts/jg-263.json": [
+      "b674dca2e18ae4f9d5246b24bb3361e4c02db3d46486c7b2adfb8ec2e1806d42",
+      17397
+    ],
+    ".next/standalone/out/texts/md7-l1.json": [
+      "042a1771c903523e86eb55c6df58ae2c81f14239ab7e3df591adedbceff50765",
+      20480
+    ],
+    ".next/standalone/out/texts/cpr-l12.json": [
+      "1500143bfccd49a21ba994c45a55553477ca51c1aea215de38024b016a7145e3",
+      5062
+    ],
+    ".next/standalone/out/texts/jg-41.json": [
+      "ed62a2b895843a06fe77a98d1f531048103582742ee43794b1c710b482329719",
+      13969
+    ],
+    ".next/standalone/out/texts/jg-309.json": [
+      "a304c91e13d7f3a00f30bb4c20b1c858596543083fa7b6d16585da46dce813c3",
+      17776
+    ],
+    ".next/standalone/out/texts/jg-61.json": [
+      "1bda2b64574cee91670b9ca70cb633d8a214f20cc7fa27718b75301670daf463",
+      7808
+    ],
+    ".next/standalone/out/texts/jg-8.json": [
+      "007ad692f467a54291688d8cfdba620146ab3c45ab3e6dd7b283320f1e846d36",
+      11860
+    ],
+    ".next/standalone/out/texts/jg-234.json": [
+      "e2d785f9d98f2630ff5d2f78c7b879e6660c34d850b50f0959b75678d44552d6",
+      14405
+    ],
+    ".next/standalone/out/texts/md4-l6-2.json": [
+      "cb34e26440fc0855447baee593abfa75319bf688ff31af3144472df27b098082",
+      38139
+    ],
+    ".next/standalone/out/texts/md4-l3-5.json": [
+      "c911e48ea5c1a804462fea70a5ad8c58d9cbcb57792efdcd6e2ff40210c3e2a5",
+      17440
+    ],
+    ".next/standalone/out/texts/jg-83.json": [
+      "fd534ec972fe589e17a3ea2e47c342bef2259d23c19f81fbc57306a900fb05c1",
+      8993
+    ],
+    ".next/standalone/out/texts/jg-181.json": [
+      "9958d4a15400c86ac6ddd4fe68fa3544c4e59fd1fb0561768a0e4f15c21ea2b5",
+      17919
+    ],
+    ".next/standalone/out/texts/m-l1-3.json": [
+      "839b85bbe460db10fb8b68cd0b8ad71597ea472251dbfe5c96c7a6a9980dab83",
+      22808
+    ],
+    ".next/standalone/out/texts/m-l4-3.json": [
+      "f661e021b1fbf3f16d5d82fc6b1fbf9d65e7f8a50e92bde55d520ee0a78142ee",
+      34960
+    ],
+    ".next/standalone/out/texts/jg-194.json": [
+      "9e6fb392affe67476b04a0103f3b591016fee7c620f6321c4dcb1aee8c87a538",
+      12634
+    ],
+    ".next/standalone/out/texts/jg-55.json": [
+      "8464658b423a69ae1f5e1dd553582d06c23ed601566cc124136862ee1d6c6609",
+      6795
+    ],
+    ".next/standalone/out/texts/jg-196.json": [
+      "3fc79c97cebe28805c8f0abb1000e835fdd522dd90cab5757ed0b2a58bf8f7da",
+      11732
+    ],
+    ".next/standalone/out/texts/ipr-l3.json": [
+      "2a4a29fb7bcb0682b08ed571004c17b1ec1cea6016de68a60a8374abb9f5c67c",
+      2655
+    ],
+    ".next/standalone/out/texts/jg-77.json": [
+      "df4a874a82404b66d4656c0fa3d0b5fc8c287fa46b2ceaf56d1bd5c2206a6531",
+      11856
+    ],
+    ".next/standalone/out/texts/jg-239.json": [
+      "7d5b4672102a6bce9badb5d2d4608c46e1e8342cd35bff68e52c6757f5b31620",
+      14612
+    ],
+    ".next/standalone/out/texts/jg-240.json": [
+      "89f50b621c41865044ba78d86f82461f4b1ee42214e56f48de57597aa10de9b5",
+      18207
+    ],
+    ".next/standalone/out/texts/jg-189.json": [
+      "570660f73b0623266b02fb3236598c9d352233488bf875da2371b750518c6e99",
+      13656
+    ],
+    ".next/standalone/out/texts/md4-l2-2.json": [
+      "972ab26c37cdbbb82711bb28055d453d270f7bfdc8a12e6f71daa995c817d35f",
+      17744
+    ],
+    ".next/standalone/out/texts/jg-69.json": [
+      "a83bac803207f2aa0b75b105ca924e884274f9e0942adc288eab7cf2c9d68c13",
+      8948
+    ],
+    ".next/standalone/out/texts/jg-236.json": [
+      "763378e2bfd3ff5d9af0a70478152d7cedfebf546e7fbcecdb9af9c3a60cf34c",
+      11950
+    ],
+    ".next/standalone/out/texts/jg-31.json": [
+      "0faa2f7748c41e3bce23e19d99cbee6f5bf493f3d8ded1b257688c58c4f3756e",
+      11599
+    ],
+    ".next/standalone/out/texts/jg-132.json": [
+      "17957aad8a229c48dfb98b97f8287c694a7fefff486b76d5e2a9017ada3ebd10",
+      11030
+    ],
+    ".next/standalone/out/texts/jg-277.json": [
+      "46701908694263005f1837a99ca5aad62c30873900d41425aa58069b32afa55c",
+      15792
+    ],
+    ".next/standalone/out/texts/jg-7.json": [
+      "f674eb69f77d32c5ccac8bf53b08350dcfaef011e19c63cdcd97876ef7fa081f",
+      10266
+    ],
+    ".next/standalone/out/texts/jg-29.json": [
+      "8234750edfa13872d0a87f990d1115469149209a36853b3fbc2752c67947d644",
+      11898
+    ],
+    ".next/standalone/out/texts/jg-49.json": [
+      "e37eb620372c8ffe82724a07fe1a0f10c777b1e8fbeae9d79a18ecd25274e815",
+      11520
+    ],
+    ".next/standalone/out/texts/t-l1-2.json": [
+      "807ae4848489701008a863186ca58b64c093384a39ffd0faca2832542b3f2328",
+      9177
+    ],
+    ".next/standalone/out/texts/jg-291.json": [
+      "08171b707582a50e8f52708f532d6b788817104f671383ae2e720ea0e2a82dc5",
+      13640
+    ],
+    ".next/standalone/out/texts/jg-159.json": [
+      "fd1244ee54a2886a69add8b757df50aeaba1683b0bd44669456ecd34474a2842",
+      10664
+    ],
+    ".next/standalone/out/texts/jg-329.json": [
+      "26ded0f02c67deb5e272e852d124016a5407d9f93d3175e3eb21e87853049a16",
+      19266
+    ],
+    ".next/standalone/out/texts/jg-168.json": [
+      "4e58f22753db61835cb950c1e75f565e34e7fc2b02336d2e07ccca6110025934",
+      12265
+    ],
+    ".next/standalone/out/texts/jg-226.json": [
+      "bc4f3be34a1287112a429a00da3832392816532ab4066281d20eb2f3f99dfb8f",
+      14438
+    ],
+    ".next/standalone/out/texts/jg-39.json": [
+      "778e20e68eb3328c6410467d7bf575d0eba535be3535a2c7e0960299e85a9648",
+      15585
+    ],
+    ".next/standalone/out/texts/jg-106.json": [
+      "669a5fc1d5c099365d88aaddfb35d01f1b6050c50b2853b3c298c2660a566127",
+      9105
+    ],
+    ".next/standalone/out/texts/jg-251.json": [
+      "72d3d9026f6572313153ca805d8f80693fe27585280c1949c76fd9cb6a9e9464",
+      13520
+    ],
+    ".next/standalone/out/texts/jg-32.json": [
+      "b368ffb4ae5981bd1263497ce6b0043ae019a64ecda909bd5ccc549a44bb1b16",
+      9751
+    ],
+    ".next/standalone/out/texts/ip2-l1.json": [
+      "9c7ca4e87872f0c488e1d590b8c8b79f084f0f1534abd8186a9d45a729d7c6a3",
+      2976
+    ],
+    ".next/standalone/out/texts/jg-204.json": [
+      "60def5afac05e4b2e164ec085e40f64d4f411bd69995bb043a8d78ea10ada7a8",
+      21907
+    ],
+    ".next/standalone/out/texts/md7-l5.json": [
+      "34a670728c14266cfb9bda8de615a504b71f2d5e8e4c4bce7a2cf30d0ef511cb",
+      29587
+    ],
+    ".next/standalone/out/texts/ip3-l4.json": [
+      "5f859b689a5f779e7745aec8c3be58f7f06a613ef2caa921c96b601e8ae6e86e",
+      2663
+    ],
+    ".next/standalone/out/texts/jg-152.json": [
+      "6aaf6c0d1ef1f074949b33ed30981983c851a91fe0b29ba2cc7a55d3c799bc8d",
+      15108
+    ],
+    ".next/standalone/out/texts/jg-129.json": [
+      "0a9efaa0f2d574bb29b4ef0aec14b4478087bb866f9c8169795eb5ba787549af",
+      9146
+    ],
+    ".next/standalone/out/texts/jg-182.json": [
+      "3a5e877c89ad431ad4414348eab708d7b57f7c1cc19ad7f76c3131c767ea91c9",
+      18362
+    ],
+    ".next/standalone/out/texts/cp-l12.json": [
+      "8da73b871ed862d98c04d620190a17883c833bfe9a0976620eef83271dbd031d",
+      3815
+    ],
+    ".next/standalone/out/texts/jg-113.json": [
+      "2c3133a1db45c894c799fad4330d62ee2818f305badcb9147c095c0322f5b1fa",
+      7945
+    ],
+    ".next/standalone/out/texts/jg-105.json": [
+      "200faf6e5d1931214e71ed1cca39b8b041390514603b8832f5bb9f60127d42c8",
+      9379
+    ],
+    ".next/standalone/out/texts/jg-317.json": [
+      "b79cbf3832842ef22b3856c6446013158b3e3d8c735c854a12c98bdf6691ee1a",
+      16570
+    ],
+    ".next/standalone/out/texts/jg-178.json": [
+      "fa67b6117f7f6fb0bcda02b1e5d7ebc4677039e1d4bc7098d18848cc22bc8843",
+      15083
+    ],
+    ".next/standalone/out/texts/jg-224.json": [
+      "b624529a2b2f28e709e331be8ed739f840c147a47b943b0414296567fcf6a14a",
+      16487
+    ],
+    ".next/standalone/out/texts/jg-19.json": [
+      "46c459e22657971043cd7a6b66f85e606e6d0c3d0c8c053b9920e24f75cff668",
+      13730
+    ],
+    ".next/standalone/out/texts/jg-261.json": [
+      "95c109971e6e4d44032e860724dce1b22581ca5bb68c7c947ff2be18972bd6f4",
+      21009
+    ],
+    ".next/standalone/out/texts/jg-34.json": [
+      "08ed5253d951287775faa34fc9886f6425360a8c90a4b53ed21238abb67b01f1",
+      10240
+    ],
+    ".next/standalone/out/texts/jg-187.json": [
+      "0b5b93f445250faff1f76baec3e60f87ba33c65d822158091dd08ccadfb014e8",
+      22622
+    ],
+    ".next/standalone/out/texts/jg-238.json": [
+      "ef5936841e3a94d148c59991e2708219267c2dd0991767cbc7ccc6528c29fd08",
+      16800
+    ],
+    ".next/standalone/out/texts/jg-37.json": [
+      "82edf3e889212ddfa880ad48458e8c27d753943863c0fb952d28aa2d6d16d32f",
+      14745
+    ],
+    ".next/standalone/out/texts/jg-2.json": [
+      "9a9fe5ce46f9327cde1fd7dec5c40912f61835df442d91796db464a10fe2c238",
+      15796
+    ],
+    ".next/standalone/out/texts/jg-98.json": [
+      "95b312cd12e6ded87f31c697a42352c1f7944efc6bac5322b7eb8c1c8c160a00",
+      9876
+    ],
+    ".next/standalone/out/texts/jg-225.json": [
+      "b06a31e83d22f9763b5b4896db5a4a66e91bb17bc1207c05b6d3865359bc8947",
+      13290
+    ],
+    ".next/standalone/out/texts/jg-228.json": [
+      "78affa4a56077da5e752ee6da735d6f493b497f9a45648464d43e37dc4177ba2",
+      16394
+    ],
+    ".next/standalone/out/texts/jg-237.json": [
+      "a730288e36ee6b8df7473b94a696c6c06e897f2b8c6448477937e62909ed8da0",
+      13300
+    ],
+    ".next/standalone/out/texts/jg-173.json": [
+      "fb4a1d6fa5514893575604d06469ceb46efb2a808c1ec9bfa32b830e2bafae0e",
+      15553
+    ],
+    ".next/standalone/out/texts/jg-243.json": [
+      "6e0039fcb63079d66b5d7d94d994b83a81aed5e8086c1addd23528d098a1fdb0",
+      16265
+    ],
+    ".next/standalone/out/texts/jg-249.json": [
+      "cd4beb052ced59617ea22d469bf2453cde1eeafe0cbe90311b1f5af30ce5c897",
+      18767
+    ],
+    ".next/standalone/out/texts/jg-320.json": [
+      "fa55ddecf74b1c3ef661f4d8d89ba92dabd11d245b52ef7ee22158fe84089307",
+      14534
+    ],
+    ".next/standalone/out/texts/m-l2-3.json": [
+      "562c9dc06e3b33e4f3283765d6a7ba88cddb0c8440b019d7a55248c893a1ae98",
+      13224
+    ],
+    ".next/standalone/out/texts/ipr-l2.json": [
+      "da66676eb29108b26b8ea8062a1a239c5868a46ec55717c2ffeafac681b75c53",
+      3059
+    ],
+    ".next/standalone/out/texts/jg-64.json": [
+      "ec2db2d8b77bcbacd98811c87e937e80faa63ee91169fc68163e555888ab42c3",
+      6988
+    ],
+    ".next/standalone/out/texts/jg-54.json": [
+      "3740068a271a814551dbc02494637c946ec0dcdbace02100b4ce05e0021eca14",
+      6250
+    ],
+    ".next/standalone/out/texts/m-l3-1.json": [
+      "40ccdc2fcf023f9d77e8869634dbe610a23078461802c84e2c245409d23f24ab",
+      18566
+    ],
+    ".next/standalone/out/texts/jg-68.json": [
+      "56f4203e0ea4062bb7a246d6140b098b270c6dafa4938e8eb8aaf9eb9acce816",
+      8027
+    ],
+    ".next/standalone/out/texts/md7-l13.json": [
+      "00056d3c5d9e91c8f48ff7d0baba967929f92360e8e9e8a73f62da31323ffed7",
+      41504
+    ],
+    ".next/standalone/out/texts/jg-1.json": [
+      "d2956fdc0f4b107883353ef52d0ebb7b07aa1a1f063c3f9824fa5b040dd47ceb",
+      11218
+    ],
+    ".next/standalone/out/texts/jg-75.json": [
+      "f084eafadd2bd23e374d3a87e231852dfbc64b249a5fdb85ccc447e8f291ca39",
+      10662
+    ],
+    ".next/standalone/out/texts/jg-20.json": [
+      "ba9cf3e6c3f3a4f61c729e313d43b7bdd7f06630daf2971eb2291695e770a99f",
+      10909
+    ],
+    ".next/standalone/out/texts/cpr-l13.json": [
+      "283b30442dd4cc89dd4b1fb545ffed5e583c7a63201931026c325a825ecd53c4",
+      4044
+    ],
+    ".next/standalone/out/texts/jg-180.json": [
+      "b5e99a0bf2c2fc07f7231d7545a913120d37f129aa3a72feea8c079fbd07ab07",
+      15919
+    ],
+    ".next/standalone/out/texts/jg-43.json": [
+      "70b8486d83ab5c25ae4db1d1ef49704dfa06218897812f9b91a14f7ead21cc0f",
+      9863
+    ],
+    ".next/standalone/out/texts/jg-96.json": [
+      "707297840bfa59a1703141f58411d2b410a86cbe5a6bb5a895fc0101ee6df0d7",
+      9781
+    ],
+    ".next/standalone/out/texts/jg-50.json": [
+      "3d3c1ddbd295088e52a04017bf505f33994276adf9de371cb6f58c57a1136694",
+      10575
+    ],
+    ".next/standalone/out/texts/cpr-l31.json": [
+      "c3ea8abe5a2605e27d1b5f268a7848e4d4e46b9c9ec6c4ff5c65c57289430de0",
+      4441
+    ],
+    ".next/standalone/out/texts/jg-297.json": [
+      "1f3468a39d07eac3082c38e02a8b5893b876fc11dc4f4cb51907e94b39999898",
+      16278
+    ],
+    ".next/standalone/out/texts/jg-305.json": [
+      "43d7054b408dd561ffdddcef2a9751a85fde6b93ec8add99d9de88f33001ac66",
+      18751
+    ],
+    ".next/standalone/out/texts/md4-l3-3.json": [
+      "1d8521bc97ffe119685e8418dc941a856ed258ab0a6a87187b1632f1772d3a7e",
+      17182
+    ],
+    ".next/standalone/out/texts/t-l1-1.json": [
+      "653aa43136677aae2b7563b9017f7c2536ba1fbbf248d48801bb0994535d55b4",
+      22757
+    ],
+    ".next/standalone/out/texts/md4-l4-4.json": [
+      "004b71635478e1d34ff8b5706803c4c569c11c4b169abacd8d0a182e88b4f760",
+      22805
+    ],
+    ".next/standalone/out/texts/jg-284.json": [
+      "2eba05de90863f29e625664c510168cfa7bdad98d6f10ca16ebd2f07db1d9774",
+      15328
+    ],
+    ".next/standalone/out/texts/jg-101.json": [
+      "920fe2eea112eb7ac5fd87bb9fd78729477ace81de9db74bfbd78cefc3136e6e",
+      10513
+    ],
+    ".next/standalone/out/texts/jg-258.json": [
+      "89584c47cec4a5ef35dd56c5276fb7ec372f73687f7f160c5f1ebd06052a5002",
+      12849
+    ],
+    ".next/standalone/out/texts/jg-300.json": [
+      "ea0291e71f5680be729c756596ddbc80df6b9eddabc0b5cea92619c0ce34d007",
+      13759
+    ],
+    ".next/standalone/out/texts/jg-278.json": [
+      "33f8ae9907c766c9a6b9dad4ecf5e3f693e65a61ab4b2f79682101b31f9c9d0b",
+      19612
+    ],
+    ".next/standalone/out/texts/m-l3-2.json": [
+      "ae4d6eeaf32e3d2bae1ccffa878562079cd090e41047f3472ca78c8492225d3d",
+      22386
+    ],
+    ".next/standalone/out/texts/jg-60.json": [
+      "4a568384dd2d0cb9f01c5e9e1c13eec031ce680e3f70f63b2bf1818d9c96ef30",
+      7944
+    ],
+    ".next/standalone/out/texts/jg-72.json": [
+      "436a3ab514b03a82ecb57451bab1d5fcf0492f7f6715f42c4b087cbfa72ff6dc",
+      8437
+    ],
+    ".next/standalone/out/texts/ip1-l2.json": [
+      "6136cd6c7c0d2d6a8ae03e91e6b2dee9e6140d716eb6c15db9c58f49fd2f916c",
+      2563
+    ],
+    ".next/standalone/out/texts/cpr-l11.json": [
+      "c7a8b9b547439ef2b04a397a3d2e1948befebce93a7036708acbf9f9999f0eb3",
+      5772
+    ],
+    ".next/standalone/out/texts/jg-4.json": [
+      "4730c77146643fbbbb520ceafd087c04ba0c5cd0b1bed140f62114f8c05b5258",
+      9183
+    ],
+    ".next/standalone/out/texts/jg-52.json": [
+      "378d30c82359e414f33d50870a3e46b1ed40c330366d318428696686977a6684",
+      10457
+    ],
+    ".next/standalone/out/texts/jg-120.json": [
+      "4f87a84a4986777ba1ef651ec35c7a411224eabb777e0b7a844b4e7fc658e456",
+      9785
+    ],
+    ".next/standalone/out/texts/jg-71.json": [
+      "e39d02eaf6d68fea4e6e3488f4184b3b79f31d2addcd4a8f6798e76076453235",
+      10765
+    ],
+    ".next/standalone/out/texts/jg-79.json": [
+      "586ecfc4567fd0342eedeebec776c4a5b5a0efc1222b868189f88e05c58df692",
+      9063
+    ],
+    ".next/standalone/out/texts/jg-141.json": [
+      "486ae931815c88f2c6e87b9ab8eb01e216a2068c77a516c248a6b9cc2ad9b45a",
+      9456
+    ],
+    ".next/standalone/out/texts/ip3-l1.json": [
+      "c1c28ee410e8a5d476941e774a8a736c65e9eb717abe61473d6b224f2a6f68d6",
+      2654
+    ],
+    ".next/standalone/out/texts/jg-17.json": [
+      "2f737624ba940c624f9c5637876c3272cd321a26058b9113365d3bf663abf30a",
+      9911
+    ],
+    ".next/standalone/out/texts/jg-197.json": [
+      "90af0df0269841863986bbf0ea7e950905a5ff67894ef365581153340e4eed6c",
+      10179
+    ],
+    ".next/standalone/out/texts/jg-51.json": [
+      "546e1cbe47a0188d4ccaf48c59d83637cbdf7bd4933a0f77e5628244914d6ea8",
+      12107
+    ],
+    ".next/standalone/out/texts/md4-l6-1.json": [
+      "a369b2017f88247fc1e4760020fa28c329cbf695347b860be0144649eccab2f8",
+      24109
+    ],
+    ".next/standalone/out/texts/jg-296.json": [
+      "65ec617053f7f7ead3d0e4a1988be02e2a6b65dcaf5f32a428726acf2c72fc72",
+      20541
+    ],
+    ".next/standalone/out/texts/cpr-l22.json": [
+      "4a85e37719a189c44dd88c228db109f5b2c35697c354fdee0d6120b666599e71",
+      3490
+    ],
+    ".next/standalone/out/texts/jg-143.json": [
+      "5c58123d680daa31c12e1b3885643c66d1cb55248e4f9eda9747c54c8a012094",
+      8805
+    ],
+    ".next/standalone/out/texts/jg-235.json": [
+      "96578b41ea04f8a547bff9cc910d71152e067d811aeeae882b3ec8fff7835ec4",
+      14388
+    ],
+    ".next/standalone/out/texts/jg-46.json": [
+      "dc39163703923c13e26379150d14a14aef904523b315c051074e3a6e2b2570e0",
+      8445
+    ],
+    ".next/standalone/out/texts/jg-59.json": [
+      "78b4646bee19caf94849495ad9f31c3a9acbe2b48836a32a28f870d20a83a34a",
+      7313
+    ],
+    ".next/standalone/out/texts/jg-230.json": [
+      "af62c27f33faacdbd46e1dbeb48c1632898514f54e069f1b64041f9e2e08b807",
+      15838
+    ],
+    ".next/standalone/out/texts/jg-92.json": [
+      "7ca5081016b8543581fdb989aea37d9eb4311e4be43e199aa800f07374d715d7",
+      9788
+    ],
+    ".next/standalone/out/texts/jg-126.json": [
+      "13622744780c4eb5cfd53b124644f0c5ff9e2eb0bb8832a35d9d2784b86ce948",
+      8133
+    ],
+    ".next/standalone/out/texts/jg-289.json": [
+      "ae39704bbec5673b6ac8c78430c1778c97a38bb7e4c367ba34e2608326ef4e05",
+      16887
+    ],
+    ".next/standalone/out/texts/jg-214.json": [
+      "1a61ec9cac8739b602a5519e7c431f1ebdf6c47e086e4ae8f0608ce0b050a550",
+      14813
+    ],
+    ".next/standalone/out/texts/md4-l2-1.json": [
+      "ae01999d505ce8326318b2e7933098ff5d90c84ee4d29bb5d838abe959d8892f",
+      18840
+    ],
+    ".next/standalone/out/texts/jg-259.json": [
+      "a969d79711553d47da127d380bab94d35daa923346f0b32574976eaeff0e2a0d",
+      14368
+    ],
+    ".next/standalone/out/texts/jg-193.json": [
+      "e3f4a993225ba1821b7c14001967760d69c4cfe316a15d3aa9b18db618dfbe20",
+      10187
+    ],
+    ".next/standalone/out/texts/jg-145.json": [
+      "3969faebfe59e87b08275814ba1ac7ff136f6b334f30b1757797d2316266dd83",
+      13675
+    ],
+    ".next/standalone/out/texts/jg-216.json": [
+      "d3acafa262e8b693033fba8cd505e833a80fc19609a0a0aeb4cfe0cc55916cdb",
+      17174
+    ],
+    ".next/standalone/out/texts/cpr-l21.json": [
+      "d2a4222b5a07009a621bdb3f74ef8c005e6fdefc1e55d846be211163f1e58ae0",
+      3087
+    ],
+    ".next/standalone/out/texts/jg-144.json": [
+      "b4e91e9ef7a90431efafbed2ceb9c4295c2c41ed84648cb7f6b0cecb06028baa",
+      15567
+    ],
+    ".next/standalone/out/texts/jg-262.json": [
+      "92d0defb6f5ec5f6c6f2dcf7d4ae5c132f3c9e634b06d342d0418e7580c4c85f",
+      17123
+    ],
+    ".next/standalone/out/texts/jg-167.json": [
+      "4a567ba931bd75ea816bcb584e9925ecfc101a4841b6ccd9ebf2326f16520666",
+      13295
+    ],
+    ".next/standalone/out/texts/jg-286.json": [
+      "1d1f00ff3c807267293d6295aa56a91203ec666db07ac619006a5de360e0406e",
+      19916
+    ],
+    ".next/standalone/out/texts/jg-24.json": [
+      "e25c9c6a0593003a184fa9f593f94f800860365d9880142cf3eeefdfa1a4d0b9",
+      13605
+    ],
+    ".next/standalone/out/texts/jg-281.json": [
+      "94317f5fe93b2ed7d35b1c4b68523e78d183c30985533134dbf15d962275ba12",
+      14604
+    ],
+    ".next/standalone/out/texts/jg-128.json": [
+      "aec7f1675da585a32b3139e95e345a57e3c61c2c241d46993cf135331b4924b4",
+      10537
+    ],
+    ".next/standalone/out/texts/jg-195.json": [
+      "54e75eeace4d1d30e62ffcc0f75cdd88f1a6fd72bd75044b89b0343352661ab0",
+      11347
+    ],
+    ".next/standalone/out/texts/jg-295.json": [
+      "634708039922fea649e6da6b50d2bb824055457cc9c767b0e38ddc3981c614c3",
+      20739
+    ],
+    ".next/standalone/out/texts/jg-86.json": [
+      "a846287c3936bf41892499b38f38399a90e9997389896461ccd68fa7f6535b07",
+      9487
+    ],
+    ".next/standalone/out/texts/jg-116.json": [
+      "32978ed0112ba36a8b4b020cf244f8272c2e1467e9752826a55d1a3ce13ac128",
+      10402
+    ],
+    ".next/standalone/out/texts/jg-36.json": [
+      "4a4df461a22e4e5a9e25b0b1d52835dc6a7549bed08b04b6b33575effa84166e",
+      15493
+    ],
+    ".next/standalone/out/texts/jg-5.json": [
+      "c7518b1309dfb602452cfd4c45dc3ecd2caeacb7dcda4b41968ea33b3bf2fe6c",
+      14478
+    ],
+    ".next/standalone/out/texts/jg-306.json": [
+      "5b86b6cd3f9a80f45002dcef6755b08ff4f1606f1a3735dfd71b82300b633cf5",
+      19996
+    ],
+    ".next/standalone/out/texts/jg-190.json": [
+      "00b53cf833fae9de5aa99fa4b61f026297ccd740b160bd488da9bc2a5699ee34",
+      11452
+    ],
+    ".next/standalone/out/texts/t-l3-3.json": [
+      "9bf244bc9ad9cf0b7cbacc24f61a80b6be837b2ee5d704c50e4e1d7fadd9f95b",
+      29529
+    ],
+    ".next/standalone/out/texts/jg-288.json": [
+      "4f84d9d84b5d37626f461a9a4d236776accc207804b51de72ea26957e22c5fdf",
+      13424
+    ],
+    ".next/standalone/out/texts/jg-163.json": [
+      "6ca745f6580c732558c3d7c317dd116fe6edd745803d98853a486e0c323653d7",
+      14169
+    ],
+    ".next/standalone/out/texts/md7-l11.json": [
+      "320ca8de289837537f32a8fcadcd06642382e140e26ac3327bcae8f0c6c547fb",
+      27409
+    ],
+    ".next/standalone/out/texts/jg-90.json": [
+      "33d4009edac04be50ff94748ec44f0674ce6251a0c47888eb961c5bb0790a9f1",
+      10693
+    ],
+    ".next/standalone/out/texts/jg-304.json": [
+      "114b34cf253ce46e3212dc2eed185df08529c12ea3e7536aa715ae5822492dbb",
+      12931
+    ],
+    ".next/standalone/out/texts/t-l4-1.json": [
+      "1807a6bbe3e80fee7cf2d913fe970ad3ea1e201a5f634417663cb7f6ed8a0e2a",
+      15798
+    ],
+    ".next/standalone/out/texts/jg-115.json": [
+      "0907be4bf02c179a91fbb489ef30bbc75f1fdf48195d67cc478ba48e24d0fe96",
+      8960
+    ],
+    ".next/standalone/out/texts/jg-22.json": [
+      "86018243c7e8d121cb24e6be7034ef3ca8fe252233fb987efc2990b9e0a3657e",
+      7954
+    ],
+    ".next/standalone/out/texts/jg-269.json": [
+      "f66a437202be569be1e70d89aff540d28340e29069bdc4fa5035714007a8ef43",
+      17020
+    ],
+    ".next/standalone/out/texts/jg-73.json": [
+      "bee449ef852649db268d18e03fa2cad83ba648229223b03660f4466a2e2e4a67",
+      10070
+    ],
+    ".next/standalone/out/texts/jg-256.json": [
+      "3f6d277b81774a72e143b0e3d5931f0d06783c0de8ad83f9d24e9d7126fcf1fd",
+      14518
+    ],
+    ".next/standalone/out/texts/jg-183.json": [
+      "67a5125d251e4f8a7eddd792a9ede6ca9a5b40d7107d2ffabccd4f6e75f6b9b9",
+      17465
+    ],
+    ".next/standalone/out/texts/jg-108.json": [
+      "fbf1d1cf9c5ecfde0aa6a9f3604ee71e816b1e4db4d01c5adf55285177cd704f",
+      7935
+    ],
+    ".next/standalone/out/texts/jg-247.json": [
+      "0513c16171102df37931317f957ca848c202a4d9d0e153709bffab7ec96826d5",
+      18877
+    ],
+    ".next/standalone/out/texts/jg-272.json": [
+      "db0bf95b0db0bb5ccea08b1287ef6ebf0728d296fa327ff7594418c15e84603f",
+      19414
+    ],
+    ".next/standalone/out/texts/jg-66.json": [
+      "113daf388580479765915c05210aab7bc3744db33fd98e5614f2305c91dd3492",
+      8425
+    ],
+    ".next/standalone/out/texts/cp-l11.json": [
+      "ce1c686fe19e89401db0fbba52ece3e3955f20f5546d1ee895887a5505ff1d29",
+      3378
+    ],
+    ".next/standalone/out/texts/jg-311.json": [
+      "b948f6a090d1f3d054cf71c42f7a1e397bde23f0bf2cedc861c7602391ab7e2e",
+      17297
+    ],
+    ".next/standalone/out/texts/jg-307.json": [
+      "1a1fe07da41edb92e3714804d18c247ef6a5b6f9b6c8ac6015404fd38dbdecae",
+      16885
+    ],
+    ".next/standalone/out/texts/jg-252.json": [
+      "6a36e48969b3f614ce996865b46f76e5839f5d86cebec623c138b842183b05b8",
+      16322
+    ],
+    ".next/standalone/out/texts/jg-119.json": [
+      "21954a64df46dc874d8f67668ce0eae6bad7b5fae46811a778107f52910f590b",
+      9578
+    ],
+    ".next/standalone/out/texts/jg-208.json": [
+      "d739250716db7d42cabead841647b6689b8090516f1d2a2c1c144b1cb9201f5a",
+      17388
+    ],
+    ".next/standalone/out/texts/jg-298.json": [
+      "bc6d050b1dd9110a03793ed0db746d13aa9c799f98cb011251ca44a0e85e550e",
+      13559
+    ],
+    ".next/standalone/out/texts/jg-271.json": [
+      "d1b90d2ad1e01029175eb5a08ce97939069b90d77c91506d7a7c0721ca9b79ce",
+      19049
+    ],
+    ".next/standalone/out/texts/md4-l3-2.json": [
+      "46c31d3e57fe00ad16c8ab9f3114b13dc48ddfaae2b38277eed3f47e34de0ef0",
+      23262
+    ],
+    ".next/standalone/out/texts/jg-265.json": [
+      "47775ed6ae1790282dd5e4de9b076550fb946f4daf1522f3a18a9925a3a608e6",
+      16830
+    ],
+    ".next/standalone/out/texts/jg-199.json": [
+      "27ab91f12f464e4b1674b418edc88f2cde38c7b825519d7a3a56a7012e180744",
+      20089
+    ],
+    ".next/standalone/out/texts/jg-150.json": [
+      "87fced072e02f2473dc4fd17b30cdd01f7fd08367ab99ac0ed9f05b3af26ceaa",
+      15052
+    ],
+    ".next/standalone/out/texts/jg-209.json": [
+      "437178915388948af122c2c8a2f8c645f4fb971fc7dc64177e8cf3f15e2318c2",
+      24076
+    ],
+    ".next/standalone/out/texts/jg-229.json": [
+      "34b0287c72be9c90ec06971e7c99275abea9b6e82abc78509f94952d509604d3",
+      21347
+    ],
+    ".next/standalone/out/texts/jg-148.json": [
+      "7a1b38e11d06ec4c758f01c1aabc2f0b228b27d9c5d25c5a6c9a53d519105f04",
+      13199
+    ],
+    ".next/standalone/out/texts/jg-293.json": [
+      "e07716562dcba291dd9fe5c4aea475c3017300382c922adc1613577920a9c0bf",
+      14535
+    ],
+    ".next/standalone/out/texts/t-l2-2.json": [
+      "4e178fad939857d6ddd8aa7959f2f75311b35458eae0a12bca2888b6202acefa",
+      29235
+    ],
+    ".next/standalone/out/texts/md7-l14.json": [
+      "72de0d5c09d5b4426ccb79dc7557bb11e00a58818b71727af346d3232f3f2217",
+      37393
+    ],
+    ".next/standalone/out/texts/jg-164.json": [
+      "a1eb322bf178b3c4c4160129b6a4ac7775a84fa7bb551d4d4c05fc36f777f3ab",
+      17674
+    ],
+    ".next/standalone/out/texts/jg-114.json": [
+      "3f5f5b9e215d68acec7ccbeb4152713c4ea917f4e34fc8dd3e2aed538e717c24",
+      8685
+    ],
+    ".next/standalone/out/texts/jg-248.json": [
+      "b7f86242714dab637d4fa7d9ab21069f181c6fcf84a68b46d03b82e7c752f47d",
+      19495
+    ],
+    ".next/standalone/out/texts/jg-210.json": [
+      "dba44146affdf210f5b97e537b2843be452fea505ceb889ab84f752bb9a8a53d",
+      14496
+    ],
+    ".next/standalone/out/texts/jg-324.json": [
+      "bde34228bf9a314449afe807d61ecd3292645c1d35523d02d20f21d8122dbf8d",
+      18918
+    ],
+    ".next/standalone/out/texts/jg-100.json": [
+      "64db349efcb28275eceeffa5e3a7558d73b7119bb035f428a86cf3f9e6ac0598",
+      9155
+    ],
+    ".next/standalone/out/texts/jg-206.json": [
+      "bd5451d614e765fc37e268e284ef919699e7e397c0edaea34a0d97f164236498",
+      14840
+    ],
+    ".next/standalone/out/texts/m-l4-1.json": [
+      "d5ca4a9cb710f88c981cab6c745297edbc14a86e802f033056ba95ce5a781c6f",
+      18284
+    ],
+    ".next/standalone/out/texts/jg-255.json": [
+      "26ddfce33ec6f1964286f65a2b20d2e764c3fea61b3eb6b7808dd421beaeff8a",
+      15987
+    ],
+    ".next/standalone/out/texts/cp-l13.json": [
+      "7c3adf111e96c9ce4b9928d746dfbf1f1f22c21e4a293405df43d5ac4f9b07fc",
+      4258
+    ],
+    ".next/standalone/out/texts/jg-70.json": [
+      "7bdec37d12afbd7b53b5758f9625833bdda113cdd05b03f917d24d9a558e5656",
+      10651
+    ],
+    ".next/standalone/out/texts/jg-158.json": [
+      "00eec169871a4b49235f715123158939f8b028b1eef89af96e6463a2f24b41fd",
+      11556
+    ],
+    ".next/standalone/out/texts/jg-174.json": [
+      "8f5634c1020f4a19540acd22e05f6dbafb34e9b3e10d0f5fc776d72aebe38f2d",
+      13712
+    ],
+    ".next/standalone/out/texts/jg-99.json": [
+      "14e2fae0f45003ac0be332967d6273180a3a21dc1bce4efde8f497d08cc9603e",
+      9330
+    ],
+    ".next/standalone/out/texts/jg-125.json": [
+      "1043f38f71877b56143beb34c6cf8f7eab2acdb907d454b6b530b51382152ab5",
+      11977
+    ],
+    ".next/standalone/out/texts/jg-9.json": [
+      "fb457542dd4331d4a48bd19744554f1605e229e00bae381e3a425445501fc3ee",
+      17131
+    ],
+    ".next/standalone/out/texts/jg-149.json": [
+      "f6ed60205aa2ed1e65a0a7ffd2c45633ca0cd38efafb048d518c6d12c5c792e1",
+      13853
+    ],
+    ".next/standalone/out/texts/md7-l2.json": [
+      "be0d7f6848d62052c2ef43d64368fcab4a2be3c5d38c0bc8fdbf1cd93fb42beb",
+      20749
+    ],
+    ".next/standalone/out/texts/jg-232.json": [
+      "6c0e79eda39ea7a94f458e4d05e4a73ba6871caf1c6d5d0d22a3c6e9ae82faed",
+      14836
+    ],
+    ".next/standalone/out/texts/jg-270.json": [
+      "b9a56f79072a6e9588bf14e181f027194335badece67ebeb3fd9e79eabedc651",
+      19411
+    ],
+    ".next/standalone/out/texts/jg-186.json": [
+      "5374307074f89378498a42d57243da09c5b5be91dc65d0eff60cb98bd360a6b5",
+      16309
+    ],
+    ".next/standalone/out/texts/md7-l4.json": [
+      "a254a35d7b919d7fb89e09866e0af94ba800969f5c2520394e1bb9476bdbfdc9",
+      28629
+    ],
+    ".next/standalone/out/texts/jg-12.json": [
+      "7e03d6d5cd497cf53f025428d7880c1d0659f153316aaef1fbdb5f922aeb87c5",
+      15866
+    ],
+    ".next/standalone/out/texts/jg-27.json": [
+      "439057b3bd3df7b7d3e9a60897f4d6f3a8b11c7ab24111fd143e99c00d518466",
+      10395
+    ],
+    ".next/standalone/out/texts/jg-319.json": [
+      "eea6c760c3354e391ac4f15d2a9836490f1bd9cb056c22ab70b6c95765747c14",
+      12226
+    ],
+    ".next/standalone/out/texts/md4-l4-3.json": [
+      "f0c54b49f020300fafbc91d724bf7ee826eb4a2b9df32e47cabd43b45d444bd8",
+      28524
+    ],
+    ".next/standalone/out/texts/jg-321.json": [
+      "df02abffe694f948a9848c0812b4b8b0fb1cc175d3a6dd68c430f311938d6ede",
+      18733
+    ],
+    ".next/standalone/out/texts/jg-58.json": [
+      "26ca09452f55574ed22e1de9b18e6a9123f57da40ef541cc34edfe4a8b7de702",
+      7782
+    ],
+    ".next/standalone/out/texts/jg-135.json": [
+      "64792d6914c371f80f9bf73d39a2d7ca8bde063015e4348de75e9d9d4aae79c2",
+      8143
+    ],
+    ".next/standalone/out/texts/jg-202.json": [
+      "59789332c10338389b5d7d273d1c849b30615fa63cca20ab8083332e1b31a2dc",
+      18926
+    ],
+    ".next/standalone/out/texts/jg-28.json": [
+      "1c8080324a813f8a8f88a20c67bbdb6c03862499e03741a66205521eac83f7a1",
+      12619
+    ],
+    ".next/standalone/out/texts/jg-21.json": [
+      "5afe86002764cc98bfbbd2c6f66a899aa64a9f0d1676da54b45e3fd43b8460e7",
+      18561
+    ],
+    ".next/standalone/out/texts/jg-93.json": [
+      "a3f9e2adaabaccc458bfbb5078ce43fcbc708450bf6ba9e5ec89f8d27c1ad5b4",
+      9591
+    ],
+    ".next/standalone/out/texts/jg-23.json": [
+      "d1bd95fc576e08f4783f17729a51f3a73afa42dbb7ac3a3f455e43cf1f721d88",
+      15158
+    ],
+    ".next/standalone/out/texts/m-l4-2.json": [
+      "9984b8a7cbaed23e954b378dd60a2a6d86fc6ab309461d699644194cce1817ee",
+      20140
+    ],
+    ".next/standalone/out/texts/jg-162.json": [
+      "c74a2ef28ee14dd228343b15740eb0085ef8a39abe59b208f6ea7a858d6c230b",
+      14848
+    ],
+    ".next/standalone/out/texts/jg-192.json": [
+      "c0340cf78f3066c38c7732eeabfd8ced3fcc256de28c513ecbda15bb259c04d7",
+      10627
+    ],
+    ".next/standalone/out/texts/jg-48.json": [
+      "433871d684dac52933f5dc9f1108d90111f97186e07c963a59fc84037a18b6d3",
+      10340
+    ],
+    ".next/standalone/out/texts/jg-103.json": [
+      "d917d42a6d1d33b80e1f8f0ab42684bf3ef63f21ace8d292c3fb1de762412f3e",
+      9284
+    ],
+    ".next/standalone/out/texts/jg-285.json": [
+      "469f9a0ddcd10b8fb4be63edd66ed3196872f0cef0387affa342bfcdffd3ecd4",
+      12627
+    ],
+    ".next/standalone/out/texts/jg-121.json": [
+      "51a47d004ec296e6e311be434aca372be5b9ec5501110767e4e7ec6f965493ac",
+      9580
+    ],
+    ".next/standalone/out/texts/jg-203.json": [
+      "fbcff4ada1854b401d8649b2b69a41dd321905ab527f683bd6dc9f6926ca9530",
+      19472
+    ],
+    ".next/standalone/out/texts/jg-301.json": [
+      "4930daf38f79ee663929067148ecc83d6894cb18a797ea0c66215dce2d0b6a28",
+      14780
+    ],
+    ".next/standalone/out/texts/jg-264.json": [
+      "7ce87279c8bcde12c1298478aeafcff6f59da952905f81e83507c520fd63623e",
+      16269
+    ],
+    ".next/standalone/out/texts/t-l3-1.json": [
+      "8724f22a7b6af8ddbd726842363c3a7ef211670678b211b8f1e985c60c8f5c9c",
+      21286
+    ],
+    ".next/standalone/out/texts/jg-303.json": [
+      "fca81a98f713707d3668c53f484cfdaf99dc3abe7d265b1d5eb233c420f15f5e",
+      18470
+    ],
+    ".next/standalone/out/texts/md4-l4-2.json": [
+      "6e13bcfba43040d5f25f32b0334ad5b6fb57f3b5646329fcf841ca650aebdc40",
+      29084
+    ],
+    ".next/standalone/out/texts/jg-276.json": [
+      "f453aa3aae0c46c763cc534cee3ca97d935e05d8f32a126a2c9b9cd5d3a09afd",
+      16106
+    ],
+    ".next/standalone/out/texts/jg-330.json": [
+      "60481b92ce682874d4913dfd4d9a67f5740679f8f0c7285e60ba15d072b7bad7",
+      27630
+    ],
+    ".next/standalone/out/texts/jg-222.json": [
+      "1e310e76b1e569ed0e126bec42d9cfa7b9a92ca117721064147c237d675f58da",
+      19271
+    ],
+    ".next/standalone/out/texts/jg-322.json": [
+      "dce038a7cf658fc1e6f3933f63e17f647366106655bb6e3d6eb89866dc14f2e0",
+      20381
+    ],
+    ".next/standalone/out/texts/jg-287.json": [
+      "7022f655b2b6a6925047c452a866e654b2517738f4a62d581cb88d2f3a5f1679",
+      14797
+    ],
+    ".next/standalone/out/texts/ip2-l2.json": [
+      "c49baa8da836e050f8fc0ed8c8161ff889627c1394ae28e98d74af2ce027d31d",
+      2523
+    ],
+    ".next/standalone/out/texts/md4-l1-2.json": [
+      "ed1a260fe5dd46ca9da43ed33d5d4658321b2c1a07677f4675d35de50cf94b8e",
+      15740
+    ],
+    ".next/standalone/out/texts/md4-l5-3.json": [
+      "ef960de4882c5b45739c23b9038f04d343a3735c8a119beeb7c757713db98f99",
+      32121
+    ],
+    ".next/standalone/out/texts/jg-131.json": [
+      "3b3f29dc57a7707a2fce62cfe61f7ee25a3246510736da9b12fedb7bf0467480",
+      8144
+    ],
+    ".next/standalone/out/texts/jg-127.json": [
+      "36a7f864eb6dcc361c337ef33397c0e39047a645290000ae773dae914c290d77",
+      8792
+    ],
+    ".next/standalone/out/texts/ip1-l1.json": [
+      "5d40e9013255a86c000b9c487fc5bc30c8ff643d9a5591f393700c85384a499b",
+      2419
+    ],
+    ".next/standalone/out/texts/jg-156.json": [
+      "df50d0d4ce4b53db58f57a26f0dfdd887db842d78809f63cf43d7e787976fbec",
+      10284
+    ],
+    ".next/standalone/out/texts/jg-218.json": [
+      "9710da02cb564eb3a4fbe5110a47e84b89db1cb65c287d627bd4bc4008e69a84",
+      14061
+    ],
+    ".next/standalone/out/texts/jg-109.json": [
+      "1179d1f678c71594e1f86a5b9481e6a0b941a7438fd449fd67d64010859a83b1",
+      7957
+    ],
+    ".next/standalone/out/texts/jg-310.json": [
+      "6f95872b7bc7f10a8adb13caa0094ed002b01a531191c35656cac3bd84ecb1c1",
+      22898
+    ],
+    ".next/standalone/out/texts/ip3-l3.json": [
+      "412f4500a5787952db0d453962c0a35f13d391c923343dbfc50a1df41b1f03bf",
+      2822
+    ],
+    ".next/standalone/out/texts/cp-l22.json": [
+      "e00c2a779c6f9385922fcc0055a27f00ccee5ce4debe4063aa3d1274f26ca910",
+      3940
+    ],
+    ".next/standalone/out/texts/jg-308.json": [
+      "7df0b0ab6123bbbe7c9dfce3c1d4d6b689d4786d0bb5dea26c1094f6bf7b7f8b",
+      16132
+    ],
+    ".next/standalone/out/texts/jg-315.json": [
+      "fa8907357cab1b13576482fb10a1e1bf1a3d2f4485cd83f0e0f3583a3c4be506",
+      18277
+    ],
+    ".next/standalone/out/texts/jg-11.json": [
+      "42d965a7146ebd9e43b9b4eedc47760992edfd6a1ab0dd6ed1e09d15588b670e",
+      13418
+    ],
+    ".next/standalone/out/texts/jg-78.json": [
+      "f5b94379df1f61f9aa1efec91ee6a08cf0a30d535c9c0c77d98f19ad5b748710",
+      9484
+    ],
+    ".next/standalone/out/texts/ip2-l4.json": [
+      "75bd24373a7a350ccbbe900c3da34695c0aa9234c4c3258e080f4328780351ad",
+      2997
+    ],
+    ".next/standalone/out/texts/md7-l9.json": [
+      "7fe09c8c72367833e9bbd3982eede26ffea6af63675a7620585182d8709293d7",
+      19727
+    ],
+    ".next/standalone/out/texts/jg-67.json": [
+      "53d48fad887b36f3d131f8f7fda4d0f1aaea6e898d049a2bccfe7e8141e4a582",
+      10137
+    ],
+    ".next/standalone/out/texts/jg-254.json": [
+      "6f33155f4909dcfb2580107ea55c29b3ea5fa41b9016355c6c6066f788954c5a",
+      13329
+    ],
+    ".next/standalone/out/texts/md4-l5-1.json": [
+      "d78a84851e210434749c6c6b0e6e8ef00618cd61ceb7845aae2e63a4c0e45bfe",
+      21502
+    ],
+    ".next/standalone/out/texts/jg-137.json": [
+      "fe3cad300ec4fbd4a3cffb3af6596fc360c2ff17d5399e1e4fccd64ac6825a28",
+      9720
+    ],
+    ".next/standalone/out/texts/t-l3-2.json": [
+      "526045291289e578b562d05743b3a6e6d169509f9368c51f98834dd97f32ecc2",
+      27299
+    ],
+    ".next/standalone/out/texts/md7-l7.json": [
+      "9e2fe483d279f42f0e4d33f3254496e0ad9e3f07ecdb690799162ec3f4719a23",
+      23670
+    ],
+    ".next/standalone/out/texts/jg-316.json": [
+      "77ab4037169b34e00b81b36427d49b34cd210a9139c94905a0487f8c96a9ff6c",
+      18338
+    ],
+    ".next/standalone/out/texts/md7-l6.json": [
+      "f922e01d5c091aee3e9b392158dcf2fa6e6ecaef7078e7645ffc68ea9f9b3bc3",
+      14986
+    ],
+    ".next/standalone/out/texts/jg-6.json": [
+      "9edf908ecfe54f9d07102b2774ab1175343c51dd9170d52e5de936c18a599c0a",
+      12564
+    ],
+    ".next/standalone/out/texts/jg-130.json": [
+      "bf031e8569b80ee672adafbffc4cb61663134054f0aac651ddfafe41b42d207f",
+      8943
+    ],
+    ".next/standalone/out/texts/ip2-l3.json": [
+      "d812a0e02abfd6c450739ce84cc6423cddb3d3021c839f03b7dae921e83d28e2",
+      2346
+    ],
+    ".next/standalone/out/texts/jg-33.json": [
+      "1784603b538bc18ec7bc726b19bc247be1761aab85301842c55392d8ad6354a3",
+      13039
+    ],
+    ".next/standalone/out/texts/jg-327.json": [
+      "9c49c40bd0ed769debb06a4c92fc3d11af5319aecfc25ed47a21e18accb6fb57",
+      16521
+    ],
+    ".next/standalone/out/texts/jg-283.json": [
+      "6c2068ddb66f28eff4eef44f074ee015cdf7c1e19d1a6381b4d39c2ccd63aaf6",
+      13179
+    ],
+    ".next/standalone/out/texts/md7-l10.json": [
+      "575e33224860b800f4e4f3759e200ca035acc9cccdf1df3fd990fd580911a50c",
+      41030
+    ],
+    ".next/standalone/out/texts/jg-170.json": [
+      "f414ee0c1c7400c7ee51a902382abfa6a59687a3e97567ef1a7b2cc39ae3ece6",
+      12833
+    ],
+    ".next/standalone/out/texts/jg-84.json": [
+      "a04a59719e2ceb7e35ba598ef1fb9b31d41810b67ae80cf31d451359f23ad3cd",
+      8934
+    ],
+    ".next/standalone/out/texts/jg-231.json": [
+      "a3681cdff228b4f330b9340bc2af8ecc805915302c128e08e2b565d1fa9df29e",
+      16219
+    ],
+    ".next/standalone/out/texts/jg-63.json": [
+      "2e3b86c1a69f1f2cbb0414f76b93d029553e73cef4729be0180ec742152b7e73",
+      8548
+    ],
+    ".next/standalone/out/texts/jg-312.json": [
+      "3291094ae0ac73fdf960a211b6eca13ed224b71c72d34690db3cbc70c658786a",
+      21251
+    ],
+    ".next/standalone/out/texts/jg-47.json": [
+      "ffa7f625f068fdefce7b445e2d387d1f6d8f3e0bb8f1e0eee208410f1fb8a841",
+      8792
+    ],
+    ".next/standalone/out/texts/jg-250.json": [
+      "87fea427a29e65891e512a47fa4ade31b366c0ca9a0e29d974f1111caf502cd1",
+      15440
+    ],
+    ".next/standalone/out/texts/jg-76.json": [
+      "6b8810fe17fe93c4b53543647ff1367bf8bbc6ed76dca9cc7a93ceeb2f04fa61",
+      8369
+    ],
+    ".next/standalone/out/texts/jg-40.json": [
+      "af889ca541f5c832bd9533014c00a0db0e48d4d031e71bccfab9e2a38de98870",
+      13909
+    ],
+    ".next/standalone/out/texts/jg-95.json": [
+      "f154d1ce89cf7591035d172ba81712cbc3eaaf40ca2d27bd2d4b2680b9efcd63",
+      10030
+    ],
+    ".next/standalone/out/texts/t-l5-1.json": [
+      "5c03b14593d63e980ab6de6369fa927517f8f6cf2c565ca19b7c1753d592888a",
+      14768
+    ],
+    ".next/standalone/out/texts/t-l2-1.json": [
+      "5eb1a3a9e089f27792b018ac6efc832d64087e1d50cf41a0b9ac197794de7a10",
+      14137
+    ],
+    ".next/standalone/out/texts/jg-124.json": [
+      "f2f63b8dcb994052ac851fa107ecfe5a9aff6844c2a07ba26f89bdc67200fc0f",
+      10512
+    ],
+    ".next/standalone/out/texts/jg-3.json": [
+      "8e66dc3eaee4ca46ac3849dff22827355440095b6e0b968d261404fa095cd770",
+      13471
+    ],
+    ".next/standalone/out/texts/jg-165.json": [
+      "62637fb3373aae5cfdce79647cfe185d583c2c832a51ef3827efe532febe042f",
+      18938
+    ],
+    ".next/standalone/out/texts/jg-153.json": [
+      "c92df3ab9c3173224b4b94e55f2f9e91c3bccf2d3489c8e0cab17fea0b3e9ce6",
+      16980
+    ],
+    ".next/standalone/out/texts/jg-140.json": [
+      "0b10f34d6ac40cf4121b96ea13fde89f278ef16201dde935aac27637622d15f1",
+      8723
+    ],
+    ".next/standalone/out/texts/jg-169.json": [
+      "4cefec34152a4390dd1c111056eb10dc25fc3b57912816e3aae1eba2872c1d2f",
+      13056
+    ],
+    ".next/standalone/out/texts/jg-154.json": [
+      "43b3208d3bfffdb44054860f3efff385ce97813a091a7d4f08739e68ef7a52ea",
+      14177
+    ],
+    ".next/standalone/out/texts/jg-139.json": [
+      "068ee8dff1b53baf8fbf9e7e69b8753dbd7cab734cd52fc1f66a452293cd5408",
+      9060
+    ],
+    ".next/standalone/out/texts/jg-313.json": [
+      "59913e317e7576bcf381e5ab7d0b383a5dfe0345008900ec551239a65b66eb5e",
+      19937
+    ],
+    ".next/standalone/out/texts/md4-l4-1.json": [
+      "0814a7e0fc0aa6efe08a0ef4e74f4d5fd7946c211534cc99a5599f84ba00acbd",
+      27831
+    ],
+    ".next/standalone/out/texts/jg-104.json": [
+      "400ae5f04fa995a50d0157c33b5073cf13e215233d6ccec4c9ddfd5d8f52aa63",
+      10949
+    ],
+    ".next/standalone/out/texts/ip1-l3.json": [
+      "8d57b6ebb8c19a600857cffeeb5ac91fe639fa156cc50adb61a098b746a1ed38",
+      3095
+    ],
+    ".next/standalone/out/texts/jg-26.json": [
+      "ce71d6ca53ff763f8f34ca38bf9f35c7555f2d3fdee156b5b8c56b92f95f705d",
+      12547
+    ],
+    ".next/standalone/out/texts/m-l1-1.json": [
+      "70280a5933302ba327fc156040b16106ef17ca6a480ecebe9d271eea780582eb",
+      36371
+    ],
+    ".next/standalone/out/texts/jg-212.json": [
+      "f6f749f2322c18469a052b7c91c02e60484230f4895d8f08a1248f8907ac79f3",
+      19000
+    ],
+    ".next/standalone/out/texts/jg-294.json": [
+      "61d1aa2fc8eadbf7af90675af74d62cac89eced553dc33af3a19e995369f6f08",
+      16742
+    ],
+    ".next/standalone/out/texts/jg-257.json": [
+      "8f63d50d3feacdb6512722ecbcf3a69effb83390177fc2b86efd8333427233a3",
+      16154
+    ],
+    ".next/standalone/out/texts/jg-123.json": [
+      "5c261903f2a6b07571f6e31969d6d216a5f32afd50066b58c69f30f070f480ce",
+      9432
+    ],
+    ".next/standalone/out/texts/jg-147.json": [
+      "aefa538fac0255d3f97cf081694ba94cf207b23560f0353f8fae16e8b4941c10",
+      14986
+    ],
+    ".next/standalone/out/texts/ipr-l4.json": [
+      "7a8d787f648047fab54ae5d31d3c09239695c5cd03d2376b31c13dbae8754488",
+      2708
+    ],
+    ".next/standalone/out/texts/jg-136.json": [
+      "c1362f69ff324162b26b4c2c6b8c7c1960a1f60d5f1a080b195ee6127c809319",
+      10189
+    ],
+    ".next/standalone/out/texts/jg-220.json": [
+      "eda62dd9ca4c02ad07f650540a4b63643129117918e40db60115c18456b656d6",
+      14043
+    ],
+    ".next/standalone/out/texts/jg-10.json": [
+      "37d089bc7271ca9720ec4ce1e0fafc6c4d976983789f7d6efc9736756be18186",
+      14730
+    ],
+    ".next/standalone/out/texts/jg-117.json": [
+      "f532e26eb8c067923b69d0f9c2a77a6c4e5d587c46287153b2620d834661c8ff",
+      8561
+    ],
+    ".next/standalone/out/texts/jg-176.json": [
+      "e9ccdfc22f84f64a840d18d71db42caffff3ac409c927dd7e87e606333517680",
+      15292
+    ],
+    ".next/standalone/out/texts/jg-233.json": [
+      "48140645f27910a3767a206c3784341db92aa362270037ea38f5edb874fd45c6",
+      20512
+    ],
+    ".next/standalone/out/texts/jg-80.json": [
+      "8dc2c5ce70dd0fcaade7f98508d2ce750030454c18971bf51e6e0b7f956683cd",
+      12673
+    ],
+    ".next/standalone/out/texts/jg-201.json": [
+      "fbc40a40b2726d0d4a71a0a2c1ec514aacd3de3cd7ab3e8fcf965d4dcaff91c3",
+      23773
+    ],
+    ".next/standalone/out/texts/t-l4-2.json": [
+      "158555da9688e3f15436176a31a5d3a88b8413fd0492fa1f8e38eac7f040214a",
+      17442
+    ],
+    ".next/standalone/out/texts/cpr-l23.json": [
+      "948f60f8a6bc87f893347b58bf1d88546b270a231f70a3650879be23435d676e",
+      3271
+    ],
+    ".next/standalone/out/texts/jg-290.json": [
+      "5f9016fe5787ba95c22309a1adc4492b6bda3641c27d45ed32265de3ff4772ba",
+      21767
+    ],
+    ".next/standalone/out/texts/jg-242.json": [
+      "565bc0398c380e9269ee40692e6a954149abc055c13deb72805253faae1f1c19",
+      17186
+    ],
+    ".next/standalone/out/texts/jg-213.json": [
+      "d103ae9cb0c931baeb80a06d364be5ac773dac618f5f9d8955c0e24caf898bf7",
+      17711
+    ],
+    ".next/standalone/out/texts/jg-244.json": [
+      "e9ad39ee627b97f8e04e6d6fb6e94ce55cc3dc3eadd8302e812cf7507dc60914",
+      20079
+    ],
+    ".next/standalone/out/texts/jg-110.json": [
+      "81f4de18f4afcd52105814a26137a970cbc2fcd946b87c9270122a6e2c2744c3",
+      9008
+    ],
+    ".next/standalone/out/texts/jg-155.json": [
+      "65d7be6c3cac03270128fbe332f25da8adc92e3a7e0f02b34a5418628aba4b99",
+      12300
+    ],
+    ".next/standalone/out/texts/jg-314.json": [
+      "7bd82910794d41dbcfa0b25790af66722d6b8398cc7d60910da590fb04b9f8f9",
+      19616
+    ],
+    ".next/standalone/out/texts/jg-107.json": [
+      "d2a4ea31c68a7114fbbc3ee1908fe3caccf0a5ebe0d8da5ac19df2c9027ac47b",
+      9796
+    ],
+    ".next/standalone/out/texts/jg-326.json": [
+      "95c26b43c2fee46daa4febea0808983375378f8ffd45cdbacc7f16a7ef077427",
+      17199
+    ],
+    ".next/standalone/out/texts/jg-175.json": [
+      "551bc1daf0b7b5e2ef75c5cadee3688da4a4a55eff0005e37f98fb3a5596211b",
+      14313
+    ],
+    ".next/standalone/out/texts/jg-215.json": [
+      "480e14ee7bd82603057c9325954fb299faccfadaa82e38a88b72d2dd034a89dc",
+      16508
+    ],
+    ".next/standalone/out/fonts/MarkaziText-latin-var.woff2": [
+      "d2bf11fc30d9789ea87bf1b46e776adc3099700d19096a3caadc1ad292d10268",
+      25532
+    ],
+    ".next/standalone/out/fonts/Estedad-SemiBold.woff2": [
+      "fdc8deb73dae2d1c3ba52bfdb5e3ac886c698d366274ccaec7d2e400b5906062",
+      58408
+    ],
+    ".next/standalone/out/fonts/NotoNaskhArabic-var.woff2": [
+      "1ef89c3cfbdf98c00747ec3ee6d58cc7dc0c2229d436fcd5068fb708e7bd18ed",
+      123608
+    ],
+    ".next/standalone/out/fonts/Vazirmatn-SemiBold.woff2": [
+      "6a39a3c25eb18503cad590527b95bb5d4062b889a7ebbd3f01b0488d239e0499",
+      51032
+    ],
+    ".next/standalone/out/fonts/MarkaziText-arabic-var.woff2": [
+      "5e875d6141dfb250334d127d3ac6ea8d412e301f3265474e80d1cffe4fe4da13",
+      41320
+    ],
+    ".next/standalone/out/fonts/Estedad-Regular.woff2": [
+      "ac3578ef2861fcd9df95f4a5cbdccc724f282f6bb9971a8d816a600325f5ea72",
+      57604
+    ],
+    ".next/standalone/out/fonts/Vazirmatn-Regular.woff2": [
+      "e382101336c6eb32cfb31381c027d02d2e0354bad08f6a395d4088beb3db3d91",
+      50684
+    ],
+    ".next/standalone/out/fonts/Vazirmatn-Medium.woff2": [
+      "3333e31188a2b628db8780ca22fd5aad85bc083ccee9beb8d4d52db18cb98d48",
+      51128
+    ],
+    ".next/standalone/out/fonts/Vazirmatn-Bold.woff2": [
+      "836fae7d42d83faa249bc00e0099592be98a1fa260d22d82f269b6091e585627",
+      51020
+    ],
+    ".next/standalone/out/fonts/Estedad-Bold.woff2": [
+      "ffe809b5a5fc33a10c7d236cc8973e23a0a6dc45704be75fbb5cab772a9beecb",
+      58296
+    ],
+    ".next/standalone/out/fonts/Estedad-Medium.woff2": [
+      "f8321dc7e97190a33fe7b34ed80a72d1d0781e6df832187c12d643734202f028",
+      58060
+    ],
+    ".next/standalone/out/media/hero-law.png": [
+      "0f1c140dd10eb6716c7ecb4aaae0f2361a4661f5c5cd86afbd110a9d11963a61",
+      69006
+    ],
+    ".next/standalone/out/icons/apple-touch-icon.png": [
+      "2c3abe0f86286c7cf31e2f3cf092de78caa172f0b19f75d9f985ab74ea08b8fe",
+      4260
+    ],
+    ".next/standalone/out/icons/pwa-maskable-512.png": [
+      "e5bce3df04cd9594dcf11727760b465a292e0106fc4ed37c6f436ec23685fc61",
+      22162
+    ],
+    ".next/standalone/out/icons/pwa-512.png": [
+      "110ccb8338b2c765c2f3919c6b22a0006455125d319e1e40a3cccd306b73deef",
+      26366
+    ],
+    ".next/standalone/out/icons/pwa-192.png": [
+      "0866313271c46b3f5cfffebce5d2b5ee6055fcaa4de3fc2649138d6739148ae1",
+      4023
     ],
     ".next/standalone/public/manifest.webmanifest": [
       "2a9d31f03d08f7f4eb9d3d7e8090f127fb45b8cbef8e6930664b705aae11ba32",
@@ -1421,89 +3197,13 @@
       "8506450e8ef647695d218c4b3245ef573f9c6473783f372eef87fdba9bd47eac",
       1065
     ],
-    ".next/standalone/public/updates/packs/course-online-mabani-course-01.json": [
-      "3da1e49fda4483ecefd0c493ab6957e42c8622815307cb6a0e06e321fcecffab",
-      10108
-    ],
-    ".next/standalone/public/updates/packs/pack-online-madani-mcq-01.json": [
-      "a454a4c2445b21068aa5985cda599f544f8d1481060593c5bc5f743fd7ed2b0a",
-      11568
-    ],
-    ".next/standalone/public/updates/packs/course-tadris-madani7-ghayebi-03.json": [
-      "6c80d24528f30fe1be292eaa48d84f291d563ca38862de9964726d6b35bda7e7",
-      40792
-    ],
     ".next/standalone/public/updates/manifest.json": [
       "18965e2aab1e6701cf03fe2290292006e169a2675af306c37f459a85fdcc1ac1",
       2646
     ],
-    ".next/standalone/public/fonts/MarkaziText-latin-var.woff2": [
-      "d2bf11fc30d9789ea87bf1b46e776adc3099700d19096a3caadc1ad292d10268",
-      25532
-    ],
-    ".next/standalone/public/fonts/Estedad-SemiBold.woff2": [
-      "fdc8deb73dae2d1c3ba52bfdb5e3ac886c698d366274ccaec7d2e400b5906062",
-      58408
-    ],
-    ".next/standalone/public/fonts/NotoNaskhArabic-var.woff2": [
-      "1ef89c3cfbdf98c00747ec3ee6d58cc7dc0c2229d436fcd5068fb708e7bd18ed",
-      123608
-    ],
-    ".next/standalone/public/fonts/Vazirmatn-SemiBold.woff2": [
-      "6a39a3c25eb18503cad590527b95bb5d4062b889a7ebbd3f01b0488d239e0499",
-      51032
-    ],
-    ".next/standalone/public/fonts/MarkaziText-arabic-var.woff2": [
-      "5e875d6141dfb250334d127d3ac6ea8d412e301f3265474e80d1cffe4fe4da13",
-      41320
-    ],
-    ".next/standalone/public/fonts/Estedad-Regular.woff2": [
-      "ac3578ef2861fcd9df95f4a5cbdccc724f282f6bb9971a8d816a600325f5ea72",
-      57604
-    ],
-    ".next/standalone/public/fonts/Vazirmatn-Regular.woff2": [
-      "e382101336c6eb32cfb31381c027d02d2e0354bad08f6a395d4088beb3db3d91",
-      50684
-    ],
-    ".next/standalone/public/fonts/Vazirmatn-Medium.woff2": [
-      "3333e31188a2b628db8780ca22fd5aad85bc083ccee9beb8d4d52db18cb98d48",
-      51128
-    ],
-    ".next/standalone/public/fonts/Vazirmatn-Bold.woff2": [
-      "836fae7d42d83faa249bc00e0099592be98a1fa260d22d82f269b6091e585627",
-      51020
-    ],
-    ".next/standalone/public/fonts/Estedad-Bold.woff2": [
-      "ffe809b5a5fc33a10c7d236cc8973e23a0a6dc45704be75fbb5cab772a9beecb",
-      58296
-    ],
-    ".next/standalone/public/fonts/Estedad-Medium.woff2": [
-      "f8321dc7e97190a33fe7b34ed80a72d1d0781e6df832187c12d643734202f028",
-      58060
-    ],
     ".next/standalone/public/sw.js": [
-      "d97ac4cb753691bdf2b102933b0cb257b8f99fd7e23063c4c0fe27936cadede1",
+      "e68e41ebff95a0366a26b6ec1ac01a51b3acc9d28f3793830bf15f8a9e02c900",
       13776
-    ],
-    ".next/standalone/public/media/hero-law.png": [
-      "0f1c140dd10eb6716c7ecb4aaae0f2361a4661f5c5cd86afbd110a9d11963a61",
-      69006
-    ],
-    ".next/standalone/public/icons/apple-touch-icon.png": [
-      "2c3abe0f86286c7cf31e2f3cf092de78caa172f0b19f75d9f985ab74ea08b8fe",
-      4260
-    ],
-    ".next/standalone/public/icons/pwa-maskable-512.png": [
-      "e5bce3df04cd9594dcf11727760b465a292e0106fc4ed37c6f436ec23685fc61",
-      22162
-    ],
-    ".next/standalone/public/icons/pwa-512.png": [
-      "110ccb8338b2c765c2f3919c6b22a0006455125d319e1e40a3cccd306b73deef",
-      26366
-    ],
-    ".next/standalone/public/icons/pwa-192.png": [
-      "0866313271c46b3f5cfffebce5d2b5ee6055fcaa4de3fc2649138d6739148ae1",
-      4023
     ],
     ".next/standalone/telegram-bot/transcribe.py": [
       "39599c8aafdccb8a32da285e44e8f04b9fa0a7f4367be7488c71aadae56842c3",
@@ -6809,17 +8509,9 @@
       "ba1a3e33489f868371561777607e3ee5091df0f7ea3f1a10f789d6b86e4c1505",
       1359
     ],
-    "electron/main-core.js": [
-      "2a759933ebf6f127534c154b3afb65ebf02516c7d714b6e7c7e4344f3d8be523",
-      23633
-    ],
     "electron/preload.js": [
       "56d26bee9fd56b767545a312dfb876cc1d639f3b2c945108267234a6440aef06",
       1685
-    ],
-    "electron/app-updater.js": [
-      "33ba8208f4be67a775e0a4a667325c226a84d2be69495d681a6fb6b78264c9e5",
-      32147
     ],
     "electron/main.js": [
       "52b25f49be3281abf7d1661096f023e731e4a2ad72867d4dd65cff811d46d647",
@@ -6828,7 +8520,7 @@
   },
   "apk": {
     "file": "lexa-latest.apk",
-    "sha256": "df53ad47330f63d8f747434e1745f7db5c018dd08b2758b9a5630afa4bd6fff0",
-    "size": 6612809
+    "sha256": "9e68352f39771f5cedaf4180c873544aedb237f27953e2017b4d4c463ad33b1f",
+    "size": 6613109
   }
 }
