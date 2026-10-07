@@ -133,19 +133,41 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * اجرای یک عملیات روی انبار — نتیجه فقط پس از «commit» کامل تراکنش برمی‌گردد.
+ * قبلاً با onsuccess درخواست resolve می‌شد و اگر تراکنش بعداً (مثلاً به‌خاطر
+ * پُر بودن حافظه) abort می‌شد، دکمهٔ دانلود باز «ذخیره شد» نشان می‌داد.
+ */
 function idbRun<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest): Promise<T> {
   return openDb().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(STORE, mode);
-        const req = fn(tx.objectStore(STORE));
-        req.onsuccess = () => resolve(req.result as T);
-        req.onerror = () => reject(req.error ?? new Error("خطای IndexedDB"));
-        tx.oncomplete = () => db.close();
-        tx.onabort = () => {
-          db.close();
-          reject(tx.error ?? new Error("تراکنش IndexedDB ناتمام ماند"));
+        let settled = false;
+        let result: T | undefined;
+        const fail = (err: unknown) => {
+          if (settled) return;
+          settled = true;
+          try { db.close(); } catch {}
+          reject(err);
         };
+        let tx: IDBTransaction;
+        try {
+          tx = db.transaction(STORE, mode);
+        } catch (e) {
+          fail(e);
+          return;
+        }
+        const req = fn(tx.objectStore(STORE));
+        req.onsuccess = () => { result = req.result as T; };
+        req.onerror = () => fail(req.error ?? new Error("خطای IndexedDB"));
+        tx.oncomplete = () => {
+          if (settled) return;
+          settled = true;
+          db.close();
+          resolve(result as T);
+        };
+        tx.onerror = () => fail(tx.error ?? new Error("خطای IndexedDB"));
+        tx.onabort = () => fail(tx.error ?? new Error("تراکنش IndexedDB ناتمام ماند"));
       }),
   );
 }
@@ -201,8 +223,15 @@ async function migrateLegacyOfflineDb(): Promise<void> {
     localStorage.setItem("lexa-idb-migrated", "1");
   } catch { /* مهاجرت اختیاری است — هر خطا نادیده گرفته می‌شود */ }
 }
+
+/** مهاجرت فقط یک‌بار اجرا می‌شود و همه (از جمله هیدرات کش) منتظر همان می‌مانند */
+let migrating: Promise<void> | null = null;
+function migrateOnce(): Promise<void> {
+  if (!migrating) migrating = migrateLegacyOfflineDb();
+  return migrating;
+}
 if (typeof window !== "undefined") {
-  try { void migrateLegacyOfflineDb(); } catch {}
+  try { void migrateOnce(); } catch {}
 }
 
 /* ── کش سبک وضعیت‌ها + اعلان تغییر بین کامپوننت‌ها ── */
@@ -235,6 +264,8 @@ export async function ensureOfflineCache(): Promise<void> {
   if (hydrated) return;
   if (!hydrating) {
     hydrating = (async () => {
+      // اول مهاجرت انبار قدیمی تمام شود — وگرنه مطالب مهاجرت‌شده تا رفرش بعدی دیده نمی‌شدند
+      await migrateOnce();
       try {
         const all = await idbRun<OfflineItem[]>("readonly", (s) => s.getAll());
         metaCache.clear();
@@ -298,6 +329,7 @@ export async function listOfflineMetas(): Promise<OfflineItemMeta[]> {
 /** یک آیتم کامل ذخیره‌شده (متن/ساختار کامل) */
 export async function getOfflineItem(kind: OfflineKind, id: string): Promise<OfflineItem | null> {
   try {
+    await migrateOnce();
     const it = await idbRun<OfflineItem | undefined>("readonly", (s) => s.get(keyOf(kind, id)));
     return it ?? null;
   } catch {
