@@ -1857,3 +1857,24 @@ Stage Summary:
 - v0.10.12 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.12
 - نشان روی لمس: دستگیره زیر انگشت، تپ واقعی فقط برای بستن، اسکرول مزاحم نیست
 - کاربران 0.6.0 تا 0.10.11 با «بررسی به‌روزرسانی» به 0.10.12 می‌رسند؛ اندروید آپدیت درون‌برنامه‌ای (versionCode 112)
+
+---
+Task ID: 37
+Agent: main (Super Z)
+Task: گزارش کاربر «پیکان نشان با hold هیچ تأثیری ندارد، نه عقب نه جلو — گیر کرده» — فیکس + ریلیز v0.10.13
+
+Work Log:
+- تحلیل ریشه با بازتولید لمسی: اسکریپت Playwright با hasTouch/isMobile + CDP touchStart/Move/End (الگوی qa109 فقط موسی بود، لمس واقعی نداشت). بازتولید نشان داد در کروم اموله‌شده جریان لمس سالم است ولی کل فراسیند به رویدادهای pointerِ خودِ دستگیره + کپچر تکیه دارد — در وب‌ویو واقعی اندروید، holdِ روی متن (انتخاب بومی/منو) یا افتادن کپچر، رویدادها را از دستگیره قطع می‌کند و کشیدن همان اول می‌میرد (همان «گیر کرده»)
+- فیکس MarkHandles.tsx: ① به‌محض pointerdown، شنونده‌های pointermove/up/cancel به window وصل می‌شوند (هدف رویداد بی‌اهمیت — رویداد همیشه به window می‌رسد؛ کپچر فقط بهینه‌سازی)؛ ② فال‌بک لمس خالص: اگر pointermove بیش از ۱۲۰ms زنده نبود، touchmove خودش کشیدن را می‌راند و touchend رها کردن را تمام می‌کند؛ ③ touchmove حین کشیدن preventDefault (اسکرول/ژست بومی ممنوع حتی اگر touch-action گم شده باشد)؛ ④ contextmenu و selectstart حین کشیدن در window خنثی؛ ⑤ محافظ لمس همزمان دوم + حذف هندلرهای pointer از خود دستگیره (رفع پردازش دوباره)
+- qa113-mark-handle-window.mjs با ۱۶ ادعا روی ۵ سناریو: A) کشیدن CDP واقعی — دستگیره در هر گام زیر انگشت + ذخیره؛ B) شبیه‌سازی افتادن کپچر (moveها با هدف غیرِ دستگیره روی body) — کد قدیمی می‌مُرد، فیکس زنده می‌ماند؛ C) استریم pointer کاملاً مُرده — فقط touchmove/touchend؛ D) pointercancel وسط کشیدن → ذخیرهٔ امن؛ E) hold ساکن ۷۰۰ms و بعد کشیدن. همهٔ ۱۶ سبز
+- درس‌های جدید دیباگ: pkill -f «standalone/server.js» به فرایند «next-server (v…» نمی‌خورد — سرور زامبی روی 3210 با فایل‌های عوض‌شدهٔ دیسک 500 می‌دهد (fuser -k 3210/tcp یا kill با pid)؛ تپ روی مرکز getBoundingClientRect عنصر چندخطی بین دو خط می‌افتد — مرکز اولین/آخرین clientRect
+- بامپ چهارگانه: package 0.10.13 / sw v55 / DESIGN 1.9.23 / gradle 113+0.10.13 + ادعای qa090 (v55)
+- بیلد: AppImage (124MB) و win.zip (172MB، unzip -t سالم) با کش گرم؛ APK دو مرحله‌ای (پارک API → build:apk → restore → cap sync → gradle) — versionCode=113/versionName=0.10.13 با aapt راستی‌آزمایی شد
+- QA: A (73) + B (qa103 57 + qa108 7 + drawer + qa109 15) + C (qa110 17) + qa113 (16) + apk-mode (16) + apk-update (8) ≈ ۲۰۰ ادعا، صفر شکست
+- ریلیز: release-app-update.py 0.10.13 → ریلیز گیت‌هاب id 405646122 (AppImage + win.zip + checksums + APK) + تگ app-v0.10.13 + دلتافید + purge jsDelivr
+- verify-release-0113 (sed از 0112): 15/17 — تنها ۲ خرابی «مانیفست @main» بود چون push main هنوز انجام نشده بود؛ بعد از push کامل می‌شود
+
+Stage Summary:
+- v0.10.13 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.13 — فیکس کامل «دستگیرهٔ گیر کرده» برای کاربران اندروید با آپدیت درون‌برنامه‌ای (versionCode 113)
+- کشیدن دستگیرهٔ نشان حالا مقاوم به: افتادن کپچر، retarget رویداد، مرگ استریم pointer، pointercancel، hold طولانی
+- qa113 به گروه B2 اضافه شد تا رگرسیون لمسی دستگیره‌ها همیشگی شود
