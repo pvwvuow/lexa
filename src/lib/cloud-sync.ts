@@ -6,9 +6,11 @@
  *   ۱) ورود در همان لحظه (دیالوگ CloudAuth): ابر تازه‌تر است → اعمال؛ ابر خالی → پوش اولیه
  *   ۲) هر تغییر استور → پوش خودکار با تأخیر ۲.۵ ثانیه (debounce)
  *   ۳) بوت اپ → اگر حساب نشست با حساب قبلی دستگاه فرق داشت → پاک‌سازی دادهٔ محلی؛
- *              اگر savedAt ابر از آخرین پوش این دستگاه تازه‌تر بود → اعمال و رفرش
- * آخرین نویسنده برنده است؛ با خروج/تعویض حساب دادهٔ محلی پاک می‌شود تا هیچ نشتی
- * بین حساب‌ها (نشان‌ها، پیشرفت، کتاب‌ها) رخ ندهد.
+ *              اگر savedAt ابر از آخرین پوش این دستگاه تازه‌تر بود → اعمال و رفرش؛
+ *              ابر هنوز هیچ بلابی ندارد → پوش اولیه همان لحظه (دادهٔ دستگاه بی‌پشتیبان نمی‌ماند)
+ * آخرین نویسنده برنده است؛ پوش‌ها پشت‌سرهم (هم‌زمان نه) ارسال می‌شوند تا بلابِ کهنه‌تر
+ * هرگز بعد از بلابِ تازه‌تر به سرور نرسد. با خروج/تعویض حساب دادهٔ محلی پاک می‌شود تا
+ * هیچ نشتی بین حساب‌ها (نشان‌ها، پیشرفت، کتاب‌ها) رخ ندهد.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 import { useEffect } from "react";
@@ -93,6 +95,7 @@ export function useCloudAutoSync() {
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pullDone = false; // پوش تا پایان pull بوت صبر می‌کند — جلوگیری از له‌کردن دادهٔ تازه‌ترِ ابر
+    let pushing = false; // فقط یک پوش در جریان — بلاب کهنه هرگز بعد از بلاب تازه نمی‌رسد
     const logged = () => !!sbUser();
 
     const schedulePush = (ms: number) => {
@@ -103,17 +106,22 @@ export function useCloudAutoSync() {
       timer = null;
       if (disposed || !logged()) return;
       if (!pullDone) { schedulePush(1200); return; } // بوت هنوز ابر را بررسی نکرده
+      if (pushing) { schedulePush(400); return; } // پوش قبلی هنوز تمام نشده
+      pushing = true;
       try {
         const blob = collectLocal();
         const err = await sbPushState(blob);
         if (!err) setLastPush(Number(blob.savedAt || Date.now()));
       } catch { /* آفلاین — تغییر بعدی دوباره تلاش می‌کند */ }
+      finally { pushing = false; }
     };
 
     // ۱) بوت: اگر حسابِ نشست با آخرین حساب واردشدهٔ دستگاه فرق داشت، دادهٔ حساب قبلی
     //    نباید به این حساب برسد — پاک‌سازی، بعد ابر مرجع است.
     //    سپس: ابر تازه‌تر از آخرین پوش این دستگاه؟ → اعمال و رفرش یک‌باره
+    //    ابر خالی؟ → پوش اولیه همان لحظه
     (async () => {
+      let cloudEmpty = false;
       try {
         const u = sbUser();
         if (u) {
@@ -122,15 +130,18 @@ export function useCloudAutoSync() {
         }
         if (logged()) {
           const { err, data } = await sbPullState();
-          if (!disposed && !err && data) {
-            if (adoptCloudBlob(data)) {
+          if (!disposed && !err) {
+            const hasData = !!data && typeof data === "object" && Object.keys(data as object).length > 0;
+            if (hasData && adoptCloudBlob(data)) {
               setTimeout(() => window.location.reload(), 350);
               return;
             }
+            cloudEmpty = !hasData;
           }
         }
       } catch { /* آفلاین — پوش خودکار بعداً جبران می‌کند */ }
       pullDone = true;
+      if (cloudEmpty && !disposed) schedulePush(0);
     })();
 
     // ۲) تغییر استور → پوش با تأخیر

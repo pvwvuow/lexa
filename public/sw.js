@@ -1,27 +1,21 @@
 /*
- * Lexa — Service Worker (v8)
+ * Lexa — Service Worker (v9)
  * راهبرد: پوستهٔ طراحی (HTML/JS/CSS/فونت/تصاویر) کش می‌شود تا سایت آفلاین هم با همان
  * ظاهر بالا بیاید؛ ولی پاسخ‌های JSON مسیر /api/* هرگز کش نمی‌شوند — مطالبِ سروری فقط
  * با «ذخیرهٔ تک‌تک مطالب/دوره‌ها» در دسترس می‌مانند.
  *
- * v6 — رفع «صفحه کار نمی‌کند»:
- * در v5 درخواست JS/CSS بعد از ۳ ثانیه قطع می‌شد و اگر در کش هم نبود، Response.error()
- * برمی‌گشت — یعنی صفحهٔ سفید/خراب روی شبکهٔ کند یا کامپایل سرد سرور، در حالی که
- * سرور کاملاً سالم بود. حالا:
- * ۱) اسکریپت‌ها دیگر هیچ‌وقت «قطع و خطا» نمی‌شوند: شبکه در پس‌زمینه ادامه می‌یابد؛
- *    فقط بعد از مهلت گنجایش (۱۰ ثانیه) اگر نسخهٔ کشِ «دقیقاً همین URL» بود، آن
- *    برگردانده می‌شود وگرنه صبر تا جواب واقعی شبکه.
- * ۲) پس‌افت اسکریپت فقط با تطابق دقیق URL (بدون ignoreSearch) — هیچ‌وقت نسخهٔ
- *    جورنشدو با HTML فعلی اجرا نمی‌شود (جلوگیری از کرش ناهم‌خوانی کد).
- * ۳) مهلت ناوبری ۶→۱۰ ثانیه.
+ * v9 — رفع «آفلاین ناقص/کُند»:
+ * ۱) اسکریپت/استایل: کش پوسته (SHELL_CACHE) هم دیده می‌شود — قبلاً «(cache.match || caches.match)»
+ *    روی دو Promise بود و بخش دوم هرگز اجرا نمی‌شد؛ چانک‌هایی که هنگام نصب کش شده بودند
+ *    آفلاین پیدا نمی‌شدند.
+ * ۲) شکست شبکه (آفلاین) → بلافاصله کش؛ قبلاً هر اسکریپت ۱۰ ثانیه منتظر می‌ماند.
+ * ۳) فونت/رسانه/آیکن: کش پوسته هم جستجو می‌شود (نصب SW آن‌ها را آنجا می‌گذارد).
  *
- * v5 — آپدیت خودکار نسخهٔ آفلاین: در اپ انجام می‌شود؛ این نسخه فقط برای نصب دوبارهٔ
- * SW و پاک‌سازی کش‌های کهنه است (فعال‌سازی v6 هم همین کار را برای همه می‌کند).
- *
- * v3 — رفع «آفلاین باز نمی‌شود»: کش دارایی‌های ارجاع‌شده در HTML پوسته + timeout race
- * برای برگشت سریع به کش در نبود اینترنت + پس‌افت ناوبری با ignoreSearch.
+ * v6 — رفع «صفحه کار نمی‌کند»: اسکریپت‌ها هیچ‌وقت «قطع و خطا» نمی‌شوند؛ پس‌افت
+ * اسکریپت فقط با تطابق دقیق URL (بدون ignoreSearch)؛ مهلت ناوبری ۱۰ ثانیه.
+ * v3 — کش دارایی‌های ارجاع‌شده در HTML پوسته + پس‌افت ناوبری با ignoreSearch.
  */
-const VERSION = "lexa-pwa-v53";
+const VERSION = "lexa-pwa-v54";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
@@ -189,28 +183,38 @@ async function networkFirst(req, cacheName, timeoutMs) {
 }
 
 /**
- * v6 — اسکریپت/استایل: هیچ‌وقت «قطع و خطا» نیست.
- * شبکه شروع می‌شود و رها می‌شود تا خودش جواب بدهد (کامپایل سرد سرور کند است ولی
- * سالم)؛ اگر بعد از graceMs جواب نیامد و «دقیقاً همین URL» در کش بود، همان برگردانده
- * می‌شود؛ وگرنه بی‌نهایت منتظر جواب واقعی شبکه می‌مانیم (تا خود مرورگر خطایش را
- * بدهد). نتیجه: هیچ‌وقت به‌خاطر کندیِ موقت، صفحهٔ سفید نمی‌سازیم.
+ * اسکریپت/استایل: هیچ‌وقت «قطع و خطا» نیست.
+ * شبکه شروع می‌شود؛ اگر تا graceMs جواب نیامد و «دقیقاً همین URL» در کش (هر کشی،
+ * از جمله پوسته) بود، همان برگردانده می‌شود؛ اگر شبکه شکست خورد (آفلاین) همان
+ * لحظه کش؛ وگرنه منتظر جواب واقعی شبکه. هیچ‌وقت به‌خاطر کندیِ موقت صفحهٔ سفید نمی‌سازیم.
  */
 async function networkFirstNeverAbort(req, cacheName, graceMs) {
   const cache = await caches.open(cacheName);
-  let networkDone = false;
-  const network = fetch(req)
-    .then(async (res) => {
-      networkDone = true;
-      if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
-      return res;
-    });
-  const grace = new Promise((resolve) => setTimeout(() => resolve(null), graceMs));
-  // بعد از graceMs: اگر کشِ دقیق داریم، همان را بده (شبکه در پس‌زمینه ادامه دارد)
-  const cached = await grace.then(() =>
-    networkDone ? null : (cache.match(req) || caches.match(req))
-  );
-  if (cached) return cached;
-  return network; // جواب واقعی شبکه — حتی اگر دیر باشد
+  const fromCache = async () => (await cache.match(req)) || (await caches.match(req)) || null;
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (res) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(res);
+    };
+    const timer = setTimeout(async () => {
+      if (settled) return;
+      const c = await fromCache();
+      if (c) finish(c); // شبکه در پس‌زمینه ادامه می‌دهد و کش را تازه می‌کند
+    }, graceMs);
+    fetch(req).then(
+      (res) => {
+        if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+        finish(res);
+      },
+      async () => {
+        const c = await fromCache();
+        finish(c || Response.error());
+      },
+    );
+  });
 }
 
 self.addEventListener("fetch", (event) => {
@@ -220,13 +224,15 @@ self.addEventListener("fetch", (event) => {
   if (req.method === "GET" && req.destination === "image") {
     event.respondWith(
       caches.open(IMG_CACHE).then(async (cache) => {
-        const cached = await cache.match(req, { ignoreSearch: true });
+        const cached =
+          (await cache.match(req, { ignoreSearch: true })) ||
+          (await caches.match(req, { ignoreSearch: true }));
         const fresh = fetch(req)
           .then((res) => {
             if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone());
             return res;
           })
-          .catch(() => cached);
+          .catch(() => cached || Response.error());
         return cached || fresh;
       })
     );
@@ -258,7 +264,7 @@ self.addEventListener("fetch", (event) => {
               if (res && res.ok) cache.put(req, res.clone());
               return res;
             })
-            .catch(() => cached);
+            .catch(() => cached || Response.error());
           return cached || fresh;
         })
       );
@@ -291,7 +297,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // ── دارایی‌ها ──
-  // فونت/رسانه/آیکن: پایدارند → کش اول.
+  // فونت/رسانه/آیکن: پایدارند → کش اول (هم بستهٔ طراحی، هم کش پوستهٔ نصب).
   const isStableAsset =
     url.pathname.startsWith("/fonts/") ||
     url.pathname.startsWith("/media/") ||
@@ -302,7 +308,9 @@ self.addEventListener("fetch", (event) => {
   if (isStableAsset) {
     event.respondWith(
       caches.open(ASSET_CACHE).then(async (cache) => {
-        const cached = await cache.match(req, { ignoreSearch: true });
+        const cached =
+          (await cache.match(req, { ignoreSearch: true })) ||
+          (await caches.match(req, { ignoreSearch: true }));
         if (cached) return cached;
         try {
           const res = await fetch(req);
@@ -316,8 +324,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // چانک‌ها و CSS/JS — v6: شبکه هرگز قطع نمی‌شود؛ فقط بعد از ۱۰ ثانیه اگر نسخهٔ
-  // دقیقاً همین URL در کش بود، همان زودتر داده می‌شود (تطابق دقیق، بدون ignoreSearch)
+  // چانک‌ها و CSS/JS — شبکه هرگز قطع نمی‌شود؛ آفلاین بلافاصله از کش (تطابق دقیق URL)
   if (url.pathname.startsWith("/_next/") || /\.(css|js|mjs)$/.test(url.pathname)) {
     event.respondWith(networkFirstNeverAbort(req, ASSET_CACHE, 10000));
     return;

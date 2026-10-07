@@ -18,6 +18,7 @@ export function CaseStudyView({ id }: { id?: string }) {
   const tBooks = useApp((s) => s.tBooks);
   const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
   const all = mergeVisible({ customCourses: custom, tBooks, hiddenBuiltins });
+  // کتاب‌های اساتید (tBooks) بعد از باز شدن صفحه هم می‌رسند — زمینهٔ جلسه با آن‌ها به‌روز می‌شود
   const ctx = React.useMemo(() => {
     if (id) {
       for (const c of all) for (const ch of c.chapters) {
@@ -27,7 +28,7 @@ export function CaseStudyView({ id }: { id?: string }) {
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, custom]);
+  }, [id, custom, tBooks, hiddenBuiltins]);
 
   const exampleSection = ctx?.lesson.sections.find((s) => s.type === "example");
   const caseText =

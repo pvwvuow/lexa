@@ -81,6 +81,14 @@ export function FlashcardsView() {
     };
   }, [custom, rebuildDeck]);
 
+  // کتاب‌های اساتید (tBooks) ناهمگام می‌رسند — اگر کاربر هنوز شروع نکرده، کارت‌هایشان هم اضافه شود
+  React.useEffect(() => {
+    setPos((p) => {
+      if (p === 0) rebuildDeck();
+      return p;
+    });
+  }, [tBooks, rebuildDeck]);
+
   const finished = deck.length > 0 && pos >= order.length;
 
   function advance(known: boolean) {
