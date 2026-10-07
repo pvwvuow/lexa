@@ -1834,3 +1834,26 @@ Work Log:
 Stage Summary:
 - زنجیرهٔ کامل فعال است: ویس → Whisper large-v3-turbo (متن خام) → /clean → grok-4.6 (متن ویراستهٔ تمیز)
 - بات در حالت once (فراخوانی «چک کن») و serve (پنجرهٔ زنده ~۹ دقیقه‌ای) قابل استفاده است؛ برای ۲۴/۷ همان serve روی سرور
+
+---
+Task ID: 36
+Agent: main (Super Z)
+Task: «اپدیت جدید lexa رو بیلد کن و ریلیز» — مرج ۴ PR کاربر (#4 mark-touch + #5-7 bug hunt) و ریلیز v0.10.12
+
+Work Log:
+- fetch: ۴ PR جدید squash-merge شده در origin/main (mark re-edit on touch، cloud sync safety، cloud login/logout+quiz history+law search، offline saves+updater hardening)؛ main محلی --ff-only
+- بامپ: کاربر خودش package=0.10.12 / sw v54 / gradle 112 زده بود؛ فقط DESIGN_VERSION 1.9.21→1.9.22 + ادعای qa090 v54 (commit + push فوری)
+- محیط چهارمین بار پاک بود → env-and-build.sh (JDK+cmdtools+بیلد وب در یک فراخوانی) + sdkmanager + keystore
+- درس جدید: electron-builder هر دو پلتفرم در یک فراخوانی در سقف ۱۰ دقیقه جا نمی‌شد → جدا: AppImage (۱۲۳MB) سپس win.zip (۱۷۱MB، unzip -t سالم) با کش گرم ~/.cache/electron
+- درس جدید: build:apk پوشهٔ .next/standalone را با خروجی APK-mode جایگزین می‌کند → QA وب باید بعد از rebuild standalone اجرا شود (اولین qa-batch با خطای server.js جذاب دیباگ شد)
+- APK دو مرحله‌ای: پارک API → build:apk (RC=0) → restore → cap sync + gradle assembleRelease (BUILD SUCCESSFUL 3m27s) → APK ۶.۴MB: versionCode=112، versionName=0.10.12، CN=Lexa؛ checksums سه‌گانه
+- qa103 یک ادعا شکست: «تپ بیرون نوار می‌بندد» — ریشه: 0.10.12 بستن را عمداً به تپ واقعی (pointerup، slop≤12px) منتقل کرد و نوارِ انتخاب‌بومی را selectionchange می‌بندد → تست به معنای جدید تطبیق شد + ۲ ادعای جدید (تپ واقعی می‌بندد / شروع اسکرول نمی‌بندد) — طبق سنت 0.10.10 کد محصول دست نخورد
+- QA کامل: A (۷۳) + B (qa103 ۵۷ شامل ۲ جدید + qa108 ۷ + drawer سبز + qa109 ۱۵) + C (qa110 ۱۷) + APK-mode ۱۶ + apk-update ۸ ≈ ۱۹۳ ادعا، صفر خطا
+- diffهای زمان‌دار (manifest/generated-meta/۴ png) → git checkout -- قبل از commit
+- ریلیز: release-app-update.py 0.10.12 → ریلیز گیت‌هاب id 405580476 با assetها + تگ app-v0.10.12 + دلتافید + purge
+- راستی‌آزمایی verify-release-0112.py (sed از 0111): ۱۸/۱۸ — مانیفست ۱۶۹۷ فایل، دلتاهای 0.6.0 تا 0.9.3 همه MISSING:0، @main≡@tag حتی یادداشت‌ها
+
+Stage Summary:
+- v0.10.12 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.12
+- نشان روی لمس: دستگیره زیر انگشت، تپ واقعی فقط برای بستن، اسکرول مزاحم نیست
+- کاربران 0.6.0 تا 0.10.11 با «بررسی به‌روزرسانی» به 0.10.12 می‌رسند؛ اندروید آپدیت درون‌برنامه‌ای (versionCode 112)
