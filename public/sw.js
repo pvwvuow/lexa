@@ -15,7 +15,7 @@
  * اسکریپت فقط با تطابق دقیق URL (بدون ignoreSearch)؛ مهلت ناوبری ۱۰ ثانیه.
  * v3 — کش دارایی‌های ارجاع‌شده در HTML پوسته + پس‌افت ناوبری با ignoreSearch.
  */
-const VERSION = "lexa-pwa-v55";
+const VERSION = "lexa-pwa-v56";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-asset`;
 const IMG_CACHE = `${VERSION}-img`;
