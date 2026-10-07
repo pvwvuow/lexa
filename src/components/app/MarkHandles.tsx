@@ -1,17 +1,16 @@
 "use client";
-/* ─── دستگیره‌های اختصاصی تنظیم بازهٔ نشان (بازنویسی 0.10.11) ───────────────
+/* ─── دستگیره‌های اختصاصی تنظیم بازهٔ نشان (بازنویسی 0.10.11 / 0.10.12) ───────
  * با لمس یک نشان، دو دستگیره دقیقاً روی اولین و آخرین حرف نشان می‌نشینند.
  * 0.10.10: پورتال به body + کالیبراسیون fixed (mark-geom)، لبهٔ حرف‌به‌حرف با جهت خودِ
  *   حرف، اندازه‌گیری خودترمیم، پیش‌نمایش CSS Highlight API، ناحیهٔ مردهٔ ۴ پیکسلی.
- * 0.10.11 — بازطراحی کامل کشیدن (ریشهٔ «خیلی باگ داره»):
- *  • همه‌چیز روی اندیس‌های ایندکس کاراکتری بخش (marks.ts) است، نه نقطه‌های DOM:
- *    بازهٔ پیش‌نمایش، بازهٔ اندازه‌گیری و بازهٔ ذخیره یکی‌اند — دیگر نشان بعد از رها
- *    کردن یک حرف جلو/عقب نمی‌پرد و نودهای مرزی (ابتدا/انتهای <mark>) گیج نمی‌کنند.
- *  • چسبیدن به کلمه: سرِ نشان به ابتدای کلمه و تهِ آن به انتهای کلمه می‌چسبد (مثل
- *    دستگیره‌های بومی اندروید) — لرزش انگشت روی مرز حرف‌ها بازه را تکان نمی‌دهد.
- *  • عبور دستگیره از روی دیگری: نقش‌ها تمیز جابه‌جا می‌شوند و بازه هیچ‌وقت خالی نمی‌شود.
- *  • نقطه‌های خارج از متن درس (نوار ابزار، دستگیرهٔ دیگر) نادیده گرفته می‌شوند.
- *  • اسکرول خودکار نزدیک لبهٔ بالا/پایین صفحه حین کشیدن.
+ * 0.10.11: همه‌چیز روی اندیس‌های ایندکس کاراکتری بخش (marks.ts)؛ چسبیدن به کلمه،
+ *   عبور تمیز، نادیده‌گرفتن نقطه‌های بیرون از متن درس، اسکرول خودکار لبهٔ صفحه.
+ * 0.10.12 — حس لمسی اندروید:
+ *  • دستگیرهٔ در حال کشیدن دقیقاً زیر انگشت می‌ماند (نه پرش‌به‌پرش روی کلمه‌ها)؛ بعد از
+ *    رها کردن روی لبهٔ حرف می‌نشیند. رنگ پیش‌نمایش همان لحظه به کلمه می‌چسبد.
+ *  • عبور از روی دستگیرهٔ دیگر: همان دستگیرهٔ زیر انگشت نقش تازه را می‌گیرد (قبلاً
+ *    دستگیرهٔ زیر انگشت به سر دیگر بازه می‌پرید).
+ *  • ناحیهٔ لمس بزرگ‌تر (۵۶×۵۶).
  * با رها کردن، همان نشان (همان id و رنگ) با بازهٔ تازه ذخیره می‌شود.
  * ─────────────────────────────────────────────────────────────────────────── */
 
@@ -36,6 +35,8 @@ export interface MarkHandlesCommit {
 
 type Pt = { node: Text; offset: number };
 type Seg = { t: Text; s: number; e: number };
+type Role = "start" | "end";
+type KnobKey = "a" | "b";
 /** لبهٔ دستگیره در فضای true */
 interface Edge { x: number; top: number; bottom: number }
 interface Geom { start: Edge; end: Edge; boxes: Box[]; rect: Box; geo: Geo }
@@ -231,7 +232,10 @@ const EDGE_BOTTOM = 110;
 const MAX_SCROLL_STEP = 16;
 
 interface Drag {
-  which: "start" | "end";
+  key: KnobKey;
+  which: Role;
+  /** ارتفاع خط زیر دستگیره — برای رسم میلهٔ دستگیرهٔ زیر انگشت */
+  h: number;
   offX: number;
   offY: number;
   pid: number;
@@ -265,6 +269,15 @@ export function MarkHandles({
   const geomRef = React.useRef<Geom | null>(null);
   const stRef = React.useRef<Span | null>(null);
   const dragRef = React.useRef<Drag | null>(null);
+  // نقش هر دستگیره (a/b) — با عبور یکی از روی دیگری جابه‌جا می‌شود تا دستگیرهٔ زیر انگشت ثابت بماند
+  const [roles, setRoles] = React.useState<{ a: Role; b: Role }>({ a: "start", b: "end" });
+  const rolesRef = React.useRef(roles);
+  const setRolesBoth = React.useCallback((r: { a: Role; b: Role }) => {
+    rolesRef.current = r;
+    setRoles(r);
+  }, []);
+  // جای دستگیرهٔ در حال کشیدن در فضای true (همان نقطهٔ آزمون زیر انگشت)
+  const [dragPos, setDragPos] = React.useState<{ key: KnobKey; x: number; y: number; h: number } | null>(null);
   const zoomRef = React.useRef(zoom);
   const colorRef = React.useRef(color);
   const cbRef = React.useRef({ onDragChange, onCommit });
@@ -355,6 +368,7 @@ export function MarkHandles({
     showHighlight(null, "");
     hideMarks(false);
     setOverlay(false);
+    setDragPos(null);
   }, [hideMarks]);
 
   /** پایان کشیدن بدون ذخیره (قطع شدن، بازچینی DOM، unmount) */
@@ -363,9 +377,10 @@ export function MarkHandles({
     if (!d) return;
     dragRef.current = null;
     if (d.raf) cancelAnimationFrame(d.raf);
+    setRolesBoth({ a: "start", b: "end" });
     endVisuals();
     if (d.moved) cbRef.current.onDragChange?.(false);
-  }, [endVisuals]);
+  }, [endVisuals, setRolesBoth]);
 
   React.useEffect(() => () => abortDrag(), [abortDrag]);
 
@@ -382,7 +397,11 @@ export function MarkHandles({
       measure();
       return;
     }
-    const raw = caretFromPoint(cx - d.offX, cy - d.offY);
+    const px = cx - d.offX;
+    const py = cy - d.offY;
+    // دستگیره همیشه زیر انگشت — حتی وقتی نقطه روی متن نیست
+    setDragPos({ key: d.key, x: px, y: py, h: d.h });
+    const raw = caretFromPoint(px, py);
     // فقط متن خودِ درس — نه نوار ابزار، نه پنل‌های دیگر
     if (!raw || !root.contains(raw.node) || raw.node.parentElement?.closest("[data-mark-toolbar]")) return;
     const full = st.idx.full;
@@ -414,14 +433,19 @@ export function MarkHandles({
     }
     if (e <= s) return;
     if (full.slice(s, e).replace(/\s+/g, "").length < 2) return;
-    d.which = which;
+    if (which !== d.which) {
+      // دستگیرهٔ زیر انگشت نقش تازه را می‌گیرد؛ دیگری روی لنگر می‌ماند
+      d.which = which;
+      const other: Role = which === "start" ? "end" : "start";
+      setRolesBoth(d.key === "a" ? { a: which, b: other } : { a: other, b: which });
+    }
     if (s === st.s && e === st.e) return;
     const range = spanRange(st.idx, s, e);
     if (!range) return;
     stRef.current = { ...st, s, e, range };
     showHighlight(range, markBg(colorRef.current));
     measure();
-  }, [rootRef, abortDrag, reloadSpan, measure]);
+  }, [rootRef, abortDrag, reloadSpan, measure, setRolesBoth]);
 
   /** اسکرول خودکار وقتی انگشت نزدیک لبهٔ بالا/پایین صفحه است */
   const tick = React.useCallback(() => {
@@ -443,18 +467,21 @@ export function MarkHandles({
     d.raf = requestAnimationFrame(tick);
   }, [rootRef, applyAt]);
 
-  function onDown(which: "start" | "end") {
+  function onDown(key: KnobKey) {
     return (e: React.PointerEvent<HTMLDivElement>) => {
-      const g = geomRef.current;
       if (!spanAlive(stRef.current)) { reloadSpan(); measure(); }
+      const g = geomRef.current;
       const st = stRef.current;
       if (!st || !g) return;
       e.preventDefault();
       e.stopPropagation();
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
+      const which = rolesRef.current[key];
       const edge = which === "start" ? g.start : g.end;
       dragRef.current = {
+        key,
         which,
+        h: Math.max(8, edge.bottom - edge.top),
         // فاصلهٔ انگشت تا لبهٔ حرف حفظ می‌شود — نقطهٔ آزمون همیشه وسط همان خط است
         offX: e.clientX - edge.x,
         offY: e.clientY - (edge.top + edge.bottom) / 2,
@@ -495,6 +522,8 @@ export function MarkHandles({
     if (!d || e.pointerId !== d.pid) return;
     dragRef.current = null;
     if (d.raf) cancelAnimationFrame(d.raf);
+    setRolesBoth({ a: "start", b: "end" });
+    setDragPos(null);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
     if (!d.moved) return; // لمس سادهٔ دستگیره — هیچ تغییری
     endVisuals();
@@ -527,18 +556,23 @@ export function MarkHandles({
   if (!geom || typeof document === "undefined") return null;
   const { geo } = geom;
 
-  const knob = (which: "start" | "end", edge: Edge) => {
+  const knob = (key: KnobKey) => {
+    const role = roles[key];
+    let edge: Edge = role === "start" ? geom.start : geom.end;
+    if (dragPos && dragPos.key === key) {
+      edge = { x: dragPos.x, top: dragPos.y - dragPos.h / 2, bottom: dragPos.y + dragPos.h / 2 };
+    }
     const x = geo.fx(edge.x);
     const top = geo.fy(edge.top);
     const bottom = geo.fy(edge.bottom);
     const h = Math.max(8, bottom - top);
     return (
       <div
-        key={which}
+        key={key}
         data-mark-toolbar="1"
-        data-mark-handle={which}
-        aria-label={which === "start" ? "ابتدای نشان" : "انتهای نشان"}
-        onPointerDown={onDown(which)}
+        data-mark-handle={role}
+        aria-label={role === "start" ? "ابتدای نشان" : "انتهای نشان"}
+        onPointerDown={onDown(key)}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
@@ -547,10 +581,10 @@ export function MarkHandles({
         style={{
           position: "fixed",
           zIndex: 91,
-          left: x - 22,
+          left: x - 28,
           top: bottom - 2,
-          width: 44,
-          height: 46,
+          width: 56,
+          height: 56,
           touchAction: "none",
           userSelect: "none",
           WebkitUserSelect: "none",
@@ -561,13 +595,13 @@ export function MarkHandles({
         {/* میلهٔ نشانگر دقیقاً روی لبهٔ حرف + سر گرد زیر خط */}
         <span
           aria-hidden
-          style={{ position: "absolute", left: 21, top: 2 - h, width: 2, height: h, borderRadius: 1, background: "var(--bronze)", pointerEvents: "none" }}
+          style={{ position: "absolute", left: 27, top: 2 - h, width: 2, height: h, borderRadius: 1, background: "var(--bronze)", pointerEvents: "none" }}
         />
         <span
           aria-hidden
           className="shadow-card"
           style={{
-            position: "absolute", left: 12, top: 3, width: 20, height: 20, borderRadius: "50%",
+            position: "absolute", left: 17, top: 3, width: 22, height: 22, borderRadius: "50%",
             background: "var(--bronze)", border: "2px solid #fff", pointerEvents: "none",
           }}
         />
@@ -590,8 +624,8 @@ export function MarkHandles({
           />
         );
       })}
-      {knob("start", geom.start)}
-      {knob("end", geom.end)}
+      {knob("a")}
+      {knob("b")}
     </>,
     document.body,
   );
