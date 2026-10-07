@@ -476,11 +476,12 @@ export function AppShell() {
         )}
         {route.view === "home" && <DashboardView />}
           {route.view === "study" && <StudyListView />}
-          {route.view === "course" && <CourseView id={route.id} />}
+          {/* key=id: با رفتن از یک دوره/پرونده/دفترچه به دیگری، وضعیت قبلی نمی‌ماند */}
+          {route.view === "course" && <CourseView key={route.id} id={route.id} />}
           {route.view === "learn" && <LearnView key={route.id} id={route.id} />}
-          {route.view === "quiz" && route.id?.startsWith("pack-") && <ExamPackRoute packId={route.id} />}
+          {route.view === "quiz" && route.id?.startsWith("pack-") && <ExamPackRoute key={route.id} packId={route.id} />}
           {route.view === "quiz" && !route.id?.startsWith("pack-") && <QuizView key={route.id ?? "mixed"} id={route.id} />}
-          {route.view === "case" && <CaseStudyView id={route.id} />}
+          {route.view === "case" && <CaseStudyView key={route.id ?? "free"} id={route.id} />}
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && (IS_APK ? <ApkUnavailable title="افزودن کتاب" /> : <ImportView />)}
