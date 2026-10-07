@@ -7,7 +7,7 @@ import ReactMarkdown from "react-markdown";
 import {
   ArrowDownCircle, HelpCircle, Lightbulb, ClipboardList, StickyNote,
   ListOrdered, ListChecks, Scale, Plus, Trash2, Send, RotateCcw, BookMarked, Sparkles, ArrowLeft, MessageSquareWarning,
-  MoreHorizontal, CheckCircle2, AlertCircle, Loader2, Copy, ZoomIn, ZoomOut,
+  MoreHorizontal, CheckCircle2, AlertCircle, Loader2, Copy, ZoomIn, ZoomOut, Eraser,
 } from "lucide-react";
 import type { Course, LessonSection } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -21,9 +21,13 @@ import { AIThinking, SECTION_META, SectionHead, SectionBody, LawBox } from "./co
 import { lessonToContextText } from "@/lib/law/lessonText";
 import { ensureLessonContent, isLazyLesson, useLessonContent } from "@/lib/law/texts";
 import { FeedbackDialog } from "./FeedbackDialog";
-import { MARK_COLORS, applyMarksToSections, locateSelection, isSelectableNode, isMarkColor } from "@/lib/marks";
+import {
+  MARK_COLORS, isMarkColor, isSelectableNode, buildModel, modelFresh, paintMarks, clearMarkPaint,
+  hitTest, selectionSpan, planCommit, planErase, newMarkId, spanBox, spanText, spanOverlapsMarks,
+  type MarkModel, type MarkPlan, type SpanOverride,
+} from "@/lib/marks";
 import { toBarRect } from "@/lib/mark-geom";
-import { MarkHandles, type MarkHandlesCommit } from "./MarkHandles";
+import { MarkHandles, type HandleSpan } from "./MarkHandles";
 
 interface AiNote { sectionId: string; text: string }
 const EMPTY_NOTES: { id: string; text: string; quote?: string; createdAt: number }[] = [];
@@ -104,61 +108,35 @@ const TAP_SLOP = 12;
 /** لمس طولانی‌تر از این = انتخاب بومی، نه تپ */
 const TAP_MAX_MS = 600;
 
-/** نکتهٔ مهم تجربهٔ کاربری (بازطراحی 0.10.10 / 0.10.12):
- * لمس سادهٔ نشان: نوار (رنگ/کپی/حذف) + دو دستگیرهٔ اختصاصی دقیقاً روی اولین و
- * آخرین حرف نشان (MarkHandles). نوار و دستگیره‌ها به body پورتال می‌شوند و مختصاتشان
- * کالیبره است (mark-geom) تا transform والدها یا زوم متن جایشان را بهم نزند.
- * نواری که با لمس باز شده (via: "tap") با جمع‌شدن انتخاب بومی بسته نمی‌شود؛
- * 0.10.12: فقط یک «تپ» واقعی بیرون از نوار/دستگیره آن را می‌بندد — شروع اسکرول یا
- * لمسِ کمی کنارِ دستگیره دیگر همه‌چیز را درجا نمی‌بندد. */
+/** نشان‌گذاری نسخهٔ ۲ (0.10.14) — رفتار برای کاربر:
+ *  • انتخاب متن (لمس طولانی/کشیدن) → نوار رنگ‌ها. رنگ همان بازهٔ انتخاب‌شده را نشان
+ *    می‌کند؛ اگر روی نشان قبلی باشد همان قسمت با رنگ تازه جایگزین می‌شود (ری‌مارک تمیز؛
+ *    بقیهٔ نشان قبلی سالم می‌ماند). دکمهٔ پاک‌کن نشان را فقط از همان قسمت برمی‌دارد.
+ *  • تپ روی نشان → نوار ویرایش (رنگ/کپی/حذف) + دو دستگیره برای تغییر بازه.
+ *  • تپ بیرون از نوار/دستگیره → بسته؛ اسکرول چیزی را نمی‌بندد.
+ * همهٔ محاسبات روی مدل متنی marks.ts است و رنگ‌آمیزی DOM را دست نمی‌زند. */
 
-/** وضعیت نوار نشان — «نشان جدید» یا «ویرایش نشان موجود» */
+type BarRect = { top: number; bottom: number; centerX: number };
+
+/** وضعیت نوار نشان — «بازهٔ انتخاب‌شده» یا «نشان لمس‌شده» */
 type MarkBar =
-  | { mode: "new"; rect: { top: number; bottom: number; centerX: number }; text: string; secId: string; occ?: number; pfx?: string; sfx?: string }
-  | { mode: "edit"; rect: { top: number; bottom: number; centerX: number }; markId: string; secId: string; text: string; occ?: number; pfx?: string; sfx?: string; via?: "tap" };
+  | { mode: "new"; secId: string; s: number; e: number; rect: BarRect; overlaps: boolean }
+  | { mode: "edit"; markId: string; rect: BarRect };
 
-/** مستطیل کل قطعه‌های یک نشان در فضای نوار شناور (نشان جمله‌ای چند <mark> با یک id دارد) */
-function markRectOf(root: Element | null, mid: string, zoom: number): { top: number; bottom: number; centerX: number } | null {
-  if (!root) return null;
-  const els = root.querySelectorAll(`mark[data-lexa-mark][data-mid="${CSS.escape(mid)}"]`);
-  if (!els.length) return null;
-  let top = Infinity;
-  let bottom = -Infinity;
-  let left = Infinity;
-  let right = -Infinity;
-  els.forEach((el) => {
-    for (const r of Array.from(el.getClientRects())) {
-      if (!r.width && !r.height) continue;
-      top = Math.min(top, r.top);
-      bottom = Math.max(bottom, r.bottom);
-      left = Math.min(left, r.left);
-      right = Math.max(right, r.right);
-    }
-  });
-  if (!Number.isFinite(top)) return null;
-  return toBarRect({ left, top, right, bottom }, root, zoom);
-}
-
-/** نوار ابزار شناور نشان‌گذاری — فقط آیکن: پنج رنگ + کپی + حذف.
- * به body پورتال می‌شود تا هیچ والد transform‌داری جایش را جابه‌جا نکند. */
+/** نوار ابزار شناور نشان‌گذاری — فقط آیکن: پنج رنگ + کپی + پاک‌کن/حذف */
 function MarkToolbar({
-  mode, rect, lessonId, markId, text, secId, occ, pfx, sfx, getLive, onDone,
+  mode, rect, activeColor, canErase, onPick, onCopy, onRemove, onErase, onDone,
 }: {
   mode: "new" | "edit";
-  rect: { top: number; bottom: number; centerX: number };
-  lessonId: string;
-  markId?: string;
-  text?: string;
-  secId?: string;
-  occ?: number;
-  pfx?: string;
-  sfx?: string;
-  /** وضعیت زندهٔ انتخاب — کاربر با دستگیره‌های موبایل بازه را کشیده و بی‌درنگ رنگ می‌زند */
-  getLive?: () => { text: string; occ: number; pfx: string; sfx: string; secId: string } | null;
+  rect: BarRect;
+  activeColor?: string;
+  canErase?: boolean;
+  onPick: (color: string) => void;
+  onCopy: () => string;
+  onRemove?: () => void;
+  onErase?: () => void;
   onDone: () => void;
 }) {
-  const applyMark = useApp((s) => s.applyMark);
-  const removeMark = useApp((s) => s.removeMark);
   const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
   const [copied, setCopied] = React.useState(false);
   const boxRef = React.useRef<HTMLDivElement | null>(null);
@@ -173,25 +151,8 @@ function MarkToolbar({
     setPos({ x, y });
   }, [rect]);
 
-  function pick(color: string) {
-    if (!isMarkColor(color)) return;
-    if (mode === "new" && text && secId) {
-      applyMark(lessonId, { id: Math.random().toString(36).slice(2) + Date.now().toString(36), secId, text, color, occ, pfx, sfx });
-      try { window.getSelection()?.removeAllRanges(); } catch {}
-    } else if (mode === "edit" && markId) {
-      // بازهٔ زندهٔ دستگیره‌ها مقدم است — کاربر ممکن است بازه را کشیده و بلافاصله رنگ زده باشد
-      const live = getLive?.() ?? null;
-      const base = live && live.secId === (secId ?? "")
-        ? live
-        : { text: text ?? "", occ, pfx, sfx, secId: secId ?? "" };
-      applyMark(lessonId, { id: markId, secId: base.secId || (secId ?? ""), text: base.text, color, occ: base.occ, pfx: base.pfx, sfx: base.sfx });
-      try { window.getSelection()?.removeAllRanges(); } catch {}
-    }
-    onDone();
-  }
-
   async function copySel() {
-    const ok = await copyTextToClipboard(text ?? "");
+    const ok = await copyTextToClipboard(onCopy());
     if (ok) {
       setCopied(true);
       setTimeout(() => onDone(), 800);
@@ -207,34 +168,54 @@ function MarkToolbar({
       style={{ visibility: pos ? "visible" : "hidden", left: pos?.x ?? 0, top: pos?.y ?? 0 }}
       onMouseDown={(e) => e.preventDefault()}
       data-mark-toolbar="1"
+      data-mark-ui="1"
       role="toolbar"
       aria-label="نشان‌گذاری و کپی متن"
     >
       {Object.entries(MARK_COLORS).map(([key, c]) => (
         <button
           key={key}
-          onClick={() => pick(key)}
+          onClick={() => { if (isMarkColor(key)) onPick(key); }}
           title="رنگ نشان"
           aria-label={`نشان با رنگ ${key}`}
+          aria-pressed={activeColor === key}
           className="h-8 w-8 rounded-full border border-black/10 transition-transform hover:scale-110 active:scale-95 sm:h-7 sm:w-7"
-          style={{ background: c.dot, boxShadow: `inset 0 -3px 6px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.18)` }}
+          style={{
+            background: c.dot,
+            boxShadow: activeColor === key
+              ? `0 0 0 2px var(--card), 0 0 0 4px ${c.dot}`
+              : `inset 0 -3px 6px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.18)`,
+          }}
         />
       ))}
       <span className="mx-0.5 h-5 w-px bg-border" />
       <button
         onClick={() => void copySel()}
         title="کپی متن"
-        aria-label="کپی متن انتخاب‌شده"
+        aria-label="کپی متن"
         className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-bold transition-colors sm:h-7 ${copied ? "bg-success/10 text-success" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
       >
         {copied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
         {copied ? "کپی شد" : "کپی"}
       </button>
-      {mode === "edit" && markId && (
+      {mode === "new" && canErase && onErase && (
         <>
           <span className="mx-0.5 h-5 w-px bg-border" />
           <button
-            onClick={() => { removeMark(lessonId, markId); onDone(); }}
+            onClick={onErase}
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-7 sm:w-7"
+            title="پاک‌کردن نشان از همین قسمت"
+            aria-label="پاک‌کردن نشان از این قسمت"
+          >
+            <Eraser className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
+      {mode === "edit" && onRemove && (
+        <>
+          <span className="mx-0.5 h-5 w-px bg-border" />
+          <button
+            onClick={onRemove}
             className="grid h-8 w-8 place-items-center rounded-lg text-danger transition-colors hover:bg-destructive/10 sm:h-7 sm:w-7"
             title="حذف نشان"
             aria-label="حذف نشان"
@@ -265,6 +246,7 @@ export function LearnView({ id }: { id: string }) {
   const marksAll = useApp((s) => s.marks);
   const marksForLesson = marksAll[id] ?? EMPTY_MARKS;
   const applyMark = useApp((s) => s.applyMark);
+  const removeMark = useApp((s) => s.removeMark);
   const articleRef = React.useRef<HTMLElement | null>(null);
   // ── نوار نشان‌گذاری متن ──
   const [markBar, setMarkBar] = React.useState<MarkBar | null>(null);
@@ -280,17 +262,49 @@ export function LearnView({ id }: { id: string }) {
   React.useEffect(() => {
     if (!markBar) setMarkDragging(false);
   }, [markBar]);
-  const onHandlesCommit = React.useCallback((c: MarkHandlesCommit) => {
-    setBar((cur) =>
-      cur && cur.mode === "edit" && cur.markId === c.markId
-        ? { ...cur, secId: c.secId, text: c.text, occ: c.occ, pfx: c.pfx, sfx: c.sfx, rect: c.rect ?? cur.rect }
-        : cur,
-    );
-  }, [setBar]);
-  const secIdOf = React.useCallback((el: Element | null): { secEl: Element | null; secId: string | null } => {
-    const host = el?.closest("[data-sec-id]") ?? null;
-    return { secEl: host, secId: host?.getAttribute("data-sec-id") ?? null };
+
+  // ── موتور نشان (مدل متنی + رنگ‌آمیزی بی‌دستکاری DOM) ──
+  const marksRef = React.useRef(marksForLesson);
+  const modelRef = React.useRef<MarkModel | null>(null);
+  const overrideRef = React.useRef<SpanOverride | null>(null);
+  const paintSigRef = React.useRef("");
+  /** مدل تازه — اگر DOM عوض شده باشد (محتوای تازه، بخش تازه) از نو ساخته و رنگ می‌شود */
+  const getModel = React.useCallback((): MarkModel | null => {
+    const root = articleRef.current;
+    if (!root) return null;
+    if (!modelFresh(modelRef.current, root)) {
+      modelRef.current = paintMarks(buildModel(root, marksRef.current), overrideRef.current);
+    }
+    return modelRef.current;
   }, []);
+  /** پیش‌نمایش زندهٔ بازهٔ یک نشان حین کشیدن دستگیره (null = بازگشت به بازهٔ ذخیره‌شده) */
+  const setPreview = React.useCallback((o: SpanOverride | null) => {
+    overrideRef.current = o;
+    const m = getModel();
+    if (m) modelRef.current = paintMarks(m, o);
+  }, [getModel]);
+  /** اعمال نقشهٔ ذخیره روی استور */
+  const writePlan = React.useCallback((plan: MarkPlan | null): boolean => {
+    if (!plan) return false;
+    for (const rid of plan.removes) removeMark(id, rid);
+    for (const u of plan.upserts) applyMark(id, u);
+    return true;
+  }, [id, applyMark, removeMark]);
+  React.useEffect(() => () => clearMarkPaint(), []);
+
+  /** رها کردن دستگیره → ذخیرهٔ بازهٔ تازه با همان id و رنگ (هم‌پوشان‌ها تراش می‌خورند) */
+  const onHandlesCommit = React.useCallback((span: HandleSpan) => {
+    const bar = markBarRef.current;
+    const mark = bar && bar.mode === "edit"
+      ? (useApp.getState().marks[id] ?? []).find((m) => m.id === bar.markId)
+      : undefined;
+    overrideRef.current = null;
+    const model = getModel();
+    const ok = model && mark
+      ? writePlan(planCommit(model, span.secId, span.s, span.e, mark.color, mark.id))
+      : false;
+    if (!ok) setPreview(null);
+  }, [id, getModel, writePlan, setPreview]);
 
   // ── یافتن جلسه و دوره ──
   let ctx: { lesson: any; chapter: any; course: Course; index: number; total: number } | null = null;
@@ -341,6 +355,15 @@ export function LearnView({ id }: { id: string }) {
     try { localStorage.setItem(ZOOM_KEY, String(z)); } catch { /* بی‌اثر */ }
   }, []);
 
+  /** مستطیل نوار برای یک نشان (از بازهٔ مدل، نه از المان‌های DOM) */
+  const rectOfMark = React.useCallback((mid: string): BarRect | null => {
+    const m = getModel();
+    const r = m?.byId.get(mid);
+    if (!m || !r) return null;
+    const box = spanBox(m, r.secId, r.s, r.e);
+    return box ? toBarRect(box, articleRef.current, zoomRef.current) : null;
+  }, [getModel]);
+
   React.useEffect(() => {
     if (ctx?.lesson && ctx.lesson.status !== "ai-pending") openLesson(id);
      
@@ -349,82 +372,58 @@ export function LearnView({ id }: { id: string }) {
   // ── گیت لود تنبل محتوا: متن جلسه‌های داخلی به‌محض باز شدن از شبکه می‌آید ──
   const textState = useLessonContent(ctx?.lesson);
 
-  // ── رندر نشان‌های ذخیره‌شده روی DOM (بعد از هر تغییر مرتبط) ──
-  // گارد امضا: اگر همان نشان‌ها با همان رنگ/متن سالم روی همین DOM هستند، دست
-  // نمی‌زنیم — چون unwrap/rewrap نودهای متنی را عوض می‌کند و انتخاب بومیِ
-  // دستگیره‌های موبایل (در حال کشیدن) از بین می‌رود. تغییر محتوا (طول متن) یا
-  // نشان‌های ناموجود در DOM → اعمال دوباره، مثل قبل.
+  // ── رنگ‌آمیزی نشان‌ها بعد از هر رندر — فقط وقتی نشان‌ها یا DOM عوض شده باشد ──
   React.useLayoutEffect(() => {
+    marksRef.current = marksForLesson;
     const root = articleRef.current;
-    if (!root) return;
-    const sectionEls = new Map<string, Element>();
-    root.querySelectorAll("[data-sec-id]").forEach((el) => {
-      const sid = el.getAttribute("data-sec-id");
-      if (sid) sectionEls.set(sid, el);
-    });
-    if (!sectionEls.size) return;
-    const sig =
-      marksForLesson.map((m) => `${m.id}|${m.color}|${m.text}`).join("§") +
-      "#" + (root.textContent?.length ?? 0);
-    const allPresent = marksForLesson.every((m) =>
-      root.querySelector(`mark[data-lexa-mark][data-mid="${CSS.escape(m.id)}"]`));
-    if (root.getAttribute("data-marks-sig") === sig && allPresent) return;
-    applyMarksToSections(sectionEls, marksForLesson);
-    root.setAttribute("data-marks-sig", sig);
-  }); // بدون آرگومان — اما با گارد امضا؛ اعمال فقط وقتی لازم است
+    if (!root) { modelRef.current = null; return; }
+    const sig = marksForLesson.map((m) => `${m.id}|${m.color}|${m.secId}|${m.text}|${m.occ ?? 0}`).join("§");
+    if (sig === paintSigRef.current && modelFresh(modelRef.current, root)) return;
+    paintSigRef.current = sig;
+    modelRef.current = paintMarks(buildModel(root, marksForLesson), overrideRef.current);
+  });
 
-  // ── تشخیص انتخاب متن → نوار ابزار نشان‌گذاری ──
-  // انتخابِ روی یک نشان موجود → همان نشان «ویرایش» می‌شود؛ انتخاب روی متن ساده →
-  // «نشان جدید». انتخاب همیشه از خود کاربر می‌آید (لمس طولانی/کشیدن).
+  // نوار ویرایش همراه نشان جابه‌جا می‌شود؛ نشان حذف‌شده = نوار بسته
+  React.useEffect(() => {
+    const cur = markBarRef.current;
+    if (!cur || cur.mode !== "edit") return;
+    const rect = rectOfMark(cur.markId);
+    if (!rect) { setBar(null); return; }
+    if (Math.abs(rect.top - cur.rect.top) > 1 || Math.abs(rect.centerX - cur.rect.centerX) > 1) setBar({ ...cur, rect });
+  }, [marksForLesson, zoom, rectOfMark, setBar]);
+
+  // ── انتخاب متن → نوار رنگ‌ها؛ تپ روی نشان → نوار ویرایش + دستگیره‌ها ──
   React.useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     function check() {
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
       const range = sel.getRangeAt(0);
-      const anchor = range.startContainer.parentElement ?? null;
+      const sc = range.startContainer;
+      const anchor = sc.nodeType === Node.TEXT_NODE ? sc.parentElement : (sc as Element);
       const root = articleRef.current;
-      if (!anchor || !root || !root.contains(anchor)) return;
-      if (!isSelectableNode(anchor)) return;
-      const { secEl, secId } = secIdOf(anchor);
-      if (!secEl || !secId) return;
-      const located = locateSelection(secEl, range);
-      if (!located) return;
+      if (!anchor || !root || !root.contains(anchor) || !isSelectableNode(anchor)) return;
+      const model = getModel();
+      if (!model) return;
+      const sp = selectionSpan(model, range);
+      if (!sp) return;
       const r = range.getBoundingClientRect();
       if (!r || (!r.width && !r.height)) return;
-      const rect = toBarRect(r, root, zoomRef.current);
-      // نشانِ جمله‌ای چند قطعهٔ <mark> با یک id دارد — با «id» یکتا شمارش می‌شود
-      const hitIds = new Set(
-        Array.from(secEl.querySelectorAll("mark[data-lexa-mark]"))
-          .filter((mk) => range.intersectsNode(mk))
-          .map((mk) => (mk as HTMLElement).dataset?.mid)
-          .filter((v): v is string => !!v),
-      );
-      if (hitIds.size === 1) {
-        const mid = [...hitIds][0];
-        const mark = marksForLesson.find((m) => m.id === mid);
-        if (mark) {
-          setBar({ mode: "edit", markId: mark.id, secId: mark.secId, text: located.text, occ: located.occ, pfx: located.pfx, sfx: located.sfx, rect });
-          return;
-        }
-      }
-      setBar({ mode: "new", rect, text: located.text, secId, occ: located.occ, pfx: located.pfx, sfx: located.sfx });
+      setBar({
+        mode: "new",
+        secId: sp.secId,
+        s: sp.s,
+        e: sp.e,
+        rect: toBarRect(r, root, zoomRef.current),
+        overlaps: spanOverlapsMarks(model, sp.secId, sp.s, sp.e),
+      });
     }
     function settle() {
       timer = null;
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
-        const cur = markBarRef.current;
-        // نوارِ بازشده با لمسِ نشان هیچ ربطی به انتخاب بومی ندارد: وب‌ویو اندروید
-        // بعد از تپ، انتخاب را جمع/پاک می‌کند (گاهی بدون هیچ range) و همین
-        // selectionchange قبلاً نوار را درجا می‌بست. بستن فقط با تپ بیرون از نوار.
-        if (cur && cur.mode === "edit" && cur.via === "tap") return;
-        if (cur && cur.mode === "edit" && sel && sel.rangeCount > 0) {
-          const node = sel.anchorNode;
-          const el = node ? (node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element)) : null;
-          const mid = el?.closest?.("mark[data-lexa-mark]")?.getAttribute("data-mid");
-          if (mid && mid === cur.markId) return;
-        }
+        // نوار لمسی نشان هیچ ربطی به انتخاب بومی ندارد — فقط با تپ بیرون بسته می‌شود
+        if (markBarRef.current?.mode === "edit") return;
         setBar(null);
         return;
       }
@@ -435,9 +434,7 @@ export function LearnView({ id }: { id: string }) {
       timer = setTimeout(settle, 260);
     }
 
-    // ── 0.10.12: تپ واقعی — باز/بستن نوار فقط با لمس کوتاه بی‌حرکت ──
-    // قبلاً هر pointerdown بیرون از نوار همه‌چیز را می‌بست: شروع اسکرول برای دیدن ادامهٔ
-    // جمله، یا لمسِ چند پیکسل کنارِ دستگیره، دستگیره‌ها را درجا غیب می‌کرد.
+    // تپ واقعی = لمس کوتاه بی‌حرکت؛ اسکرول و لمس طولانی چیزی را نمی‌بندد/باز نمی‌کند
     let down: { x: number; y: number; t: number; id: number } | null = null;
     function onPointerDown(e: PointerEvent) {
       const t = e.target as Element | null;
@@ -448,34 +445,28 @@ export function LearnView({ id }: { id: string }) {
       const d = down;
       down = null;
       if (!d || d.id !== e.pointerId) return;
-      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return; // اسکرول/کشیدن بود، نه تپ
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP) return;
       const t = e.target as Element | null;
       if (t?.closest?.("[data-mark-toolbar]")) return;
       const root = articleRef.current;
       const sel = window.getSelection();
       const hasSel = !!sel && sel.rangeCount > 0 && !sel.isCollapsed;
-      // تپ روی یک نشان → نوار ویرایش + دستگیره‌ها (مستقل از click که روی وب‌ویو گاهی نمی‌رسد)
-      const mk = t?.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
-      if (mk && root && root.contains(mk) && !hasSel && Date.now() - d.t < TAP_MAX_MS) {
-        const mid = mk.dataset.mid;
-        const mark = mid ? marksForLesson.find((m) => m.id === mid) : undefined;
-        if (mark) {
+      if (root && t && root.contains(t) && !hasSel && Date.now() - d.t < TAP_MAX_MS && isSelectableNode(t)) {
+        const model = getModel();
+        const hit = model ? hitTest(model, e.clientX, e.clientY, zoomRef.current) : null;
+        if (hit) {
           const cur = markBarRef.current;
-          if (cur && cur.mode === "edit" && cur.via === "tap" && cur.markId === mark.id) return;
-          const rect = markRectOf(root, mark.id, zoomRef.current);
+          if (cur && cur.mode === "edit" && cur.markId === hit.id) return;
+          const rect = rectOfMark(hit.id);
           if (rect) {
-            setBar({
-              mode: "edit", via: "tap", markId: mark.id, secId: mark.secId, text: mark.text,
-              occ: mark.occ, pfx: mark.pfx, sfx: mark.sfx, rect,
-            });
+            setBar({ mode: "edit", markId: hit.id, rect });
             return;
           }
         }
       }
       const cur = markBarRef.current;
       if (!cur) return;
-      // نوارِ انتخاب بومی را selectionchange مدیریت می‌کند
-      if ((cur.mode === "new" || cur.via !== "tap") && hasSel) return;
+      if (cur.mode === "new" && hasSel) return; // نوار انتخاب بومی را selectionchange مدیریت می‌کند
       setBar(null);
     }
     function onPointerCancel() {
@@ -484,14 +475,11 @@ export function LearnView({ id }: { id: string }) {
     function onScroll() {
       setBar((cur) => {
         if (!cur) return cur;
-        if (cur.mode === "new") return null;
-        if (cur.via === "tap") {
-          // نوار همراه خود نشان جابه‌جا می‌شود
-          const nr = markRectOf(articleRef.current, cur.markId, zoomRef.current);
+        if (cur.mode === "edit") {
+          const nr = rectOfMark(cur.markId);
           if (nr && Math.abs(nr.top - cur.rect.top) > 4) return { ...cur, rect: nr };
           return cur;
         }
-        // ویرایش با انتخاب بومی: نوار با انتخاب زنده جابه‌جا می‌شود
         const sel = window.getSelection();
         if (sel && sel.rangeCount && !sel.isCollapsed) {
           const r = sel.getRangeAt(0).getBoundingClientRect();
@@ -501,7 +489,7 @@ export function LearnView({ id }: { id: string }) {
           }
           return cur;
         }
-        return cur;
+        return null;
       });
     }
     document.addEventListener("selectionchange", onChange);
@@ -517,53 +505,7 @@ export function LearnView({ id }: { id: string }) {
       document.removeEventListener("pointercancel", onPointerCancel, true);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [secIdOf, marksForLesson, setBar]);
-
-  /** آخرین وضعیت انتخاب زنده — برای ذخیرهٔ بی‌وقفهٔ بازهٔ کشیده‌شده با دستگیره‌ها */
-  const getLiveSelection = React.useCallback((): { text: string; occ: number; pfx: string; sfx: string; secId: string } | null => {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
-    const range = sel.getRangeAt(0);
-    const anchor = range.startContainer.parentElement ?? null;
-    const root = articleRef.current;
-    if (!anchor || !root || !root.contains(anchor)) return null;
-    if (!isSelectableNode(anchor)) return null;
-    const { secEl, secId } = secIdOf(anchor);
-    if (!secEl || !secId) return null;
-    const located = locateSelection(secEl, range);
-    return located ? { ...located, secId } : null;
-  }, [secIdOf]);
-
-  // ── لمس/کلیک روی نشان موجود → نوار ویرایش + دستگیره‌های سر و ته نشان ──
-  // انتخابِ برنامه‌ای هرگز ساخته نمی‌شود؛ نوار با via: "tap" از selectionchange
-  // مستقل است و فقط با تپ بیرون از نوار/دستگیره بسته می‌شود.
-  // (روی لمسی، pointerup همین کار را زودتر کرده است — اینجا تکرار نمی‌شود.)
-  function handleArticleClick(e: React.MouseEvent) {
-    const target = e.target as Element;
-    const mk = target.closest?.("mark[data-lexa-mark]") as HTMLElement | null;
-    if (!mk) return;
-    const sel = window.getSelection();
-    if (sel && !sel.isCollapsed) return; // انتخاب دستی فعال است — selectionchange خودش نوار را می‌سازد
-    const mid = mk.dataset.mid;
-    if (!mid) return;
-    const cur = markBarRef.current;
-    if (cur && cur.mode === "edit" && cur.via === "tap" && cur.markId === mid) return;
-    const mark = marksForLesson.find((m) => m.id === mid);
-    if (!mark) return;
-    const rect = markRectOf(articleRef.current, mid, zoom);
-    if (!rect) return;
-    setBar({
-      mode: "edit",
-      via: "tap",
-      markId: mid,
-      secId: mark.secId,
-      text: mark.text,
-      occ: mark.occ,
-      pfx: mark.pfx,
-      sfx: mark.sfx,
-      rect,
-    });
-  }
+  }, [getModel, rectOfMark, setBar]);
 
   if (!ctx) return <LessonNotFoundGrace />;
 
@@ -655,6 +597,49 @@ export function LearnView({ id }: { id: string }) {
     setTimeout(() => {
       document.getElementById(`sec-${visibleCount}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 60);
+  }
+
+  // ── کنش‌های نوار نشان ──
+  function clearNativeSelection() {
+    try { window.getSelection()?.removeAllRanges(); } catch { /* بی‌اثر */ }
+  }
+  function pickNew(color: string) {
+    const bar = markBarRef.current;
+    const model = getModel();
+    if (bar && bar.mode === "new" && model) writePlan(planCommit(model, bar.secId, bar.s, bar.e, color, newMarkId()));
+    clearNativeSelection();
+    setBar(null);
+  }
+  function eraseNew() {
+    const bar = markBarRef.current;
+    const model = getModel();
+    if (bar && bar.mode === "new" && model) writePlan(planErase(model, bar.secId, bar.s, bar.e));
+    clearNativeSelection();
+    setBar(null);
+  }
+  function copyNew(): string {
+    const bar = markBarRef.current;
+    const model = getModel();
+    if (bar && bar.mode === "new" && model) return spanText(model, bar.secId, bar.s, bar.e);
+    return window.getSelection()?.toString() ?? "";
+  }
+  function pickEdit(color: string) {
+    const bar = markBarRef.current;
+    const model = getModel();
+    const r = bar && bar.mode === "edit" ? model?.byId.get(bar.markId) : undefined;
+    if (model && r) writePlan(planCommit(model, r.secId, r.s, r.e, color, r.id));
+    setBar(null);
+  }
+  function copyEdit(): string {
+    const bar = markBarRef.current;
+    const model = getModel();
+    const r = bar && bar.mode === "edit" ? model?.byId.get(bar.markId) : undefined;
+    return model && r ? spanText(model, r.secId, r.s, r.e) : "";
+  }
+  function removeEdit() {
+    const bar = markBarRef.current;
+    if (bar && bar.mode === "edit") removeMark(id, bar.markId);
+    setBar(null);
   }
 
   const Sidebar = (
@@ -889,7 +874,6 @@ export function LearnView({ id }: { id: string }) {
           ref={articleRef}
           className="space-y-6"
           style={{ display: tab === "teach" ? undefined : "none", WebkitTouchCallout: "none", zoom, position: "relative" } as React.CSSProperties}
-          onClick={handleArticleClick}
           // منوی انتخاب پیش‌فرض مرورگر/وب‌ویو (کپی/انتخاب همه/…) حذف می‌شود تا
           // فقط نوار خود اپ (نشان‌گذاری + کپی) بالا بیاید — درخواست کاربر نسخهٔ اندروید
           onContextMenu={(e) => e.preventDefault()}
@@ -1048,45 +1032,40 @@ export function LearnView({ id }: { id: string }) {
         </div>
       )}
 
-      {/* نوار ابزار نشان‌گذاری متن — پنج رنگ یا ویرایش/حذف/تنظیم بازهٔ نشان موجود */}
+      {/* نوار ابزار نشان‌گذاری — رنگ روی بازهٔ انتخاب‌شده یا ویرایش نشان لمس‌شده */}
       {markBar && markBar.mode === "new" && (
         <MarkToolbar
           mode="new"
           rect={markBar.rect}
-          lessonId={id}
-          text={markBar.text}
-          secId={markBar.secId}
-          occ={markBar.occ}
-          pfx={markBar.pfx}
-          sfx={markBar.sfx}
-          onDone={() => setBar(null)}
+          canErase={markBar.overlaps}
+          onPick={pickNew}
+          onCopy={copyNew}
+          onErase={eraseNew}
+          onDone={() => { clearNativeSelection(); setBar(null); }}
         />
       )}
       {markBar && markBar.mode === "edit" && !markDragging && (
         <MarkToolbar
           mode="edit"
           rect={markBar.rect}
-          lessonId={id}
-          markId={markBar.markId}
-          secId={markBar.secId}
-          text={markBar.text}
-          occ={markBar.occ}
-          pfx={markBar.pfx}
-          sfx={markBar.sfx}
-          getLive={getLiveSelection}
+          activeColor={editMarkColor}
+          onPick={pickEdit}
+          onCopy={copyEdit}
+          onRemove={removeEdit}
           onDone={() => setBar(null)}
         />
       )}
-      {/* دستگیره‌های سر و ته نشان — فقط وقتی نوار با لمس نشان باز شده (نه همزمان با دستگیرهٔ بومی) */}
-      {markBar && markBar.mode === "edit" && markBar.via === "tap" && tab === "teach" && (
+      {/* دستگیره‌های سر و ته نشان لمس‌شده */}
+      {markBar && markBar.mode === "edit" && tab === "teach" && (
         <MarkHandles
           key={markBar.markId}
           rootRef={articleRef}
-          lessonId={id}
           markId={markBar.markId}
           color={editMarkColor}
           zoom={zoom}
           version={marksForLesson}
+          getModel={getModel}
+          onPreview={setPreview}
           onDragChange={setMarkDragging}
           onCommit={onHandlesCommit}
         />
