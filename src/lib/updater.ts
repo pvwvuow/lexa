@@ -19,7 +19,7 @@ import type { ExamPack } from "@/lib/law/examPacks";
 import { registerDynamicExamPack } from "@/lib/law/examPacks";
 import { useApp } from "@/lib/store";
 
-/* ─── پیکربندی مخزن ──────────────────────────────────────────────────────── */
+/* ─── پیکربندی مخزن ────────────────────────────────────────────────────────────────────── */
 
 const REPO = "pvwvuow/lexa";
 const BRANCH = "main";
@@ -44,7 +44,7 @@ function sourceUrls(relPath: string): string[] {
   ];
 }
 
-/* ─── تایپ‌ها ─────────────────────────────────────────────────────────────── */
+/* ─── تایپ‌ها ───────────────────────────────────────────────────────────────────────── */
 
 export type ContentPackKind = "course" | "examPack";
 
@@ -92,14 +92,14 @@ export interface PackStatus {
   outdated: boolean;
 }
 
-/* ─── کلیدهای ذخیره‌سازی ─────────────────────────────────────────────────── */
+/* ─── کلیدهای ذخیره‌سازی ───────────────────────────────────────────────────────────────── */
 
 export const CONTENT_PACKS_STORE = "lexa-content-packs"; // استور IndexedDB
 const CONTENT_DB_NAME = "lexa-content-db";
 const LAST_CHECK_KEY = "lexa-updates-last-check";
 const MANIFEST_CACHE_KEY = "lexa-updates-manifest";
 
-/* ─── IndexedDB — لایهٔ ذخیرهٔ بسته‌ها ────────────────────────────────────── */
+/* ─── IndexedDB — لایهٔ ذخیرهٔ بسته‌ها ───────────────────────────────────────────────────────── */
 
 function openContentDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -115,15 +115,19 @@ function openContentDb(): Promise<IDBDatabase> {
   });
 }
 
+/** عملیات روی انبار بسته‌ها — نتیجه فقط پس از commit کامل تراکنش (نه onsuccess درخواست) */
 async function withStore<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest): Promise<T> {
   const db = await openContentDb();
   try {
-    const tx = db.transaction(CONTENT_PACKS_STORE, mode);
-    const store = tx.objectStore(CONTENT_PACKS_STORE);
     return await new Promise<T>((resolve, reject) => {
-      const req = fn(store);
-      req.onsuccess = () => resolve(req.result as T);
+      const tx = db.transaction(CONTENT_PACKS_STORE, mode);
+      let result: T | undefined;
+      const req = fn(tx.objectStore(CONTENT_PACKS_STORE));
+      req.onsuccess = () => { result = req.result as T; };
       req.onerror = () => reject(req.error ?? new Error("عملیات IndexedDB ناموفق بود"));
+      tx.oncomplete = () => resolve(result as T);
+      tx.onerror = () => reject(tx.error ?? new Error("عملیات IndexedDB ناموفق بود"));
+      tx.onabort = () => reject(tx.error ?? new Error("تراکنش IndexedDB ناتمام ماند"));
     });
   } finally {
     db.close();
@@ -149,7 +153,7 @@ async function deleteInstalledPack(id: string): Promise<void> {
   await withStore("readwrite", (s) => s.delete(id));
 }
 
-/* ─── دانلود با fallback ─────────────────────────────────────────────────── */
+/* ─── دانلود با fallback ───────────────────────────────────────────────────────────────── */
 
 async function fetchJsonWithFallback<T>(relPath: string, maxBytes = MAX_PACK_BYTES): Promise<T> {
   const urls = sourceUrls(relPath);
@@ -173,7 +177,21 @@ async function fetchJsonWithFallback<T>(relPath: string, maxBytes = MAX_PACK_BYT
   throw lastErr instanceof Error ? lastErr : new Error("دانلود از همهٔ منابع ناموفق بود");
 }
 
-/* ─── مانیفست ─────────────────────────────────────────────────────────────── */
+/* ─── مانیفست ───────────────────────────────────────────────────────────────────────── */
+
+/** اعتبارسنجی یک ردیف مانیفست — ردیف خراب نباید صفحهٔ به‌روزرسانی را بشکند */
+function validPackMeta(p: unknown): p is UpdatePackMeta {
+  if (!p || typeof p !== "object") return false;
+  const x = p as Record<string, unknown>;
+  return (
+    typeof x.id === "string" && x.id.length > 0 &&
+    (x.kind === "course" || x.kind === "examPack") &&
+    typeof x.version === "string" && x.version.length > 0 &&
+    typeof x.title === "string" &&
+    typeof x.file === "string" && x.file.length > 0 &&
+    !x.file.split("/").includes("..")
+  );
+}
 
 /** اعتبارسنجی ساختاری مانیفست — جلوی JSON خراب/بدخیم را می‌گیرد */
 function validManifest(m: unknown): m is UpdateManifest {
@@ -182,11 +200,16 @@ function validManifest(m: unknown): m is UpdateManifest {
   return typeof o.version === "string" && Array.isArray(o.packs);
 }
 
+/** ردیف‌های نامعتبر مانیفست حذف می‌شوند؛ بقیه سالم می‌مانند */
+function sanitizeManifest(m: UpdateManifest): UpdateManifest {
+  return { ...m, packs: (m.packs as unknown[]).filter(validPackMeta) };
+}
+
 /** دریافت مانیفست به‌روز از مخزن (jsDelivr → raw → محلی) */
 export async function fetchManifest(): Promise<UpdateManifest> {
   const m = await fetchJsonWithFallback<unknown>("manifest.json");
   if (!validManifest(m)) throw new Error("مانیفست نامعتبر است");
-  return m;
+  return sanitizeManifest(m);
 }
 
 /** مانیفست کش‌شدهٔ آخرین بررسی موفق (برای نمایش بدون شبکه) */
@@ -195,7 +218,7 @@ export function cachedManifest(): UpdateManifest | null {
     const raw = localStorage.getItem(MANIFEST_CACHE_KEY);
     if (!raw) return null;
     const m = JSON.parse(raw);
-    return validManifest(m) ? m : null;
+    return validManifest(m) ? sanitizeManifest(m) : null;
   } catch {
     return null;
   }
@@ -209,30 +232,46 @@ export function lastCheckAt(): number {
   }
 }
 
-/* ─── اعتبارسنجی payload بسته ────────────────────────────────────────────── */
+/* ─── اعتبارسنجی payload بسته ────────────────────────────────────────────────────────────────── */
 
+/** دوره: هر فصل شیء با آرایهٔ lessons و هر جلسه شیء با شناسه — وگرنه خانه/فهرست کرش می‌کند */
 function validCourse(c: unknown): c is Course {
   if (!c || typeof c !== "object") return false;
   const o = c as Record<string, unknown>;
-  return (
-    typeof o.id === "string" &&
-    typeof o.title === "string" &&
-    Array.isArray(o.chapters)
-  );
+  if (typeof o.id !== "string" || typeof o.title !== "string" || !Array.isArray(o.chapters)) return false;
+  return (o.chapters as unknown[]).every((ch) => {
+    if (!ch || typeof ch !== "object") return false;
+    const x = ch as Record<string, unknown>;
+    if (!Array.isArray(x.lessons)) return false;
+    return (x.lessons as unknown[]).every((l) => {
+      if (!l || typeof l !== "object") return false;
+      const y = l as Record<string, unknown>;
+      return typeof y.id === "string" && (y.sections === undefined || Array.isArray(y.sections));
+    });
+  });
 }
 
+/** دفترچه: دست‌کم یک سؤال؛ سؤال‌های تستی باید گزینه داشته باشند (اجرای دفترچهٔ خالی کرش می‌کرد) */
 function validExamPack(p: unknown): p is ExamPack {
   if (!p || typeof p !== "object") return false;
   const o = p as Record<string, unknown>;
-  return (
-    typeof o.id === "string" &&
-    typeof o.title === "string" &&
-    (o.kind === "mcq" || o.kind === "descriptive") &&
-    Array.isArray(o.questions)
-  );
+  if (
+    typeof o.id !== "string" ||
+    typeof o.title !== "string" ||
+    (o.kind !== "mcq" && o.kind !== "descriptive") ||
+    !Array.isArray(o.questions) ||
+    o.questions.length === 0
+  ) return false;
+  return (o.questions as unknown[]).every((q) => {
+    if (!q || typeof q !== "object") return false;
+    const x = q as Record<string, unknown>;
+    if (typeof x.q !== "string") return false;
+    if (o.kind === "mcq") return Array.isArray(x.options) && x.options.length > 0;
+    return true;
+  });
 }
 
-/* ─── ادغام در اپ ─────────────────────────────────────────────────────────── */
+/* ─── ادغام در اپ ───────────────────────────────────────────────────────────────────────── */
 
 function mergeIntoApp(inst: InstalledPack) {
   if (inst.meta.kind === "examPack" && validExamPack(inst.payload)) {
@@ -251,7 +290,7 @@ function unmergeFromApp(inst: InstalledPack) {
   // دفترچهٔ آزمون: unregisterDynamicExamPack در examPacks.ts
 }
 
-/* ─── نصب / حذف / به‌روزرسانی ─────────────────────────────────────────────── */
+/* ─── نصب / حذف / به‌روزرسانی ───────────────────────────────────────────────────────────────── */
 
 /**
  * نصب (یا ارتقای) یک بسته از مانیفست:
@@ -299,13 +338,13 @@ export async function removePack(packId: string): Promise<void> {
 /** وضعیت هر بستهٔ مانیفست نسبت به نصب‌شده‌ها */
 export function buildStatuses(manifest: UpdateManifest, installed: InstalledPack[]): PackStatus[] {
   const byId = new Map(installed.map((p) => [p.meta.id, p]));
-  const rows: PackStatus[] = manifest.packs.map((meta) => {
+  const rows: PackStatus[] = manifest.packs.filter(validPackMeta).map((meta) => {
     const inst = byId.get(meta.id) ?? null;
     const outdated = !!inst && inst.meta.version !== meta.version;
     return { meta, installed: inst, outdated };
   });
   // بسته‌های نصب‌شده که دیگر در مانیفست نیستند — هنوز نصب‌اند و قابل حذف
-  const known = new Set(manifest.packs.map((p) => p.id));
+  const known = new Set(manifest.packs.map((p) => p?.id));
   for (const inst of installed) {
     if (!known.has(inst.meta.id)) {
       rows.push({ meta: inst.meta, installed: inst, outdated: false });
@@ -366,8 +405,10 @@ function getPackUpdateSnapshot(): PackUpdateSnapshot {
 }
 
 /** هوک React — نقشهٔ courseId → اطلاعات به‌روزرسانی در انتظار نصب */
+const EMPTY_SNAPSHOT: PackUpdateSnapshot = {};
 export function usePackUpdates(): PackUpdateSnapshot {
-  return React.useSyncExternalStore(subscribePackUpdates, getPackUpdateSnapshot, () => ({}));
+  // اسنپ‌شات سرور باید مرجع ثابت باشد — شیء تازه در هر فراخوانی حلقهٔ رندر می‌سازد
+  return React.useSyncExternalStore(subscribePackUpdates, getPackUpdateSnapshot, () => EMPTY_SNAPSHOT);
 }
 
 /** مقایسهٔ مانیفست با نصب‌شده‌ها و ثبت نشانگرها */
@@ -423,7 +464,7 @@ export async function applyCourseUpdate(courseId: string): Promise<string | null
   return meta.notes ?? null;
 }
 
-/* ─── استارتاپ ────────────────────────────────────────────────────────────── */
+/* ─── استارتاپ ────────────────────────────────────────────────────────────────────────── */
 
 let started = false;
 /** کلید کلید‌زرخشک نصب خودکار — اگر «off» باشد رفتار قدیمی (نصب دستی) می‌ماند */
@@ -514,7 +555,7 @@ export async function checkForUpdates(): Promise<UpdateManifest> {
   return m;
 }
 
-/* ─── کمکی‌های نمایشی ─────────────────────────────────────────────────────── */
+/* ─── کمکی‌های نمایشی ─────────────────────────────────────────────────────────────────── */
 
 /** نسخهٔ نصب‌شدهٔ یک بسته یا خالی */
 export function installedVersionOf(statuses: PackStatus[], id: string): string | null {
