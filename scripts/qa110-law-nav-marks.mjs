@@ -20,6 +20,8 @@ const errors = [];
 
 /* ══ بخش الف — موبایل: پرش به ماده + نوارِ تعقیب‌کننده ══ */
 const mob = await browser.newPage({ viewport: { width: 390, height: 844 } });
+// marks v2: شبیه‌سازی وب‌ویو قدیمی — مسیر فال‌بک DOM (بدون Highlight API)
+await mob.context().addInitScript(() => { try { Reflect.deleteProperty(window, "Highlight"); } catch {} });
 mob.on("pageerror", (e) => errors.push("mob pageerror: " + String(e)));
 mob.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push("mob: " + m.text()); });
 
@@ -110,6 +112,7 @@ await mob.close();
 /* ══ بخش ب — دسکتاپ: ویرایش ایندکسی نشان ══ */
 console.log("── ۴) ویرایش ایندکسی نشان (اسنپ/عبور/اسکرول لبه) ──");
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
+await page.context().addInitScript(() => { try { Reflect.deleteProperty(window, "Highlight"); } catch {} });
 page.on("pageerror", (e) => errors.push("pageerror: " + String(e)));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push(m.text()); });
 

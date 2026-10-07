@@ -24,6 +24,8 @@ const errors = [];
 
 /* ═══ دسکتاپ — درس، مارک، پاپ‌آپ، لنگر، بازه ═══ */
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
+// marks v2: شبیه‌سازی وب‌ویو قدیمی — مسیر فال‌بک DOM (بدون Highlight API)
+await page.context().addInitScript(() => { try { Reflect.deleteProperty(window, "Highlight"); } catch {} });
 page.on("pageerror", (e) => errors.push("pageerror: " + String(e)));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push(m.text()); });
 
@@ -124,7 +126,7 @@ ok("نشان در DOM رندر شد", !!marked);
 ok(`متن نشان = کلمهٔ انتخابی («${marked?.text?.trim()}» === «${picked.word}»)`, marked?.text?.trim() === picked.word);
 ok("لنگر متنی ذخیره شد (pfx/sfx)", !!marked?.rec?.pfx || !!marked?.rec?.sfx, JSON.stringify(marked?.rec ?? {}));
 ok("occ نشان = ۰ (اولین وقوع)", marked?.rec?.occ === 0 || marked?.rec?.occ === undefined);
-const recId = marked?.mid;
+let recId = marked?.mid; // marks v2: رنگ روی انتخابِ بزرگ‌شده نشانِ تازه با id نو می‌سازد — در طول تست به‌روز می‌شود
 
 // کلیک استاندارد روی نشان — با اسکرول فوری به مرکز و retry
 async function clickMark(id) {
@@ -229,15 +231,19 @@ await page.waitForTimeout(500); // دیبانس selectionchange
 ok("نوار ویرایش پس از گسترش هنوز باز است", await page.locator('[data-mark-toolbar][role="toolbar"]').isVisible());
 await page.locator("[data-mark-toolbar] button[title='رنگ نشان']").first().click();
 await page.waitForTimeout(600);
-const grown = await page.evaluate((id) => {
-  const mk = document.querySelector(`article mark[data-lexa-mark][data-mid='${id}']`);
+// marks v2: انتخاب بزرگ‌شده + رنگ = نشانِ تازه روی کل انتخاب (id نو، قدیمی تراش می‌خورد — هم‌پوشان‌امن)
+const grown = await page.evaluate((t0) => {
+  const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
   const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
   const list = store?.state?.marks?.["m-l1-1"] ?? [];
-  return { dom: mk ? mk.textContent.trim() : null, rec: (list.find((m) => m.id === id) ?? {}).text };
-}, recId);
+  const rec = list.find((m) => norm(m.text).startsWith(t0) && norm(m.text).length > t0.length);
+  const domTexts = [...document.querySelectorAll("article mark[data-lexa-mark]")].map((el) => norm(el.textContent));
+  return { rec: rec ? norm(rec.text) : null, id: rec?.id ?? null, domMatch: rec ? domTexts.includes(norm(rec.text)) : false };
+}, t0);
 const grewEnd = grown.rec && grown.rec.startsWith(t0) && grown.rec.length > t0.length;
 ok(`کشیدن دستگیره + رنگ، مارک را از انتها بزرگ کرد («${t0}» → «${grown.rec}»)`, !!grewEnd);
-ok("DOM نشان هم متن بزرگ‌شده را دارد", grown.dom === grown.rec);
+ok("DOM نشان هم متن بزرگ‌شده را دارد", grown.domMatch);
+if (grown.id) recId = grown.id;
 
 // ── کوچک‌سازی با دستگیره — کشیدن انتهای انتخاب به عقب (فقط کلمهٔ اصلی) ──
 await clickMark(recId);
@@ -268,18 +274,43 @@ await page.evaluate(({ id, word }) => {
 await page.waitForTimeout(500);
 await page.locator("[data-mark-toolbar] button[title='رنگ نشان']").first().click();
 await page.waitForTimeout(600);
-const shrunk = await page.evaluate((id) => {
+// marks v2: انتخاب جمع‌شده + رنگ = بازهٔ کوچک‌شده با id نو — lookup بر اساس متن
+const shrunkInfo = await page.evaluate((t0) => {
   const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
-  return (store?.state?.marks?.["m-l1-1"] ?? []).find((m) => m.id === id)?.text ?? "";
-}, recId);
-ok(`کشیدن دستگیره به عقب، بازه را کوچک کرد («${shrunk}»)`, shrunk === t0, `rec=${shrunk}`);
+  const list = store?.state?.marks?.["m-l1-1"] ?? [];
+  const rec = list.find((m) => (m.text || "").replace(/\s+/g, " ").trim() === t0);
+  return { text: rec ? rec.text : "", id: rec?.id ?? null };
+}, t0);
+if (shrunkInfo.id) recId = shrunkInfo.id;
+ok(`کشیدن دستگیره به عقب، بازه را کوچک کرد («${shrunkInfo.text}»)`, shrunkInfo.text === t0, `rec=${shrunkInfo.text}`);
 
 // ── حذف نشان از نوار ویرایش ──
 await clickMark(recId);
+{
+  const dbg = await page.evaluate(() => {
+    const tb = document.querySelector("[data-mark-toolbar][role='toolbar']");
+    const store = JSON.parse(localStorage.getItem("lexa-store-v1") || "{}");
+    const list = store?.state?.marks?.["m-l1-1"] ?? [];
+    return { hasTb: !!tb, delBtn: !!tb?.querySelector("button[aria-label='حذف نشان']"), ids: list.map((m) => m.id), want: list.length };
+  });
+  console.log("    [del-dbg]", JSON.stringify(dbg));
+}
 await page.locator("[data-mark-toolbar] button[aria-label='حذف نشان']").click();
 await page.waitForTimeout(500);
-const afterDel = await page.evaluate((id) => (JSON.parse(localStorage.getItem("lexa-store-v1") || "{}")?.state?.marks?.["m-l1-1"] ?? []).length);
-ok("حذف نشان از نوار ویرایش کار می‌کند", afterDel === 0, `marks=${afterDel}`);
+// marks v2: carve هم‌پوشان‌امن — دنبالهٔ بازهٔ بزرگ‌شدهٔ قبلی با همان id قدیمی زنده می‌ماند
+const afterDel = await page.evaluate((id) => {
+  const list = (JSON.parse(localStorage.getItem("lexa-store-v1") || "{}")?.state?.marks?.["m-l1-1"]) ?? [];
+  return { ids: list.map((m) => m.id), gone: !list.some((m) => m.id === id) };
+}, recId);
+ok("حذف نشان از نوار ویرایش کار می‌کند (خودِ نشان از استور رفت)", afterDel.gone && afterDel.ids.length <= 1, JSON.stringify(afterDel));
+// پاک‌سازی دنبالهٔ carve با UI — تا بخش‌های بعدی از حالت تمیز شروع شوند (فرض v1)
+for (const mid of afterDel.ids) {
+  await clickMark(mid);
+  await page.locator("[data-mark-toolbar] button[aria-label='حذف نشان']").click();
+  await page.waitForTimeout(400);
+}
+const cleanState = await page.evaluate(() => ((JSON.parse(localStorage.getItem("lexa-store-v1") || "{}")?.state?.marks?.["m-l1-1"]) ?? []).length);
+ok("پاک‌سازی دنبالهٔ carve — استور تمیز", cleanState === 0, `marks=${cleanState}`);
 
 // ── ۹) نشان جمله‌ای (چندقطعه‌ای) — باگ «پاپ‌آپ می‌آمد و درجا غیب می‌شد» ──
 // جمله‌ای که از دُم پاراگراف اول شروع و سر پاراگراف دوم تمام می‌شود → چند قطعهٔ <mark> با یک id
@@ -583,6 +614,7 @@ ok("تب «آزمون از کتابخانه» باز می‌شود", await page.
 
 /* ═══ موبایل — دکمهٔ معلق «از استاد بپرس» حذف شده ═══ */
 const mob = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+await mob.context().addInitScript(() => { try { Reflect.deleteProperty(window, "Highlight"); } catch {} });
 mob.on("pageerror", (e) => errors.push("mob pageerror: " + String(e)));
 mob.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push(m.text()); });
 await mob.goto(BASE + "/#/learn/m-l1-1", { waitUntil: "networkidle" });

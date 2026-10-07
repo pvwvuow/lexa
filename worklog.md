@@ -1878,3 +1878,24 @@ Stage Summary:
 - v0.10.13 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.13 — فیکس کامل «دستگیرهٔ گیر کرده» برای کاربران اندروید با آپدیت درون‌برنامه‌ای (versionCode 113)
 - کشیدن دستگیرهٔ نشان حالا مقاوم به: افتادن کپچر، retarget رویداد، مرگ استریم pointer، pointercancel، hold طولانی
 - qa113 به گروه B2 اضافه شد تا رگرسیون لمسی دستگیره‌ها همیشگی شود
+
+---
+Task ID: 38
+Agent: main (Super Z)
+Task: «اپدیت جدید اومد بیلد و ریلیز کن» — مرج PR #8 کاربر (marks v2: موتور بازنویسی‌شدهٔ نشان‌گذاری) و ریلیز v0.10.14
+
+Work Log:
+- fetch: PR #8 (b772d15 «marks v2: rebuilt marking engine (0.10.14)») squash-merge شده در origin/main — بازنویسی کامل LearnView.tsx/MarkHandles.tsx/marks.ts (۸۳۳± خط)؛ main محلی --ff-only. PR bump نسخه نداشت → بامپ چهارگانه: package 0.10.14 / sw v56 / DESIGN 1.9.24 / gradle versionCode 114 + 0.10.14 + ادعای qa090 (v56) — commit و push فوری
+- معماری جدید نشانه‌گذاری: رنگ‌آمیزی با CSS Highlight API (رجیستری per-color با کلید lexa-mk-*) — هیچ <mark> در DOM ساخته نمی‌شود (حتی بقایای نسخه‌های قبل unwrap می‌شوند)؛ مدل ایندکسی متنی (text-index) با span [s,e) روی بخش؛ فال‌بک <mark> برای وب‌ویوهای قدیمی با همان signature قبلی؛ دستگیره‌ها هندسه را از مدل می‌گیرند نه DOM
+- چالش QA: هر ۵ اسکریپت رگرسیون نشان (qa103 با ۱۷ ارجاع، qa109/qa110/qa113) روی DOM mark تکیه داشتند → در کرومیوم مدرن count=0. راه‌حل بدون دست زدن به کد محصول: --disable-blink-features=HighlightAPI کار نکرد (پروب زنده)؛ addInitScript با Reflect.deleteProperty(window,"Highlight") → hlApi() null → فال‌بک واقعی (شبیه‌سازی دقیق وب‌ویو قدیمی). qa103/109/110/113 پچ شدند
+- qa090-web و qa-apk-mode mode-aware شدند (DOM mark یا بازه‌های CSS.highlights) تا مسیر پیش‌فرض (HL) را تست کنند
+- تطبیق qa103 با معنای v2 (سنت 0.10.10/0.10.12 — کد محصول دست‌نخورده): انتخابِ بزرگ‌شده + رنگ = نشان تازه با id نو (pickNew) و دنبالهٔ نشان قدیمی با همان id زنده می‌ماند (carve هم‌پوشان‌امن) — lookup بر اساس متن + به‌روزرسانی recId در طول تست + ادعای حذف v2-aware + پاک‌سازی دنباله با UI
+- اسکریپت جدید qa114-marks-v2.mjs (۲۹ ادعا) برای مسیر اصلی HL: ساخت نشان از انتخاب → رجیستری زنده + DOM دست‌نخورده؛ تپ روی rect بازهٔ رجیستری → نوار edit + دو دستگیره؛ کشیدن دستگیرهٔ انتها → upsert همان id؛ recolor → جابه‌جایی گروه رجیستری + id ثابت؛ نشان بین‌پاراگرافی = یک بازهٔ چندبلوکی (یک Range به‌ازای هر نشان — نه چندقطعهٔ DOM)؛ رفرش → بازسازی مدل و رنگ دوباره؛ پاک‌کن → حذف از استور و رجیستری؛ صفر خطا. درس‌ها: reveal «ادامه بده» قبل از بازهٔ بین‌پاراگرافی لازم است؛ اسکرول به مرکز انتخاب وگرنه نوار بیرون ویوپورت می‌رود
+- بیلد: وب standalone (درس تکرار شد: بعد از build:apk باید دوباره standalone بیلد شود) → AppImage 124MB → win.zip 172MB (unzip -t سالم) → APK دو مرحله‌ای (پارک API → build:apk 0.10.14 → restore → cap sync → gradle) — aapt: versionCode=114/versionName=0.10.14/label=Lexa — checksums سه‌گانه
+- QA کامل: A (73: qa090-web 10 + table 3 + more-sheet 17 + qa105 14 + qa106 29) + B (qa103 58 + qa108 7 + drawer + qa109 15) + B2 (qa113 16) + C (qa110 17) + qa114 HL (29) + apk-mode (16، ادعای نشان در HL سبز) + apk-update (8) ≈ ۲۵۴ ادعا، صفر شکست
+- diffهای زمان‌دار (manifest/generated-meta/۳ png) → git checkout --؛ ریلیز: release-app-update.py 0.10.14 → ریلیز گیت‌هاب id 405708594 (AppImage + win.zip + checksums + APK) + تگ app-v0.10.14 + دلتافید (commit afd0188 خودکار) + purge
+- verify-release-0114 (sed از 0113): 18/18 — مانیفست ۲۱۲۰ فایل روی هر دو کانال، دلتاهای 0.6.0 تا 0.9.3 همه MISSING:0، @main≡@tag حتی یادداشت‌ها
+
+Stage Summary:
+- v0.10.14 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.14 — موتور نشان‌گذاری v2 (CSS Highlight API + مدل ایندکسی) از PR کاربر با QA کامل دو مسیر (HL مدرن + فال‌بک DOM) و آپدیت درون‌برنامه‌ای اندروید (versionCode 114)
+- درس کلیدی برای آینده: با Reflect.deleteProperty(window,"Highlight") در addInitScript می‌توان مسیر فال‌بک را بدون فلگ محصولی تست کرد؛ qa114 مسیر HL را پوشش می‌دهد — از این پس هر دو مسیر همیشه QA شوند

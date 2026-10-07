@@ -20,6 +20,8 @@ const norm = (s) => (s || "").replace(/\s+/g, " ").trim();
 const browser = await chromium.launch();
 const errors = [];
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
+// marks v2: شبیه‌سازی وب‌ویو قدیمی — مسیر فال‌بک DOM (بدون Highlight API)
+await page.context().addInitScript(() => { try { Reflect.deleteProperty(window, "Highlight"); } catch {} });
 page.on("pageerror", (e) => errors.push("pageerror: " + String(e)));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push(m.text()); });
 

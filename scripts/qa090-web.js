@@ -126,7 +126,18 @@ const PASS = "Qa09" + STAMP + "!";
       await page.waitForTimeout(800);
     }
   }
-  const markCount = await page.evaluate(() => document.querySelectorAll("mark[data-lexa-mark], .lexa-mark").length);
+  // marks v2: حالت مدرن با CSS Highlight API رنگ می‌زند (بدون <mark> در DOM)؛ فال‌بک با <mark>
+  const markCount = await page.evaluate(() => {
+    const dom = document.querySelectorAll("mark[data-lexa-mark], .lexa-mark").length;
+    if (dom > 0) return dom;
+    try {
+      const reg = window.CSS && window.CSS.highlights;
+      if (!reg) return 0;
+      let n = 0;
+      reg.forEach((h) => { try { for (const r of h) { if (r && !r.collapsed) n++; } } catch {} });
+      return n;
+    } catch { return 0; }
+  });
   assert(markCount > 0, "نشان رنگی روی متن نشست", "count=" + markCount);
 
   console.log("[۵] موبایل: ابعاد متن تدریس در ویوپورت موبایل");

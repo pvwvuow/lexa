@@ -66,7 +66,18 @@ const { chromium } = require("playwright");
     if (tb) {
       await page.locator('[data-mark-toolbar="1"] button').first().click();
       await page.waitForTimeout(500);
-      ok("نشان اعمال شد در APK", (await page.locator("mark.lexa-mark").count()) > 0);
+      // marks v2: حالت مدرن با CSS Highlight API؛ فال‌بک با <mark>
+      const markOk = await page.evaluate(() => {
+        if (document.querySelectorAll("mark.lexa-mark").length > 0) return true;
+        try {
+          const reg = window.CSS && window.CSS.highlights;
+          if (!reg) return false;
+          let n = 0;
+          reg.forEach((h) => { try { for (const r of h) { if (r && !r.collapsed) n++; } } catch {} });
+          return n > 0;
+        } catch { return false; }
+      });
+      ok("نشان اعمال شد در APK", markOk);
     }
   } else {
     ok("پاراگراف درس یافت شد", false);
