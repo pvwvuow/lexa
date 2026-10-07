@@ -3,7 +3,9 @@
  * «حساب، حساب است»: کاربر با یک حساب ابری (Supabase) وارد می‌شود و داده‌اش —
  * استور (پیشرفت/نشان‌ها/کتابخانهٔ من)، مباحث ضعیف و نشان‌های مواد قانونی — روی
  * همهٔ دستگاه‌ها یکی می‌شود. قواعد:
- *   ۱) ورود در همان لحظه (دیالوگ CloudAuth): ابر تازه‌تر است → اعمال؛ ابر خالی → پوش اولیه
+ *   ۱) ورود در همان لحظه (دیالوگ CloudAuth / کارت تنظیمات): ابر تازه‌تر است → اعمال؛
+ *      ابر خالی → پوش اولیه؛ دریافت ناموفق → هیچ پوشی (حساب دست‌نخورده می‌ماند).
+ *      در طول ورود، پوش خودکار معلق است (holdCloudPush).
  *   ۲) هر تغییر استور → پوش خودکار با تأخیر ۲.۵ ثانیه (debounce)
  *   ۳) بوت اپ → اگر حساب نشست با حساب قبلی دستگاه فرق داشت → پاک‌سازی دادهٔ محلی؛
  *              اگر savedAt ابر از آخرین پوش این دستگاه تازه‌تر بود → اعمال و رفرش؛
@@ -24,6 +26,12 @@ import {
 const LAST_PUSH = "lexa-cloud-lastpush"; // پسوند: :<uid> — هر حساب جدا
 const BOOT_GUARD = "lexa-cloud-bootapplied";
 const LAST_UID = "lexa-cloud-lastuid"; // آخرین حساب واردشدهٔ این دستگاه — برای تشخیص تعویض حساب
+
+/** شمارندهٔ تعلیق پوش خودکار — تا پایان بررسی ابرِ ورود، دادهٔ پاک‌شده/کهنه به ابر نمی‌رود */
+let pushHold = 0;
+export function holdCloudPush(on: boolean) {
+  pushHold = Math.max(0, pushHold + (on ? 1 : -1));
+}
 
 function uidOf(): string {
   try { return sbUser()?.id || "anon"; } catch { return "anon"; }
@@ -47,6 +55,11 @@ export function priorCloudUid(): string | null {
 /** زمان آخرین ذخیرهٔ موفق روی ابر برای حساب جاری (ms) — برای نمایش «آخرین ذخیره» به کاربر */
 export function cloudLastPushAt(): number {
   return lastPush();
+}
+
+/** پس از هر پوش دستی موفق (ورود/خروج) زمان آن ثبت شود */
+export function noteCloudPushed(savedAt: unknown) {
+  setLastPush(Number(savedAt || Date.now()));
 }
 
 /**
@@ -106,6 +119,7 @@ export function useCloudAutoSync() {
       timer = null;
       if (disposed || !logged()) return;
       if (!pullDone) { schedulePush(1200); return; } // بوت هنوز ابر را بررسی نکرده
+      if (pushHold > 0) { schedulePush(1500); return; } // ورود در جریان — ابر هنوز بررسی نشده
       if (pushing) { schedulePush(400); return; } // پوش قبلی هنوز تمام نشده
       pushing = true;
       try {
@@ -150,7 +164,7 @@ export function useCloudAutoSync() {
       schedulePush(2500);
     });
 
-    // ۳) پس از ورود وسط نشست (دیالوگ ابر خودش pull/push اولیه را می‌زند) —
+    // ۳) پس از ورود وسط نشست (دیالوگ/کارت ابر خودش pull/push اولیه را می‌زند) —
     //    فقط محافظ بوت را پاک کنیم تا رفرشِ اعمالِ ابر یک‌باره ممکن باشد
     const off = onAuthChange(() => {
       try { sessionStorage.removeItem(BOOT_GUARD); } catch { /* ignore */ }

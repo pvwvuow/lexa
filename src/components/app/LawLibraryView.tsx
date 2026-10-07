@@ -25,7 +25,9 @@ export function fetchFullLaws(): Promise<FullLawData | null> {
   return fetch("/api/laws")
     .then((r) => (r.ok ? r.json() : null))
     .then((d: FullLawData | null) => {
-      fullCache = d && Object.keys(d).length ? d : {};
+      // فقط پاسخ سالم کش می‌شود — خطای موقت سرور نباید تا پایان نشست «بدون متن کامل» بماند
+      if (!d || typeof d !== "object" || Object.keys(d).length === 0) return null;
+      fullCache = d;
       return fullCache;
     })
     .catch(() => null);
@@ -54,7 +56,10 @@ function readMarks(): string[] {
   try {
     const raw = window.localStorage.getItem(MARKS_KEY) ?? window.localStorage.getItem(LEGACY_MARKS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr.slice(0, 400) : [];
+    // مقدار خراب/قدیمی (مثلاً از بلاب ابر یا نسخهٔ کهنه) نباید صفحه را بشکند
+    return Array.isArray(arr)
+      ? arr.filter((x): x is string => typeof x === "string" && x.includes("::")).slice(0, 400)
+      : [];
   } catch {
     return [];
   }
@@ -73,14 +78,35 @@ function useLawMarks() {
   return { marks, toggle };
 }
 
-/** هایلایت نتیجهٔ جستجو در متن ماده */
+/** الگوی هایلایت از توکن نرمال‌شده — همان هم‌ارزی‌های norm (ی/ي/ى، ک/ك،
+ *  ارقام فارسی/عربی/لاتین، اعراب/نیم‌فاصله) تا هر مادهٔ پیداشده واقعاً هایلایت شود */
+const HL_SKIP = "[\\u064B-\\u0652\\u0640\\u200c]*";
+function tokenPattern(tok: string): string {
+  return [...tok]
+    .map((c) => {
+      if (c === "ی") return `[یيى]${HL_SKIP}`;
+      if (c === "ک") return `[کك]${HL_SKIP}`;
+      if (/[0-9]/.test(c)) {
+        const n = Number(c);
+        return `[${c}${String.fromCharCode(0x06f0 + n)}${String.fromCharCode(0x0660 + n)}]${HL_SKIP}`;
+      }
+      return c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + HL_SKIP;
+    })
+    .join("");
+}
+
+/** هایلایت نتیجهٔ جستجو در متن ماده (توکن‌ها نرمال‌شده‌اند) */
 function Hl({ text, tokens }: { text: string; tokens: string[] }) {
-  if (!tokens.length) return <>{text}</>;
-  const rx = new RegExp("(" + tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
+  const rx = React.useMemo(() => {
+    const pats = tokens.filter(Boolean).map(tokenPattern);
+    return pats.length ? new RegExp("(" + pats.join("|") + ")", "gi") : null;
+  }, [tokens]);
+  if (!rx) return <>{text}</>;
+  // split با گروه گیرنده: اندیس‌های فرد همان بخش‌های جورشده‌اند (بدون rx.test و lastIndex)
   return (
     <>
       {text.split(rx).map((part, i) =>
-        rx.test(part) ? (
+        i % 2 === 1 && part ? (
           <mark key={i} className="rounded-[3px] bg-bronze/25 px-0.5 font-bold text-foreground">{part}</mark>
         ) : (
           <React.Fragment key={i}>{part}</React.Fragment>
@@ -161,11 +187,6 @@ function LawIndex({ marks, full }: { marks: string[]; full: FullLawData | null }
     return out;
   }, [cat, q, full]);
 
-  const markedLaws = React.useMemo(
-    () => marks.filter((m) => m.startsWith("")).map((m) => m),
-    [marks],
-  );
-
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7 px-4 pb-28 pt-2 sm:px-6">
       <header className="relative overflow-hidden rounded-[26px] border border-bronze/30 bg-gradient-to-bl from-[#f6efe0] via-[#fbf6ea] to-[#efe4cc] p-6 text-[#3b2f18] shadow-card dark:from-[#221c12] dark:via-[#1c1810] dark:to-[#171310] dark:text-[#e8dcc2] sm:p-8">
@@ -185,7 +206,7 @@ function LawIndex({ marks, full }: { marks: string[]; full: FullLawData | null }
       </header>
 
       {/* نشان‌شده‌های من */}
-      {markedLaws.length > 0 && <MarkedSummary marks={marks} />}
+      {marks.length > 0 && <MarkedSummary marks={marks} />}
 
       {/* دسته‌ها */}
       <nav aria-label="دسته‌های قانون" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
@@ -282,7 +303,7 @@ function MarkedSummary({ marks }: { marks: string[] }) {
       .map((m) => {
         const [lawId, no] = m.split("::");
         const law = getLaw(lawId);
-        if (!law) return null;
+        if (!law || !no) return null;
         return { law, no };
       })
       .filter(Boolean) as { law: LawCode; no: string }[];
@@ -383,8 +404,9 @@ function LawReader({ law }: { law: LawCode }) {
     try { window.localStorage.setItem("lexa-law-font", String(clamped)); } catch {}
   };
 
+  // توکن‌های جستجو — تک‌حرفی‌ها حذف می‌شوند جز شماره‌ها (مثلاً «۴» برای مادهٔ ۴)
   const tokens = React.useMemo(
-    () => q.trim().split(/\s+/).filter((t) => t.length >= 2).map(norm),
+    () => q.trim().split(/\s+/).map(norm).filter((t) => t.length >= 2 || /^\d$/.test(t)),
     [q],
   );
 
@@ -399,8 +421,10 @@ function LawReader({ law }: { law: LawCode }) {
             articles: ch.articles.filter((a) => {
               if (onlyMarked && !marks.includes(`${law.id}::${a.no}`)) return false;
               if (!tokens.length) return true;
+              // شمارهٔ تک‌رقمی فقط با شمارهٔ ماده مقایسه می‌شود — وگرنه تقریباً همهٔ مواد جور می‌شدند
+              const no = norm(String(a.no));
               const hay = norm(`${a.no} ${a.text}`);
-              return tokens.every((t) => hay.includes(t));
+              return tokens.every((t) => (/^\d$/.test(t) ? no === t : hay.includes(t)));
             }),
           }))
           .filter((ch) => ch.articles.length > 0),
@@ -412,6 +436,9 @@ function LawReader({ law }: { law: LawCode }) {
     (n, b) => n + b.chapters.reduce((m, ch) => m + ch.articles.length, 0),
     0,
   );
+
+  // هایلایت: تک‌رقمی‌ها روی متن هایلایت نمی‌شوند (مادهٔ پیداشده خودش نشانه است)
+  const hlTokens = React.useMemo(() => tokens.filter((t) => !/^\d$/.test(t)), [tokens]);
 
   function copyArticle(a: LawArticle) {
     const word = law.articleWord === "اصل" ? "اصل" : "مادهٔ";
@@ -549,7 +576,7 @@ function LawReader({ law }: { law: LawCode }) {
                         <div className="flex items-start gap-3.5">
                           <ArticleSeal no={a.no} word={law.articleWord === "اصل" ? "اصل" : "ماده"} />
                           <p className="min-w-0 flex-1 leading-[2] text-foreground/95">
-                            <Hl text={a.text} tokens={tokens} />
+                            <Hl text={a.text} tokens={hlTokens} />
                             {a.gist && (
                               <span className="ms-2 inline-block align-middle text-[10px] font-bold text-muted-foreground/70">(گزیده)</span>
                             )}

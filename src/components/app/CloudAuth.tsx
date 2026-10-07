@@ -4,6 +4,8 @@
  * APK سرور محلی ندارد؛ حساب کاربری روی «حساب ابری» (Supabase) ساخته می‌شود.
  * پس از ورود: دادهٔ ابر اگر بود بازیابی و اپ تازه‌سازی می‌شود؛ اگر ابر خالی بود
  * دادهٔ همین دستگاه به ابر فرستاده می‌شود تا حساب از همان لحظهٔ ساخت پر باشد.
+ * اگر دریافت ابر ناموفق بود هیچ چیزی به ابر نمی‌رود (وگرنه دادهٔ حساب با دادهٔ خالی
+ * دستگاه له می‌شد) — کاربر خارج و دعوت به تلاش دوباره می‌شود.
  * از تنظیمات → عمومی هم کارت «حساب ابری و سینک» با کنترل دستی در دسترس است.
  * ─────────────────────────────────────────────────────────────────────────── */
 
@@ -25,7 +27,7 @@ import {
   sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState,
   collectLocal, onAuthChange, type SbUser,
 } from "@/lib/supabase";
-import { adoptCloudBlob, wipeLocalUserData, handleAccountSwitch } from "@/lib/cloud-sync";
+import { adoptCloudBlob, wipeLocalUserData, handleAccountSwitch, holdCloudPush, noteCloudPushed } from "@/lib/cloud-sync";
 import { navigate } from "@/lib/router";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
@@ -84,40 +86,59 @@ export function CloudAuthDialog({
     const err = tab === "login"
       ? await sbSignIn(em, password)
       : await sbSignUp(em, password);
-    setBusy(false);
     if (err) {
+      setBusy(false);
       setError(err);
       return;
     }
     if (!sbUser()) {
       // ثبت‌نام بدون نشست خودکار (تأیید ایمیل روشن است)
+      setBusy(false);
       setInfo("ثبت‌نام انجام شد؛ ایمیل خود را تأیید کن و دوباره وارد شو.");
       setTab("login");
       return;
     }
     // ── ورود موفق: همگام‌سازی هوشمند ──
-    // تشخیص تعویض حساب: اگر قبلاً حساب دیگری روی این دستگاه وارد شده بود، دادهٔ
-    // محلی (نشان‌ها/پیشرفت/کتاب‌ها) متعلق به آن حساب است و هرگز به حساب جدید نباید برسد.
-    handleAccountSwitch(sbUser()!.id);
-    // سیاست «کتابخانهٔ خالی برای حساب تازه» — هم‌سو با ثبت‌نام سروری: همهٔ دوره‌های
-    // آماده «حذف‌شده» ثبت می‌شوند تا کاربر خودش از کتابخانهٔ عمومی انتخاب کند.
-    if (tab === "register") {
-      useApp.getState().setHiddenBuiltins(builtinCourses.map((c) => c.id));
-    }
-    onOpenChange(false);
-    setPassword("");
-    const { err: pullErr, data } = await sbPullState();
-    if (!pullErr && data) {
-      if (adoptCloudBlob(data)) {
-        // دادهٔ ابر (تازه‌تر) جایگزین شد — اپ با وضعیت حساب بارگذاری می‌شود
-        setTimeout(() => window.location.reload(), 350);
+    // تا پایان بررسی ابر، پوش خودکار معلق است — وگرنه دادهٔ پاک‌شدهٔ تعویض حساب
+    // می‌توانست قبل از رسیدن دادهٔ ابر روی حساب بنشیند.
+    holdCloudPush(true);
+    try {
+      // تشخیص تعویض حساب: اگر قبلاً حساب دیگری روی این دستگاه وارد شده بود، دادهٔ
+      // محلی (نشان‌ها/پیشرفت/کتاب‌ها) متعلق به آن حساب است و هرگز به حساب جدید نباید برسد.
+      handleAccountSwitch(sbUser()!.id);
+      // سیاست «کتابخانهٔ خالی برای حساب تازه» — هم‌سو با ثبت‌نام سروری: همهٔ دوره‌های
+      // آماده «حذف‌شده» ثبت می‌شوند تا کاربر خودش از کتابخانهٔ عمومی انتخاب کند.
+      if (tab === "register") {
+        useApp.getState().setHiddenBuiltins(builtinCourses.map((c) => c.id));
+      }
+      const { err: pullErr, data } = await sbPullState();
+      if (pullErr) {
+        // دادهٔ حساب معلوم نیست — هیچ پوشی نه؛ خروج تا سینک خودکار هم چیزی نفرستد
+        await sbSignOut();
+        setError("داده‌های حساب از ابر دریافت نشد؛ برای حفظ اطلاعاتت کمی بعد دوباره وارد شو.");
         return;
       }
+      setPassword("");
+      const hasData = !!data && typeof data === "object" && Object.keys(data as object).length > 0;
+      if (hasData) {
+        if (adoptCloudBlob(data)) {
+          // دادهٔ ابر (تازه‌تر) جایگزین شد — اپ با وضعیت حساب بارگذاری می‌شود
+          onOpenChange(false);
+          setTimeout(() => window.location.reload(), 350);
+          return;
+        }
+        onOpenChange(false);
+        return;
+      }
+      // ابر خالی بود → دادهٔ همین دستگاه به ابر می‌رود
+      const blob = collectLocal();
+      const pushErr = await sbPushState(blob).catch(() => "net");
+      if (!pushErr) noteCloudPushed(blob.savedAt);
       onOpenChange(false);
-      return;
+    } finally {
+      holdCloudPush(false);
+      setBusy(false);
     }
-    // ابر خالی بود یا دریافت نشد → دادهٔ همین دستگاه به ابر می‌رود
-    await sbPushState(collectLocal());
   }
 
   return (
@@ -318,7 +339,15 @@ export function CloudAccountArea() {
           <DropdownMenuItem
             onClick={async () => {
               setBusy("out");
-              await sbPushState(collectLocal()).catch(() => {}); // آخرین ذخیره
+              // آخرین ذخیره باید موفق باشد — وگرنه پاک‌سازی دستگاه داده را برای همیشه می‌برد
+              const blob = collectLocal();
+              const pushErr = await sbPushState(blob).catch(() => "net");
+              if (pushErr) {
+                setBusy("");
+                window.alert("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشدی. اینترنت را بررسی کن و دوباره بزن.");
+                return;
+              }
+              noteCloudPushed(blob.savedAt);
               await sbSignOut();
               // خروج یعنی دادهٔ حساب روی دستگاه نماند — با ورود، از ابر برمی‌گردد
               wipeLocalUserData();

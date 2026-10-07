@@ -79,6 +79,9 @@ export async function GET() {
     return NextResponse.json({
       snapshot: {
         progress,
+        // استور (mergeServerSnapshot/replaceFromServer) تاریخچهٔ تست را از همین فهرست بالایی می‌خواند
+        // — بدون آن، با ورود در وب همهٔ تلاش‌های تست گم می‌شد
+        quizAttempts: parsedAttempts,
         activity: activityDays.map((d) => d.day),
         notes: notesMap,
         customCourses,
