@@ -11,6 +11,16 @@
  *  • عبور از روی دستگیرهٔ دیگر: همان دستگیرهٔ زیر انگشت نقش تازه را می‌گیرد (قبلاً
  *    دستگیرهٔ زیر انگشت به سر دیگر بازه می‌پرید).
  *  • ناحیهٔ لمس بزرگ‌تر (۵۶×۵۶).
+ * 0.10.13 — «دستگیره گیر کرده» در وب‌ویو اندروید:
+ *  ریشهٔ گزارش کاربر: کشیدن فقط به رویدادهای pointerِ خودِ دستگیره تکیه داشت — در
+ *  وب‌ویو واقعی، holdِ طولانی روی متن (انتخاب بومی/منو) یا ازدست‌رفتن کپچر، جریان
+ *  pointer را از دستگیره قطع می‌کند و کشیدن همان اول می‌میرد («نه عقب نه جلو»).
+ *  • به‌محض شروع کشیدن، شنونده‌های pointermove/up/cancel به window وصل می‌شوند —
+ *    رویدادها مهم نیست هدفشان کدام المان است، به window می‌رسند؛ کپچر فقط یک بهینه‌سازی است.
+ *  • فال‌بک لمس خالص: اگر pointermove زنده نبود (>۱۲۰ms)، touchmove خودِ کشیدن را
+ *    می‌راند و touchend رها کردن را تمام می‌کند؛ touchmove حین کشیدن preventDefault
+ *    می‌شود تا اسکرول/ژست بومی هرگز کشیدن را نرباید.
+ *  • حین کشیدن: contextmenu و selectstart در سطح window خنثی می‌شود (hold طولانی امن).
  * با رها کردن، همان نشان (همان id و رنگ) با بازهٔ تازه ذخیره می‌شود.
  * ─────────────────────────────────────────────────────────────────────────── */
 
@@ -236,6 +246,8 @@ interface Drag {
   which: Role;
   /** ارتفاع خط زیر دستگیره — برای رسم میلهٔ دستگیرهٔ زیر انگشت */
   h: number;
+  /** خود المان دستگیره — برای آزادکردن کپچر در پایان (روی window به currentTarget نمی‌رسیم) */
+  el: HTMLDivElement | null;
   offX: number;
   offY: number;
   pid: number;
@@ -278,6 +290,9 @@ export function MarkHandles({
   }, []);
   // جای دستگیرهٔ در حال کشیدن در فضای true (همان نقطهٔ آزمون زیر انگشت)
   const [dragPos, setDragPos] = React.useState<{ key: KnobKey; x: number; y: number; h: number } | null>(null);
+  // قطع‌کنندهٔ شنونده‌های window حین کشیدن + تازگی استریم pointer (برای فال‌بک لمس)
+  const detachDragRef = React.useRef<() => void>(() => {});
+  const lastPtrMoveRef = React.useRef(0);
   const zoomRef = React.useRef(zoom);
   const colorRef = React.useRef(color);
   const cbRef = React.useRef({ onDragChange, onCommit });
@@ -376,6 +391,7 @@ export function MarkHandles({
     const d = dragRef.current;
     if (!d) return;
     dragRef.current = null;
+    detachDragRef.current?.();
     if (d.raf) cancelAnimationFrame(d.raf);
     setRolesBoth({ a: "start", b: "end" });
     endVisuals();
@@ -467,46 +483,15 @@ export function MarkHandles({
     d.raf = requestAnimationFrame(tick);
   }, [rootRef, applyAt]);
 
-  function onDown(key: KnobKey) {
-    return (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!spanAlive(stRef.current)) { reloadSpan(); measure(); }
-      const g = geomRef.current;
-      const st = stRef.current;
-      if (!st || !g) return;
-      e.preventDefault();
-      e.stopPropagation();
-      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
-      const which = rolesRef.current[key];
-      const edge = which === "start" ? g.start : g.end;
-      dragRef.current = {
-        key,
-        which,
-        h: Math.max(8, edge.bottom - edge.top),
-        // فاصلهٔ انگشت تا لبهٔ حرف حفظ می‌شود — نقطهٔ آزمون همیشه وسط همان خط است
-        offX: e.clientX - edge.x,
-        offY: e.clientY - (edge.top + edge.bottom) / 2,
-        pid: e.pointerId,
-        x0: e.clientX,
-        y0: e.clientY,
-        x: e.clientX,
-        y: e.clientY,
-        moved: false,
-        s0: st.s,
-        e0: st.e,
-        raf: 0,
-      };
-    };
-  }
-
-  function onMove(e: React.PointerEvent<HTMLDivElement>) {
+  /** منطق مشترک حرکت — هم از pointermove و هم از فال‌بک touchmove صدا می‌شود */
+  const driveMove = React.useCallback((cx: number, cy: number, pid: number) => {
     const d = dragRef.current;
     const st = stRef.current;
-    if (!d || !st || e.pointerId !== d.pid) return;
-    e.preventDefault();
-    d.x = e.clientX;
-    d.y = e.clientY;
+    if (!d || !st || pid !== d.pid) return;
+    d.x = cx;
+    d.y = cy;
     if (!d.moved) {
-      if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < DEAD_ZONE) return;
+      if (Math.hypot(cx - d.x0, cy - d.y0) < DEAD_ZONE) return;
       d.moved = true;
       hideMarks(true);
       const ok = showHighlight(st.range, markBg(colorRef.current));
@@ -514,17 +499,19 @@ export function MarkHandles({
       cbRef.current.onDragChange?.(true);
       d.raf = requestAnimationFrame(tick);
     }
-    applyAt(e.clientX, e.clientY);
-  }
+    applyAt(cx, cy);
+  }, [applyAt, tick, hideMarks]);
 
-  function onUp(e: React.PointerEvent<HTMLDivElement>) {
+  /** پایان کشیدن + ذخیره اگر جابه‌جایی بود (pointerup/pointercancel/touchend) */
+  const finishDrag = React.useCallback((pid: number) => {
     const d = dragRef.current;
-    if (!d || e.pointerId !== d.pid) return;
+    if (!d || pid !== d.pid) return;
     dragRef.current = null;
+    detachDragRef.current?.();
     if (d.raf) cancelAnimationFrame(d.raf);
     setRolesBoth({ a: "start", b: "end" });
     setDragPos(null);
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
+    try { d.el?.releasePointerCapture(pid); } catch { /* بی‌اثر */ }
     if (!d.moved) return; // لمس سادهٔ دستگیره — هیچ تغییری
     endVisuals();
     cbRef.current.onDragChange?.(false);
@@ -551,6 +538,90 @@ export function MarkHandles({
       });
     }
     cbRef.current.onCommit?.({ markId, secId, ...located, rect: barRect });
+  }, [endVisuals, setRolesBoth, lessonId, markId, reloadSpan, measure, applyMark]);
+
+  /** شنونده‌های کشیدن روی window — عمداً خارج از دستگیره: در وب‌ویو اندروید،
+   * انتخاب بومی/منوی hold یا افتادن کپچر می‌تواند هدف رویداد را عوض کند؛
+   * رویداد pointer مهم نیست هدفش کجاست به window می‌رسد. فال‌بک لمس خالص هم
+   * اگر استریم pointer مُرده باشد (>۱۲۰ms) خودش کشیدن را می‌راند. */
+  const attachWindowDrag = React.useCallback(() => {
+    const onWinMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d || e.pointerId !== d.pid) return;
+      lastPtrMoveRef.current = performance.now();
+      driveMove(e.clientX, e.clientY, e.pointerId);
+    };
+    const onWinUp = (e: PointerEvent) => finishDrag(e.pointerId);
+    const onWinCancel = (e: PointerEvent) => finishDrag(e.pointerId); // اگر جابه‌جایی بود ذخیره می‌شود
+    const onTouchMove = (e: TouchEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      e.preventDefault(); // حین کشیدن اسکرول/ژست بومی ممنوع — حتی اگر touch-action گم شده باشد
+      if (e.touches.length !== 1) return; // چندانگشتی غیرعادی — با pointer استریم یا هیچ
+      if (performance.now() - lastPtrMoveRef.current < 120) return; // pointermove زنده است
+      const t = e.touches[0];
+      if (t) driveMove(t.clientX, t.clientY, d.pid);
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const d = dragRef.current;
+      if (!d) return; // pointerup خودش تمام کرده
+      if (e.touches.length > 0) return; // انگشت دیگری هنوز پایین است
+      finishDrag(d.pid);
+    };
+    const onWinCtx = (e: Event) => { if (dragRef.current) e.preventDefault(); };
+    const onWinSelect = (e: Event) => { if (dragRef.current) e.preventDefault(); };
+    window.addEventListener("pointermove", onWinMove, { passive: true });
+    window.addEventListener("pointerup", onWinUp);
+    window.addEventListener("pointercancel", onWinCancel);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("contextmenu", onWinCtx, true);
+    window.addEventListener("selectstart", onWinSelect, true);
+    detachDragRef.current = () => {
+      window.removeEventListener("pointermove", onWinMove);
+      window.removeEventListener("pointerup", onWinUp);
+      window.removeEventListener("pointercancel", onWinCancel);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("contextmenu", onWinCtx, true);
+      window.removeEventListener("selectstart", onWinSelect, true);
+    };
+  }, [driveMove, finishDrag]);
+
+  function onDown(key: KnobKey) {
+    return (e: React.PointerEvent<HTMLDivElement>) => {
+      if (dragRef.current) return; // کشیدن دوم (لمس همزمان) نادیده گرفته می‌شود
+      if (!spanAlive(stRef.current)) { reloadSpan(); measure(); }
+      const g = geomRef.current;
+      const st = stRef.current;
+      if (!st || !g) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const el = e.currentTarget;
+      try { el.setPointerCapture(e.pointerId); } catch { /* بی‌اثر */ }
+      const which = rolesRef.current[key];
+      const edge = which === "start" ? g.start : g.end;
+      lastPtrMoveRef.current = performance.now();
+      dragRef.current = {
+        key,
+        which,
+        h: Math.max(8, edge.bottom - edge.top),
+        el,
+        // فاصلهٔ انگشت تا لبهٔ حرف حفظ می‌شود — نقطهٔ آزمون همیشه وسط همان خط است
+        offX: e.clientX - edge.x,
+        offY: e.clientY - (edge.top + edge.bottom) / 2,
+        pid: e.pointerId,
+        x0: e.clientX,
+        y0: e.clientY,
+        x: e.clientX,
+        y: e.clientY,
+        moved: false,
+        s0: st.s,
+        e0: st.e,
+        raf: 0,
+      };
+      attachWindowDrag();
+    };
   }
 
   if (!geom || typeof document === "undefined") return null;
@@ -573,9 +644,6 @@ export function MarkHandles({
         data-mark-handle={role}
         aria-label={role === "start" ? "ابتدای نشان" : "انتهای نشان"}
         onPointerDown={onDown(key)}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.preventDefault()}
         style={{
