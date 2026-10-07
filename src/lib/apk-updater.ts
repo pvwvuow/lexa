@@ -23,7 +23,7 @@ const BRANCH = "main";
 /** نسخهٔ همین بیلد — هنگام ساخت APK از env تزریق می‌شود (build-apk.sh) */
 export const APP_VERSION: string = process.env.NEXT_PUBLIC_APP_VERSION || "";
 
-/* ─── پلاگین بومی ─────────────────────────────────────────────────────────── */
+/* ─── پلاگین بومی ─────────────────────────────────────────────────────────────────────── */
 
 export interface LexaUpdaterPlugin {
   canInstall(): Promise<{ allowed: boolean }>;
@@ -42,7 +42,7 @@ export function isApkRuntime(): boolean {
   return process.env.NEXT_PUBLIC_APP_MODE === "apk";
 }
 
-/* ─── خوراک نسخه ──────────────────────────────────────────────────────────── */
+/* ─── خوراک نسخه ────────────────────────────────────────────────────────────────────── */
 
 export interface AppUpdateFeed {
   schema?: number;
@@ -132,7 +132,9 @@ export async function downloadAndInstallApk(
     let un: PluginListenerHandle | null = null;
     try {
       un = await LexaUpdater.addListener("progress", (d) => onProgress?.(d.bytesDone, d.bytesTotal));
-      await LexaUpdater.installApk({ url, sha256 });
+      const res = await LexaUpdater.installApk({ url, sha256 });
+      // پلاگین بومی شکست را گاهی با { ok: false } گزارش می‌دهد — نشانی بعدی امتحان می‌شود
+      if (res && res.ok === false) throw new Error("نصب APK ناموفق بود");
       return { ok: true };
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);

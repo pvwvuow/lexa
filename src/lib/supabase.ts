@@ -67,21 +67,43 @@ export async function sbPullState(): Promise<{err:string|null,data:unknown|null}
 }
 
 /* ─── بلاب محلی کامل دستگاه (استور + مباحث ضعیف + نشان‌های قانون) ────────────
- * بین CloudSyncCard (تنظیمات) و دیالوگ حساب ابری مشترک است. */
+ * بین CloudSyncCard (تنظیمات) و دیالوگ حساب ابری مشترک است.
+ * کلید API هوش مصنوعی (state.ai.apiKey) هرگز به ابر نمی‌رود و با اعمال بلاب ابر
+ * هم از روی دستگاه پاک نمی‌شود. */
 const STORE_KEY = "lexa-store-v1";
 const WEAK_KEY = "hoh_weak_topics";
 const MARKS_KEY = "lexa-law-marks";
 
+type StoreBlob = { state?: { ai?: Record<string, unknown> } & Record<string, unknown> } & Record<string, unknown>;
+
+function withApiKey(store: unknown, apiKey: unknown): unknown {
+  const s = store as StoreBlob | null;
+  if (!s || typeof s !== "object" || !s.state?.ai) return store;
+  return { ...s, state: { ...s.state, ai: { ...s.state.ai, apiKey } } };
+}
+
 export function collectLocal(): Record<string, unknown> {
   const read = (k: string) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
-  return { store: read(STORE_KEY), weakTopics: read(WEAK_KEY), lawMarks: read(MARKS_KEY), savedAt: Date.now() };
+  // کلید شخصی API فقط روی همین دستگاه می‌ماند
+  const store = withApiKey(read(STORE_KEY), "");
+  return { store, weakTopics: read(WEAK_KEY), lawMarks: read(MARKS_KEY), savedAt: Date.now() };
 }
 
 export function applyLocal(data: Record<string, unknown>): string[] {
   const done: string[] = [];
   const put = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); done.push(k); } catch { /* ignore */ } };
   const d = data as { store?: unknown; weakTopics?: unknown; lawMarks?: unknown };
-  if (d.store) put(STORE_KEY, d.store);
+  if (d.store) {
+    // کلید API محلی حفظ می‌شود (بلاب ابر آن را ندارد)
+    let store = d.store;
+    try {
+      const cur = JSON.parse(localStorage.getItem(STORE_KEY) || "null") as StoreBlob | null;
+      const localKey = cur?.state?.ai?.apiKey;
+      const incoming = store as StoreBlob;
+      if (localKey && incoming?.state?.ai && !incoming.state.ai.apiKey) store = withApiKey(store, localKey);
+    } catch { /* ignore */ }
+    put(STORE_KEY, store);
+  }
   if (d.weakTopics) put(WEAK_KEY, d.weakTopics);
   if (d.lawMarks) put(MARKS_KEY, d.lawMarks);
   return done;
