@@ -375,10 +375,33 @@ const longPressBar = await page.evaluate((id) => {
 ok("لمس طولانی روی نشان جمله‌ای → انتخاب هر دو قطعه", longPressBar.selActive && longPressBar.selText === longPressBar.markText, JSON.stringify({ sel: longPressBar.selText?.slice(0, 40), mark: longPressBar.markText?.slice(0, 40) }));
 ok("نوار ویرایش روی انتخاب بومی باز ماند", longPressBar.barOpen);
 
-// تپ کاربر بیرون از نوار → بسته شود (بستنِ مشروع)
-await page.evaluate(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+// 0.10.12: تپِ واقعی (پایین+بالا با حرکت ≤12px) بیرون از نوار، نوارِ تپی (via=tap) را می‌بندد —
+// نوارِ انتخاب بومی را selectionchange می‌بندد؛ پس اول انتخاب را جمع می‌کنیم و نوار را تپی باز می‌کنیم
+await page.evaluate(() => {
+  window.getSelection().removeAllRanges();
+  document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+});
+await page.waitForTimeout(500);
+await clickMark(sentInfo.id);
+await page.evaluate(() => {
+  const o = { bubbles: true, pointerId: 1, clientX: 8, clientY: 8 };
+  document.body.dispatchEvent(new PointerEvent("pointerdown", o));
+  document.body.dispatchEvent(new PointerEvent("pointerup", o));
+});
 await page.waitForTimeout(150);
-ok("تپ بیرون از نوار، نوار را بست", !(await page.evaluate(() => !!document.querySelector("[data-mark-toolbar]"))));
+ok("تپ واقعی بیرون از نوار، نوار تپی را بست (0.10.12)", !(await page.evaluate(() => !!document.querySelector("[data-mark-toolbar]"))));
+
+// 0.10.12: شروع اسکرول (حرکت > 12px) نوار را نبندد — اصلاح اصلی این نسخه
+await clickMark(sentInfo.id);
+await page.evaluate(() => {
+  const o = { bubbles: true, pointerId: 2, clientX: 200, clientY: 300 };
+  const b = document.body;
+  b.dispatchEvent(new PointerEvent("pointerdown", o));
+  b.dispatchEvent(new PointerEvent("pointermove", { ...o, clientY: 340 }));
+  b.dispatchEvent(new PointerEvent("pointerup", { ...o, clientY: 340 }));
+});
+await page.waitForTimeout(200);
+ok("شروع اسکرول نوار تپی را نبست (0.10.12)", !!(await page.evaluate(() => !!document.querySelector("[data-mark-toolbar]"))));
 
 // حذف نشان چندقطعه‌ای از نوار — همهٔ قطعه‌ها پاک شوند
 await clickMark(sentInfo.id);
