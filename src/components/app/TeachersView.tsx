@@ -9,7 +9,8 @@ import {
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
-import { useSocial, useTCourses } from "@/lib/social-client";
+import { useApp } from "@/lib/store";
+import { useSocial, useTCourses, isInLocalLibrary, addTCourseLocally } from "@/lib/social-client";
 import { CourseIcon, UserAvatar } from "./common";
 import { TeacherFeedTeasers } from "./DashboardView";
 
@@ -17,6 +18,7 @@ export function TeachersView() {
   const { user } = useAuth();
   const { teachers, loading, toggleFollow } = useSocial();
   const { courses: tcourses, toggleLibrary } = useTCourses();
+  const tBooks = useApp((s) => s.tBooks);
   const [err, setErr] = React.useState("");
   const [busyId, setBusyId] = React.useState("");
 
@@ -29,10 +31,20 @@ export function TeachersView() {
     }
   }
 
+  /** در کتابخانه بودن: حسابِ سروری یا کتابخانهٔ محلیِ همین دستگاه (مهمان) */
+  const inLib = React.useCallback((c: { id: string; inLibrary: boolean }) => c.inLibrary || isInLocalLibrary(tBooks, c.id), [tBooks]);
+
   async function onAddLibrary(courseId: string) {
     setErr("");
     try {
       setBusyId(courseId);
+      // مهمان: دوره در کتابخانهٔ همین دستگاه می‌ماند — بدون حساب، بی‌درنگ
+      if (!user) {
+        const done = await addTCourseLocally(courseId);
+        if (done) setTimeout(() => navigate({ view: "course", id: courseId }), 150);
+        else setErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
+        return;
+      }
       const added = await toggleLibrary(courseId);
       if (added) {
         // فرصت کوتاه برای هیدرات فروشگاه؛ سپس پرش مستقیم به دورهٔ تازه در بخش مطالعه
@@ -74,7 +86,7 @@ export function TeachersView() {
       {!user && (
         <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           <LogIn className="h-4 w-4 shrink-0 text-bronze" />
-          برای فالو، کامنت یا افزودن دوره به کتابخانه، از دکمهٔ «ورود / ثبت‌نام» بالای صفحه حساب بساز.
+          بدون حساب هم می‌توانی دوره را به کتابخانهٔ همین دستگاه اضافه کنی؛ فالو و کامنت با حساب کار می‌کند و با ساختن حساب، پیشرفتت همه‌جا امن می‌ماند.
         </p>
       )}
       {err && <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{err}</p>}
@@ -148,22 +160,22 @@ export function TeachersView() {
                       </span>
                       <button
                         onClick={() => onAddLibrary(c.id)}
-                        disabled={!user || busyId === c.id}
-                        title={!user ? "ابتدا وارد شو" : c.inLibrary ? "حذف از کتابخانهٔ من — پیشرفتت می‌ماند" : "افزودن به کتابخانهٔ من"}
+                        disabled={busyId === c.id}
+                        title={inLib(c) ? "حذف از کتابخانهٔ من — پیشرفتت می‌ماند" : "افزودن به کتابخانهٔ من"}
                         className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-colors ${
-                          c.inLibrary
+                          inLib(c)
                             ? "border border-success/50 bg-success/10 text-success"
                             : "bg-bronze/15 text-bronze hover:bg-bronze/25 disabled:opacity-45"
                         }`}
                       >
                         {busyId === c.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : c.inLibrary ? (
+                        ) : inLib(c) ? (
                           <BookCheck className="h-3.5 w-3.5" />
                         ) : (
                           <BookPlus className="h-3.5 w-3.5" />
                         )}
-                        {c.inLibrary ? "در کتابخانه" : "افزودن"}
+                        {inLib(c) ? "در کتابخانه" : "افزودن"}
                       </button>
                     </li>
                   ))}
@@ -191,21 +203,21 @@ export function TeachersView() {
                 {c.description && <p className="line-clamp-2 mb-3 text-xs leading-relaxed text-muted-foreground">{c.description}</p>}
                 <button
                   onClick={() => onAddLibrary(c.id)}
-                  disabled={!user || busyId === c.id}
+                  disabled={busyId === c.id}
                   className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
-                    c.inLibrary
+                    inLib(c)
                       ? "border border-success/50 bg-success/10 text-success"
                       : "bg-primary text-primary-foreground hover:brightness-110 disabled:opacity-45"
                   }`}
                 >
                   {busyId === c.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : c.inLibrary ? (
+                  ) : inLib(c) ? (
                     <BookCheck className="h-4 w-4" />
                   ) : (
                     <BookPlus className="h-4 w-4" />
                   )}
-                  {c.inLibrary ? "در کتابخانهٔ مطالعهٔ توست" : "افزودن به عنوان کتاب در بخش مطالعه"}
+                  {inLib(c) ? "در کتابخانهٔ مطالعهٔ توست" : "افزودن به عنوان کتاب در بخش مطالعه"}
                 </button>
               </div>
             ))}

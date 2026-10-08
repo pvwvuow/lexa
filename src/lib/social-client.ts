@@ -189,6 +189,31 @@ export function useTCourses(mine = false) {
   return { courses, loading, reload: load, toggleLibrary, setCourses };
 }
 
+/** آیا این دورهٔ استاد در کتابخانهٔ محلی همین دستگاه هست؟ (مهمان‌ها بدون حساب اضافه می‌کنند) */
+export function isInLocalLibrary(tBooks: { id: string }[], courseId: string): boolean {
+  return tBooks.some((t) => t.id === courseId);
+}
+
+/**
+ * افزودن محلی دورهٔ استاد برای مهمان‌ها — بدون حساب و بدون سرور.
+ * دوره از سرور واکشی و در فروشگاه همین دستگاه (localStorage) می‌ماند؛
+ * شناسهٔ جلسات با مسیر سروری یکی است، پس پیشرفت بعد از ساختن حساب هم سر جایش است.
+ */
+export async function addTCourseLocally(courseId: string): Promise<boolean> {
+  try {
+    const r = await fetch(`/api/tcourses/${encodeURIComponent(courseId)}`);
+    if (!r.ok) return false;
+    const d = await r.json();
+    if (!d?.course) return false;
+    const st = useApp.getState();
+    if (st.tBooks.some((c) => c.id === courseId)) return true;
+    st.setTBooks([...st.tBooks, d.course]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** وضعیت امتیاز یک هدف (مطلب یا دوره) + ثبت رأی ستاره‌ای */
 export function useTargetRating(targetType: "post" | "tcourse", targetId?: string | null) {
   const [agg, setAgg] = React.useState<RatingInfo>({ avg: 0, count: 0 });

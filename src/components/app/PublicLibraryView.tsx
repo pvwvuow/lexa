@@ -13,7 +13,7 @@ import { useApp } from "@/lib/store";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
-import { usePublicLibrary, toggleBuiltinHidden, type TCourseCard, type FeedPost } from "@/lib/social-client";
+import { usePublicLibrary, toggleBuiltinHidden, addTCourseLocally, type TCourseCard, type FeedPost } from "@/lib/social-client";
 import { listInstalledPacks } from "@/lib/updater";
 import { IS_APK } from "@/lib/app-mode";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
@@ -50,12 +50,15 @@ function CourseCardLib({
   onErr: (m: string) => void;
 }) {
   async function act() {
-    if (!user) {
-      onErr("برای افزودن به کتابخانه ابتدا وارد شوید.");
-      return;
-    }
     setBusyId(c.id);
     try {
+      // مهمان: افزودن محلی بدون حساب + پرش به دوره
+      if (!user) {
+        const done = await addTCourseLocally(c.id);
+        if (done) setTimeout(() => navigate({ view: "course", id: c.id }), 150);
+        else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
+        return;
+      }
       const added = await toggleInLibrary(c.id);
       // افزودن موفق مستقیماً به دوره می‌رود تا در بخش مطالعه بازش کند
       if (added) setTimeout(() => navigate({ view: "course", id: c.id }), 250);
@@ -126,7 +129,7 @@ function CourseCardLib({
 
       <button
         onClick={act}
-        disabled={!user || busyId === c.id}
+        disabled={busyId === c.id}
         className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-45 ${
           c.inLibrary
             ? "border border-success/50 bg-success/10 text-success"

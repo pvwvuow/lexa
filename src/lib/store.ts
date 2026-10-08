@@ -425,6 +425,9 @@ export const useApp = create<AppState>()(
         streak: s.streak,
         activity: s.activity,
         customCourses: s.customCourses,
+        // دوره‌های اساتید: افزودهٔ سروری بعد از ورود دوباره هیدرات می‌شود؛
+        // افزودهٔ محلیِ مهمان فقط همین‌جا زنده می‌ماند — پس باید ذخیره شود
+        tBooks: s.tBooks,
         hiddenBuiltins: s.hiddenBuiltins,
         notes: s.notes,
         ai: s.ai,

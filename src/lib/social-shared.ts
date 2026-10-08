@@ -213,7 +213,7 @@ export function teacherCourseToCourse(
     category?: string; categories?: string; status?: string; thumbnail?: string;
   },
   teacher: AuthorMeta,
-): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string } {
+): Course & { _ownerUsername?: string; _ownerAvatar?: string | null; _teacherId?: string; _category?: string; _categories?: string[]; _status?: string; _thumbnail?: string } {
   let parsed: unknown = [];
   try { parsed = JSON.parse(row.chaptersJson); } catch {}
   return {
@@ -226,6 +226,7 @@ export function teacherCourseToCourse(
     origin: "built-in", // مثل کتاب داخلی رفتار کند؛ تفاوت در sourceLabel مشخص است
     sourceLabel: `تدریس ${teacher.displayName} — دورهٔ آنلاین`,
     chapters: withIds(row.id, parsed),
+    _teacherId: teacher.id, // برای پرش به پروفایل استاد از صفحهٔ دوره
     _ownerUsername: teacher.username,
     _ownerAvatar: teacher.avatarUrl ?? null,
     _category: safeCategory(row.category),

@@ -27,6 +27,7 @@ import {
   type MarkModel, type MarkPlan, type SpanOverride,
 } from "@/lib/marks";
 import { toBarRect } from "@/lib/mark-geom";
+import { getOfflineItem } from "@/lib/offline";
 import { MarkHandles, type HandleSpan } from "./MarkHandles";
 
 interface AiNote { sectionId: string; text: string }
@@ -315,6 +316,50 @@ export function LearnView({ id }: { id: string }) {
     }
   }
 
+  // ── فال‌بک دورهٔ استاد که در کتابخانهٔ کاربر نیست ──
+  // جلسات دوره‌های اساتید شناسهٔ «tc-<courseId>-<ch>-<ls>» دارند؛ اگر دوره در tBooks نبود
+  // (مهمان، یا پیش‌نمایش از پروفایل استاد بدون افزودن)، از سرور/نسخهٔ آفلاین می‌خوانیم
+  // تا کلیک روی جلسه هرگز به «جلسه پیدا نشد» نرسد. پیشرفت هم با همین idها ذخیره
+  // می‌شود و پس از افزودن دوره به کتابخانه سر جایش می‌ماند.
+  // رقابت StrictMode با inflightRef حل می‌شود: اجرای دوم افکت، واکشی تکراری را رد می‌کند
+  // و کلین‌آپ اجرای اول واکشی را نمی‌کشد (ست‌کردن state بعد از unmount در React 18 بی‌اثر و بی‌خطاست).
+  const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
+  const [remoteLoading, setRemoteLoading] = React.useState(false);
+  const remoteInflightRef = React.useRef<Set<string>>(new Set());
+  const foundLocal = !!ctx;
+  React.useEffect(() => {
+    if (foundLocal || remoteCourse) return;
+    const tm = /^tc-(.+)-\d+-\d+$/.exec(id);
+    if (!tm) return;
+    const courseId = tm[1];
+    if (remoteInflightRef.current.has(courseId)) return;
+    remoteInflightRef.current.add(courseId);
+    setRemoteLoading(true);
+    (async () => {
+      let found: Course | null = null;
+      try {
+        const off = await getOfflineItem("tcourse", courseId);
+        if (off?.course) found = off.course as Course;
+      } catch { /* بی‌اثر */ }
+      if (!found) {
+        try {
+          const r = await fetch(`/api/tcourses/${encodeURIComponent(courseId)}`);
+          const d = r.ok ? await r.json() : null;
+          if (d?.course) found = d.course as Course;
+        } catch { /* بی‌اثر */ }
+      }
+      remoteInflightRef.current.delete(courseId);
+      setRemoteCourse(found);
+      setRemoteLoading(false);
+    })();
+  }, [foundLocal, remoteCourse, id]);
+  if (!ctx && remoteCourse) {
+    for (let ci = 0; ci < remoteCourse.chapters.length; ci++) {
+      const li = remoteCourse.chapters[ci].lessons.findIndex((l) => l.id === id);
+      if (li >= 0) ctx = { lesson: remoteCourse.chapters[ci].lessons[li], chapter: remoteCourse.chapters[ci], course: remoteCourse, index: li, total: 0 };
+    }
+  }
+
   const [aiPendingBusy, setAiPendingBusy] = React.useState(false);
   const [aiErr, setAiErr] = React.useState("");
   const [aiNotes, setAiNotes] = React.useState<AiNote[]>([]);
@@ -507,7 +552,18 @@ export function LearnView({ id }: { id: string }) {
     };
   }, [getModel, rectOfMark, setBar]);
 
-  if (!ctx) return <LessonNotFoundGrace />;
+  if (!ctx) {
+    // تا وقتی واکشی دورهٔ استاد در جریان است، پیام «پیدا نشد» نمی‌دهیم
+    if (remoteLoading) {
+      return (
+        <div className="flex flex-col items-center gap-3 p-14 text-center">
+          <Loader2 className="h-6 w-6 animate-spin text-bronze" />
+          <p className="text-sm text-muted-foreground">در حال آماده‌سازی درس…</p>
+        </div>
+      );
+    }
+    return <LessonNotFoundGrace />;
+  }
 
   const { lesson, chapter, course } = ctx;
   const sections: LessonSection[] = lesson.sections ?? [];

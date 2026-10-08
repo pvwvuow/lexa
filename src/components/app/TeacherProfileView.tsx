@@ -8,9 +8,12 @@ import {
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
+import { useApp } from "@/lib/store";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import {
   useTeacherProfile,
+  isInLocalLibrary,
+  addTCourseLocally,
   type TeacherProfileData,
   type TCourseCard,
   type RatingInfo,
@@ -30,6 +33,7 @@ function StatChipP({ Icon, label, value }: { Icon: React.ComponentType<{ classNa
 export function TeacherProfileView({ id }: { id?: string }) {
   const auth = useAuth();
   const { data, loading, notFound, reload } = useTeacherProfile(id);
+  const tBooks = useApp((s) => s.tBooks);
   const [busyId, setBusyId] = React.useState("");
   const [err, setErr] = React.useState("");
 
@@ -108,7 +112,16 @@ export function TeacherProfileView({ id }: { id?: string }) {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {data.courses.map((c) => (
-              <ProfileCourseCard key={c.id} c={c} user={auth.user} busyId={busyId} setBusyId={setBusyId} onErr={setErr} onChanged={() => void reload()} />
+              <ProfileCourseCard
+                key={c.id}
+                c={c}
+                user={auth.user}
+                locallyInLibrary={isInLocalLibrary(tBooks, c.id)}
+                busyId={busyId}
+                setBusyId={setBusyId}
+                onErr={setErr}
+                onChanged={() => void reload()}
+              />
             ))}
           </div>
         )}
@@ -202,22 +215,29 @@ function FollowButton({
 
 /* ─── کارت دورهٔ پروفایل — کلیک روی کارت = باز شدن دوره ── */
 function ProfileCourseCard({
-  c, user, busyId, setBusyId, onErr, onChanged,
+  c, user, locallyInLibrary, busyId, setBusyId, onErr, onChanged,
 }: {
   c: TCourseCard;
   user: ReturnType<typeof useAuth>["user"];
+  /** دوره در کتابخانهٔ محلیِ همین دستگاه هست؟ (مهمان) */
+  locallyInLibrary: boolean;
   busyId: string;
   setBusyId: (v: string) => void;
   onErr: (m: string) => void;
   onChanged: () => void;
 }) {
+  const inLib = c.inLibrary || locallyInLibrary;
+
   async function act() {
-    if (!user) {
-      onErr("برای افزودن به کتابخانه ابتدا وارد شوید.");
-      return;
-    }
     setBusyId(c.id);
     try {
+      // مهمان: افزودن محلی بدون حساب + پرش به دوره
+      if (!user) {
+        const done = await addTCourseLocally(c.id);
+        if (done) setTimeout(() => navigate({ view: "course", id: c.id }), 150);
+        else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
+        return;
+      }
       await fetch("/api/library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -272,19 +292,19 @@ function ProfileCourseCard({
             <OfflineDownloadButton kind="tcourse" id={c.id} card={{ ...c }} serverUpdatedAt={c._updatedAt} />
             <button
             onClick={(e) => { e.stopPropagation(); void act(); }}
-            disabled={!user || busyId === c.id}
+            disabled={busyId === c.id}
             className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors disabled:opacity-45 ${
-              c.inLibrary ? "border border-success/50 bg-success/10 text-success" : "bg-bronze/15 text-bronze hover:bg-bronze/25"
+              inLib ? "border border-success/50 bg-success/10 text-success" : "bg-bronze/15 text-bronze hover:bg-bronze/25"
             }`}
           >
             {busyId === c.id ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : c.inLibrary ? (
+            ) : inLib ? (
               <BookCheck className="h-3.5 w-3.5" />
             ) : (
               <BookPlus className="h-3.5 w-3.5" />
             )}
-            {c.inLibrary ? "در کتابخانه" : "افزودن"}
+            {inLib ? "در کتابخانه" : "افزودن"}
           </button>
           </span>
         )}

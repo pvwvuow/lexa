@@ -9,8 +9,8 @@ import { mergeVisible } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
-import { useAuth } from "@/lib/auth-client";
-import { useTargetRating } from "@/lib/social-client";
+import { useAuth, refreshLibrary } from "@/lib/auth-client";
+import { useTargetRating, addTCourseLocally } from "@/lib/social-client";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { ensureChapterContent, isLazyLesson, peekTextState, useTextsVersion } from "@/lib/law/texts";
@@ -233,7 +233,7 @@ function CourseBody({
             {owner && (
               <button
                 onClick={() => navigate({ view: "teacher", id: (course as Course & { _teacherId?: string })._teacherId ?? "" })}
-                disabled={!course.id.startsWith("tc-")}
+                disabled={!(course as Course & { _teacherId?: string })._teacherId}
                 title="پروفایل استاد"
                 className="mt-1 inline-flex w-fit items-center gap-2 rounded-xl px-1 py-0.5 transition-colors hover:bg-muted/60"
               >
@@ -355,22 +355,25 @@ function CourseBody({
 
         {!inLibrary && (
           <p className="relative mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-            این دوره را به کتابخانهٔ خود اضافه نکرده‌ای؛ پیش‌نمایش فهرست جلسات آزاد است.
-            {auth.user && (
-              <button
-                onClick={async () => {
-                  await fetch("/api/library", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ courseId: course.id }),
-                  });
-                  window.location.reload();
-                }}
-                className="ms-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:brightness-110"
-              >
-                افزودن به کتابخانهٔ من
-              </button>
-            )}
+            این دوره را به کتابخانهٔ خود اضافه نکرده‌ای؛ پیش‌نمایش فهرست جلسات آزاد است و درس‌ها کامل باز می‌شوند.
+            <button
+              onClick={async () => {
+                // مهمان: افزودن محلی بدون حساب — پس از افزودن، همان لحظه در بخش مطالعه است
+                if (!auth.user) {
+                  await addTCourseLocally(course.id);
+                  return;
+                }
+                await fetch("/api/library", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ courseId: course.id }),
+                });
+                await refreshLibrary();
+              }}
+              className="ms-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:brightness-110"
+            >
+              {auth.user ? "افزودن به کتابخانهٔ من" : "افزودن به کتابخانهٔ همین دستگاه"}
+            </button>
           </p>
         )}
 

@@ -10,10 +10,11 @@ export const dynamic = "force-dynamic";
 const BUILTIN_ID_RX = /^[a-z0-9][a-z0-9-]{1,39}$/i;
 
 /** کتابخانهٔ من: دوره‌های اساتیدی که به عنوان کتاب افزوده‌ام — به شکل Course آماده
- *  + فهرست دوره‌های داخلی که کاربر از کتابخانه حذف کرده است */
+ *  + فهرست دوره‌های داخلی که کاربر از کتابخانه حذف کرده است
+ *  برای مهمان ۴۰۱ برمی‌گردد تا کلاینت کتابخانهٔ محلیِ بی‌حساب را پاک نکند */
 export async function GET() {
   const me = await getSessionUser();
-  if (!me) return NextResponse.json({ ids: [], courses: [], hiddenBuiltins: [] });
+  if (!me) return NextResponse.json({ error: "برای دیدن کتابخانهٔ همگام، ابتدا وارد شوید." }, { status: 401 });
 
   const [entries, hidden] = await Promise.all([
     db.libraryEntry.findMany({

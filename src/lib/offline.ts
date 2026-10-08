@@ -14,7 +14,7 @@ import { ensureLessonsContent } from "@/lib/law/texts";
 import type { Lesson } from "@/lib/law/types";
 
 /* ── نسخهٔ طراحی — با هر تغییر در پوسته/المان‌ها باید بالا برده شود ── */
-export const DESIGN_VERSION = "1.9.24";
+export const DESIGN_VERSION = "1.9.25";
 
 const DESIGN_META_KEY = "lexa-design-meta-v1";
 /** کلید قدیمی (برند پیشین) — فقط برای خواندن مهاجرتی حفظ شده است */
