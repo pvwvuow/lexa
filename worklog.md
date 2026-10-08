@@ -1919,3 +1919,24 @@ Stage Summary:
 - دو پروفایل استاد زنده است: #/teachers → پیشنهاد ما → پروفایل‌ها؛ درس‌ها به نام و اکانت اساتید منتشر شد (تجارت ۲ جلسهٔ ۲ برای حسن‌زاده، مدنی ۷ جلسهٔ ۱ برای غایبی)
 - کلیدهای اکانت: ghayebi/Ghayebi1404 و hassanzadeh/Hassanzadeh1404 — اساتید می‌توانند با «اتاق استاد» (Studio) جلسات بعدی را خودشان بنویسند؛ برای جلسات بعدی کافی است پیاده‌سازی جدید بدهیم تا همان‌جا افزوده شود
 - ⚠️ برای آینده: پک course-tadris-madani7-ghayebi-03.json را به مانیفست OTA اضافه نکنید (دورهٔ غایبی حالا به‌صورت TeacherCourse توزیع می‌شود؛ افزودن پک = دوباره‌کاری)
+
+---
+Task ID: 40
+Agent: main (Super Z)
+Task: گزارش کاربر «درس‌های پروفایل اساتید درست لود نمی‌شن؛ نمی‌شه راحت به کتابخانه اضافه کرد» — فیکس + ریلیز v0.10.15
+
+Work Log:
+- بازتولید مرورگری (qa115) چهار باگ واقعی: ① LearnView فقط mergeAll({customCourses,tBooks}) را می‌گردید — جلسهٔ دورهٔ استادِ نامضافه (مهمان/پیش‌نمایش) → grace ۳.۵ثانیه → «جلسه پیدا نشد»؛ ② همهٔ دکمه‌های افزودن برای مهمان disabled با tooltipِ موبایل‌ناپدید؛ ③ دکمهٔ صاحب دوره در CourseView همیشه disabled (شرکت غلط course.id.startsWith("tc-") در حالی که id خود دوره است) و _teacherId اصلاً از سرور نمی‌آمد؛ ④ refreshLibrary برای مهمان آرایهٔ خالی می‌ریخت و tBooks محلی را پاک می‌کرد + tBooks در partialize نبود
+- فیکس‌ها: LearnView فال‌بک tc-<courseId>-<ch>-<ls> → getOfflineItem("tcourse") سپس GET /api/tcourses/<id> (رقابت StrictMode با inflightRef — بدون کلین‌آپِ کشنده)؛ addTCourseLocally برای مهمان در social-client (دوره → tBooks → zustand-persist)؛ tBooks به partialize اضافه شد؛ GET /api/library مهمان → 401 (نگهبانی res.ok)؛ TeachersView/TeacherProfileView/PublicLibraryView/CourseView همه مسیر مهمان فعال + پرش به دوره؛ owner button با _teacherId جدید از teacherCourseToCourse؛ حذف window.location.reload از CourseView
+- QA: qa115-teachers-load.mjs (۱۷ ادعا / ۵ سناریو: مهمان یک‌تپ، پیش‌نمایش بدون افزودن، ماندگاری پس از رفرش سخت، کاربر سروری + توگل حذف، رگرسیون درس داخلی + پرش به پروفایل) — ۲ بار سبز (dev و standalone 3210)
+- رگرسیون کامل: A (۷۳) + B (۸۰+) + C (۱۷) + B2 (۳۱) + qa114 (۲۹) + qa115 (۱۷) ≈ ۲۵۰ ادعا، صفر شکست
+- محیط پنجمین بار پاک بود → env-prep-only.sh جدید (JDK+cmdtools+پکیج‌ها بدون بیلد وب)؛ keystore از download/android/ بازیابی شد (هشدار: keystore فقط همین‌جاست — به گیت نمی‌آید)
+- درس تکرارشده: electron-builder هر دو پلتفرم در ۱۰ دقیقه جا نمی‌شود — kill وسط zip = فایل ناقص؛ جدا بیلد شد (AppImage ۱۲۳MB + win.zip ۱۷۰MB با unzip -t سالم)؛ build:apk ستندالون را نابود می‌کند → دوباره bun run build قبل از ریلیز
+- بامپ: package 0.10.15 / sw v57 / DESIGN 1.9.25 / gradle 115+0.10.15 + ادعای qa090 (v57)
+- ریلیز: release-app-update.py 0.10.15 → ریلیز گیت‌هاب id 406463602 (AppImage + win.zip + checksums + APK) + تگ app-v0.10.15 + دلتافید + purge
+- verify-release-0115 (sed از 0114): ۱۸/۱۸ — مانیفست ۱۶۹۷ فایل، دلتاهای 0.6.0 تا 0.9.3 همه MISSING:0، @main≡@tag حتی یادداشت‌ها
+
+Stage Summary:
+- v0.10.15 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.15 — درس تجارت ۲/مدنی ۷ از هر مسیری (مهمان، پیش‌نمایش، کتابخانهٔ محلی، حساب سروری) کامل باز می‌شود
+- مهمان بدون حساب هم می‌تواند دورهٔ استاد را با یک تپ به کتابخانهٔ دستگاه اضافه کند؛ با ساختن حساب، پیشرفت همان idها را دنبال می‌کند
+- آپدیت درون‌برنامه‌ای اندروید: versionCode 115 با همان امضای CN=Lexa
