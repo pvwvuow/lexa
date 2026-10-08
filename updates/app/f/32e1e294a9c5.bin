@@ -1,0 +1,3 @@
+{
+  "/api/auth/cloud-bridge/route": "app/api/auth/cloud-bridge/route.js"
+}
