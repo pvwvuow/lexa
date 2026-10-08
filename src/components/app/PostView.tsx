@@ -4,11 +4,11 @@
 import * as React from "react";
 import {
   Loader2, MessageCircle, Send, Trash2, Scale, Quote, ListChecks, Lightbulb,
-  GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft,
-} from "lucide-react";
+  GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft, LogIn } from "lucide-react";
 import type { LessonSection } from "@/lib/law/types";
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
+import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { fa } from "@/lib/fa";
 import { categoryLabel } from "@/lib/social-shared";
 import { useTargetRating } from "@/lib/social-client";
@@ -274,10 +274,14 @@ export function PostView({ id }: { id: string }) {
           {user ? (
             <StarRating value={rating.my ?? rating.agg.avg} onChange={rate} disabled={rating.busy} size={18} />
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <button
+              onClick={() => requestAuthPrompt("برای امتیاز دادن")}
+              title="برای امتیاز دادن، وارد شو"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/60 hover:text-bronze"
+            >
               <StarRating value={rating.agg.avg} count={rating.agg.count} size={13} />
-              برای امتیاز دادن وارد شو
-            </span>
+              <span className="inline-flex items-center gap-1"><LogIn className="h-3 w-3" /> برای امتیاز دادن وارد شو</span>
+            </button>
           )}
           {user && rating.agg.count > 0 && (
             <span className="text-[11px] text-muted-foreground">میانگین {fa(Math.round(rating.agg.avg * 10) / 10)} از {fa(rating.agg.count)} رأی</span>
@@ -389,9 +393,12 @@ export function PostView({ id }: { id: string }) {
             </div>
           </form>
         ) : (
-          <p className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
-            برای گذاشتن کامنت یا امتیاز دادن، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو.
-          </p>
+          <button
+            onClick={() => requestAuthPrompt("برای گذاشتن کامنت")}
+            className="w-full rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-start text-sm text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze"
+          >
+            برای گذاشتن کامنت یا امتیاز دادن، بزن تا از «ورود / ثبت‌نام» وارد شوی.
+          </button>
         )}
 
         <ul className="space-y-2.5">

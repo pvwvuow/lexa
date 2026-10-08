@@ -18,6 +18,7 @@ import {
   type TCourseCard,
   type RatingInfo,
 } from "@/lib/social-client";
+import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
 import { OfflineDownloadButton } from "./offline-ui";
 
@@ -84,7 +85,6 @@ export function TeacherProfileView({ id }: { id?: string }) {
             teacherId={data.profile.id}
             initial={data.profile.isFollowing}
             onChanged={() => void reload()}
-            disabled={!auth.user}
           />
         </div>
 
@@ -167,15 +167,21 @@ export function TeacherProfileView({ id }: { id?: string }) {
 
 /* ─── دکمهٔ فالو درون پروفایل ── */
 function FollowButton({
-  teacherId, initial, onChanged, disabled,
-}: { teacherId: string; initial: boolean; onChanged: () => void; disabled?: boolean }) {
+  teacherId, initial, onChanged,
+}: { teacherId: string; initial: boolean; onChanged: () => void }) {
+  const { user } = useAuth();
   const [following, setFollowing] = React.useState(initial);
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => setFollowing(initial), [initial]);
 
   async function toggle() {
-    if (disabled) return;
+    if (!user) {
+      // مهمان: پنجرهٔ ورود باز می‌شود — حساب ابری با پل خودکار کافی است
+      requestAuthPrompt("برای دنبال کردن استاد");
+      return;
+    }
+    if (busy) return;
     setBusy(true);
     try {
       await fetch("/api/social/follow", {
@@ -193,8 +199,8 @@ function FollowButton({
   return (
     <button
       onClick={toggle}
-      disabled={disabled || busy}
-      title={disabled ? "ابتدا وارد شو" : undefined}
+      disabled={busy}
+      title={!user ? "برای دنبال کردن، وارد شو" : undefined}
       className={`inline-flex shrink-0 items-center gap-2 self-start rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
         following
           ? "border border-success/50 bg-success/10 text-success"

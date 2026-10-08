@@ -11,6 +11,7 @@ import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { useApp } from "@/lib/store";
 import { useSocial, useTCourses, isInLocalLibrary, addTCourseLocally } from "@/lib/social-client";
+import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { CourseIcon, UserAvatar } from "./common";
 import { TeacherFeedTeasers } from "./DashboardView";
 
@@ -23,6 +24,11 @@ export function TeachersView() {
   const [busyId, setBusyId] = React.useState("");
 
   async function onFollow(id: string) {
+    if (!user) {
+      // دیگر دکمهٔ مرده نیست: تپ مهمان = پنجرهٔ ورود (حساب ابری کافی است — پل خودکار)
+      requestAuthPrompt("برای دنبال کردن استاد");
+      return;
+    }
     setErr("");
     try {
       await toggleFollow(id);
@@ -84,9 +90,10 @@ export function TeachersView() {
       </header>
 
       {!user && (
-        <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
           <LogIn className="h-4 w-4 shrink-0 text-bronze" />
-          بدون حساب هم می‌توانی دوره را به کتابخانهٔ همین دستگاه اضافه کنی؛ فالو و کامنت با حساب کار می‌کند و با ساختن حساب، پیشرفتت همه‌جا امن می‌ماند.
+          بدون حساب هم می‌توانی دوره را به کتابخانهٔ همین دستگاه اضافه کنی؛ برای دنبال کردن و کامنت،
+          دکمهٔ «ورود / ثبت‌نام» بالای صفحه کافی است — با همان حساب همه‌چیز فعال می‌شود.
         </p>
       )}
       {err && <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{err}</p>}
@@ -129,8 +136,7 @@ export function TeachersView() {
                 </div>
                 <button
                   onClick={() => onFollow(t.id)}
-                  disabled={!user}
-                  title={!user ? "ابتدا وارد شو" : undefined}
+                  title={!user ? "برای دنبال کردن، وارد شو" : undefined}
                   className={`inline-flex shrink-0 items-center gap-1.5 self-center rounded-full px-4 py-2 text-xs font-bold transition-all ${
                     t.isFollowing
                       ? "border border-success/50 bg-success/10 text-success"

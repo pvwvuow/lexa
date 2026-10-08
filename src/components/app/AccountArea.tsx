@@ -17,6 +17,7 @@ import { IS_APK } from "@/lib/app-mode";
 import { AuthDialog } from "./AuthDialog";
 import { CloudAccountArea, CloudAuthDialog } from "./CloudAuth";
 import { sbUser, onAuthChange, type SbUser } from "@/lib/supabase";
+import { onAuthPrompt } from "@/lib/auth-prompt";
 import { UserAvatar } from "./common";
 
 /** بخش حساب کاربری در هدر: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب.
@@ -31,6 +32,10 @@ export function AccountArea() {
   const [localOpen, setLocalOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [leaving, setLeaving] = React.useState(false);
+
+  // درخواست باز شدن پنجرهٔ ورود از هر نقطهٔ اپ (فالو/امتیاز/کامنت مهمان) —
+  // هوک بدون شرط است؛ اگر حساب ابری فعال باشد اثر جانبی ندارد
+  React.useEffect(() => onAuthPrompt(() => setOpen(true)), []);
 
   // APK یا نشست ابری فعال → منوی ابری
   if (IS_APK || cloudUser) return <CloudAccountArea />;

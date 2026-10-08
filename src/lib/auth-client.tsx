@@ -13,6 +13,8 @@ interface AuthCtx {
   register(username: string, password: string): Promise<{ ok: boolean; error?: string }>;
   logout(): Promise<void>;
   syncNow(): Promise<boolean>;
+  /** پل حساب ابری ← حساب سروری: با توکن معتبر ساپابیس نشست سروری می‌سازد */
+  bridgeCloud(): Promise<boolean>;
   /** ویرایش پروفایل شخصی (نام نمایشی/بیو) از تنظیمات عمومی */
   updateProfile(patch: { displayName?: string; bio?: string }): Promise<{ ok: boolean; error?: string }>;
   /** بازخوانی اطلاعات حساب از سرور (پس از تغییر آواتار و…) */
@@ -118,81 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // نشست جاری هنگام بارگذاری
-  React.useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const meRes = await fetch("/api/auth/me");
-        const me = (await meRes.json()) as { user: PublicUser | null };
-        if (!alive) return;
-        if (!me.user) {
-          setStatus("guest");
-          hydratingRef.current = false;
-          return;
-        }
-        setUser(me.user);
-        userRef.current = me.user;
-        // دریافت داده‌های ذخیره‌شدهٔ کاربر و ادغام با داده‌های محلی دستگاه
-        try {
-          const dataRes = await fetch("/api/user/data");
-          if (dataRes.ok) {
-            const data = (await dataRes.json()) as { snapshot: SyncSnapshot };
-            if (data.snapshot && useApp.getState().mergeServerSnapshot) {
-              useApp.getState().mergeServerSnapshot(data.snapshot);
-            }
-          }
-        } catch {}
-        setStatus("authed");
-        void refreshLibrary();
-        // پس از دریافت، یک flush اولیه تا داده‌های صرفاً محلی هم به سرور برسند
-        void flush().finally(() => {
-          hydratingRef.current = false;
-        });
-      } catch {
-        if (alive) {
-          setStatus("guest");
-          hydratingRef.current = false;
-        }
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-     
-  }, []);
-
-  // همگام‌سازی خودکار تغییرات store با فاصلهٔ خواب ۳ ثانیه
-  React.useEffect(() => {
-    if (status !== "authed") return;
-    const unsub = useApp.subscribe(() => {
-      if (hydratingRef.current || !userRef.current) return;
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        void flush();
-      }, 3000);
-    });
-    return () => {
-      unsub();
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [status, flush]);
-
-  // ذخیرهٔ نهایی پیش از ترک صفحه
-  React.useEffect(() => {
-    function onHide() {
-      if (document.visibilityState === "hidden" && userRef.current) {
-        void flush();
-      }
-    }
-    document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", () => void flush());
-    return () => {
-      document.removeEventListener("visibilitychange", onHide);
-    };
-  }, [flush]);
-
+  // ⚠️ afterAuth پیش از bridgeCloud تعریف می‌شود (به آن تکیه دارد — ترتیب TDZ)
   /** پس از ورود/ثبت‌نام؛ رفتار دو مسیر کاملاً متفاوت است */
   const afterAuth = React.useCallback(
     async (u: PublicUser, mode: "login" | "register") => {
@@ -233,6 +161,111 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [flush]
   );
+
+  /** پل حساب ابری ← حساب سروری — نشست سروری از توکن ساپابیس می‌سازد.
+   *  ریشهٔ باگ «اکانت دارم ولی می‌گوید وارد شو»: قابلیت‌های اجتماعی (فالو،
+   *  امتیاز، کامنت، کتابخانهٔ همگام) فقط نشست سروری را می‌شناسند؛ کاربری که با
+   *  دکمهٔ اصلی (حساب ابری) وارد شده بود مهمان به حساب می‌آمد. حالا پل خودکار
+   *  هویت ابری را به حساب سروری همان شخص وصل می‌کند. */
+  const bridgeCloud = React.useCallback(async (): Promise<boolean> => {
+    try {
+      const { sbAccessToken, sbUser } = await import("@/lib/supabase");
+      const token = sbAccessToken();
+      if (!token || !sbUser()) return false;
+      const res = await fetch("/api/auth/cloud-bridge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token }),
+      });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json") || !res.ok) return false;
+      const data = (await res.json()) as { user?: PublicUser };
+      if (!data.user) return false;
+      await afterAuth(data.user, "register");
+      return true;
+    } catch {
+      return false; // APK / آفلاین: بدون سرور — مثل قبل محلی
+    }
+  }, [afterAuth]);
+
+  // نشست جاری هنگام بارگذاری — و در نبود نشست سروری، پل خودکار حساب ابری
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const meRes = await fetch("/api/auth/me");
+        const me = (await meRes.json()) as { user: PublicUser | null };
+        if (!alive) return;
+        if (!me.user) {
+          // حساب ابری فعال اما نشست سروری منقضی/ناموجود؟ پل بزن — وگرنه مهمان
+          const bridged = await bridgeCloud();
+          if (!bridged && alive) {
+            setStatus("guest");
+            hydratingRef.current = false;
+          }
+          return;
+        }
+        setUser(me.user);
+        userRef.current = me.user;
+        // دریافت داده‌های ذخیره‌شدهٔ کاربر و ادغام با داده‌های محلی دستگاه
+        try {
+          const dataRes = await fetch("/api/user/data");
+          if (dataRes.ok) {
+            const data = (await dataRes.json()) as { snapshot: SyncSnapshot };
+            if (data.snapshot && useApp.getState().mergeServerSnapshot) {
+              useApp.getState().mergeServerSnapshot(data.snapshot);
+            }
+          }
+        } catch {}
+        setStatus("authed");
+        void refreshLibrary();
+        // پس از دریافت، یک flush اولیه تا داده‌های صرفاً محلی هم به سرور برسند
+        void flush().finally(() => {
+          hydratingRef.current = false;
+        });
+      } catch {
+        if (alive) {
+          setStatus("guest");
+          hydratingRef.current = false;
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+     
+  }, [bridgeCloud]);
+
+  // همگام‌سازی خودکار تغییرات store با فاصلهٔ خواب ۳ ثانیه
+  React.useEffect(() => {
+    if (status !== "authed") return;
+    const unsub = useApp.subscribe(() => {
+      if (hydratingRef.current || !userRef.current) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        void flush();
+      }, 3000);
+    });
+    return () => {
+      unsub();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [status, flush]);
+
+  // ذخیرهٔ نهایی پیش از ترک صفحه
+  React.useEffect(() => {
+    function onHide() {
+      if (document.visibilityState === "hidden" && userRef.current) {
+        void flush();
+      }
+    }
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", () => void flush());
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [flush]);
 
   const login = React.useCallback<AuthCtx["login"]>(
     async (username, password) => {
@@ -344,10 +377,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       logout,
       syncNow: flush,
+      bridgeCloud,
       updateProfile,
       refreshMe,
     }),
-    [user, status, syncing, lastSavedAt, login, register, logout, flush, updateProfile, refreshMe]
+    [user, status, syncing, lastSavedAt, login, register, logout, flush, bridgeCloud, updateProfile, refreshMe]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -12,6 +12,7 @@ import { useApp } from "@/lib/store";
 import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
+import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
 import { OfflineDownloadButton } from "./offline-ui";
@@ -755,6 +756,11 @@ export function TeacherSuggestions() {
   const { user } = useAuth();
   const [err, setErr] = React.useState("");
   async function onFollow(id: string) {
+    if (!user) {
+      // مهمان: دکمهٔ مرده نیست — پنجرهٔ ورود باز می‌شود (حساب ابری کافی است)
+      requestAuthPrompt("برای دنبال کردن استاد");
+      return;
+    }
     setErr("");
     try {
       await toggleFollow(id);
@@ -824,8 +830,7 @@ export function TeacherSuggestions() {
           </p>
           <button
             onClick={() => onFollow(t.id)}
-            disabled={!user}
-            title={!user ? "ابتدا وارد شو" : undefined}
+            title={!user ? "برای دنبال کردن، وارد شو" : undefined}
             className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11.5px] font-bold transition-all ${
               t.isFollowing
                 ? "border border-success/50 bg-success/10 text-success"

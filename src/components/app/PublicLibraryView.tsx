@@ -4,7 +4,7 @@
 import * as React from "react";
 import {
   LibraryBig, BookPlus, BookCheck, Loader2, GraduationCap, Star,
-  MessageCircle, Clock3, LogIn, Users, Layers3, Trash2, Sparkles, Landmark,
+  MessageCircle, Clock3, LogIn, Users, Layers3, Trash2, Sparkles, Landmark, CircleCheck,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
@@ -149,8 +149,8 @@ function CourseCardLib({
         )}
       </button>
       {!user && (
-        <p className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
-          <LogIn className="h-3 w-3" /> برای افزودن وارد شو یا حساب بساز
+        <p className="mt-1.5 flex items-center justify-center gap-1 text-[10px] leading-relaxed text-muted-foreground">
+          <CircleCheck className="h-3 w-3 text-success" /> بدون حساب هم اضافه می‌شود (همین دستگاه)؛ با حساب همه‌جا همگام می‌ماند
         </p>
       )}
     </div>

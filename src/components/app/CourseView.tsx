@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff, Download, RefreshCw } from "lucide-react";
+import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff, Download, RefreshCw, LogIn } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
@@ -11,6 +11,7 @@ import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { useTargetRating, addTCourseLocally } from "@/lib/social-client";
+import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
 import { ensureChapterContent, isLazyLesson, peekTextState, useTextsVersion } from "@/lib/law/texts";
@@ -265,10 +266,16 @@ function CourseBody({
                 size={20}
               />
             ) : (
-              <span className="inline-flex items-center gap-2">
+              <button
+                onClick={() => requestAuthPrompt("برای ثبت امتیاز")}
+                title="برای ثبت امتیاز، وارد شو"
+                className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/60 hover:text-bronze"
+              >
                 <StarRating value={rate.agg.avg} count={rate.agg.count} size={14} />
-                <span className="text-[11px] text-muted-foreground">برای ثبت امتیاز وارد شو</span>
-              </span>
+                <span className="inline-flex items-center gap-1">
+                  <LogIn className="h-3 w-3" /> برای ثبت امتیاز وارد شو
+                </span>
+              </button>
             )}
           </div>
         )}

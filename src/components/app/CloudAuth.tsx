@@ -28,6 +28,8 @@ import {
   collectLocal, onAuthChange, type SbUser,
 } from "@/lib/supabase";
 import { adoptCloudBlob, wipeLocalUserData, handleAccountSwitch, holdCloudPush, noteCloudPushed } from "@/lib/cloud-sync";
+import { onAuthPrompt } from "@/lib/auth-prompt";
+import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
@@ -51,6 +53,7 @@ export function CloudAuthDialog({
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [info, setInfo] = React.useState<string | null>(null);
+  const auth = useAuth();
 
   React.useEffect(() => {
     if (open) {
@@ -103,6 +106,9 @@ export function CloudAuthDialog({
     // می‌توانست قبل از رسیدن دادهٔ ابر روی حساب بنشیند.
     holdCloudPush(true);
     try {
+      // پل حساب: نشست سروری هم ساخته می‌شود تا فالو/امتیاز/کامنت/کتابخانهٔ
+      // همگام همان لحظه کار کنند (روی APK بی‌سرور، بی‌صدا رد می‌شود)
+      void auth.bridgeCloud();
       // تشخیص تعویض حساب: اگر قبلاً حساب دیگری روی این دستگاه وارد شده بود، دادهٔ
       // محلی (نشان‌ها/پیشرفت/کتاب‌ها) متعلق به آن حساب است و هرگز به حساب جدید نباید برسد.
       handleAccountSwitch(sbUser()!.id);
@@ -282,6 +288,8 @@ export function CloudAccountArea() {
   const [busy, setBusy] = React.useState<"" | "out">("");
 
   React.useEffect(() => onAuthChange(() => setUser(sbUser())), []);
+  // درخواست باز شدن پنجرهٔ ورود از هر نقطهٔ اپ — هوک بدون شرط
+  React.useEffect(() => onAuthPrompt(() => setOpen(true)), []);
 
   if (!user) {
     return (
@@ -349,6 +357,9 @@ export function CloudAccountArea() {
               }
               noteCloudPushed(blob.savedAt);
               await sbSignOut();
+              // خروج از حساب ابری = خروج کامل: نشست سروریِ حاصل از پل هم باید تمام
+              // شود وگرنه قابلیت‌های سروری در پس‌زمینه باز می‌مانند
+              try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
               // خروج یعنی دادهٔ حساب روی دستگاه نماند — با ورود، از ابر برمی‌گردد
               wipeLocalUserData();
               setBusy("");

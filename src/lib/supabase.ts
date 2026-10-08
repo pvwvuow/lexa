@@ -14,6 +14,8 @@ function save(t: Tok | null){ current = t; try{ t ? localStorage.setItem(TOK_KEY
 if (typeof window !== "undefined") load();
 export function onAuthChange(f: () => void){ listeners.add(f); return () => { listeners.delete(f); }; }
 export function sbUser(){ return current?.user ?? null; }
+/** توکن دسترسی جاری برای «پل حساب» — سرور با آن هویت را نزد Supabase راستی‌آزمایی می‌کند */
+export function sbAccessToken(){ return current?.access_token ?? null; }
 export function sbReady(){ return supaConfigured(); }
 
 async function call(path: string, opts: RequestInit = {}): Promise<Response>{
