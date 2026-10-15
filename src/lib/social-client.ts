@@ -102,20 +102,26 @@ export function useSocial() {
   const [feed, setFeed] = React.useState<FeedPost[]>([]);
   const [showingAll, setShowingAll] = React.useState(true);
   const [loading, setLoading] = React.useState(true);
+  // only the newest load may write state (a slow reply for the previous account
+  // used to overwrite the new one)
+  const reqRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
+    const id = ++reqRef.current;
     setLoading(true);
     try {
       const s = await jf<{ teachers: SuggestionItem[] }>("/api/social/suggestions");
+      if (id !== reqRef.current) return;
       // گارد دفاعی — state هرگز undefined نمی‌شود (هر طور پاسخ خراب/غیرJSON برگردد)
       setTeachers(Array.isArray(s?.teachers) ? s.teachers : []);
       const f = await jf<{ posts: FeedPost[]; showingAll?: boolean }>("/api/social/feed");
+      if (id !== reqRef.current) return;
       setFeed(Array.isArray(f?.posts) ? f.posts : []);
       setShowingAll(!!f?.showingAll);
     } catch {
       /* در محیط آفلاین بی‌صدا */
     } finally {
-      setLoading(false);
+      if (id === reqRef.current) setLoading(false);
     }
   }, []);
 
@@ -154,16 +160,19 @@ export function useSocial() {
 export function useTCourses(mine = false) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const reqRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
+    const id = ++reqRef.current;
     setLoading(true);
     try {
       const d = await jf<{ courses: TCourseCard[] }>(`/api/tcourses${mine ? "?mine=1" : ""}`);
-      setCourses(d.courses);
+      // APK: the HTML 404 page comes back as {} — never put undefined into state
+      if (id === reqRef.current) setCourses(Array.isArray(d?.courses) ? d.courses : []);
     } catch {
       /* ignore */
     } finally {
-      setLoading(false);
+      if (id === reqRef.current) setLoading(false);
     }
   }, [mine]);
 
@@ -262,20 +271,24 @@ export function usePublicLibrary(cat: string, enabled = true) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [posts, setPosts] = React.useState<FeedPost[]>([]);
   const [loading, setLoading] = React.useState(enabled);
+  // switching category A → B: a slow reply for A must not overwrite B
+  const reqRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
+    const id = ++reqRef.current;
     if (!enabled) { setCourses([]); setPosts([]); setLoading(false); return; }
     setLoading(true);
     try {
       const d = await jf<{ courses: TCourseCard[]; posts: FeedPost[] }>(
         `/api/library/public${cat ? `?cat=${encodeURIComponent(cat)}` : ""}`,
       );
-      setCourses(d.courses ?? []);
-      setPosts(d.posts ?? []);
+      if (id !== reqRef.current) return;
+      setCourses(Array.isArray(d?.courses) ? d.courses : []);
+      setPosts(Array.isArray(d?.posts) ? d.posts : []);
     } catch {
       /* بی‌صدا */
     } finally {
-      setLoading(false);
+      if (id === reqRef.current) setLoading(false);
     }
   }, [cat, enabled]);
 
@@ -310,17 +323,23 @@ export function useTeacherProfile(userId?: string | null) {
   const [data, setData] = React.useState<TeacherProfileData | null>(null);
   const [notFound, setNotFound] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const reqRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
     if (!userId) return;
+    const id = ++reqRef.current;
     setLoading(true);
     setNotFound(false);
     try {
-      setData(await jf<TeacherProfileData>(`/api/users/${userId}`));
+      const d = await jf<TeacherProfileData>(`/api/users/${userId}`);
+      if (id !== reqRef.current) return;
+      // APK HTML 404 parses as {}: treat a reply without a profile as not found
+      if (!d?.profile) setNotFound(true);
+      else setData({ ...d, courses: Array.isArray(d.courses) ? d.courses : [], posts: Array.isArray(d.posts) ? d.posts : [] });
     } catch {
-      setNotFound(true);
+      if (id === reqRef.current) setNotFound(true);
     } finally {
-      setLoading(false);
+      if (id === reqRef.current) setLoading(false);
     }
   }, [userId]);
 
