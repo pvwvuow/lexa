@@ -2,6 +2,7 @@
 // «استاد داخلی» با z-ai-web-dev-sdk فقط همین‌جاست (باندل سروری)؛ بقیه از
 // لایهٔ سبک ایزومورفیک می‌آید. از /api/ai و مسیرهای بازخورد استفاده می‌شود.
 import { callGemini, callOpenAiCompatible, type AiConf } from './providers-lite';
+import { assertPublicUrl } from '../net-guard';
 
 export { extractJson, PERSIAN_FAIL } from './providers-lite';
 export type { AiConf } from './providers-lite';
@@ -20,11 +21,16 @@ export async function callBuiltin(system: string, user: string, temperature = 0.
   return completion.choices[0]?.message?.content ?? '';
 }
 
+/** The client chooses baseUrl; on the server it must be a public host (no SSRF). */
+async function guardBaseUrl(conf: AiConf): Promise<void> {
+  if (conf.baseUrl) await assertPublicUrl(conf.baseUrl);
+}
+
 /** dispatch کامل سرور — شامل استاد داخلی */
 export async function dispatch(conf: AiConf, system: string, user: string, tempOverride?: number): Promise<string> {
   switch (conf.provider) {
-    case 'gemini': return callGemini(conf, system, user, tempOverride);
-    case 'openai': return callOpenAiCompatible(conf, system, user, tempOverride);
+    case 'gemini': await guardBaseUrl(conf); return callGemini(conf, system, user, tempOverride);
+    case 'openai': await guardBaseUrl(conf); return callOpenAiCompatible(conf, system, user, tempOverride);
     default:       return callBuiltin(system, user, tempOverride);
   }
 }

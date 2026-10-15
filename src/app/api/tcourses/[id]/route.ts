@@ -16,6 +16,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     include: { teacher: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
   });
   if (!row) return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
+  // Drafts are visible only to their teacher or an admin (same rule as the list endpoint).
+  if (row.status === "draft" && (!me || (me.id !== row.teacherId && me.role !== "admin")))
+    return NextResponse.json({ error: "دوره یافت نشد." }, { status: 404 });
 
   const course = {
     ...teacherCourseToCourse(row, {

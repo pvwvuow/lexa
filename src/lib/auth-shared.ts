@@ -57,6 +57,8 @@ export function validateUsername(u: string): string | null {
     return "نام کاربری باید بین ۳ تا ۲۰ نویسه باشد.";
   if (!/^[a-zA-Z0-9_\u0600-\u06FF][a-zA-Z0-9_.\u0600-\u06FF]*$/.test(u))
     return "نام کاربری فقط شامل حروف فارسی/لاتین، رقم، زیرخط یا نقطه است.";
+  // sb_* is the namespace of cloud-bridge accounts (see /api/auth/cloud-bridge)
+  if (/^sb_/i.test(u)) return "این نام کاربری رزرو شده است.";
   return null;
 }
 
