@@ -74,21 +74,35 @@ function flattenCourseInto(c: Course, items: IndexItem[]) {
 /* ─── کش شاخص جلسه‌ها — بین باز و بسته‌شدن‌ها می‌ماند تا جستجو همیشه فوری باشد ──
    کلید کش = هویت آرایهٔ دوره‌ها + نسخهٔ متن‌های تنبل. ساخت تکه‌تکه و غیرمسدودکننده
    است تا روی گوشی‌های کند صفحه هنگ نکند و تا پایان ساخت، اسکلتون دیده شود. */
-interface LessonIndexKey { n: number; lessons: number; ver: number }
+// ids = course + lesson ids in order: counts alone let a different course set with
+// the same number of courses/lessons reuse the old index (wrong hits, wrong lesson)
+interface LessonIndexKey { ids: string; lessons: number; ver: number }
 let LESSON_CACHE: { key: LessonIndexKey; items: IndexItem[] } | null = null;
 let LESSON_BUILD: { key: LessonIndexKey; items: IndexItem[]; done: boolean; subs: ((items: IndexItem[]) => void)[] } | null = null;
 function lessonKey(courses: Course[], ver: number): LessonIndexKey {
   let lessons = 0;
-  for (const c of courses) for (const ch of c.chapters) lessons += ch.lessons.length;
-  return { n: courses.length, lessons, ver };
+  const ids: string[] = [];
+  for (const c of courses) {
+    ids.push(c.id);
+    for (const ch of c.chapters) {
+      lessons += ch.lessons.length;
+      for (const l of ch.lessons) ids.push(l.id);
+    }
+  }
+  return { ids: ids.join("|"), lessons, ver };
 }
-function sameKey(a: LessonIndexKey, b: LessonIndexKey) { return a.n === b.n && a.lessons === b.lessons && a.ver === b.ver; }
+function sameKey(a: LessonIndexKey, b: LessonIndexKey) { return a.ids === b.ids && a.lessons === b.lessons && a.ver === b.ver; }
 function ensureLessonIndex(courses: Course[], ver: number, onDone: (items: IndexItem[]) => void) {
   const key = lessonKey(courses, ver);
   if (LESSON_CACHE && sameKey(LESSON_CACHE.key, key)) { onDone(LESSON_CACHE.items); return; }
   // ساخت در جریان؟ همهٔ نمونه‌های جستجو مشترک می‌شوند — ساخت فقط یک‌بار انجام می‌شود
-  if (LESSON_BUILD && !LESSON_BUILD.done) { LESSON_BUILD.subs.push(onDone); return; }
-  const build: NonNullable<typeof LESSON_BUILD> = { key, items: [], done: false, subs: [onDone] };
+  // (only when it is for the same courses; an older build is replaced and its waiters move over)
+  let waiting: ((items: IndexItem[]) => void)[] = [];
+  if (LESSON_BUILD && !LESSON_BUILD.done) {
+    if (sameKey(LESSON_BUILD.key, key)) { LESSON_BUILD.subs.push(onDone); return; }
+    waiting = LESSON_BUILD.subs;
+  }
+  const build: NonNullable<typeof LESSON_BUILD> = { key, items: [], done: false, subs: [...waiting, onDone] };
   LESSON_BUILD = build;
   let i = 0;
   const step = () => {
@@ -394,9 +408,20 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
   function hl(text: string): React.ReactNode[] {
     const tokens = q.trim().split(/\s+/).filter((t) => t.length >= 2);
     if (tokens.length === 0) return [text];
-    const rx = new RegExp("(" + tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
-    return text.split(rx).map((part, i) =>
-      rx.test(part) ? (
+    // separate split / test regexes: one global regex keeps lastIndex between
+    // test() calls and skipped matches; Arabic ي/ى/ك match like norm() does
+    const src = tokens
+      .map((t) =>
+        t
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+          .replace(/[یيى]/g, "[یيى]")
+          .replace(/[کك]/g, "[کك]"),
+      )
+      .join("|");
+    const splitRx = new RegExp("(" + src + ")", "gi");
+    const hitRx = new RegExp("^(?:" + src + ")$", "i");
+    return text.split(splitRx).map((part, i) =>
+      hitRx.test(part) ? (
         <mark key={i} className="rounded-[4px] bg-bronze/20 px-0.5 font-bold text-bronze">{part}</mark>
       ) : (
         <React.Fragment key={i}>{part}</React.Fragment>
