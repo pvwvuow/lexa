@@ -22,6 +22,11 @@ export const runtime = "nodejs";
  * نگاشت پایدار و امن: username = «sb_» + ۸ نویسهٔ اول شناسهٔ یکتای Supabase
  * (deterministic — هر هویت ابری همیشه به همان حساب سروری می‌رسد)؛ رمز تصادفی
  * غیرقابل حدس — ورود مستقیم با رمز برای این حساب‌ها ممکن نیست، فقط پل.
+ *
+ * 0.10.17: now sb_ + the first 17 hex chars (68 bits, fits the 20-char username
+ * limit). 8 hex chars = 32 bits, so two cloud users could map to the same server
+ * account. Accounts created with the short name are renamed on their next bridge.
+ * The sb_ prefix is reserved in validateUsername, so nobody can pre-register one.
  */
 
 interface SbIdentity {
@@ -58,7 +63,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "درخواست نامعتبر است." }, { status: 400 });
   }
-  const accessToken = String(body.accessToken ?? "");
+  const accessToken = String(body?.accessToken ?? "");
   if (!accessToken)
     return NextResponse.json({ error: "توکن حساب ابری یافت نشد." }, { status: 400 });
 
@@ -68,10 +73,18 @@ export async function POST(req: NextRequest) {
 
   // نگاشت deterministic — بدون ستون اضافه، بدون تصادم با حساب‌های محلی
   const sub = identity.id.replace(/[^a-f0-9]/gi, "").toLowerCase();
-  const username = `sb_${sub.slice(0, 8)}`;
+  if (sub.length < 17)
+    return NextResponse.json({ error: "نشست حساب ابری معتبر نیست." }, { status: 401 });
+  const username = `sb_${sub.slice(0, 17)}`;
+  const legacyUsername = `sb_${sub.slice(0, 8)}`;
 
   try {
     let user = await db.user.findUnique({ where: { username } });
+    if (!user) {
+      // one-time move of a 0.10.16 account (short 8-char name) to the new name
+      const legacy = await db.user.findUnique({ where: { username: legacyUsername } });
+      if (legacy) user = await db.user.update({ where: { id: legacy.id }, data: { username } });
+    }
     if (!user) {
       const local = identity.email.split("@")[0]?.slice(0, 30) || "کاربر Lexa";
       user = await db.user.create({

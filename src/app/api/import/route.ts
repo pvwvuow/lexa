@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import { getSessionUser } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
+import { fetchPublic } from '@/lib/net-guard';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -11,10 +12,9 @@ export const maxDuration = 120;
  * body: { url?, rawText? , mode:'text'|'outline' }
  */
 async function fetchText(url: string): Promise<{ text: string; bytes: number }> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(90_000), redirect: 'follow' });
+  // Every redirect hop is SSRF-checked and the 30 MB cap is enforced while streaming.
+  const { res, body: buf } = await fetchPublic(url, { maxBytes: 30 * 1024 * 1024, timeoutMs: 90_000 });
   if (!res.ok) throw new Error(`دانلود فایل ناموفق بود (HTTP ${res.status}).`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > 30 * 1024 * 1024) throw new Error('حجم فایل بیش از حد مجاز است (۳۰ مگابایت).');
   try {
     const parsed = await pdfParse(buf);
     let text = (parsed.text || '')
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     if (!rateLimit(req, `import:${me.id}`, 6, 60_000))
       return NextResponse.json({ error: 'تعداد درخواست‌ها زیاد است؛ چند لحظه صبر کنید.' }, { status: 429 });
 
-    const { url, rawText } = (await req.json()) as { url?: string; rawText?: string };
+    const { url, rawText } = ((await req.json()) ?? {}) as { url?: string; rawText?: string };
     let full = '';
     if (rawText && rawText.trim().length > 200) full = rawText.trim();
     else if (url) full = (await fetchText(assertPublicHttpUrl(url.trim()).toString())).text;

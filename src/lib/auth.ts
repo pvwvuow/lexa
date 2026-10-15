@@ -28,7 +28,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   }
 }
 
-// ─── نشست‌ها ──────────────────────────────────────────────────────────────────
+// ─── نشست‌ها ───────────────────────────────────────────────────────────────────────────
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -95,7 +95,7 @@ export function toPublic(u: SessionUser): PublicUser {
   };
 }
 
-// ─── حساب مدیر ────────────────────────────────────────────────────────────────
+// ─── حساب مدیر ────────────────────────────────────────────────────────────────────────────
 let adminEnsured = false;
 
 /**
@@ -125,7 +125,22 @@ export async function ensureAdmin(): Promise<void> {
         data: { passwordHash: await hashPassword(password) },
       });
       console.log("[auth] رمز پیش‌فرض مدیر به «lexa@1404» مهاجرت یافت");
+    } else if (
+      envP &&
+      envP.length >= 6 &&
+      envP !== "lexa@1404" &&
+      (await verifyPassword("lexa@1404", existing.passwordHash))
+    ) {
+      // The default password is public (it is in this repo). Once ADMIN_PASSWORD is
+      // set, an admin still on the default is moved to it; a changed password is kept.
+      await db.user.update({
+        where: { id: existing.id },
+        data: { passwordHash: await hashPassword(envP) },
+      });
+      console.log("[auth] default admin password replaced by ADMIN_PASSWORD");
     }
+    if (!envP && process.env.NODE_ENV === "production")
+      console.warn("[auth] ADMIN_PASSWORD is not set; change the default admin password");
     adminEnsured = true;
   } catch (e) {
     console.error("[auth] ensureAdmin error:", e);
