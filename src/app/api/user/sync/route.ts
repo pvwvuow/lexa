@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import type { SyncSnapshot } from "@/lib/auth-shared";
 
 export const runtime = "nodejs";
@@ -13,6 +14,14 @@ type IncomingProgress = {
   markedReview?: boolean;
 };
 
+/** Serialized blob field, or the previous server copy when it would exceed max.
+ *  Cutting JSON mid-way (the old .slice) left an unparsable value that the next
+ *  sync read as empty and then overwrote: custom courses / marks were wiped. */
+function fitJson(value: unknown, max: number, prev: string): string {
+  const s = JSON.stringify(value);
+  return s.length <= max ? s : prev;
+}
+
 /**
  * ذخیرهٔ ادغامی داده‌های کاربر — سیاست «هرگز پاک نشو»:
  * سرور فقط مقادیر بهتر را می‌پذیرد (تکمیل‌شده بر درحال‌انجام مقدم است،
@@ -22,6 +31,9 @@ export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user)
     return NextResponse.json({ error: "ابتدا وارد شوید." }, { status: 401 });
+  // client debounces to ~1 save / 3 s; this only stops floods
+  if (!rateLimit(req, `sync:${user.id}`, 60, 60_000))
+    return NextResponse.json({ error: "تعداد درخواست‌ها زیاد است." }, { status: 429 });
 
   let snap: SyncSnapshot;
   try {
@@ -29,11 +41,13 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "درخواست نامعتبر." }, { status: 400 });
   }
+  if (!snap || typeof snap !== "object" || Array.isArray(snap))
+    return NextResponse.json({ error: "درخواست نامعتبر." }, { status: 400 });
 
   try {
     const progress = snap.progress ?? {};
     // ── وضعیت جلسات (ادغام حداکثری: خواندن ← مقایسه ← نوشتن) ──
-    for (const [lessonId, raw] of Object.entries(progress)) {
+    for (const [lessonId, raw] of Object.entries(progress).slice(0, 5000)) {
       if (!raw || typeof lessonId !== "string") continue;
       const p = raw as IncomingProgress;
       if (!p.status || !["in-progress", "completed"].includes(p.status)) continue;
@@ -118,9 +132,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── یادداشت‌ها (فقط افزودنی) ──
-    for (const [lessonId, list] of Object.entries(snap.notes ?? {})) {
+    for (const [lessonId, list] of Object.entries(snap.notes ?? {}).slice(0, 5000)) {
       if (!Array.isArray(list)) continue;
-      for (const n of list) {
+      for (const n of list.slice(0, 500)) {
         if (!n?.id || typeof n.text !== "string") continue;
         const createdAtMs = Number.isFinite(n.createdAt) ? n.createdAt : Date.now();
         await db.note
@@ -208,10 +222,10 @@ export async function POST(req: NextRequest) {
     await db.userBlob.update({
       where: { userId: user.id },
       data: {
-        customCoursesJson: JSON.stringify(mergedCourses).slice(0, 4_000_000),
-        lastLocationJson: JSON.stringify(lastLocation),
-        streakJson: JSON.stringify(streakVal),
-        marksJson: JSON.stringify(mergedMarks).slice(0, 2_000_000),
+        customCoursesJson: fitJson(mergedCourses, 4_000_000, blob.customCoursesJson),
+        lastLocationJson: fitJson(lastLocation, 50_000, blob.lastLocationJson),
+        streakJson: fitJson(streakVal, 50_000, blob.streakJson),
+        marksJson: fitJson(mergedMarks, 2_000_000, blob.marksJson),
       },
     });
 

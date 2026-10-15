@@ -18,15 +18,24 @@ export function sbUser(){ return current?.user ?? null; }
 export function sbAccessToken(){ return current?.access_token ?? null; }
 export function sbReady(){ return supaConfigured(); }
 
-async function call(path: string, opts: RequestInit = {}): Promise<Response>{
+async function call(path: string, opts: RequestInit = {}, retried = false): Promise<Response>{
   const res = await fetch(supaUrl() + path, { ...opts, headers: { apikey: supaKey(), Authorization: "Bearer " + (current?.access_token ?? supaKey()), "Content-Type": "application/json", ...(opts.headers||{}) } });
-  if (res.status === 401 && current?.refresh_token) { const ok = await refresh(); if (ok) return call(path, opts); }
+  // retry once only: a request that is still 401 after a fresh token must not loop
+  if (res.status === 401 && !retried && current?.refresh_token) { const ok = await refresh(); if (ok) return call(path, opts, true); }
   return res;
 }
-async function refresh(): Promise<boolean>{
+// One refresh at a time. Supabase rotates refresh tokens, so two parallel 401s
+// refreshing with the same token made the second one fail and sign the user out.
+let refreshing: Promise<boolean> | null = null;
+function refresh(): Promise<boolean>{
+  if (!refreshing) refreshing = doRefresh().finally(() => { refreshing = null; });
+  return refreshing;
+}
+async function doRefresh(): Promise<boolean>{
   try{
     const res = await fetch(supaUrl()+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{apikey:supaKey(),"Content-Type":"application/json"},body:JSON.stringify({refresh_token:current!.refresh_token})});
-    if(!res.ok){ save(null); return false; }
+    // only a rejected refresh token ends the session; 5xx / 429 keep the user signed in
+    if(!res.ok){ if (res.status === 400 || res.status === 401) save(null); return false; }
     const j = await res.json();
     save({access_token:j.access_token,refresh_token:j.refresh_token,user:{id:j.user.id,email:j.user.email||""}});
     return true;

@@ -19,9 +19,17 @@ function sweep(now: number) {
 
 /** استخراج IP واقعی از هدرهای پراکسی/لودبالنسر */
 export function clientIp(req: Request): string {
+  // Caddy sets X-Real-IP to the real peer. For X-Forwarded-For use the LAST hop
+  // (added by our proxy): the first entry is whatever the client chose to send,
+  // so trusting it let anyone get a fresh rate-limit bucket per request.
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
   const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "local";
+  if (fwd) {
+    const hops = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1];
+  }
+  return "local";
 }
 
 /**
