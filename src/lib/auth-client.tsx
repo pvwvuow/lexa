@@ -85,9 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const userRef = React.useRef(user);
   userRef.current = user;
+  // bumped on logout: an in-flight cloud bridge started before it must not log back in
+  const authGenRef = React.useRef(0);
+  const flushChainRef = React.useRef<Promise<boolean>>(Promise.resolve(true));
 
   /** ارسال اسنپ‌شات کامل وضعیت به سرور (ادغامی و امن) */
-  const flush = React.useCallback(async (): Promise<boolean> => {
+  const flushNow = React.useCallback(async (): Promise<boolean> => {
     const u = userRef.current;
     if (!u) return false;
     setSyncing(true);
@@ -119,6 +122,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSyncing(false);
     }
   }, []);
+
+  /** Saves run one after another: overlapping saves could reach the server out of
+   *  order, so an older snapshot (last location, streak) could win. */
+  const flush = React.useCallback((): Promise<boolean> => {
+    const run = flushChainRef.current.then(flushNow, flushNow);
+    flushChainRef.current = run.catch(() => false);
+    return run;
+  }, [flushNow]);
 
   // ⚠️ afterAuth پیش از bridgeCloud تعریف می‌شود (به آن تکیه دارد — ترتیب TDZ)
   /** پس از ورود/ثبت‌نام؛ رفتار دو مسیر کاملاً متفاوت است */
@@ -169,9 +180,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    *  هویت ابری را به حساب سروری همان شخص وصل می‌کند. */
   const bridgeCloud = React.useCallback(async (): Promise<boolean> => {
     try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
       const { sbAccessToken, sbUser } = await import("@/lib/supabase");
       const token = sbAccessToken();
       if (!token || !sbUser()) return false;
+      const gen = authGenRef.current;
       const res = await fetch("/api/auth/cloud-bridge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,6 +194,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!ct.includes("application/json") || !res.ok) return false;
       const data = (await res.json()) as { user?: PublicUser };
       if (!data.user) return false;
+      // logged out / cloud-signed-out while the bridge was in flight: drop it and
+      // close the server session it just opened (it used to log the user back in)
+      if (gen !== authGenRef.current || !sbUser()) {
+        void fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+        return false;
+      }
       await afterAuth(data.user, "register");
       return true;
     } catch {
@@ -254,18 +273,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [status, flush]);
 
   // ذخیرهٔ نهایی پیش از ترک صفحه
+  // (sent at once with keepalive, not queued: the page may be gone before the queue drains)
   React.useEffect(() => {
     function onHide() {
       if (document.visibilityState === "hidden" && userRef.current) {
-        void flush();
+        void flushNow();
       }
     }
+    function onPageHide() {
+      if (userRef.current) void flushNow();
+    }
     document.addEventListener("visibilitychange", onHide);
-    window.addEventListener("pagehide", () => void flush());
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
     };
-  }, [flush]);
+  }, [flushNow]);
 
   const login = React.useCallback<AuthCtx["login"]>(
     async (username, password) => {
@@ -306,6 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = React.useCallback(async () => {
+    authGenRef.current++;
     try {
       await flush(); // آخرین ذخیره
     } catch {}
