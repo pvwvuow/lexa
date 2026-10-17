@@ -124,8 +124,17 @@ export function PostView({ id }: { id: string }) {
 
   async function removePost() {
     if (!data || !confirm("این مطلب برای همیشه حذف شود؟")) return;
-    await fetch(`/api/posts/${id}`, { method: "DELETE" });
-    navigate({ view: "teachers" });
+    try {
+      const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error((j as { error?: string }).error || "حذف انجام نشد.");
+      }
+      navigate({ view: "teachers" });
+    } catch (e) {
+      // روی خطا همین‌جا بمان تا کاربر خیال نکند مطلب حذف شده
+      window.alert(e instanceof Error && e.message !== "Failed to fetch" ? e.message : "ارتباط برقرار نشد؛ مطلب حذف نشد.");
+    }
   }
 
   async function rate(stars: number) {

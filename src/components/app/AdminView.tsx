@@ -17,7 +17,7 @@ import { AdminFeedbackSection } from "./AdminFeedbackSection";
 import { AdminTeachersSection } from "./AdminTeachersSection";
 import { AdminConsole } from "./OrgView";
 
-// ─── انواع داده ───────────────────────────────────────────────────────────────
+// ─── انواع داده ─────────────────────────────────────────────────────────────────────────────
 interface AdminUser {
   id: string;
   username: string;
@@ -72,7 +72,7 @@ function scoreColor(s: number) {
   return s >= 80 ? "text-success" : s >= 60 ? "text-bronze" : "text-destructive";
 }
 
-// ─── کارت آماری کوچک ──────────────────────────────────────────────────────────
+// ─── کارت آماری کوچک ──────────────────────────────────────────────────────────────────────
 function MiniStat({
   icon: Icon, label, value, sub,
 }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; sub?: string }) {
@@ -110,7 +110,7 @@ function HeatStrip({ days }: { days: string[] }) {
   );
 }
 
-// ─── ردیف کاربر در جدول ───────────────────────────────────────────────────────
+// ─── ردیف کاربر در جدول ─────────────────────────────────────────────────────────────────────────
 function UserRow({ u, onOpen }: { u: AdminUser; onOpen: () => void }) {
   return (
     <button
@@ -343,7 +343,7 @@ function UserDetail({ userId, onClose }: { userId: string; onClose: () => void }
   );
 }
 
-// ─── تنظیم حساب مدیر ──────────────────────────────────────────────────────────
+// ─── تنظیم حساب مدیر ──────────────────────────────────────────────────────────────────────
 function AdminAccountCard() {
   const auth = useAuth();
   const [currentPassword, setCurrentPassword] = React.useState("");
@@ -465,7 +465,7 @@ function AdminAccountCard() {
   );
 }
 
-// ─── ویو اصلی پنل مدیریت ──────────────────────────────────────────────────────
+// ─── ویو اصلی پنل مدیریت ────────────────────────────────────────────────────────────────────
 function ServerAdminView() {
   const auth = useAuth();
   const isAdmin = auth.user?.role === "admin";
@@ -680,5 +680,7 @@ function CloudAdminView() {
 }
 
 export function AdminView() {
-  return IS_APK ? <CloudAdminView /> : <ServerAdminView />;
+  // web/APK have no server: cloud console only. Desktop: a cloud (email) session
+  // means the cloud console too; the local admin account keeps the server panel.
+  return IS_APK || sbUser() ? <CloudAdminView /> : <ServerAdminView />;
 }

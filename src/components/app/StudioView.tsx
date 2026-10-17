@@ -326,6 +326,7 @@ export function StudioView() {
   const { user, status } = useAuth();
   const { courses: myCourses, reload: reloadCourses } = useTCourses(true);
   const [posts, setPosts] = React.useState<MyPost[]>([]);
+  const [postsErr, setPostsErr] = React.useState(false);
   const [tab, setTab] = React.useState<"posts" | "courses">("posts");
   const [busyId, setBusyId] = React.useState("");
 
@@ -333,8 +334,13 @@ export function StudioView() {
     try {
       const res = await fetch("/api/posts");
       const j = await res.json();
-      if (res.ok) setPosts(j.posts ?? []);
-    } catch {}
+      if (res.ok) {
+        setPosts(j.posts ?? []);
+        setPostsErr(false);
+      } else setPostsErr(true);
+    } catch {
+      setPostsErr(true);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -363,17 +369,35 @@ export function StudioView() {
   async function deletePost(id: string) {
     if (!confirm("این مطلب حذف شود؟ کامنت‌هایش هم پاک می‌شود.")) return;
     setBusyId(id);
-    await fetch(`/api/posts/${id}`, { method: "DELETE" });
-    await loadPosts();
-    setBusyId("");
+    try {
+      const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        window.alert((j as { error?: string }).error || "حذف مطلب انجام نشد.");
+      }
+      await loadPosts();
+    } catch {
+      window.alert("ارتباط برقرار نشد؛ مطلب حذف نشد.");
+    } finally {
+      setBusyId("");
+    }
   }
 
   async function deleteCourse(id: string) {
     if (!confirm("این دوره حذف شود؟ نوشته‌هایی که آن را به کتابخانه گرفته‌اند دیگر دسترسی نخواهند داشت.")) return;
     setBusyId(id);
-    await fetch(`/api/tcourses/${id}`, { method: "DELETE" });
-    await reloadCourses();
-    setBusyId("");
+    try {
+      const res = await fetch(`/api/tcourses/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        window.alert((j as { error?: string }).error || "حذف دوره انجام نشد.");
+      }
+      await reloadCourses();
+    } catch {
+      window.alert("ارتباط برقرار نشد؛ دوره حذف نشد.");
+    } finally {
+      setBusyId("");
+    }
   }
 
   return (
@@ -423,7 +447,13 @@ export function StudioView() {
       {/* مطالب من */}
       {tab === "posts" && (
         <section className="space-y-2.5">
-          {posts.length === 0 && (
+          {postsErr && (
+            <p className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-sm text-destructive">
+              فهرست مطالبت بارگذاری نشد — اتصال را بررسی کن.
+              <button onClick={() => void loadPosts()} className="rounded-lg border border-destructive/40 px-3 py-1 text-xs font-bold hover:bg-destructive/10">تلاش دوباره</button>
+            </p>
+          )}
+          {!postsErr && posts.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
               هنوز مطلبی منتشر نکرده‌ای — با «مطلب جدید» شروع کن.
             </p>
