@@ -20,6 +20,8 @@ export type Route =
   | { view: "law"; id?: string; no?: string }
   | { view: "teacher"; id: string }
   | { view: "study" }
+  /** دانشگاه‌ها و موسسه‌ها — بدون id هاب، با id (slug) صفحهٔ سازمان */
+  | { view: "org"; id?: string }
   | { view: "write"; kind: "post" | "course"; id?: string };
 
 export function routeToHash(r: Route): string {
@@ -33,6 +35,7 @@ export function routeToHash(r: Route): string {
     case "teacher": return `#/teacher/${r.id}`;
     case "law": return r.id ? `#/law/${r.id}${r.no ? `/${encodeURIComponent(r.no)}` : ""}` : "#/law";
     case "write": return `#/write/${r.kind}${r.id ? `/${r.id}` : ""}`;
+    case "org": return r.id ? `#/org/${encodeURIComponent(r.id)}` : "#/org";
     default: return `#/${r.view}`;
   }
 }
@@ -51,6 +54,7 @@ export function parseHash(h: string): Route {
   if (head === "case") return { view: "case", id };
   if (head === "post" && id) return { view: "post", id };
   if (head === "teacher" && id) return { view: "teacher", id };
+  if (head === "org") return { view: "org", id: id ? safeDecode(id) : undefined };
   if (head === "law") return { view: "law", id: id ? safeDecode(id) : undefined, no: parts[2] ? safeDecode(parts[2]) : undefined };
   if (head === "write" && (parts[1] === "post" || parts[1] === "course"))
     return { view: "write", kind: parts[1], id: parts[2] };
