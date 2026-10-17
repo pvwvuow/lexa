@@ -5,8 +5,9 @@ second pass over the cloud layer and the core/Electron code).
 
 ## Setup checklist (Supabase)
 
-1. Run `supabase/002_cloud_social.sql`, then `supabase/003_security_fixes.sql`.
-   If 002 is ever re-run, re-run 003 after it (002 ends with a broad
+1. Run `supabase/002_cloud_social.sql`, then `supabase/003_security_fixes.sql`, then
+   `supabase/004_usernames_and_directory.sql` (username picked at sign-up, admins listed
+   as teachers). If 002 is ever re-run, re-run 003 and 004 after it (002 ends with a broad
    `grant execute on all functions` that 003 narrows).
 2. Make the owner an admin in the SQL editor:
    `update public.lexa_profiles set role='admin' where id=(select id from auth.users where email='...');`
@@ -49,6 +50,10 @@ second pass over the cloud layer and the core/Electron code).
 - On desktop, social features (follow, comments, ratings, org panel, teacher studio
   publishing) always talk to Supabase, so they need a cloud (email) account. The local
   SQLite account keeps working for study data and sync.
+- Usernames (cloud): chosen at sign-up (`CloudAuth.tsx`, sent as user metadata and read
+  by the 004 trigger; also applied after the first sign-in via `lexa_set_username`) and
+  changeable from the cloud account menu. Rule: 3-20 chars, Persian/Latin letters,
+  digits, `_` and `.`; the default `u` + 10 hex form is reserved.
 
 ## Open (ordered by risk)
 
@@ -86,8 +91,12 @@ second pass over the cloud layer and the core/Electron code).
     `Math.random` on old WebViews. Never use it for tokens/ids that must be secret; prefer
     failing loudly.
 13. **Mixed content:** http:// thumbnails are accepted for posts/courses. Allow https only.
-14. **Small UX bugs:** `PostView` leaves the page even when deleting a post fails; cloud
-    comments fill `username` with the display name (`handlers.ts`).
+14. **Small UX bugs:** `PostView` leaves the page even when deleting a post fails;
+    `StudioView` delete buttons keep spinning if the request throws; `DashboardView`
+    "remove from library" toasts success on a failed request; cloud comments fill
+    `username` with the display name (`handlers.ts`); `AppShell` sidebar shows
+    "اتاق استاد" only for `role === "teacher"` (admins reach it from the account menu);
+    Settings shows the username read-only (it is changed from the cloud account menu).
 15. **In-memory rate limits** reset on restart and do not scale (fine for one server).
 16. **Repo hygiene:** tracked junk at the root (`--full-page`, `.initial_snapshot.json`,
     `.zscripts/dev.pid`, screenshots, `upload/` PDF). Remove and extend `.gitignore`.
