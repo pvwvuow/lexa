@@ -360,10 +360,10 @@ export function AppShell() {
         {/* پنل سازمانی: دانشگاه‌ها و موسسه‌ها، دعوت اساتید، درخواست حساب استادی */}
         {!SOCIAL_OFF && <SideItem icon={Building2} label={orgLabel} rail={rail} active={current === "org"} onClick={() => go({ view: "org" })} />}
         {/* افزودن کتاب فقط برای مدیر */}
-        {auth.user?.role === "admin" && (
+        {auth.user?.role === "admin" && !IS_APK && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
         )}
-        {auth.user?.role === "teacher" && (
+        {(auth.user?.role === "teacher" || auth.user?.role === "admin") && !SOCIAL_OFF && (
           <SideItem icon={PenSquare} label="اتاق استاد" rail={rail} active={current === "studio"} onClick={() => go({ view: "studio" })} />
         )}
         {auth.user?.role === "admin" && (
@@ -499,7 +499,7 @@ export function AppShell() {
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && (SOCIAL_OFF ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
-          {route.view === "admin" && (IS_APK ? <ApkUnavailable title="پنل مدیریت" /> : <AdminView />)}
+          {route.view === "admin" && <AdminView />}
         </main>
 
         {/* فوتر دسکتاپ */}
@@ -572,12 +572,12 @@ export function AppShell() {
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
               {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
               {!SOCIAL_OFF && <SideItem icon={Building2} label={orgLabel} rail={false} active={current === "org"} onClick={() => go({ view: "org" })} />}
-              {auth.user?.role === "teacher" && (
+              {(auth.user?.role === "teacher" || auth.user?.role === "admin") && !SOCIAL_OFF && (
                 <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}
               {auth.user?.role === "admin" && (
                 <>
-                  <SideItem icon={Upload} label="افزودن کتاب" rail={false} active={current === "import"} onClick={() => go({ view: "import" })} />
+                  {!IS_APK && <SideItem icon={Upload} label="افزودن کتاب" rail={false} active={current === "import"} onClick={() => go({ view: "import" })} />}
                   <SideItem icon={ShieldCheck} label="پنل مدیریت" rail={false} active={current === "admin"} onClick={() => go({ view: "admin" })} />
                 </>
               )}
