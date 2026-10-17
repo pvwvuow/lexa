@@ -1,10 +1,15 @@
 {
   "schema": 1,
-  "version": "0.10.17",
-  "tag": "app-v0.10.17",
-  "generatedAt": "2026-10-17T18:47:08.525Z",
-  "notes": "لایهٔ اجتماعی ابری + پنل دانشگاه/مؤسسه + اتاق استاد نسخهٔ ۲: اساتید، مقالات و دوره‌ها روی همهٔ پلتفرم‌ها (وب/اندروید/دسکتاپ) از حساب ابری مشترک می‌آیند؛ درخواست حساب استادی و تأیید مدیر در کنسول ابری؛ پنل سازمان با دعوت استاد و انتشار به نام سازمان؛ ویرایشگر تازهٔ اتاق استاد (کشیدن‌ورها، واگرد/ازنو، Ctrl+S، جدول خانه‌به‌خانه، چک‌لیست انتشار)؛ آپلود آواتار/کاور؛ امن‌سازی ساپابیس (۰۰۳): حذف رمز عمومی ادمین و مسدودسازی RPCهای داخلی؛ رفع همهٔ خطاهای تایپ‌اسکریپت و پاک‌سازی ریپو. توجه: فعال‌سازی بخش اجتماعی نیازمند اجرای supabase/002 و سپس 003 در SQL Editor است.",
+  "version": "0.10.18",
+  "tag": "app-v0.10.18",
+  "generatedAt": "2026-10-17T20:35:33.537Z",
+  "notes": "نسخهٔ **0.10.18** — به‌روزرسانی درون‌برنامه‌ای\n\n- از این نسخه، آپدیت‌های بعدی داخل خود برنامه نصب می‌شوند (فقط فایل‌های تغییرکرده)\n- دیگر لازم نیست برای هر نسخهٔ جدید، کل برنامه را از گیت‌هاب دانلود کنی",
   "history": [
+    {
+      "version": "0.10.17",
+      "date": "2026-10-17T18:47:08.525Z",
+      "notes": "لایهٔ اجتماعی ابری + پنل دانشگاه/مؤسسه + اتاق استاد نسخهٔ ۲: اساتید، مقالات و دوره‌ها روی همهٔ پلتفرم‌ها (وب/اندروید/دسکتاپ) از حساب ابری مشترک می‌آیند؛ درخواست حساب استادی و تأیید مدیر در کنسول ابری؛ پنل سازمان با دعوت استاد و انتشار به نام سازمان؛ ویرایشگر تازهٔ اتاق استاد (کشیدن‌ورها، واگرد/ازنو، Ctrl+S، جدول خانه‌به‌خانه، چک‌لیست انتشار)؛ آپلود آواتار/کاور؛ امن‌سازی ساپابیس (۰۰۳): حذف رمز عمومی ادمین و مسدودسازی RPCهای داخلی؛ رفع همهٔ خطاهای تایپ‌اسکریپت و پاک‌سازی ریپو. توجه: فعال‌سازی بخش اجتماعی نیازمند اجرای supabase/002 و سپس 003 در SQL Editor است."
+    },
     {
       "version": "0.10.16",
       "date": "2026-10-08T07:39:22.701Z",
@@ -29,11 +34,6 @@
       "version": "0.10.12",
       "date": "2026-10-07T09:10:24.161Z",
       "notes": "نسخهٔ 0.10.12 — ویرایش نشان با لمس + شکار باگ\n\n- ویرایش نشان روی لمس: دستگیره زیر انگشت می‌ماند و بازه را دنبال می‌کند\n- بستن نوار نشان فقط با تپ واقعی — شروع اسکرول دیگر نوار را نمی‌بندد\n- تپ روی نشان = باز شدن نوار ویرایش\n- امنیت سینک ابری: ورود/خروج ابری و ذخیرهٔ آفلاین ایمن‌تر شد\n- سرویس‌ورکر آفلاین مقاوم‌تر (رفع صفحات کهنه و خراب)\n- بهبود تاریخچهٔ آزمون‌ها و جستجوی قانون\n- به‌روزرسان درون‌برنامه‌ای سخت‌گیرانه‌تر و مطمئن‌تر"
-    },
-    {
-      "version": "0.10.11",
-      "date": "2026-10-05T19:27:25.014Z",
-      "notes": "نسخهٔ **0.10.11** — پرش دقیق به مادهٔ قانون + نوار ابزار هوشمند + ویرایش ایندکسی نشان\n\n- از جستجوی سراسری یا فهرست «نشان‌شده‌ها» که ماده‌ای را باز کنی، متن‌خوان قانون مستقیم به همان ماده می‌پرد، آن را در دید می‌آورد و با حلقهٔ برنزی برجسته می‌کند\n- در موبایل، نوار ابزار قانون (جستجو/اندازهٔ قلم/چاپ) با پنهان‌شدن نوار اصلی جای آن را می‌گیرد و بالا می‌رود؛ با برگشت اسکرول سر جایش می‌نشیند\n- ویرایش بازهٔ نشان حالا ایندکسی است: کشیدن دستگیره به «ابتدای واژه» می‌چسبد (بدون نویسهٔ نیمه‌واژه‌ای)، عبور دستگیره از دیگری تمیز نقش‌ها را عوض می‌کند و بازه هیچ‌وقت خالی یا خراب نمی‌شود\n- حین کشیدن دستگیره نزدیک لبهٔ بالا/پایین صفحه، متن خودکار اسکرول می‌شود"
     }
   ],
   "files": {
@@ -50,11 +50,11 @@
       1685
     ],
     "electron/main-core.js": [
-      "2a759933ebf6f127534c154b3afb65ebf02516c7d714b6e7c7e4344f3d8be523",
-      23633
+      "0c04f568ba1fd79b61bddaf81206c28610fd9fced057f440ad68fd2dc4d3142b",
+      24463
     ],
     "package.json": [
-      "c8722bca08375ca23884f360e2d429c3534892c87b4b09c410f0250be45d4562",
+      "abaddc1fd2fac241da6e83bcb90e75d8947c2fcded98e28a141b8d0182f07474",
       2767
     ],
     ".next/standalone/node_modules/buffer-from/package.json": [
@@ -5277,12 +5277,8 @@
       "8506450e8ef647695d218c4b3245ef573f9c6473783f372eef87fdba9bd47eac",
       1065
     ],
-    ".next/standalone/public/turkmen-pages.json": [
-      "0e15673d362e152df9587e42775ec8b06341c2a5708d05523db48564d3f7177c",
-      2652327
-    ],
     ".next/standalone/public/sw.js": [
-      "c0f25a3e9fd1c1fd39d98704c0932c7f3dfa41b773f07de54556e693c9456234",
+      "4a984dd15988982da838774b3f2c619a1617792778a9405cd30e598a79bb0c55",
       13776
     ],
     ".next/standalone/public/favicon.svg": [
@@ -5366,7 +5362,7 @@
       237568
     ],
     ".next/standalone/package.json": [
-      "d6be50ecc8006d3618d5b2d9232da056d23e4c8bdcc7920eb70873de5ff30863",
+      "6b2d8d3ce6242298c9039e25fa747f8ebe0c39684303cb890c2466c1799781a4",
       4561
     ],
     ".next/standalone/server.js": [
@@ -5374,7 +5370,7 @@
       3247
     ],
     ".next/standalone/.next/prerender-manifest.json": [
-      "981f7d3eb01faf42f419c35152604d54c6c823e34461b07fb1c9e9818c896fd5",
+      "bb366b2859d9b4555ba565b0f9155ccc45fd8a774a6ed67915f1cfad686a5111",
       2210
     ],
     ".next/standalone/.next/routes-manifest.json": [
@@ -5382,32 +5378,24 @@
       8582
     ],
     ".next/standalone/.next/build-manifest.json": [
-      "5720d48d49f3029f4c6194b9c558e044e99af784ebe2d1a1b7c0cc265fff68d0",
+      "75be9538e84530a4073520de0cc4cfa1cd3b2e32eb1d2e2d854c8667e6f7554c",
       453
     ],
-    ".next/standalone/.next/static/uTxDqtZzKqaxr11iH-ry6/_clientMiddlewareManifest.json": [
+    ".next/standalone/.next/static/eUc6wBaGfLO-KBAGuDBQ2/_clientMiddlewareManifest.json": [
       "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       2
     ],
-    ".next/standalone/.next/static/uTxDqtZzKqaxr11iH-ry6/_buildManifest.js": [
+    ".next/standalone/.next/static/eUc6wBaGfLO-KBAGuDBQ2/_buildManifest.js": [
       "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
       219
     ],
-    ".next/standalone/.next/static/uTxDqtZzKqaxr11iH-ry6/_ssgManifest.js": [
+    ".next/standalone/.next/static/eUc6wBaGfLO-KBAGuDBQ2/_ssgManifest.js": [
       "678f6ce2cb80b1fe72fc67e7412be6e2ab6ada083111b64f7c40d35e3cba5e00",
       80
     ],
     ".next/standalone/.next/static/chunks/d90026ebbe092135.js": [
       "63ccddb2df947c7c7252a4b41a0ffa8f3cc9a8d73979ace09d628dbf45523afe",
       16891
-    ],
-    ".next/standalone/.next/static/chunks/4f8d2dd56599125b.css": [
-      "4003087d03528dd6d2ec2dc76102fcce56027a4692c434280af35cef4c23773c",
-      233080
-    ],
-    ".next/standalone/.next/static/chunks/d615f4d3225a598d.js": [
-      "2eb2f3edf45add8f433d8edec4ee8444f3d50bf08b9864f94c9db3e6c7b1f501",
-      34689
     ],
     ".next/standalone/.next/static/chunks/0f69a06443ae787d.js": [
       "122773413a20174809e2633c110bed254d46cd886e7913ae2f9d548c61efdcc0",
@@ -5429,6 +5417,14 @@
       "15c1234a9262931bed0f3ff7f7b005a8b439fbb04674f5f43d7893150c9fe518",
       13876
     ],
+    ".next/standalone/.next/static/chunks/2d10a48fd70c1893.css": [
+      "9c15d88f23e49a888132ec86f16374a2a66cec788f2f8ab870cec15671e4ae1f",
+      219499
+    ],
+    ".next/standalone/.next/static/chunks/0d7db209c1ce7aa5.js": [
+      "97664eaaa0a1df952276510ffb4642c9bb6d213388766f0dc76c5aee4c8622d7",
+      34721
+    ],
     ".next/standalone/.next/static/chunks/turbopack-ab6f585b2ad03de4.js": [
       "a6f22b3cab87efbdb4e3b9e654f9c2c2a46487ae9c9c8bbe8d573e7de5dc80f7",
       10197
@@ -5441,21 +5437,17 @@
       "4d00c897e1ed750e845681f8931a25b48ede84bd25f03501414d9f9bb9b1bdea",
       13096
     ],
+    ".next/standalone/.next/static/chunks/39ed77a5bc31d47e.js": [
+      "0f9455fdbf4196f58297fcc5c11c2888f90d27351b7c84060975889e3fd93ea1",
+      1044244
+    ],
     ".next/standalone/.next/static/chunks/664adc71bc2617c2.js": [
       "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
       112594
     ],
-    ".next/standalone/.next/static/chunks/45ed27d1e377056b.js": [
-      "f55cf14509a0e4f3a530fb0a2c5f8978d7d7fe00b5d427024ac9f95a84e88ead",
-      30324
-    ],
     ".next/standalone/.next/static/chunks/452a3479b1b93bbe.js": [
       "96d9c7203ed57cd4f35d3e9dbeac194ae09a90c8c269043af335f11a80f4a959",
       30941
-    ],
-    ".next/standalone/.next/static/chunks/42c4a82eab7da595.js": [
-      "4f8e06c5b22fe6c86ec115455126643c88d1381cff7366430c28cf91270704cf",
-      1034110
     ],
     ".next/standalone/.next/static/chunks/7fb931d8c0085210.js": [
       "0cf479cdfd42fdb36db6312413d77ce68df1799fedc15ca8b5f605967efc8a54",
@@ -5465,12 +5457,16 @@
       "5920a7f298f9f9ca213821eca67a5d21b2c7b8b88464e1a60b0066a15e59a18a",
       214
     ],
+    ".next/standalone/.next/static/chunks/7b67b805ec383394.js": [
+      "4d388af17736b89912baff182680c3f2ce15219a23fb0a7f31cc8c06ccff938c",
+      30324
+    ],
     ".next/standalone/.next/package.json": [
       "091a04fa67c7907b98e106fcff8b964e13129754fce72d24f3025b97c4887fa3",
       20
     ],
     ".next/standalone/.next/BUILD_ID": [
-      "44eb1374470291729f9c70284de17c62d0bb8ac4f95c160ff3329cab600047bf",
+      "dd041dd42ec5a7a4c0bc8ef109aa03b3775621912a989b4724e400cd9819882e",
       21
     ],
     ".next/standalone/.next/server/next-font-manifest.js": [
@@ -5490,27 +5486,27 @@
       58
     ],
     ".next/standalone/.next/server/app/page.js.nft.json": [
-      "6b663fa2ac284b0c85435b613e08b0029c625a5c395ae35836bcc48b3a1656ae",
+      "3e0ccda0cdba2433f156f49a333aa99e3a92925d209f82dd34be34499d1d45c7",
       5017
     ],
     ".next/standalone/.next/server/app/_not-found.rsc": [
-      "026de39519948d1ae3771cb7877c2dc9f093004e1395a9315bc7d2369d39eb93",
+      "d01b45e97687dcb77cca5c2fc3a6f42ed52f84d7e1039d068d2a60589007f5be",
       14663
     ],
     ".next/standalone/.next/server/app/index.segments/_index.segment.rsc": [
-      "fa9558600972e43f559ab09c9fe6fe6db4abf344ed564bae840750a24703085b",
+      "af8547c11bd2a4da27faf881b2bb81526768a60df4822014e355a6ac1c020ffb",
       9723
     ],
     ".next/standalone/.next/server/app/index.segments/__PAGE__.segment.rsc": [
-      "6470d61a9881f55988bed19b6acacc987802404b91d2b6739c4232bc17705e7e",
+      "430e050bb20476a616c486d687207a7932d2b8bfa4b42a398ed35db33f76097b",
       1392
     ],
     ".next/standalone/.next/server/app/index.segments/_head.segment.rsc": [
-      "06280aa08d7abe56e48939a413f945102806693926f25890b8eaf56da56a65b5",
+      "98ce0cbe956dc31dd119f1b73d8f8128a590dc45bd962eda047b8f9c913162b0",
       1648
     ],
     ".next/standalone/.next/server/app/index.segments/_tree.segment.rsc": [
-      "f3d0bb66c5e45b3f7ed4a0f485d0750f6d7827c625ba10b8c6cbdcc16327d189",
+      "c949b878bfca2a5e52036de168cafb0860e22156804176ca6c73e1f5a915d8f1",
       349
     ],
     ".next/standalone/.next/server/app/api/library/route/app-paths-manifest.json": [
@@ -5946,7 +5942,7 @@
       54
     ],
     ".next/standalone/.next/server/app/api/profile/route.js.nft.json": [
-      "7e91e91117404be8cb34690cf0665f92a1c5f5b239b748519cd56380090c67e9",
+      "47b08023d501dc2624a12d18808a137698ad1d084070d349f308acf5aa7051e6",
       9999
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route/app-paths-manifest.json": [
@@ -5954,8 +5950,8 @@
       68
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route.js.nft.json": [
-      "c76f4c7464c2be00b6995302303c2a95801ac409d6b471d521b51cf6626cf7c3",
-      580929
+      "e97c4b9ccea14ab6e50bdadb615a7aceb2d65318e7c33afbff9874a15810db12",
+      645430
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route.js": [
       "5513bc686cc53746406ab1c3f0ff5b896a3c38cf72d5eca0503866167785ef9f",
@@ -5966,7 +5962,7 @@
       321
     ],
     ".next/standalone/.next/server/app/api/profile/route.js": [
-      "76cd68b13ba0b4536193acb8857fd8f06593ba0c96e2e1e94f9f1c12ade7f47b",
+      "b0b2cf4102319372034be568ff30381a48ffe95c53b7a8794cc3b894c034af37",
       394
     ],
     ".next/standalone/.next/server/app/api/profile/route_client-reference-manifest.js": [
@@ -6094,23 +6090,23 @@
       311
     ],
     ".next/standalone/.next/server/app/page_client-reference-manifest.js": [
-      "f393918b20c2b7471e6b25fd74e263fc2385d09d5c654d1cb8c5ccfdb4724479",
+      "a07619749bd9ad5d01d130d4fab4dad6330133d3438eba2202074b8e8f7826a2",
       10379
     ],
     ".next/standalone/.next/server/app/_global-error.html": [
-      "aa0dafb07a4134219e9d320f65d19ed9d80ba0bd00f39f39ad3f8d4e6bd90ae3",
+      "15e95cc2b27367239bc7e6dbecb8bd6bda8a00e04d03d732e2dcda13f4bf35d4",
       5094
     ],
     ".next/standalone/.next/server/app/_not-found.html": [
-      "63c6de275d25651d305fc8975c4bed90813a2c79a25c35d5fab515a704667cc9",
+      "51c2598c4494bf78d9b4910c594cab77c5df0c3413bba43d06243f0babc3b4f2",
       26871
     ],
     ".next/standalone/.next/server/app/_global-error.rsc": [
-      "13570054bb19eb19a7ccd8bbaf7d9a5ed6c8a9f728209fe2d5a80ebb8a43da0e",
+      "28c254cef0c625f4b476791a4f61ad9ba5f5cf581148bc8cae6d4a0a2b1db279",
       2794
     ],
     ".next/standalone/.next/server/app/index.rsc": [
-      "17bf76c6c4a2f911c435a0950dcb548398464f652f985a5d09564918aeef0658",
+      "4a98ba444ee78f84914fe02c5fd8b241f68aeaa7e26a31f680a2e19bebdbdb0b",
       13260
     ],
     ".next/standalone/.next/server/app/_global-error/page.js.nft.json": [
@@ -6154,7 +6150,7 @@
       335
     ],
     ".next/standalone/.next/server/app/index.html": [
-      "1d5cf0dda981438299e58435cdd14a4f3f307477d91c4439715af784981548a7",
+      "530a8df4d0a071f20776f7084362c9b127302757b34d64138d9bdc3241e7e259",
       24983
     ],
     ".next/standalone/.next/server/app/_not-found/page.js.nft.json": [
@@ -6162,7 +6158,7 @@
       4792
     ],
     ".next/standalone/.next/server/app/_not-found/page_client-reference-manifest.js": [
-      "4a05b313f39f5371bc9fad1344a90d60f56e4a80fdc6fd946ded7ecdedb7d2e6",
+      "c94d69a7eb3ceebd6b3162c68b95f055b012c888db5fff8e8f5691cd528e888d",
       10581
     ],
     ".next/standalone/.next/server/app/_not-found/page.js": [
@@ -6182,19 +6178,19 @@
       314
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_index.segment.rsc": [
-      "dbb208b4a679d91b8390ea4d8d8fe54fd4f0579c26cda5f833f1294c347979cf",
+      "5117ce90205dcb6be00057b6e5ef9c86f63d94b962225c94850d567755ae426f",
       348
     ],
     ".next/standalone/.next/server/app/_global-error.segments/__PAGE__.segment.rsc": [
-      "e75daebaf6113f8c5a5c10210c238faca6c224030043874f095340dc7980ae9a",
+      "a1f916473c77e5a07609529f160ee953fa15b251c6d7e5cfe246cd5cfd866717",
       1593
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_head.segment.rsc": [
-      "1c383d61d7b93b79621929ed8236e048b27afbb1c94bddcd317beb1cc57f90f1",
+      "6c30a05f1ba58b108d7d4726650aef80133f89d8867bb1c9d48cebdcabacead0",
       594
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_tree.segment.rsc": [
-      "4a6c89a04de4e05e854ef580f31f38b87c8a812e0d89a2d198935fd4c6d6499f",
+      "67645695bff45f2ad0a95823083fb090dcbb01590df5b70986900be0290a5e6b",
       293
     ],
     ".next/standalone/.next/server/app/index.meta": [
@@ -6206,23 +6202,23 @@
       28
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_index.segment.rsc": [
-      "125c5ebfdcb1614e2028e8a3dda8614e445b26d742e9e1a1cdc494882e3fbfc8",
+      "f88ec37a883e60f1b3a72498e474aba5f41436a66c7ae21492a0619ffa8a0be0",
       10157
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_head.segment.rsc": [
-      "2087603f6068697684db8dc1d2119b540c12c36aa3007210331d9ddf5d38fda4",
+      "ab851828d068f598408a12fceb613cc6cb20c69da0a4cec4b32df3d77bd8fce7",
       2086
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_not-found.segment.rsc": [
-      "bc9d5ac9427fb9e786679ecf057f45585fd22c875d9a28844ff106e4263bb14a",
+      "2cf502a21a1ba5bc1ac8d82ab9d3c6cca55da9378b6bd45de489ecec58235943",
       606
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_tree.segment.rsc": [
-      "15ad91fe4b43d5d33a1a1e44c4b2fe27e3b3b8dab1deea74978340fc87d11700",
+      "7da9c3113e3caff41fd98d414049f6cdf645f4618a6117427d891e98ada01ba2",
       483
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_not-found/__PAGE__.segment.rsc": [
-      "45f75dec6c80579b070aea4063349d55bbb6149c3db821454890931ab1310356",
+      "c4a0f405ecc8d25adc0c15941a010da988616217ba810819f116306e54caafd3",
       1536
     ],
     ".next/standalone/.next/server/instrumentation.js": [
@@ -6240,10 +6236,6 @@
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_cover_[name]_route_actions_45d39fc8.js": [
       "9fcab2e2842d8877c99965787d3c9a854e93b9948cb8dde1ed2df2d7c48ddf5c",
       135
-    ],
-    ".next/standalone/.next/server/chunks/[root-of-the-server]__f3b8bf59._.js": [
-      "97d2a43042e043aa463a530994e428632c1e892c5a455b16e529ca1f5297a80c",
-      8523
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__9b8e2749._.js": [
       "c9fc778783a1197127c1744a434f9e6e64ad5daf973a3142762a6434d4e9258b",
@@ -6349,6 +6341,10 @@
       "13237f093203a89fe3c9faeaccef7a3b41442539434371167a087436245314bd",
       10097
     ],
+    ".next/standalone/.next/server/chunks/[root-of-the-server]__8a6a9dc8._.js": [
+      "efdff9cb58d0835354e58e030ac7b950b539ec5db027969bea8401584df6eeb1",
+      9958
+    ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__f408c708._.js": [
       "93d4dc26b0771efcad4ec606eb06c1aed0160523a21936dd7c48b65e319a8078",
       145972
@@ -6390,12 +6386,8 @@
       7760
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__3cc33b2f._.js": [
-      "e88da7feb984b42962c0818a1f745f74379aa71ec51656e91b2f114e71254b5a",
-      1052604
-    ],
-    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__41e5508a._.js": [
-      "f94076694958f7c63aba08c93bbd338a8817c000ba23a8d6891fd0f0fdb146c7",
-      5355
+      "a1d459c70f8bdf8de70d99e17488c7490f21952415ddbf577e980a561d9297e4",
+      1062696
     ],
     ".next/standalone/.next/server/chunks/ssr/node_modules_next_dist_client_components_builtin_unauthorized_15817684.js": [
       "7a8bdc63e9722c13043a4563e60609b200aaa153bf283e5d235bdfe9a1d802de",
@@ -6426,7 +6418,7 @@
       97674
     ],
     ".next/standalone/.next/server/chunks/ssr/src_f8b3601d._.js": [
-      "eb261eb7269f5f327fd874a8ded613732d87d45a07d25aa5fe26a009dc8b7790",
+      "c189597a12c0f04ab6ef2e86890abfc6bbc03885ca3742e8051cbb78d81c63dd",
       25543
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b08049c5._.js": [
@@ -6486,12 +6478,16 @@
       113
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__6ee89430._.js": [
-      "b7bf579cba98b6b87c3631508cf26a38ff8aa578f140f20650298c3a89bff380",
-      3768
+      "72378e072c4b74314d66468c8937f884fe6d6ac04e0b6e1f5a3a2b154bdf0e7f",
+      3766
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__b6f476c5._.js": [
       "b7a06581a61848d2b3ad433abe82518b1751d8ca067a764b6dd76c1b71243cf0",
       903
+    ],
+    ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__d5cc7200._.js": [
+      "6a92c21d889571e3b9cf01ebede3e95e98088051f88617eff719b6e9b767fe4c",
+      5387
     ],
     ".next/standalone/.next/server/chunks/ssr/src_lib_law_courses_index_ts_0cc8a43a._.js": [
       "b9bf323b82a838b06c4d4c2163508a191c0b8ba76ca91ee6eb02413039d2ba1d",
@@ -6614,8 +6610,8 @@
       142
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__1591ff5b._.js": [
-      "59cb4e90e3aaaf39c529f4bceb9e2553eb6a9e119e300a63554d6c3b09c7eea1",
-      27155
+      "b9cd3699f96fbbeb50544bb83f6014036ee3972638b883db25b2074ac499f616",
+      27122
     ],
     ".next/standalone/.next/server/chunks/_next-internal_server_app_api_import_route_actions_fd6c2005.js": [
       "64870012d6b3267c42063bc8746475f1c592abe3ca064f51a89494b8a76d9c44",
@@ -6710,11 +6706,11 @@
       555
     ],
     ".next/standalone/.next/server/server-reference-manifest.js": [
-      "22f50698f1ffc37698035924216838858f80d58c15411b683b82b485c87ee3dd",
+      "3914dc9de815a6947baa21087685a3615e6430f180e23dec60bf3c6b5e0d5358",
       138
     ],
     ".next/standalone/.next/server/server-reference-manifest.json": [
-      "c0152ac68217e1df354bca3fd5c5d9e67c47f33400efba7b5f5c1039916240ff",
+      "8768c930d6fd5b07c86d6e2f0928b312a148d3d65865e68138e30d2bc3051e1f",
       97
     ],
     ".next/standalone/.next/required-server-files.json": [
@@ -6728,7 +6724,7 @@
   },
   "apk": {
     "file": "lexa-latest.apk",
-    "sha256": "d5814baf95f52db889a3374bcad7a70ea180a412bd4b9fcdf353e2efd2372784",
-    "size": 7309574
+    "sha256": "9218d01f375b4f1b892c1395bce35d1f1d0fd02dba81ef3fda103c18ad0de0ff",
+    "size": 6671163
   }
 }
