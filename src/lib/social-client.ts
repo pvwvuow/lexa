@@ -102,6 +102,8 @@ export function useSocial() {
   const [feed, setFeed] = React.useState<FeedPost[]>([]);
   const [showingAll, setShowingAll] = React.useState(true);
   const [loading, setLoading] = React.useState(true);
+  // a failed load must not look like "no teachers yet"
+  const [error, setError] = React.useState("");
   // only the newest load may write state (a slow reply for the previous account
   // used to overwrite the new one)
   const reqRef = React.useRef(0);
@@ -109,6 +111,7 @@ export function useSocial() {
   const load = React.useCallback(async () => {
     const id = ++reqRef.current;
     setLoading(true);
+    setError("");
     try {
       const s = await jf<{ teachers: SuggestionItem[] }>("/api/social/suggestions");
       if (id !== reqRef.current) return;
@@ -118,8 +121,10 @@ export function useSocial() {
       if (id !== reqRef.current) return;
       setFeed(Array.isArray(f?.posts) ? f.posts : []);
       setShowingAll(!!f?.showingAll);
-    } catch {
-      /* در محیط آفلاین بی‌صدا */
+    } catch (e) {
+      if (id === reqRef.current) {
+        setError(e instanceof Error && e.message ? e.message : "دریافت اساتید ناموفق بود؛ اینترنت را چک کن.");
+      }
     } finally {
       if (id === reqRef.current) setLoading(false);
     }
@@ -153,7 +158,7 @@ export function useSocial() {
     [user, load],
   );
 
-  return { teachers, feed, showingAll, loading, reload: load, toggleFollow };
+  return { teachers, feed, showingAll, loading, error, reload: load, toggleFollow };
 }
 
 /** فهرست دوره‌های اساتید (+ mine فقط دوره‌های خودم) */
@@ -322,6 +327,8 @@ export interface TeacherProfileData {
 export function useTeacherProfile(userId?: string | null) {
   const [data, setData] = React.useState<TeacherProfileData | null>(null);
   const [notFound, setNotFound] = React.useState(false);
+  // network / server failure — shown with a retry button, never as "not found"
+  const [error, setError] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const reqRef = React.useRef(0);
 
@@ -330,22 +337,41 @@ export function useTeacherProfile(userId?: string | null) {
     const id = ++reqRef.current;
     setLoading(true);
     setNotFound(false);
+    setError("");
     try {
-      const d = await jf<TeacherProfileData>(`/api/users/${userId}`);
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}`);
+      // APK: missing routes come back as the HTML 404 page with status 200
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      const d = (ct.includes("json") ? await res.json().catch(() => ({})) : {}) as Partial<TeacherProfileData> & { error?: string };
       if (id !== reqRef.current) return;
-      // APK HTML 404 parses as {}: treat a reply without a profile as not found
-      if (!d?.profile) setNotFound(true);
-      else setData({ ...d, courses: Array.isArray(d.courses) ? d.courses : [], posts: Array.isArray(d.posts) ? d.posts : [] });
+      if (res.status === 404 || (res.ok && !d?.profile)) {
+        setNotFound(true);
+        return;
+      }
+      if (!res.ok) {
+        setError(d.error || "دریافت پروفایل ناموفق بود؛ دوباره تلاش کن.");
+        return;
+      }
+      setData({
+        ...(d as TeacherProfileData),
+        courses: Array.isArray(d.courses) ? d.courses : [],
+        posts: Array.isArray(d.posts) ? d.posts : [],
+      });
     } catch {
-      if (id === reqRef.current) setNotFound(true);
+      if (id === reqRef.current) setError("اتصال به سرور برقرار نشد؛ اینترنت را چک کن و دوباره بزن.");
     } finally {
       if (id === reqRef.current) setLoading(false);
     }
+  }, [userId]);
+
+  // another profile: never show the previous teacher while the new one loads
+  React.useEffect(() => {
+    setData(null);
   }, [userId]);
 
   React.useEffect(() => {
     void load();
   }, [load]);
 
-  return { data, loading, notFound, reload: load };
+  return { data, loading, notFound, error, reload: load };
 }

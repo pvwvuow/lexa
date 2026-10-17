@@ -138,7 +138,7 @@ export function AccountArea() {
 
           <DropdownMenuSeparator />
 
-          {u.role === "teacher" && (
+          {(u.role === "teacher" || u.role === "admin") && (
             <DropdownMenuItem
               onClick={() => { setMenuOpen(false); navigate({ view: "studio" }); }}
               className="cursor-pointer rounded-lg gap-2 text-bronze"
