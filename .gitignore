@@ -103,3 +103,8 @@ asr-demo/
 examples/
 skills/
 tool-results/
+
+# فایل‌های حجیم محلی پلتفرم (بکاپ/پی‌دی‌اف) — به گیت نمی‌روند
+download/backup-001/
+scripts/newbook/*.pdf
+.platform-keep/
