@@ -1,4 +1,6 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { db, dbReady } from "@/lib/db";
@@ -28,7 +30,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   }
 }
 
-// ─── نشست‌ها ───────────────────────────────────────────────────────────────────────────
+// ─── نشست‌ها ─────────────────────────────────────────────────────────────────────────────
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -95,13 +97,57 @@ export function toPublic(u: SessionUser): PublicUser {
   };
 }
 
-// ─── حساب مدیر ────────────────────────────────────────────────────────────────────────────
+// ─── حساب مدیر ────────────────────────────────────────────────────────────────────────────────
 let adminEnsured = false;
+
+// Passwords that were ever shipped as defaults. They are public (they are in this
+// repo's history), so an admin account must never keep one of them.
+const PUBLIC_DEFAULT_PASSWORDS = ["lexa@1404", "hamyar@1404"];
+
+/** Where a generated admin password is written: next to the SQLite file (Electron: userData). */
+function adminSecretFile(): string {
+  const url = process.env.DATABASE_URL ?? "";
+  const m = url.match(/^file:(.+)$/);
+  let dir = process.cwd();
+  if (m) {
+    const p = m[1].split("?")[0];
+    // Prisma resolves relative SQLite paths from the prisma/ folder
+    dir = path.dirname(path.isAbsolute(p) ? p : path.resolve(process.cwd(), "prisma", p));
+  }
+  return path.join(dir, "ADMIN-PASSWORD.txt");
+}
+
+function randomPassword(): string {
+  return randomBytes(12).toString("base64url"); // 16 chars
+}
+
+function saveAdminSecret(username: string, password: string): string {
+  const file = adminSecretFile();
+  try {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(
+      file,
+      `Lexa admin account\nusername: ${username}\npassword: ${password}\n\n` +
+        "Sign in, change the password in the admin panel, then delete this file.\n",
+      { mode: 0o600 },
+    );
+  } catch (e) {
+    console.error("[auth] could not write the admin password file:", e);
+  }
+  return file;
+}
+
+async function usesPublicDefault(hash: string): Promise<boolean> {
+  for (const p of PUBLIC_DEFAULT_PASSWORDS) if (await verifyPassword(p, hash)) return true;
+  return false;
+}
 
 /**
  * اطمینان از وجود حساب مدیر. اطلاعات اولیه از متغیرهای محیطی
- * ADMIN_USERNAME / ADMIN_PASSWORD خوانده می‌شود؛ در غیر این صورت مقادیر
- * پیش‌فرض «admin / lexa@1404» ساخته می‌شود.
+ * ADMIN_USERNAME / ADMIN_PASSWORD خوانده می‌شود. Without a strong ADMIN_PASSWORD a random
+ * password is generated and written to ADMIN-PASSWORD.txt next to the database
+ * (never a public default). An existing admin that still uses a public default
+ * password is moved to ADMIN_PASSWORD or to a new random one the same way.
  */
 export async function ensureAdmin(): Promise<void> {
   if (adminEnsured) return;
@@ -109,38 +155,34 @@ export async function ensureAdmin(): Promise<void> {
   const envU = process.env.ADMIN_USERNAME?.trim();
   const envP = process.env.ADMIN_PASSWORD;
   const username = envU && envU.length >= 3 ? envU : "admin";
-  const password = envP && envP.length >= 6 ? envP : "lexa@1404";
+  const strongEnv = envP && envP.length >= 8 && !PUBLIC_DEFAULT_PASSWORDS.includes(envP) ? envP : null;
+  if (envP && !strongEnv) console.warn("[auth] ADMIN_PASSWORD is too short or public; ignoring it");
   try {
     const existing = await db.user.findFirst({ where: { role: "admin" } });
     if (!existing) {
+      const password = strongEnv ?? randomPassword();
       await db.user.create({
         data: { username, passwordHash: await hashPassword(password), role: "admin" },
       });
-      console.log(`[auth] حساب مدیر ساخته شد → ${username}`);
-    } else if (!envP && (await verifyPassword("hamyar@1404", existing.passwordHash))) {
-      // مهاجرت یک‌بارهٔ برند: اگر رمز مدیر هنوز پیش‌فرض قدیمی «hamyar@1404» است،
-      // بی‌صدا به پیش‌فرض جدید «lexa@1404» به‌روزرسانی می‌شود تا ورود قطع نشود.
+      if (strongEnv) {
+        console.log(`[auth] حساب مدیر ساخته شد → ${username}`);
+      } else {
+        const file = saveAdminSecret(username, password);
+        console.log(`[auth] admin account created (${username}); its password is in ${file}`);
+      }
+    } else if (await usesPublicDefault(existing.passwordHash)) {
+      const password = strongEnv ?? randomPassword();
       await db.user.update({
         where: { id: existing.id },
         data: { passwordHash: await hashPassword(password) },
       });
-      console.log("[auth] رمز پیش‌فرض مدیر به «lexa@1404» مهاجرت یافت");
-    } else if (
-      envP &&
-      envP.length >= 6 &&
-      envP !== "lexa@1404" &&
-      (await verifyPassword("lexa@1404", existing.passwordHash))
-    ) {
-      // The default password is public (it is in this repo). Once ADMIN_PASSWORD is
-      // set, an admin still on the default is moved to it; a changed password is kept.
-      await db.user.update({
-        where: { id: existing.id },
-        data: { passwordHash: await hashPassword(envP) },
-      });
-      console.log("[auth] default admin password replaced by ADMIN_PASSWORD");
+      if (strongEnv) {
+        console.log("[auth] default admin password replaced by ADMIN_PASSWORD");
+      } else {
+        const file = saveAdminSecret(existing.username, password);
+        console.warn(`[auth] the public default admin password was replaced; the new one is in ${file}`);
+      }
     }
-    if (!envP && process.env.NODE_ENV === "production")
-      console.warn("[auth] ADMIN_PASSWORD is not set; change the default admin password");
     adminEnsured = true;
   } catch (e) {
     console.error("[auth] ensureAdmin error:", e);
