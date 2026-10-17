@@ -191,12 +191,17 @@ function FollowButton({
     if (busy) return;
     setBusy(true);
     try {
-      await fetch("/api/social/follow", {
+      const res = await fetch("/api/social/follow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ teacherId }),
       });
-      setFollowing((v) => !v);
+      const j = (await res.json().catch(() => ({}))) as { following?: boolean; error?: string };
+      if (!res.ok) {
+        window.alert(j.error || "دنبال‌کردن انجام نشد؛ دوباره تلاش کن.");
+        return;
+      }
+      setFollowing((v) => (typeof j.following === "boolean" ? j.following : !v));
       onChanged();
     } finally {
       setBusy(false);
@@ -251,11 +256,15 @@ function ProfileCourseCard({
         else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
         return;
       }
-      await fetch("/api/library", {
+      const res = await fetch("/api/library", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId: c.id }),
       });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error || "کتابخانه به‌روز نشد؛ دوباره تلاش کن.");
+      }
       await refreshLibrary();
       onChanged();
     } catch (e) {
