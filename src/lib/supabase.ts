@@ -113,7 +113,7 @@ export function applyLocal(data: Record<string, unknown>): string[] {
   const d = data as { store?: unknown; weakTopics?: unknown; lawMarks?: unknown };
   if (d.store) {
     // کلید API محلی حفظ می‌شود (بلاب ابر آن را ندارد)
-    let store = d.store;
+    let store: unknown = d.store;
     try {
       const cur = JSON.parse(localStorage.getItem(STORE_KEY) || "null") as StoreBlob | null;
       const localKey = cur?.state?.ai?.apiKey;

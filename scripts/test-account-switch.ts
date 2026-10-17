@@ -2,6 +2,7 @@
 // سناریو: حساب A با نشان‌های زیاد → تعویض به حساب B (بدون خروج/با خروج) →
 // دادهٔ A باید پاک شود؛ حساب B از صفر شروع می‌کند. همان حساب → هیچ پاک‌سازی.
 // اجرا: bun scripts/test-account-switch.ts (با shim سادهٔ localStorage)
+export {};
 
 type Rec = Record<string, string>;
 const mem: Rec = {};
@@ -52,7 +53,7 @@ console.log("▌ ۳) بوت دوباره با همان حساب B — هیچ پ�
 useApp.setState({ marks: { "m-l2-2": [{ id: "mk2", secId: "s2", text: "نشان حساب B", color: "green", createdAt: 2 }] } });
 const r3 = handleAccountSwitch("uid-B");
 assert(r3 === false, "همان حساب: بدون تعویض");
-assert(Object.keys(useApp.getState().marks).length === 1 && useApp.getState().marks["m-l2-2"], "نشان‌های حساب B دست‌نخورده");
+assert(Object.keys(useApp.getState().marks).length === 1 && !!useApp.getState().marks["m-l2-2"], "نشان‌های حساب B دست‌نخورده");
 
 console.log("▌ ۴) خروج (wipe مستقیم) → حساب C — باز هم بدون نشت");
 wipeLocalUserData();

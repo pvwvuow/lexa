@@ -17,31 +17,18 @@ directories:
 files:
   # main.js (بوت‌استرپ) + main-core.js (منطق اصلی) + preload.js + app-updater.js
   - "electron/*.js"
-  - .next/standalone/**/*
   - package.json
   - "!node_modules/**"
   - "!**/node_modules/.cache/**"
-  - "!**/.next/cache/**"
-  # متون درس‌ها داخل نصب‌کنندهٔ دسکتاپ نیست — در همان لحظهٔ باز کردن فصل
-  # از گیت‌هاب (jsDelivr/raw) گرفته و در IndexedDB کش می‌شوند (src/lib/law/texts.ts)
-  - "!.next/standalone/public/texts/**"
-  # ⚠️ امنیت داده — هرگز در پکیج عمومی نباید بیایند (دیتابیس واقعی/بکاپ/محیط)
-  - "!.next/standalone/db/**"
-  - "!.next/standalone/data/uploads/**"
-  - "!.next/standalone/backups/**"
-  - "!.next/standalone/{download,src,scripts,qa,qa-*,shots,tests,skills,tool-results,upload,updates,assets,prisma,android}/**"
-  - "!.next/standalone/{electron-builder.yml,supabase-schema.sql}"
-  - "!.next/standalone/backups/**"
-  - "!.next/standalone/data/**"
-  - "!.next/standalone/upload/**"
-  - "!.next/standalone/.env*"
-  - "!download/**"
-  - "!qa/**"
-  - "!shots/**"
-  - "!backups/**"
-  - "!tests/**"
-  - "!upload/**"
-  - "!tool-results/**"
+
+# سرور استاندالون Next را afterPack کپی می‌کند (کپی rsyncیِ scripts/stage-electron-app.sh
+# به .next/electron-stage → resources/app/.next/standalone؛ کپی داخلی electron-builder
+# پوشه‌های نقطه‌دار و node_modules را حذف می‌کند و به‌درد نمی‌خورد)
+afterPack: scripts/after-pack.cjs
+
+# متون درس‌ها داخل نصب‌کنندهٔ دسکتاپ نیست — در همان لحظهٔ باز کردن فصل
+# از گیت‌هاب (jsDelivr/raw) گرفته و در IndexedDB کش می‌شوند (src/lib/law/texts.ts)
+# ⚠️ امنیت داده — هرگز در پکیج عمومی نباید بیایند (دیتابیس واقعی/بکاپ/محیط)
 
 # فقط لوکال‌های موردنیاز الکترون — بقیهٔ ۵۳ زبان (~۸MB) از باندل حذف می‌شوند
 electronLanguages:

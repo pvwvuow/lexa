@@ -83,11 +83,12 @@ const { chromium } = require("playwright");
     ok("پاراگراف درس یافت شد", false);
   }
 
-  // ۷) ناوبری به مسیر سرورمحور → پیام مخصوص APK
+  // ۷) ناوبری به مسیر اجتماعی — از PR #11 لایهٔ اجتماعی ابری است (SOCIAL_OFF=false)
+  // و صفحهٔ اساتید باید بدون کرش رندر شود؛ پیام قدیمی «در دسترس نیست» دیگر نباید بیاید
   await page.evaluate(() => { window.location.hash = "#/teachers"; });
   await page.waitForTimeout(1000);
   const t = await page.evaluate(() => document.body.innerText);
-  ok("پیام «در دسترس نیست» برای بخش سرورمحور", t.includes("در دسترس نیست") || t.includes("نسخهٔ اندروید"));
+  ok("بخش اجتماعی ابری بدون کرش رندر شد (بدون پیام قدیمی «در دسترس نیست»)", !t.includes("Application error") && !t.includes("در دسترس نیست"));
 
   await page.screenshot({ path: "qa/qa-apk-home.png", fullPage: false });
 

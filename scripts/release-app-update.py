@@ -39,6 +39,10 @@ m = re.match(r"https://([^@]+)@github\.com/", url)
 if not m:
     print("NO_TOKEN در remote"); sys.exit(1)
 TOKEN = m.group(1)
+# فرمت‌های ممکن: «TOKEN» (توکن به‌عنوان username) یا «user:TOKEN» مثل oauth2:TOKEN —
+# در حالت دوم پس از «:» توکن واقعی است
+if ":" in TOKEN:
+    TOKEN = TOKEN.split(":", 1)[1]
 
 def api(path, data=None, method=None, raw=None, ctype="application/json"):
     body = raw if raw is not None else (json.dumps(data).encode() if data else None)

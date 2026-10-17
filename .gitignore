@@ -98,3 +98,8 @@ telegram-bot/tvframe-models.json
 
 # ─── دموی مقایسهٔ ASR (مدل/نمونه‌های صوتی) ───
 asr-demo/
+
+# ─── محتوای پلتفرم که به اشتباه در ریپو آمده بود (audit PR #11) ───
+examples/
+skills/
+tool-results/
