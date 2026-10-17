@@ -17,7 +17,7 @@ import { TeacherFeedTeasers } from "./DashboardView";
 
 export function TeachersView() {
   const { user } = useAuth();
-  const { teachers, loading, toggleFollow } = useSocial();
+  const { teachers, loading, error, reload, toggleFollow } = useSocial();
   const { courses: tcourses, toggleLibrary } = useTCourses();
   const tBooks = useApp((s) => s.tBooks);
   const [err, setErr] = React.useState("");
@@ -63,7 +63,8 @@ export function TeachersView() {
     }
   }
 
-  const isTeacherUser = user?.role === "teacher";
+  // admins can do everything a teacher can (publish, studio)
+  const isTeacherUser = user?.role === "teacher" || user?.role === "admin";
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-7 px-4 pb-28 pt-6 sm:px-6">
@@ -107,7 +108,13 @@ export function TeachersView() {
         {loading && (
           <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>
         )}
-        {!loading && !teachers.length && (
+        {!loading && error && (
+          <p className="flex flex-wrap items-center gap-2 rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+            {error}
+            <button onClick={() => void reload()} className="font-bold underline underline-offset-2">تلاش دوباره</button>
+          </p>
+        )}
+        {!loading && !error && !teachers.length && (
           <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
             هنوز استادی ثبت نشده است — مدیر می‌تواند از پنل مدیریت، حساب استاد بسازد.
           </p>
