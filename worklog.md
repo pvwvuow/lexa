@@ -2045,3 +2045,26 @@ Stage Summary:
 - ماندهٔ دست کاربر: ① اجرای supabase/002_cloud_social.sql و بعد 003_security_fixes.sql در SQL Editor ② خودش را ادمین کند (docs/SECURITY.md) ③ Supabase → Redirect URLs → https://pvwvuow.github.io/
 - بعد از اجرای 002: فاز دوم تست (درخواست استادی→تأیید ادمین، پنل سازمان تا انتشار، مقالات با همهٔ بلوک‌ها، کامنت/امتیاز/فالو/کتابخانهٔ همگام) + مهاجرت اساتید فعلی (حسن‌زاده/غایبی) به جدول‌های ابری — qa115/qa116 بعد از مهاجرت دوباره معنا پیدا می‌کنند
 - یادآوری امنیتی: توکن گیت و توکن تلگرام هر دو در چت رد شده‌اند — rotate شوند
+
+---
+Task ID: 46
+Agent: main (Super Z)
+Task: پاسخ به کاربر — «#/admin روی Pages پنل مدیریت را می‌بینم؟» → کشف گیت مسیر، فیکس، و ریلیز v0.10.18
+
+Work Log:
+- پاسخ واقعی: نه — گیت `IS_APK ? <ApkUnavailable/> : <AdminView/>` در AppShell (خط 502) روی بیلد APK-modeِ Pages کنسول ابری PR #12 را می‌بست؛ باکیبل زنده هم تأیید شد
+- فیکس: مسیر admin بدون گیت → خودِ AdminView بر اساس IS_APK کنسول ابری (Supabase) را رندر می‌کند؛ ServerAdminView برای وب سروری دست‌نخورده
+- tsc صفر؛ qa118-admin-cloud.mjs جدید (۶ ادعا: کارت قفل ابری روی اکسپورت APK، نبودِ placeholder قدیمی، دکمهٔ ورود، گارد سروری دست‌نخورده) — سبز
+- درس QA: سرور استاتیک زامبی روی پورت 3001 از دایرکتوری حذف‌شدهٔ out/ قدیمی سرو می‌کرد (bind تازه fail می‌شد بی‌صدا) — همیشه پورت تازه + لاگ bind چک شود
+- بامپ چهارگانه: package 0.10.18 / sw v60 / DESIGN 1.9.28 / gradle 118+0.10.18
+- در طول کار PRهای #14 #15 #16 پشت‌سرهم merge شدند (username at sign-up، repo review 2، full audit) — #16 همان فیکس admin را مستقل هم داشت؛ cherry-pick با resolve و بیلد نهایی روی 65ddd0f
+- دیسک دو بار ENOSPC شد (100%) → پاک‌سازی /tmp/my-project (1G)، ghp-fix، distهای الکترون قدیمی؛ درس: قبل از هر بیلد الکترون df چک شود
+- درس: timeout بکشیدن electron-builder دو-تارگتی → تارگت‌ها جدا اجرا شوند (--linux AppImage سپس --win zip)؛ stage یک‌بار کافی است
+- بیلدها روی پایهٔ نهایی: اکسپورت + qa117 (۱۳/۱۳) + qa118 (۶/۶)، build-pages (PAGES_READY)، AppImage 127.7MB، win.zip سالم بدون .env/keystore، APK versionCode 118
+- ریلیز: release-app-update.py 0.10.18 → ریلیز id 416044652 (AppImage + win.zip + APK + checksums) + تگ v0.10.18 و app-v0.10.18 + دلتافید؛ feed قبل از اجرا باید به نسخهٔ قبلی (0.10.17) برگردد — همان درس task 45
+- verify-release-0118: 18/18 ✓؛ E2E زندهٔ Pages: #/admin کارت قفل ابری + دکمهٔ ورود، placeholder قدیمی GONE، صفر pageerror
+
+Stage Summary:
+- v0.10.18 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.18 — پنل مدیریت ابری حالا روی وب/APK/Pages قابل رسیدن است؛ Pages هم‌نسخه شد
+- برای «دیدن» پنل، پیش‌نیازهای دست کاربر همچنان لازم‌اند: ① SQLهای 002 + 003 + 004 (جدید: 004_usernames_and_directory.sql) در Supabase ② ادمین‌کردن خودش طبق docs/SECURITY.md ③ Redirect URLs
+- یادآوری امنیتی: توکن گیت و توکن تلگرام هنوز rotate نشده‌اند
