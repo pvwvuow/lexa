@@ -2018,3 +2018,30 @@ Stage Summary:
 - gh-pages قدیمی دیگر اپ قدیمی را سرو نمی‌کند؛ ریدایرکت است. خاموشی کامل فقط از UI: Settings → Pages → None (اختیاری)
 - ماندهٔ دست کاربر: Supabase → Authentication → URL Configuration → افزودن https://pvwvuow.github.io/ به Redirect URLs (برای برگشت لینک تأیید ایمیل)
 - یادآوری امنیتی: توکن گیت این‌جا در چت رد شده — بعد از راه‌اندازی کامل، بهتر است rotate شود؛ توکن تلگرام قبلی هم هنوز /revoke نشده
+
+---
+Task ID: 45
+Agent: main (Super Z)
+Task: PR #11 (لایهٔ اجتماعی ابری + پنل سازمان + استودیو ۲) → tsc صفر، تست چک‌لیست، بیلد سه‌گانه و ریلیز v0.10.17 (شامل PRهای #12 #13 که هم‌زمان آمدند)
+
+Work Log:
+- کانتینر مجدداً به اسنپ‌شات قدیمی برگشته بود + کامیت بکاپ پلتفرم (4f7b89f با فایل‌های ۲۲۱/۱۸۱/۹۵MB) روی HEAD نشسته بود؛ rebase روی PR #11 انجام شد
+- Supabase پروب شد: جداول 002 (lexa_orgs/lexa_org_members/lexa_teacher_requests/lexa_articles) هنوز وجود ندارند → فلوهای ادمین/سازمان/مقاله E2E فعلاً ممکن نیست؛ رفتار اپ در این حالت دوستانه است (503 «بخش اجتماعی ابری هنوز راه‌اندازی نشده»)
+- tsc --noEmit: ۱۰ خطا → ۰: ① فقط خطای اپ: src/lib/supabase.ts نارویینگ unknown→{} — تایپ صریح ② scripts/test-account-switch.ts: export{} + فیکس boolean ③ examples/ و skills/ (۱۰۷۷ فایل زبالهٔ پلتفرم) از گیت خارج + tsconfig exclude + .gitignore (مورد audit «فایل‌های زبالهٔ ریشه»)
+- qa117-cloud-social-m1 جدید (۱۳ ادعا): مهمان وب/اساتید/کتابخانه/مقالات بدون کرش، چرخهٔ واقعی ثبت‌نام ابری→توکن→خروج روی Supabase، اکسپورت APK بدون کرش، Pages زنده — ۱۳/۱۳ سبز (قبل و بعد از 002 معتبر)
+- رگرسیون کامل روی کد merged (#11+#12+#13): A(۷۳)+B(۶۵+)+B2(۳۱)+C(۱۷)+qa114(۲۹) + qa-apk-mode(۱۶) + qa108(۸) + qa117(۱۳) — صفر شکست؛ qa115/qa116 دیگر مسیر قدیمی SQLite اساتید را تست می‌کنند و تا مهاجرت داده به ابر معنا ندارند (فیکس در کار است)
+- درس جدید QA: هرگز سرور استندالون قدیمی را با pkill الگوی «server.js» نکش — پروسه next-server عنوانش را عوض می‌کند؛ pkill -f next-server یا kill با پورت. سرور کهنه با cwd حذف‌شده HTML بیلد قبلی را از کش حافظه سرو می‌کند (خطای فانتوم ChunkLoadError با هش بیلد قدیمی)
+- بامپ چهارگانه: package 0.10.17 / sw v59 / DESIGN 1.9.27 / gradle 117+0.10.17
+- بیلد دسکتاپ: کشف شد فایل‌کپی electron-builder 26.15.3 نه glob «files» و نه extraResources پوشه‌های نقطه‌دار (.next) و node_modules را کپی نمی‌کند (AppImage 81MB ناقص!) → راه‌حل قطعی: scripts/stage-electron-app.sh (rsync با استثناهای امنیتی قبلی) + afterPack hook با fs.cpSync + درِ ساختاری ۵ فایل حیاتی → AppImage 128MB / win.zip 177MB با پیلود کامل و بدون هیچ .env/keystore
+- APK: محیط اندروید پس از rollback پریده بود → env-prep-only.sh؛ keystore از download/android به android/ کپی شد؛ versionCode 117 با aapt وریفای شد؛ build-apk کامل
+- اکسپورت Pages با 0.10.17 منتشر شد (PAGES_READY) — داشبورد /app/ زنده
+- تاریخچه: push با pre-receive declined شکست خورد (کامیت بکاپ پلتفرم فایل >100MB داشت) → جراحی: نگهداری بکاپ در branch محلی platform-backup-keep + کپی فایل‌ها به .platform-keep، حذف کامیت حجیم از تاریخچه، gitignore فایل‌های حجیم محلی، push تمیز
+- فیکس اسکریپتی: release-app-update.py و verify-release-0117.py توکن را از remote می‌خوانند و با فرمت oauth2:TOKEN می‌شکستند — هر دو حالا «:» را می‌فهمند؛ feed پس از تلاش اول به 0.10.16 برگردانده شد تا مقایسه نسخه پاس شود
+- ریلیز: release-app-update.py 0.10.17 → ریلیز گیت‌هاب id 415996866 (AppImage + win.zip + checksums + APK) + تگ‌های v0.10.17 و app-v0.10.17 + دلتافید + purge
+- verify-release-0117: 18/18 — مانیفست هر دو رفرنس یکسان، دلتاهای 0.6.0–0.9.3 همه MISSING:0
+
+Stage Summary:
+- v0.10.17 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.17 — لایهٔ اجتماعی ابری روی همهٔ پلتفرم‌ها؛ داشبورد Pages هم‌نسخه شد
+- ماندهٔ دست کاربر: ① اجرای supabase/002_cloud_social.sql و بعد 003_security_fixes.sql در SQL Editor ② خودش را ادمین کند (docs/SECURITY.md) ③ Supabase → Redirect URLs → https://pvwvuow.github.io/
+- بعد از اجرای 002: فاز دوم تست (درخواست استادی→تأیید ادمین، پنل سازمان تا انتشار، مقالات با همهٔ بلوک‌ها، کامنت/امتیاز/فالو/کتابخانهٔ همگام) + مهاجرت اساتید فعلی (حسن‌زاده/غایبی) به جدول‌های ابری — qa115/qa116 بعد از مهاجرت دوباره معنا پیدا می‌کنند
+- یادآوری امنیتی: توکن گیت و توکن تلگرام هر دو در چت رد شده‌اند — rotate شوند
