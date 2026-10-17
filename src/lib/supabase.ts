@@ -41,6 +41,13 @@ async function doRefresh(): Promise<boolean>{
     return true;
   }catch{ return false; }
 }
+/** raw Supabase request for the cloud social layer: with the user's token (refreshed on 401)
+ *  when signed in; signed out, only the publishable key in `apikey` (it is not a JWT, so it is
+ *  not sent as a Bearer token) and RLS treats the call as anon */
+export function sbFetch(path: string, opts: RequestInit = {}): Promise<Response>{
+  if (current?.access_token) return call(path, opts);
+  return fetch(supaUrl() + path, { ...opts, headers: { apikey: supaKey(), "Content-Type": "application/json", ...(opts.headers||{}) } });
+}
 export async function sbSignUp(email: string, password: string): Promise<string|null>{
   if(!supaConfigured()) return "اتصال به حساب ابری برقرار نشد — سرویس در دسترس نیست";
   try{
