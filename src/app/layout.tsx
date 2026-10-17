@@ -5,6 +5,9 @@ import { SwRegister } from "@/components/app/SwRegister";
 import { compatScript, errorOverlayScript, apkApiShimScript } from "@/lib/compat-script";
 
 const IS_APK = process.env.NEXT_PUBLIC_APP_MODE === "apk";
+// Static web build for GitHub Pages (scripts/build-pages.sh): same UI as the APK,
+// but it runs in a desktop/mobile browser, so the full desktop look stays on.
+const WEB_STATIC = process.env.NEXT_PUBLIC_WEB_STATIC === "1";
 
 export const metadata: Metadata = {
   title: "Lexa — استاد حقوقی هوشمند",
@@ -29,7 +32,7 @@ export default function RootLayout({
   return (
     // perf-lite: پروفایل کارایی موبایل — در APK بلورها/انیمیشن‌های سنگین خاموش
     // می‌شوند تا اسکرول و رندر روی WebView گوشی سبک بماند (globals.css)
-    <html lang="fa" dir="rtl" suppressHydrationWarning className={IS_APK ? "perf-lite" : undefined}>
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={IS_APK && !WEB_STATIC ? "perf-lite" : undefined}>
       <head>
         {/* پلی‌فیل‌های سازگاری — باید قبل از همهٔ چانک‌ها اجرا شود (WebView قدیمی) */}
         <script dangerouslySetInnerHTML={{ __html: compatScript }} />
