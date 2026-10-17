@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree, NotebookTabs,
+  LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree, NotebookTabs, Building2,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { setChromeHidden } from "@/lib/chrome";
@@ -40,7 +40,8 @@ import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
 import { FeedBell } from "./FeedBell";
-import { IS_APK } from "@/lib/app-mode";
+import { IS_APK, SOCIAL_OFF } from "@/lib/app-mode";
+import { OrgView, useOrgInviteCount } from "./OrgView";
 import { MobileMenuDrawer } from "./MobileMenuDrawer";
 import { UpdateBanner } from "./UpdateBanner";
 import { ApkUpdateBanner } from "./ApkUpdateBanner";
@@ -158,6 +159,9 @@ export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
   useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
+  // دعوت‌های سازمانیِ در انتظار — روی آیتم «دانشگاه‌ها و موسسه‌ها» نشان داده می‌شود
+  const orgInvites = useOrgInviteCount();
+  const orgLabel = orgInvites > 0 ? `دانشگاه‌ها و موسسه‌ها (${fa(orgInvites)} دعوت)` : "دانشگاه‌ها و موسسه‌ها";
   const online = useOnlineStatus();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
@@ -283,7 +287,7 @@ export function AppShell() {
     }
   }
 
-  // ─── سایدبار ستونی سمت راست (دسکتاپ) ───
+  // --- سایدبار ستونی سمت راست (دسکتاپ) ---
   const Sidebar = (
     <aside
       className={`sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-e border-border/70 bg-card/50 backdrop-blur-sm transition-[width] duration-200 ease-out lg:flex ${
@@ -352,7 +356,9 @@ export function AppShell() {
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
         {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
-        {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
+        {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
+        {/* پنل سازمانی: دانشگاه‌ها و موسسه‌ها، دعوت اساتید، درخواست حساب استادی */}
+        {!SOCIAL_OFF && <SideItem icon={Building2} label={orgLabel} rail={rail} active={current === "org"} onClick={() => go({ view: "org" })} />}
         {/* افزودن کتاب فقط برای مدیر */}
         {auth.user?.role === "admin" && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
@@ -402,7 +408,7 @@ export function AppShell() {
       {Sidebar}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* ═══ نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع ═══ */}
+        {/* === نوار بالای زمردی — برند + جستجوی میانی + حساب؛ الهام از طرح مرجع === */}
         <header
           className={`sticky top-0 z-40 bg-background/0 px-2.5 pt-3 transition-all duration-300 ease-out sm:px-5 ${
             headerHidden ? "max-lg:pointer-events-none max-lg:-translate-y-[135%] max-lg:opacity-0" : ""
@@ -435,7 +441,7 @@ export function AppShell() {
                 <div className={searchDocked ? "hidden" : "md:hidden"}>
                   <GlobalSearch courses={courses} variant="icon" />
                 </div>
-                {!IS_APK && <FeedBell />}
+                {!SOCIAL_OFF && <FeedBell />}
                 {/* حساب — در APK هم دیده می‌شود (حساب ابری) تا ثبت‌نام/ورود موبایل کار کند */}
                 <span className="[&_button]:!border-white/15 [&_button]:!bg-white/[0.07] [&_button]:!text-white/85 hover:[&_button]:!border-bronze/70 hover:[&_button]:!text-white">
                   <AccountArea />
@@ -485,13 +491,14 @@ export function AppShell() {
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && (IS_APK ? <ApkUnavailable title="افزودن کتاب" /> : <ImportView />)}
-          {route.view === "teachers" && (IS_APK ? <ApkUnavailable title="اساتید و مقالات" /> : <TeachersView />)}
-          {route.view === "studio" && (IS_APK ? <ApkUnavailable title="اتاق استاد" /> : <StudioView />)}
-          {route.view === "write" && (IS_APK ? <ApkUnavailable title="نوشتن مطلب" /> : <StudioWriteView kind={route.kind} id={route.id} />)}
-          {route.view === "post" && (IS_APK ? <ApkUnavailable title="مطلب استاد" /> : <PostView id={route.id} />)}
+          {route.view === "teachers" && (SOCIAL_OFF ? <ApkUnavailable title="اساتید و مقالات" /> : <TeachersView />)}
+          {route.view === "studio" && (SOCIAL_OFF ? <ApkUnavailable title="اتاق استاد" /> : <StudioView />)}
+          {route.view === "write" && (SOCIAL_OFF ? <ApkUnavailable title="نوشتن مطلب" /> : <StudioWriteView kind={route.kind} id={route.id} />)}
+          {route.view === "post" && (SOCIAL_OFF ? <ApkUnavailable title="مطلب استاد" /> : <PostView id={route.id} />)}
+          {route.view === "org" && (SOCIAL_OFF ? <ApkUnavailable title="دانشگاه‌ها و موسسه‌ها" /> : <OrgView key={route.id ?? "hub"} id={route.id} />)}
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
-          {route.view === "teacher" && (IS_APK ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
+          {route.view === "teacher" && (SOCIAL_OFF ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
           {route.view === "admin" && (IS_APK ? <ApkUnavailable title="پنل مدیریت" /> : <AdminView />)}
         </main>
 
@@ -522,7 +529,7 @@ export function AppShell() {
           </div>
         </nav>
 
-        {/* ═══ منوی کشویی موبایل — باز شدن فوری + درگ زندهٔ ۱:۱ ═══ */}
+        {/* === منوی کشویی موبایل — باز شدن فوری + درگ زندهٔ ۱:۱ === */}
         <MobileMenuDrawer open={drawerOpen} onOpenChange={setDrawerOpen}>
           <div className="flex items-center gap-2.5 pb-3 text-base font-semibold">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Scale className="h-4.5 w-4.5" /></span>
@@ -563,7 +570,8 @@ export function AppShell() {
               <SideItem icon={NotebookTabs} label="تست و آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
-              {!IS_APK && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
+              {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
+              {!SOCIAL_OFF && <SideItem icon={Building2} label={orgLabel} rail={false} active={current === "org"} onClick={() => go({ view: "org" })} />}
               {auth.user?.role === "teacher" && (
                 <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}
