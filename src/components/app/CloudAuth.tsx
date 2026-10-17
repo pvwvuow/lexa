@@ -34,7 +34,7 @@ import { navigate } from "@/lib/router";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
 import {
-  normalizeUsername, usernameProblem, usernameTaken, setMyUsername,
+  normalizeUsername, usernameProblem, usernameTaken,
   rememberPendingUsername, clearPendingUsername, applyPendingUsername,
 } from "@/lib/cloud-api/username";
 
@@ -340,7 +340,8 @@ export function CloudAuthDialog({
   );
 }
 
-/** تغییر نام کاربری حساب ابری (همان قانون ثبت‌نام؛ یکتا در کل Lexa) */
+/** تغییر نام کاربری (همان قانون ثبت‌نام؛ یکتا در کل Lexa)
+ *  حساب ابری ← ابر؛ حساب محلی دسکتاپ ← سرور محلی (هر دو از مسیر /api/profile) */
 export function UsernameDialog({
   open,
   onOpenChange,
@@ -350,8 +351,9 @@ export function UsernameDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   current: string;
-  onSaved: () => void | Promise<void>;
+  onSaved?: () => void | Promise<void>;
 }) {
+  const auth = useAuth();
   const [value, setValue] = React.useState(current);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -371,6 +373,7 @@ export function UsernameDialog({
       onOpenChange(false);
       return;
     }
+    const cloud = !!sbUser();
     const bad = usernameProblem(v);
     if (bad) {
       setError(bad);
@@ -379,9 +382,10 @@ export function UsernameDialog({
     setBusy(true);
     setError(null);
     try {
-      if (await usernameTaken(v).catch(() => false)) throw new Error("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
-      await setMyUsername(v);
-      await onSaved();
+      if (cloud && (await usernameTaken(v).catch(() => false))) throw new Error("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+      const res = await auth.updateProfile({ username: v });
+      if (!res.ok) throw new Error(res.error ?? "نام کاربری ذخیره نشد.");
+      await onSaved?.();
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "نام کاربری ذخیره نشد.");
@@ -470,7 +474,7 @@ export function CloudAccountArea() {
   return (
     <>
       <CloudAuthDialog open={open} onOpenChange={setOpen} />
-      <UsernameDialog open={nameOpen} onOpenChange={setNameOpen} current={handle} onSaved={() => auth.refreshMe()} />
+      <UsernameDialog open={nameOpen} onOpenChange={setNameOpen} current={handle} />
       {/* منوی حساب — رادیکس با پورتال؛ اگر داخل هدر می‌ماند با overflow-hidden هدر کلیپ می‌شد و با لمس آواتار هیچی دیده نمی‌شد */}
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
@@ -547,9 +551,9 @@ export function CloudAccountArea() {
               }
               noteCloudPushed(blob.savedAt);
               await sbSignOut();
-              // خروج از حساب ابری = خروج کامل: نشست سروریِ حاصل از پل هم باید تمام
-              // شود وگرنه قابلیت‌های سروری در پس‌زمینه باز می‌مانند
-              try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
+              // خروج از حساب ابری = خروج کامل: نشست سروریِ حاصل از پل و حساب اپ هم
+              // باید تمام شوند وگرنه قابلیت‌های سروری در پس‌زمینه باز می‌مانند
+              try { await auth.logout(); } catch {}
               // خروج یعنی دادهٔ حساب روی دستگاه نماند — با ورود، از ابر برمی‌گردد
               wipeLocalUserData();
               setBusy("");
