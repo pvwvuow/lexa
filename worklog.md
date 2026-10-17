@@ -1999,3 +1999,22 @@ Work Log:
 Stage Summary:
 - همه‌چیز جز «push نهایی» انجام شده: کد pull شده، بیلد تست‌شده و سالم، اسمبل کامل، askpass نصب. به محض رسیدن توکن تازه: git remote set-url origin https://<TOKEN>@github.com/pvwvuow/lexa.git && bash scripts/build-pages.sh → داشبورد روی /app/ زنده می‌شود (~۱ دقیقه)
 - کارهای دست کاربر: ① توکن گیت تازه ② Supabase → Authentication → URL Configuration → افزودن https://pvwvuow.github.io/ به Redirect URLs ③ پس از توکن: خاموش‌کردن Pages شاخهٔ gh-pages ریپوی lexa
+
+---
+Task ID: 44
+Agent: main (Super Z)
+Task: اجرای کامل انتشار صفحهٔ گیت‌هاب پیجز با توکن تازهٔ کاربر + بازنشانی gh-pages قدیمی
+
+Work Log:
+- توکن تازه از کاربر رسید؛ صحت‌سنجی: GitHub /user → login: pvwvuow، push+admin روی هر دو ریپو (lexa و pvwvuow.github.io) ✓
+- origin به فرمت https://oauth2:<TOKEN>@github.com/... ست شد (فرمت user:pass — گیت هرگز پرامپت نمی‌گیرد)؛ کامیت معطل worklog (task 43) push شد
+- bash scripts/build-pages.sh کامل سبز: اکسپورت APK-mode → کلون سایت → اسمبل (sw.js پچ برای /app/، manifest start_url → /app/) → push ✓ → PAGES_READY نسخهٔ 0.10.16
+- وریفای زنده: / (لندینگ) 200 ✓، /app/ (داشبورد) 200 ✓، chunk _next 200 ✓، /manifest.webmanifest 200 با start_url=/app/ ✓، لینک CTA لندینگ → app/ ✓
+- خاموش‌کردن gh-pages با API ممکن نشد (DELETE /pages → 422 «Deactivating GitHub pages for this repository is not allowed» — سایت‌های legacy فقط از UI قابل خاموشی‌اند) → راه‌حل بهتر: کل محتوای شاخهٔ gh-pages (۴۵۹۶ فایل) با یک صفحهٔ ریدایرکت متا به https://pvwvuow.github.io/app/ جایگزین شد (کامیت 165bc97) — لینک‌های قدیمی حالا کاربر را به داشبورد تازه می‌برند
+- /home/z/.ghtmp حذف شد (توکن فقط در remote URL می‌ماند؛ askpass سراسری هم به‌عنوان پشتیبان نصب است)
+
+Stage Summary:
+- سایت کامل شد: https://pvwvuow.github.io/ (لندینگ + عضویت) و https://pvwvuow.github.io/app/ (داشبورد واقعی 0.10.16 — همان خروجی APK با افکت‌های مرورگر) — نشست سابابیس بین لندینگ و اپ مشترک است (کلید lexa-sb-auth-v1)
+- gh-pages قدیمی دیگر اپ قدیمی را سرو نمی‌کند؛ ریدایرکت است. خاموشی کامل فقط از UI: Settings → Pages → None (اختیاری)
+- ماندهٔ دست کاربر: Supabase → Authentication → URL Configuration → افزودن https://pvwvuow.github.io/ به Redirect URLs (برای برگشت لینک تأیید ایمیل)
+- یادآوری امنیتی: توکن گیت این‌جا در چت رد شده — بعد از راه‌اندازی کامل، بهتر است rotate شود؛ توکن تلگرام قبلی هم هنوز /revoke نشده
