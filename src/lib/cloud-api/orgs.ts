@@ -1,5 +1,5 @@
 "use client";
-/* Organisations (universities / institutes), teacher requests and the Lexa admin
+/* Education centres (universities / institutes / schools), teacher requests and the Lexa admin
  * console — typed client over the RPCs in supabase/002_cloud_social.sql. */
 import * as React from "react";
 import { sbUser, onAuthChange } from "@/lib/supabase";
@@ -13,8 +13,8 @@ export type MemberStatus = "invited" | "requested" | "active" | "declined" | "re
 
 export const ORG_KINDS: { key: OrgKind; label: string }[] = [
   { key: "university", label: "دانشگاه" },
-  { key: "institute", label: "موسسهٔ آموزشی" },
-  { key: "school", label: "آموزشگاه / مدرسه" },
+  { key: "institute", label: "مؤسسهٔ آموزشی" },
+  { key: "school", label: "آموزشگاه" },
   { key: "other", label: "سایر" },
 ];
 export const ORG_PLANS: { key: OrgPlan; label: string }[] = [
@@ -23,7 +23,7 @@ export const ORG_PLANS: { key: OrgPlan; label: string }[] = [
   { key: "pro", label: "حرفه‌ای" },
 ];
 export function orgKindLabel(k: string): string {
-  return ORG_KINDS.find((x) => x.key === k)?.label ?? "سازمان";
+  return ORG_KINDS.find((x) => x.key === k)?.label ?? "مرکز آموزشی";
 }
 
 export interface Org {
@@ -110,29 +110,32 @@ function memberOf(r: any): OrgMember {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 const ERRORS: [RegExp, string][] = [
-  [/not signed in/i, "اول با حساب Lexa (ایمیل) وارد شو."],
-  [/not a manager/i, "فقط مدیران این پنل می‌توانند این کار را بکنند."],
-  [/not active/i, "پنل این سازمان هنوز فعال نشده یا مدت اعتبارش تمام شده است."],
-  [/no free seats/i, "ظرفیت اساتید این پنل پر است؛ برای افزایش ظرفیت با پشتیبانی Lexa تماس بگیر."],
-  [/user not found|member not found/i, "کاربر پیدا نشد."],
-  [/teacher accounts only/i, "فقط حساب‌های استادی می‌توانند درخواست عضویت بدهند."],
-  [/no pending invitation/i, "دعوت‌نامهٔ در انتظاری وجود ندارد."],
-  [/no pending request/i, "درخواست در انتظاری وجود ندارد."],
-  [/too many organisations/i, "حداکثر سه پنل سازمانی می‌توانی ثبت کنی."],
-  [/only the owner/i, "فقط مالک پنل می‌تواند نقش‌ها را تغییر دهد."],
-  [/owner cannot be changed/i, "مالک پنل را نمی‌شود تغییر داد یا حذف کرد."],
-  [/admin only|only a Lexa admin/i, "این کار فقط از دست مدیر Lexa برمی‌آید."],
-  [/cannot demote yourself/i, "نمی‌توانی نقش مدیریتی خودت را برداری."],
-  [/duplicate key|already exists|23505/i, "این شناسه قبلاً ثبت شده؛ یکی دیگر انتخاب کن."],
-  [/check constraint|violates check|23514/i, "یکی از فیلدها نامعتبر است (طول یا قالب را چک کن)."],
-  [/row-level security|42501/i, "اجازهٔ این کار را نداری."],
+  [/not signed in/i, "ابتدا وارد حساب کاربری خود شوید."],
+  [/not a manager/i, "این کار فقط از مدیران این مرکز آموزشی ساخته است."],
+  [/not active/i, "این مرکز آموزشی هنوز فعال نشده یا اعتبار آن به پایان رسیده است."],
+  [/no free seats/i, "ظرفیت مدرسان این مرکز تکمیل است؛ برای افزایش ظرفیت با پشتیبانی Lexa تماس بگیرید."],
+  [/user not found|member not found/i, "کاربر یافت نشد."],
+  [/teacher accounts only/i, "فقط مدرسان می‌توانند درخواست عضویت ثبت کنند."],
+  [/no pending invitation/i, "دعوت‌نامهٔ بررسی‌نشده‌ای وجود ندارد."],
+  [/no pending request/i, "درخواست بررسی‌نشده‌ای وجود ندارد."],
+  [/too many organisations/i, "حداکثر سه مرکز آموزشی قابل ثبت است."],
+  [/only the owner/i, "فقط مالک مرکز می‌تواند نقش‌ها را تغییر دهد."],
+  [/owner cannot be changed/i, "نقش مالک مرکز قابل تغییر یا حذف نیست."],
+  [/admin only|only a Lexa admin/i, "این کار فقط از مدیر Lexa ساخته است."],
+  [/cannot demote yourself/i, "نمی‌توانید نقش مدیریتی خود را لغو کنید."],
+  [/duplicate key|already exists|23505/i, "این نشانی قبلاً ثبت شده است؛ نشانی دیگری انتخاب کنید."],
+  [/check constraint|violates check|23514/i, "یکی از فیلدها نامعتبر است؛ طول و قالب آن را بررسی کنید."],
+  [/row-level security|42501/i, "اجازهٔ انجام این کار را ندارید."],
+  [/JWT expired|invalid JWT|PGRST30[0-9]/i, "نشست ورود شما منقضی شده است؛ یک بار خارج و دوباره وارد شوید."],
 ];
 
 export function orgError(e: unknown): string {
   const raw = e instanceof HttpError ? `${e.message} ${e.code}` : e instanceof Error ? e.message : String(e ?? "");
   for (const [re, msg] of ERRORS) if (re.test(raw)) return msg;
-  if (e instanceof TypeError) return "اتصال به سرور ابری Lexa برقرار نشد — اینترنت را چک کن.";
-  return "خطایی رخ داد؛ دوباره امتحان کن.";
+  if (e instanceof TypeError) return "اتصال به Lexa برقرار نشد؛ اتصال اینترنت را بررسی کنید.";
+  // never a bare "something went wrong": the code lets support find the cause
+  const code = e instanceof HttpError ? e.code || String(e.status || "") : "";
+  return code ? `درخواست انجام نشد (کد ${code}). لطفاً دوباره تلاش کنید.` : "درخواست انجام نشد. لطفاً دوباره تلاش کنید.";
 }
 
 // contact + admin note live in lexa_org_private (managers / admins only; null for others)
@@ -272,7 +275,7 @@ export const adminSetRole = (userId: string, role: "user" | "teacher" | "admin")
 
 export async function adminOrgs(): Promise<(Org & { creator: MiniUser })[]> {
   const rows = await sbSelect<Record<string, unknown>>(
-    "lexa_orgs", `select=*,${PRIVATE_EMBED},creator:lexa_profiles(id,username,display_name,avatar_url,role)&order=created_at.desc&limit=300`,
+    "lexa_orgs", `select=*,${PRIVATE_EMBED},creator:lexa_profiles!lexa_orgs_created_by_fkey(id,username,display_name,avatar_url,role)&order=created_at.desc&limit=300`,
   );
   return rows.map((r) => ({ ...orgOf(r), creator: userOf(r.creator, String(r.created_by ?? "")) }));
 }
@@ -297,7 +300,7 @@ export function useMyMemberships() {
       const rows = await myMemberships();
       if (id === reqRef.current) setItems(rows);
     } catch {
-      if (id === reqRef.current) setItems([]);
+      // keep what we had: a network blip must not make invitations / my centres vanish
     } finally {
       if (id === reqRef.current) setLoading(false);
     }
