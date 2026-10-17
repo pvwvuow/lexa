@@ -1,6 +1,6 @@
 "use client";
 
-// ─── پروفایل عمومی استاد — فعالیت، دوره‌ها و مطالب او در یک صفحه ──────────────
+// --- پروفایل عمومی استاد — فعالیت، دوره‌ها و مطالب او در یک صفحه ---
 import * as React from "react";
 import {
   Loader2, UserPlus, UserCheck, BookPlus, BookCheck, MessageCircle,
@@ -21,6 +21,7 @@ import {
 import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
 import { OfflineDownloadButton } from "./offline-ui";
+import { OrgBadges, OrgInviteButton } from "./OrgView";
 
 function StatChipP({ Icon, label, value }: { Icon: React.ComponentType<{ className?: string }>; label: string; value: number }) {
   return (
@@ -76,16 +77,22 @@ export function TeacherProfileView({ id }: { id?: string }) {
             {data.profile.bio ? (
               <p className="max-w-xl pt-1 text-sm leading-relaxed text-muted-foreground">{data.profile.bio}</p>
             ) : null}
+            {/* دانشگاه‌ها و موسسه‌هایی که این استاد عضو فعالشان است */}
+            <OrgBadges orgs={(data.profile as { orgs?: Parameters<typeof OrgBadges>[0]["orgs"] }).orgs} />
             <p className="flex items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground/80">
               <CalendarDays className="h-3.5 w-3.5" />
               عضو از {new Date(data.profile.joinedAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })}
             </p>
           </div>
-          <FollowButton
-            teacherId={data.profile.id}
-            initial={data.profile.isFollowing}
-            onChanged={() => void reload()}
-          />
+          <div className="flex shrink-0 flex-wrap items-start gap-2">
+            <FollowButton
+              teacherId={data.profile.id}
+              initial={data.profile.isFollowing}
+              onChanged={() => void reload()}
+            />
+            {/* مدیر پنل یک دانشگاه/موسسه، این استاد را به پنلش دعوت می‌کند */}
+            <OrgInviteButton userId={data.profile.id} name={data.profile.displayName} />
+          </div>
         </div>
 
         <div className="relative mt-5 flex flex-wrap gap-2">
@@ -165,7 +172,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
   );
 }
 
-/* ─── دکمهٔ فالو درون پروفایل ── */
+/* --- دکمهٔ فالو درون پروفایل ── */
 function FollowButton({
   teacherId, initial, onChanged,
 }: { teacherId: string; initial: boolean; onChanged: () => void }) {
@@ -219,7 +226,7 @@ function FollowButton({
   );
 }
 
-/* ─── کارت دورهٔ پروفایل — کلیک روی کارت = باز شدن دوره ── */
+/* --- کارت دورهٔ پروفایل — کلیک روی کارت = باز شدن دوره ── */
 function ProfileCourseCard({
   c, user, locallyInLibrary, busyId, setBusyId, onErr, onChanged,
 }: {

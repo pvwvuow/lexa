@@ -1,6 +1,6 @@
 "use client";
 
-// ─── کتابخانهٔ عمومی — همهٔ دوره‌ها و مطالب اساتید به تفکیک شاخه ────────────────
+// --- کتابخانهٔ عمومی — همهٔ دوره‌ها و مطالب اساتید به تفکیک شاخه ---
 import * as React from "react";
 import {
   LibraryBig, BookPlus, BookCheck, Loader2, GraduationCap, Star,
@@ -15,7 +15,7 @@ import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
 import { usePublicLibrary, toggleBuiltinHidden, addTCourseLocally, type TCourseCard, type FeedPost } from "@/lib/social-client";
 import { listInstalledPacks } from "@/lib/updater";
-import { IS_APK } from "@/lib/app-mode";
+import { SOCIAL_OFF } from "@/lib/app-mode";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
 import { OfflineDownloadButton } from "./offline-ui";
 
@@ -223,7 +223,7 @@ function PostTeaser({ p }: { p: FeedPost }) {
   );
 }
 
-/* ═══ دوره‌های آماده اپ — کارت جزوهٔ رسمی با افزودن/حذف آزاد از کتابخانه ════ */
+/* === دوره‌های آماده اپ — کارت جزوهٔ رسمی با افزودن/حذف آزاد از کتابخانه === */
 
 function builtinPercent(c: Course, progress: Record<string, { status?: string }>): number {
   const flat = c.chapters.flatMap((ch) => ch.lessons);
@@ -366,7 +366,7 @@ export function PublicLibraryView() {
   const packCourses = React.useMemo(() => customCourses.filter((c) => packIds.has(c.id)), [customCourses, packIds]);
   // تب داخلی هیچ فراخوانی شبکه‌ای نمی‌زند؛ داده‌اش از خود باندل می‌آید.
   // در APK (بدون سرور) بخش اساتید اصلاً درخواست نمی‌زند — پیام راهنما جای آن می‌نشیند.
-  const { courses, posts, loading } = usePublicLibrary(cat, cat !== "builtin" && !IS_APK);
+  const { courses, posts, loading } = usePublicLibrary(cat, cat !== "builtin" && !SOCIAL_OFF);
 
   const [busyId, setBusyId] = React.useState("");
   const [err, setErr] = React.useState("");
@@ -419,7 +419,7 @@ export function PublicLibraryView() {
         </p>
       )}
 
-      {/* ═══ دوره‌های آمادهٔ اپ ═══ */}
+      {/* === دوره‌های آمادهٔ اپ === */}
       {cat === "builtin" && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5 text-bronze" /> دوره‌های آماده ({fa(builtinCourses.length)})</h2>
@@ -435,7 +435,7 @@ export function PublicLibraryView() {
         </section>
       )}
 
-      {/* ═══ دوره‌های اساتید — بسته‌های محتوایی نصب‌شده (وب و APK) ═══ */}
+      {/* === دوره‌های اساتید — بسته‌های محتوایی نصب‌شده (وب و APK) === */}
       {cat !== "builtin" && packCourses.length > 0 && (
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های اساتید ({fa(packCourses.length)})</h2>
@@ -478,8 +478,8 @@ export function PublicLibraryView() {
         </section>
       )}
 
-      {/* ═══ بخش اساتید ═══ */}
-      {IS_APK && cat !== "builtin" && (
+      {/* === بخش اساتید === */}
+      {SOCIAL_OFF && cat !== "builtin" && (
         <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-10 text-center shadow-card">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-bronze/10 text-2xl">📚</div>
           <p className="font-bold">مطالب و دوره‌های اساتید</p>
@@ -488,10 +488,10 @@ export function PublicLibraryView() {
           </p>
         </div>
       )}
-      {!IS_APK && cat !== "builtin" && loading && (
+      {!SOCIAL_OFF && cat !== "builtin" && loading && (
         <p className="flex items-center gap-2 py-8 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت کتابخانه…</p>
       )}
-      {!IS_APK && cat !== "builtin" && !loading && (
+      {!SOCIAL_OFF && cat !== "builtin" && !loading && (
         <>
           {/* دوره‌ها */}
           <section className="space-y-3">
