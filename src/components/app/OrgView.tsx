@@ -368,7 +368,7 @@ function CreateOrgCard({ onCreated }: { onCreated: () => void }) {
 }
 
 /* === کنسول مدیر Lexa === */
-function AdminConsole() {
+export function AdminConsole() {
   return (
     <section className={`${card} space-y-6 border-primary/40`}>
       <h2 className="flex items-center gap-2 text-[15px] font-extrabold"><ShieldCheck className="h-5 w-5 text-primary" /> کنسول مدیر Lexa</h2>

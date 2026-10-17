@@ -4,12 +4,18 @@ import * as React from "react";
 import {
   Users, Activity, ClipboardCheck, Award, BookOpenCheck, Search, ShieldCheck,
   Loader2, CloudCheck, ChevronDown, StickyNote, KeyRound, UserRound, Lock,
+  Building2, RefreshCw, LogIn,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-client";
 import { fa, pct } from "@/lib/fa";
+import { IS_APK } from "@/lib/app-mode";
+import { sbUser } from "@/lib/supabase";
+import { navigate } from "@/lib/router";
+import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { ProgressBar, StatChip } from "./common";
 import { AdminFeedbackSection } from "./AdminFeedbackSection";
 import { AdminTeachersSection } from "./AdminTeachersSection";
+import { AdminConsole } from "./OrgView";
 
 // ─── انواع داده ───────────────────────────────────────────────────────────────
 interface AdminUser {
@@ -460,7 +466,7 @@ function AdminAccountCard() {
 }
 
 // ─── ویو اصلی پنل مدیریت ──────────────────────────────────────────────────────
-export function AdminView() {
+function ServerAdminView() {
   const auth = useAuth();
   const isAdmin = auth.user?.role === "admin";
   const [users, setUsers] = React.useState<AdminUser[] | null>(null);
@@ -609,4 +615,70 @@ export function AdminView() {
       {openUserId && <UserDetail userId={openUserId} onClose={() => setOpenUserId(null)} />}
     </div>
   );
+}
+
+// --- پنل مدیر ابری (وب و اندروید: سرور ندارند؛ داده از Supabase) ---
+function CloudAdminView() {
+  const auth = useAuth();
+  const [busy, setBusy] = React.useState(false);
+  const signed = !!auth.user && !!sbUser() && sbUser()!.id === auth.user.id;
+  const isAdmin = signed && auth.user?.role === "admin";
+
+  async function refresh() {
+    setBusy(true);
+    try { await auth.refreshMe(); } finally { setBusy(false); }
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto max-w-md pt-20">
+        <div className="rounded-2xl border border-dashed border-destructive/50 bg-card p-8 text-center shadow-card">
+          <Lock className="mx-auto mb-4 h-10 w-10 text-destructive/70" />
+          <h2 className="font-display text-lg font-bold">ناحیهٔ محافظت‌شدهٔ مدیر</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {!signed
+              ? "با حساب Lexa (ایمیل) که نقش مدیر دارد وارد شو."
+              : `نقش این حساب «${auth.user?.role ?? ""}» است. اگر تازه در Supabase مدیر شدی، «بازخوانی نقش» را بزن یا یک‌بار خارج و دوباره وارد شو.`}
+          </p>
+          <div className="mt-5 flex justify-center gap-2">
+            {!signed ? (
+              <button onClick={() => requestAuthPrompt("برای ورود به پنل مدیریت")} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-card hover:brightness-110">
+                <LogIn className="h-4 w-4" /> ورود
+              </button>
+            ) : (
+              <button onClick={() => void refresh()} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-card hover:brightness-110 disabled:opacity-50">
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} بازخوانی نقش
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2.5 font-display text-2xl font-extrabold tracking-tight">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-bronze text-primary-foreground shadow-card">
+              <ShieldCheck className="h-6 w-6" />
+            </span>
+            پنل مدیریت Lexa
+          </h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            درخواست‌های حساب استادی، پنل‌های دانشگاه‌ها و موسسه‌ها و نقش کاربران — مشترک برای وب، اندروید و دسکتاپ.
+          </p>
+        </div>
+        <button onClick={() => navigate({ view: "org" })} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-[12px] font-bold text-muted-foreground transition-colors hover:border-bronze/60 hover:text-foreground">
+          <Building2 className="h-4 w-4" /> دانشگاه‌ها و موسسه‌ها
+        </button>
+      </header>
+      <AdminConsole />
+    </div>
+  );
+}
+
+export function AdminView() {
+  return IS_APK ? <CloudAdminView /> : <ServerAdminView />;
 }
