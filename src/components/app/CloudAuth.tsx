@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Scale, UserRound, KeyRound, Loader2, CloudUpload, CloudCheck,
-  ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert, Settings,
+  ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert, Settings, AtSign, GraduationCap,
 } from "lucide-react";
 import {
   sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState,
@@ -33,6 +33,10 @@ import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
+import {
+  normalizeUsername, usernameProblem, usernameTaken, setMyUsername,
+  rememberPendingUsername, clearPendingUsername, applyPendingUsername,
+} from "@/lib/cloud-api/username";
 
 type Tab = "login" | "register";
 
@@ -47,6 +51,7 @@ export function CloudAuthDialog({
   initialTab?: Tab;
 }) {
   const [tab, setTab] = React.useState<Tab>(initialTab);
+  const [username, setUsername] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
@@ -73,6 +78,14 @@ export function CloudAuthDialog({
     // اعتبارسنجی این‌جا انجام می‌شود نه با disabled دکمه — دکمهٔ همیشه‌فعال تا
     // کاربر با کلیک، پیام دقیق خطا را ببیند (مشکل «دکمهٔ روشن نمی‌شود» در موبایل)
     const em = email.trim();
+    const uname = tab === "register" ? normalizeUsername(username) : "";
+    if (uname) {
+      const bad = usernameProblem(uname);
+      if (bad) {
+        setError(bad);
+        return;
+      }
+    }
     if (!/.+@.+\..+/.test(em)) {
       setError("ایمیل معتبر نیست — نمونه: name@example.com");
       return;
@@ -86,11 +99,27 @@ export function CloudAuthDialog({
       return;
     }
     setBusy(true);
+    if (uname) {
+      // نام کاربری تکراری را همین‌جا بگو، نه بعد از ساخت حساب
+      if (await usernameTaken(uname).catch(() => false)) {
+        setBusy(false);
+        setError("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+        return;
+      }
+      // اگر تأیید ایمیل لازم باشد، بعد از اولین ورود ثبت می‌شود
+      rememberPendingUsername(em, uname);
+    }
     const err = tab === "login"
       ? await sbSignIn(em, password)
-      : await sbSignUp(em, password);
+      : await sbSignUp(em, password, uname ? { username: uname } : undefined);
     if (err) {
       setBusy(false);
+      if (tab === "register" && err.startsWith("ثبت‌نام شد")) {
+        setInfo(`ثبت‌نام انجام شد؛ ایمیل خود را تأیید کن و دوباره وارد شو.${uname ? " نام کاربری‌ات با اولین ورود ثبت می‌شود." : ""}`);
+        setTab("login");
+        return;
+      }
+      if (tab === "register") clearPendingUsername();
       setError(err);
       return;
     }
@@ -106,6 +135,11 @@ export function CloudAuthDialog({
     // می‌توانست قبل از رسیدن دادهٔ ابر روی حساب بنشیند.
     holdCloudPush(true);
     try {
+      // نام کاربری انتخاب‌شده در ثبت‌نام (اگر هنوز روی حساب ننشسته)
+      const uErr = await applyPendingUsername();
+      if (uErr) {
+        setTimeout(() => window.alert(`${uErr}\nاز منوی حساب ← «نام کاربری» می‌توانی نام دیگری بگذاری.`), 700);
+      }
       // پل حساب: نشست سروری هم ساخته می‌شود تا فالو/امتیاز/کامنت/کتابخانهٔ
       // همگام همان لحظه کار کنند (روی APK بی‌سرور، بی‌صدا رد می‌شود)
       void auth.bridgeCloud();
@@ -125,6 +159,7 @@ export function CloudAuthDialog({
         return;
       }
       setPassword("");
+      setUsername("");
       const hasData = !!data && typeof data === "object" && Object.keys(data as object).length > 0;
       if (hasData) {
         if (adoptCloudBlob(data)) {
@@ -185,6 +220,31 @@ export function CloudAuthDialog({
         </div>
 
         <form onSubmit={submit} noValidate className="space-y-4 p-6">
+          {tab === "register" && (
+            <label className="block space-y-1.5">
+              <span className="text-xs font-bold text-muted-foreground">نام کاربری (اختیاری)</span>
+              <div className="relative">
+                <AtSign className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                <input
+                  type="text"
+                  dir="auto"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoComplete="username"
+                  maxLength={20}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+                  placeholder="مثلاً ali_rezaei"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-2.5 pe-10 text-start text-sm shadow-inner outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-bronze"
+                />
+              </div>
+              <span className="block text-[10.5px] leading-relaxed text-muted-foreground/80">
+                ۳ تا ۲۰ نویسه: حروف فارسی یا انگلیسی، رقم، _ و . — در پروفایل و کامنت‌ها با @ نشان داده می‌شود. بعداً هم از منوی حساب عوض می‌شود.
+              </span>
+            </label>
+          )}
+
           <label className="block space-y-1.5">
             <span className="text-xs font-bold text-muted-foreground">ایمیل</span>
             <div className="relative">
@@ -280,11 +340,105 @@ export function CloudAuthDialog({
   );
 }
 
+/** تغییر نام کاربری حساب ابری (همان قانون ثبت‌نام؛ یکتا در کل Lexa) */
+export function UsernameDialog({
+  open,
+  onOpenChange,
+  current,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  current: string;
+  onSaved: () => void | Promise<void>;
+}) {
+  const [value, setValue] = React.useState(current);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      setValue(current);
+      setError(null);
+    }
+  }, [open, current]);
+
+  async function save(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    const v = normalizeUsername(value);
+    if (v.toLowerCase() === current.toLowerCase()) {
+      onOpenChange(false);
+      return;
+    }
+    const bad = usernameProblem(v);
+    if (bad) {
+      setError(bad);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      if (await usernameTaken(v).catch(() => false)) throw new Error("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+      await setMyUsername(v);
+      await onSaved();
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "نام کاربری ذخیره نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[380px] rounded-2xl border-border bg-card p-6 sm:rounded-2xl">
+        <DialogHeader className="space-y-1 text-start">
+          <DialogTitle className="flex items-center gap-2 font-display text-base font-bold">
+            <AtSign className="h-5 w-5 text-bronze" /> نام کاربری
+          </DialogTitle>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            ۳ تا ۲۰ نویسه: حروف فارسی یا انگلیسی، رقم، _ و . — در پروفایل و کامنت‌ها با @ دیده می‌شود.
+          </p>
+        </DialogHeader>
+        <form onSubmit={save} noValidate className="mt-4 space-y-3">
+          <input
+            type="text"
+            dir="auto"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={20}
+            value={value}
+            onChange={(e) => setValue(e.target.value.replace(/\s/g, ""))}
+            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-start text-sm shadow-inner outline-none transition-colors focus:border-bronze"
+          />
+          {error && (
+            <p role="alert" className="flex items-start gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium leading-relaxed text-destructive">
+              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AtSign className="h-4 w-4" />}
+            ذخیرهٔ نام کاربری
+          </button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** بخش حساب ابری در هدر APK: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب (همه‌چیز خودکار) */
 export function CloudAccountArea() {
+  const auth = useAuth();
   const [user, setUser] = React.useState<SbUser | null>(() => sbUser());
   const [open, setOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [nameOpen, setNameOpen] = React.useState(false);
   const [busy, setBusy] = React.useState<"" | "out">("");
 
   React.useEffect(() => onAuthChange(() => setUser(sbUser())), []);
@@ -308,9 +462,15 @@ export function CloudAccountArea() {
     );
   }
 
+  // the cloud profile (role, username) comes from /api/auth/me via the auth context
+  const me = auth.user;
+  const role = me?.role;
+  const handle = me?.username || "";
+
   return (
     <>
       <CloudAuthDialog open={open} onOpenChange={setOpen} />
+      <UsernameDialog open={nameOpen} onOpenChange={setNameOpen} current={handle} onSaved={() => auth.refreshMe()} />
       {/* منوی حساب — رادیکس با پورتال؛ اگر داخل هدر می‌ماند با overflow-hidden هدر کلیپ می‌شد و با لمس آواتار هیچی دیده نمی‌شد */}
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
@@ -319,23 +479,53 @@ export function CloudAccountArea() {
             aria-label={`حساب ابری ${user.email}`}
           >
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-bl from-primary/90 to-bronze text-[11px] font-bold text-primary-foreground">
-              {(user.email || "؟").slice(0, 1).toUpperCase()}
+              {(handle || user.email || "؟").slice(0, 1).toUpperCase()}
             </span>
-            <span className="hidden max-w-[120px] truncate text-start text-xs font-bold sm:block" dir="ltr">
-              {user.email}
+            <span className="hidden max-w-[120px] truncate text-start text-xs font-bold sm:block" dir="auto">
+              {handle || user.email}
             </span>
           </button>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-1.5">
           <DropdownMenuLabel dir="rtl" className="space-y-0.5 px-2">
-            <p className="text-[10px] font-bold text-muted-foreground">حساب ابری</p>
-            <p className="truncate text-xs font-bold" dir="ltr">{user.email}</p>
+            <p className="text-[10px] font-bold text-muted-foreground">
+              {role === "admin" ? "حساب ابری — مدیر سامانه" : role === "teacher" ? "حساب ابری — استاد Lexa" : "حساب ابری"}
+            </p>
+            {handle && <p className="truncate text-xs font-bold" dir="auto">@{handle}</p>}
+            <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{user.email}</p>
             <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-success">
               <CloudCheck className="h-3 w-3" /> همگام‌سازی خودکار فعال — همه‌چیز ذخیره می‌شود
             </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {(role === "teacher" || role === "admin") && (
+            <DropdownMenuItem
+              onClick={() => { setMenuOpen(false); navigate({ view: "studio" }); }}
+              className="cursor-pointer rounded-lg gap-2.5 py-2.5 text-bronze"
+            >
+              <GraduationCap className="h-4 w-4 shrink-0" />
+              اتاق استاد
+            </DropdownMenuItem>
+          )}
+          {role === "admin" && (
+            <DropdownMenuItem
+              onClick={() => { setMenuOpen(false); navigate({ view: "admin" }); }}
+              className="cursor-pointer rounded-lg gap-2.5 py-2.5 text-bronze"
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              پنل مدیریت
+            </DropdownMenuItem>
+          )}
+          {me && (
+            <DropdownMenuItem
+              onClick={() => { setMenuOpen(false); setNameOpen(true); }}
+              className="cursor-pointer rounded-lg gap-2.5 py-2.5"
+            >
+              <AtSign className="h-4 w-4 shrink-0 text-bronze" />
+              نام کاربری
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onClick={() => { setMenuOpen(false); navigate({ view: "settings" }); }}
             className="cursor-pointer rounded-lg gap-2.5 py-2.5"

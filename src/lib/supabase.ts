@@ -48,10 +48,11 @@ export function sbFetch(path: string, opts: RequestInit = {}): Promise<Response>
   if (current?.access_token) return call(path, opts);
   return fetch(supaUrl() + path, { ...opts, headers: { apikey: supaKey(), "Content-Type": "application/json", ...(opts.headers||{}) } });
 }
-export async function sbSignUp(email: string, password: string): Promise<string|null>{
+/** meta = user metadata saved with the account (e.g. { username } — the 004 trigger reads it) */
+export async function sbSignUp(email: string, password: string, meta?: Record<string, unknown>): Promise<string|null>{
   if(!supaConfigured()) return "اتصال به حساب ابری برقرار نشد — سرویس در دسترس نیست";
   try{
-    const res = await fetch(supaUrl()+"/auth/v1/signup",{method:"POST",headers:{apikey:supaKey(),"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+    const res = await fetch(supaUrl()+"/auth/v1/signup",{method:"POST",headers:{apikey:supaKey(),"Content-Type":"application/json"},body:JSON.stringify(meta ? {email,password,data:meta} : {email,password})});
     const j = await res.json();
     if(!res.ok) return j.msg || j.error_description || j.error || "خطا در ثبت‌نام";
     if(j.access_token) save({access_token:j.access_token,refresh_token:j.refresh_token,user:{id:j.user.id,email:j.user.email||""}});

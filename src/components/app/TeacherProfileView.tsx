@@ -34,7 +34,7 @@ function StatChipP({ Icon, label, value }: { Icon: React.ComponentType<{ classNa
 
 export function TeacherProfileView({ id }: { id?: string }) {
   const auth = useAuth();
-  const { data, loading, notFound, reload } = useTeacherProfile(id);
+  const { data, loading, notFound, error, reload } = useTeacherProfile(id);
   const tBooks = useApp((s) => s.tBooks);
   const [busyId, setBusyId] = React.useState("");
   const [err, setErr] = React.useState("");
@@ -47,6 +47,16 @@ export function TeacherProfileView({ id }: { id?: string }) {
         </p>
         <button onClick={() => navigate({ view: "teachers" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">
           بازگشت به اساتید <ArrowLeft className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+  if (error && !data && !loading) {
+    return (
+      <div className="mx-auto max-w-md pt-20 text-center">
+        <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">{error}</p>
+        <button onClick={() => void reload()} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">
+          تلاش دوباره
         </button>
       </div>
     );
@@ -98,7 +108,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
         <div className="relative mt-5 flex flex-wrap gap-2">
           <StatChipP Icon={Users} label="دنبال‌کننده" value={data.profile.followersCount} />
           <StatChipP Icon={MessageCircle} label="مطلب" value={data.profile.postsCount} />
-          <StatChipP Icon={GraduationCap} label="دوره" value={data.profile.coursesCount} />
+          <StatChipP Icon={GraduationCap} label="دوره" value={Math.max(data.profile.coursesCount, data.courses.length)} />
           {data.profile.avgRating > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-bronze/40 bg-bronze/[0.06] px-3 py-1.5 text-xs font-bold text-bronze shadow-card">
               <Star className="h-4 w-4 fill-current" /> میانگین امتیاز {fa(data.profile.avgRating)}
@@ -203,6 +213,8 @@ function FollowButton({
       }
       setFollowing((v) => (typeof j.following === "boolean" ? j.following : !v));
       onChanged();
+    } catch {
+      window.alert("دنبال‌کردن انجام نشد؛ اتصال اینترنت را بررسی کن.");
     } finally {
       setBusy(false);
     }
