@@ -1980,3 +1980,22 @@ Work Log:
 Stage Summary:
 - v0.10.16 سالم است؛ هیچ باگ اپی پیدا نشد. اپ، ریلیز، CDN، دلتاها و APK همگی سبز
 - نکتهٔ ماندگار: اجرای qa115/qa116 فقط با node (hang این بانیوس + playwright 1.63.0، نه اپ)
+
+---
+Task ID: 43
+Agent: main (Super Z)
+Task: اجرای دستور کاربر پس از PR #10 (صفحهٔ گیت‌هاب پیجز): git pull + bash scripts/build-pages.sh + push به pvwvuow/pvwvuow.github.io
+
+Work Log:
+- کانتینر بین دو نوبت به اسنپ‌شات قدیمی (دورهٔ v0.10.14) برگشته بود؛ keystore سالم بود، ولی HEAD لوکال عقب بود. git pull --ff-only → 74855fd (PR #10 صفحهٔ وب + PR #9 bug hunt 4 + v0.10.15/16)
+- build-pages.sh تا مرحلهٔ اسمبل بی‌نقص اجرا شد: اکسپورت استاتیک APK-mode ساخته شد، pages-patch.py درست کار کرد (sw.js برای /app/ پچ شد، manifest start_url → /app/)، لندینگ web-landing کپی شد، APIها سالم restore شدند
+- push شکست: «could not read Password» — گیت می‌خواست رمز بپرسد و TTY نیست (توکن در URL به‌صورت username-only است)
+- فیکس زیرساختی: /home/z/.git-askpass ساخته شد (توکن را از خود prompt می‌خواند و به‌عنوان password برمی‌گرداند — ذخیرهٔ توکن روی دیسک صفر) + git config --global core.askPass
+- اما با askpass هم push نشد؛ ریشهٔ واقعی: خود توکن مرده است — GitHub API /user با آن 401 می‌دهد (احتمالاً هنگام rollback کانتینر، توکن قبلی revoked شده و توکن تازه تزریق نشده). هیچ توکن تازه‌ای در env/فایل‌ها هم نیست
+- سایت زنده بررسی شد: لندینگ در / بالا است (AI قبلی push کرده)، /app/ هنوز 404 (داشبورد فقط مانده به push)
+- gh-pages ریپوی lexa هنوز فعال و زنده است (pvwvuow.github.io/lexa/ → 200) — طبق توصیهٔ AI قبلی باید خاموش شود (نیاز به دسترسی ادمین/توکن سالم)
+- دو فایل تولیدی بیلد (manifest.json و generated-meta.ts فقط timestamp) revert شد — ریپو تمیز
+
+Stage Summary:
+- همه‌چیز جز «push نهایی» انجام شده: کد pull شده، بیلد تست‌شده و سالم، اسمبل کامل، askpass نصب. به محض رسیدن توکن تازه: git remote set-url origin https://<TOKEN>@github.com/pvwvuow/lexa.git && bash scripts/build-pages.sh → داشبورد روی /app/ زنده می‌شود (~۱ دقیقه)
+- کارهای دست کاربر: ① توکن گیت تازه ② Supabase → Authentication → URL Configuration → افزودن https://pvwvuow.github.io/ به Redirect URLs ③ پس از توکن: خاموش‌کردن Pages شاخهٔ gh-pages ریپوی lexa
