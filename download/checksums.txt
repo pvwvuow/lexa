@@ -1,3 +1,0 @@
-915630ad72095b797714a3d0a221e887f4f7ad0d2e64a92bc03908d468939c44  download/electron/Lexa-0.10.9.AppImage
-2a724c6a65b059b1dbbca0ef7ef78fd6a84221cb54e2c92ddd7bb95f04274871  download/electron/Lexa-0.10.9-win.zip
-4080e6cf204616f387a3c7b8c7e09f0da6450388b99ce43a50d7ebe03c1eab99  download/android/Lexa-0.10.9.apk
