@@ -18,7 +18,7 @@ interface AuthCtx {
   /** پل حساب ابری ← حساب سروری: با توکن معتبر ساپابیس نشست سروری می‌سازد */
   bridgeCloud(): Promise<boolean>;
   /** ویرایش پروفایل شخصی (نام نمایشی/بیو) از تنظیمات عمومی */
-  updateProfile(patch: { displayName?: string; bio?: string }): Promise<{ ok: boolean; error?: string }>;
+  updateProfile(patch: { displayName?: string; bio?: string; username?: string }): Promise<{ ok: boolean; error?: string }>;
   /** بازخوانی اطلاعات حساب از سرور (پس از تغییر آواتار و…) */
   refreshMe(): Promise<void>;
 }
@@ -203,6 +203,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       await afterAuth(data.user, "register");
+      // desktop: the bridge answers with the local mirror account (sb_… / role user);
+      // the real identity (username, role) is the cloud profile behind /api/auth/me
+      try {
+        const meRes = await fetch("/api/auth/me");
+        const me = (await meRes.json()) as { user: PublicUser | null };
+        if (me.user && gen === authGenRef.current && sbUser()) {
+          userRef.current = me.user;
+          setUser(me.user);
+        }
+      } catch {}
       return true;
     } catch {
       return false; // APK / آفلاین: بدون سرور — مثل قبل محلی
@@ -376,6 +386,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
+    // signed into the cloud too? save last state there, then end that session as well,
+    // otherwise /api/auth/me (answered by the cloud) logs the user straight back in
+    try {
+      const sb = await import("@/lib/supabase");
+      if (sb.sbUser()) {
+        await sb.sbPushState(sb.collectLocal()).catch(() => "net");
+        await sb.sbSignOut();
+      }
+    } catch {}
     // پشتیبان محلی، سپس حذف داده‌های محلی؛ چون همه چیز امن در پایگاه داده ماندگار است
     backupGuestBlob();
     hydratingRef.current = true;
@@ -411,6 +430,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = (await res.json()) as { ok?: boolean; user?: PublicUser; error?: string };
         if (!res.ok || !data.user)
           return { ok: false, error: data.error ?? "ذخیره ناموفق بود." };
+        userRef.current = data.user;
         setUser(data.user);
         return { ok: true };
       } catch {
