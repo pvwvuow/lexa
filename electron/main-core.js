@@ -240,6 +240,8 @@ function sendUpdateEvent(payload) {
 }
 
 function createMainWindow(port) {
+  // پنجرهٔ راه‌اندازی (splash) — پس از نمایش پنجرهٔ اصلی بسته می‌شود تا پشت آن باز نماند
+  const splash = win;
   win = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -258,7 +260,18 @@ function createMainWindow(port) {
     },
   });
 
-  win.once("ready-to-show", () => win.show());
+  const mainWin = win;
+  mainWin.once("ready-to-show", () => {
+    if (splash && splash !== mainWin && !splash.isDestroyed()) {
+      // اندازه/جای پنجره را از splash بگیر تا جابه‌جایی دیده نشود
+      try {
+        if (!splash.isMaximized()) mainWin.setBounds(splash.getBounds());
+        else mainWin.maximize();
+      } catch { /* بی‌اثر */ }
+    }
+    mainWin.show();
+    if (splash && splash !== mainWin && !splash.isDestroyed()) splash.destroy();
+  });
 
   // لینک‌های بیرونی → مرورگر سیستم؛ داخل برنامه فقط همین origin
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -268,10 +281,11 @@ function createMainWindow(port) {
   win.webContents.on("will-navigate", (e, url) => {
     const allowed = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
     const inApp = allowed.some((o) => url === o || url.startsWith(o + "/"));
-    if (!inApp && /^https?:/i.test(url)) {
-      e.preventDefault();
-      void shell.openExternal(url);
-    }
+    if (inApp) return;
+    // هر مقصد دیگری (file:، data:، javascript:، …) داخل پنجره باز نمی‌شود؛
+    // فقط http(s) به مرورگر سیستم می‌رود
+    e.preventDefault();
+    if (/^https?:/i.test(url)) void shell.openExternal(url);
   });
 
   win.loadURL(`http://127.0.0.1:${port}`).catch(() => {
@@ -283,7 +297,7 @@ function createMainWindow(port) {
   });
 
   win.on("closed", () => {
-    win = null;
+    if (win === mainWin) win = null;
   });
 }
 
@@ -506,7 +520,7 @@ function bootApp() {
 
       await waitForServer(port);
 
-      // همان پنجره به اپ اصلی وصل می‌شود — بدون باز و بسته شدن دوباره
+      // پنجرهٔ اصلی ساخته می‌شود و با آماده شدن، جای splash را می‌گیرد
       createMainWindow(port);
 
       // بررسی بی‌صدای آپدیت پس از بالا آمدن کامل + ترمیم خودکار لایهٔ خراب
