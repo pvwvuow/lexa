@@ -1,5 +1,5 @@
 "use client";
-/* ═══ Cloud social API — the /api/* social routes, answered from Supabase ═══════
+/* === Cloud social API — the /api/* social routes, answered from Supabase ===
  *
  * The Pages site and the APK are static exports (no /api), and the desktop app
  * runs its own local SQLite server, so teachers, posts and courses used to live
@@ -8,7 +8,7 @@
  * Next route returned, so the existing screens work unchanged.
  *
  * Tables, RLS and RPCs: supabase/002_cloud_social.sql
- * ─────────────────────────────────────────────────────────────────────────── */
+ * --- */
 import { sbUser } from "@/lib/supabase";
 import type { PublicUser } from "@/lib/auth-shared";
 import type { Course } from "@/lib/law/types";
@@ -44,7 +44,7 @@ const MSG = {
   courseNotFound: "دوره یافت نشد.",
 };
 
-// ─── current user (profile row, cached a minute) ───────────────────────────────
+// --- current user (profile row, cached a minute) ---
 interface ProfileRow {
   id: string;
   username: string | null;
@@ -103,7 +103,7 @@ export async function cloudMe(force = false): Promise<PublicUser | null> {
 
 const isTeacher = (me: PublicUser | null) => !!me && (me.role === "teacher" || me.role === "admin");
 
-// ─── ratings + ranking (same formula as the old server) ────────────────────────
+// --- ratings + ranking (same formula as the old server) ---
 interface RatingInfo { avg: number; count: number }
 
 async function ratingAggs(type: "post" | "tcourse", ids: string[]): Promise<Map<string, RatingInfo>> {
@@ -145,7 +145,7 @@ async function myFollowIds(me: PublicUser | null): Promise<Set<string>> {
   return new Set(rows.map((r) => r.teacher_id));
 }
 
-// ─── row shapes ────────────────────────────────────────────────────────────────
+// --- row shapes ---
 interface OrgMini { id: string; name: string; slug: string; logo_url: string }
 interface PostRow {
   id: string; author_id: string; org_id: string | null; title: string; summary: string; tags: string;
@@ -228,7 +228,7 @@ function courseCard(row: CourseRow, me: PublicUser | null, lib: Set<string>, stu
   };
 }
 
-// ─── auth / profile ────────────────────────────────────────────────────────────
+// --- auth / profile ---
 async function authMe(): Promise<CloudRes> {
   return ok({ user: await cloudMe(true) });
 }
@@ -328,7 +328,7 @@ async function coverUpload(req: CloudReq): Promise<CloudRes> {
   return ok({ ok: true, url: up.url });
 }
 
-// ─── posts ─────────────────────────────────────────────────────────────────
+// --- posts ---
 function postFields(b: Record<string, unknown>) {
   const cats = safeCategories(b.categories ?? b.category);
   const single = typeof b.category === "string" && CATEGORY_SLUGS.includes(b.category) ? b.category : cats[0] ?? "";
@@ -494,7 +494,7 @@ async function deleteComment(postId: string, req: CloudReq): Promise<CloudRes> {
   return n ? ok({ ok: true }) : fail(403, MSG.forbidden);
 }
 
-// ─── teacher courses ───────────────────────────────────────────────────────────
+// --- teacher courses ---
 const COURSE_COLS = `*,${TEACHER_EMBED},${ORG_EMBED}`;
 
 async function listCourses(req: CloudReq): Promise<CloudRes> {
@@ -596,7 +596,7 @@ async function deleteCourse(id: string): Promise<CloudRes> {
   return n ? ok({ ok: true }) : fail(403, MSG.forbidden);
 }
 
-// ─── social ────────────────────────────────────────────────────────────────
+// --- social ---
 async function feed(req: CloudReq): Promise<CloudRes> {
   const me = await cloudMe().catch(() => null);
   const idsParam = req.query.get("ids");
@@ -721,7 +721,7 @@ async function userProfile(userId: string): Promise<CloudRes> {
   });
 }
 
-// ─── library ─────────────────────────────────────────────────────────────────
+// --- library ---
 async function getLibrary(): Promise<CloudRes> {
   const me = await cloudMe();
   if (!me) return fail(401, MSG.login);
@@ -781,7 +781,7 @@ async function publicLibrary(req: CloudReq): Promise<CloudRes> {
   });
 }
 
-// ─── ratings ─────────────────────────────────────────────────────────────────
+// --- ratings ---
 async function getRating(req: CloudReq): Promise<CloudRes> {
   const type = req.query.get("targetType");
   const id = req.query.get("targetId") ?? "";
@@ -817,7 +817,7 @@ async function postRating(req: CloudReq): Promise<CloudRes> {
   return ok({ ok: true, avg: a.avg, count: a.count, my: stars });
 }
 
-// ─── routing table ─────────────────────────────────────────────────────────────
+// --- routing table ---
 type Handler = (req: CloudReq, params: string[]) => Promise<CloudRes>;
 const ROUTES: { method: string; re: RegExp; fn: Handler }[] = [
   { method: "GET", re: /^\/api\/auth\/me$/, fn: () => authMe() },
