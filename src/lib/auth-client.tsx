@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+// side effect: social /api calls go to the shared cloud on every platform
+import "@/lib/cloud-api/install";
 import { useApp, buildSyncSnapshot } from "@/lib/store";
 import type { PublicUser, SyncSnapshot } from "@/lib/auth-shared";
 
@@ -253,6 +255,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       alive = false;
     };
      
+  }, [bridgeCloud]);
+
+  // Cloud account changes made elsewhere (settings card, another tab, token
+  // expiry): signing out of the cloud drops a cloud-derived user; signing in
+  // picks the account up (unless the sign-in dialog already bridged it).
+  React.useEffect(() => {
+    let alive = true;
+    let off: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    void import("@/lib/supabase").then(({ onAuthChange, sbUser }) => {
+      if (!alive) return;
+      let last = sbUser()?.id ?? null;
+      off = onAuthChange(() => {
+        const now = sbUser()?.id ?? null;
+        if (now === last) return; // token refresh for the same account
+        const prevId = last;
+        last = now;
+        void import("@/lib/cloud-api/handlers").then((m) => m.forgetCloudMe());
+        if (!now) {
+          if (userRef.current && userRef.current.id === prevId) {
+            userRef.current = null;
+            setUser(null);
+            setStatus("guest");
+          }
+          return;
+        }
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          if (alive && sbUser()?.id === now && userRef.current?.id !== now) void bridgeCloud();
+        }, 1500);
+      });
+    });
+    return () => {
+      alive = false;
+      off?.();
+      if (timer) clearTimeout(timer);
+    };
   }, [bridgeCloud]);
 
   // همگام‌سازی خودکار تغییرات store با فاصلهٔ خواب ۳ ثانیه
