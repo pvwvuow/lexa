@@ -148,7 +148,9 @@ export async function listActiveOrgs(): Promise<Org[]> {
 export async function getOrg(idOrSlug: string): Promise<Org | null> {
   const key = String(idOrSlug);
   const f = isUuid(key as unknown) ? `id=eq.${key}` : `slug=eq.${encodeURIComponent(key.toLowerCase())}`;
-  const rows = await sbSelect("lexa_orgs", `${f}&select=*,${PRIVATE_EMBED}&limit=1`);
+  // lexa_org_private is not readable by anon: guests must not embed it
+  const sel = sbUser() ? `*,${PRIVATE_EMBED}` : "*";
+  const rows = await sbSelect("lexa_orgs", `${f}&select=${sel}&limit=1`);
   return rows[0] ? orgOf(rows[0]) : null;
 }
 

@@ -44,6 +44,9 @@ if (typeof window !== "undefined" && CLOUD_SOCIAL && !window.__lexaCloudApi && t
   window.fetch = function lexaCloudFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const url = apiUrlOf(input);
     if (!url) return prev(input, init);
+    // desktop / self-hosted: the local server turns the cloud token into its own
+    // session (server-account sync, local admin), so the bridge must reach it
+    if (hasServer && url.pathname === "/api/auth/cloud-bridge") return prev(input, init);
     const method = String(init?.method || (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET")).toUpperCase();
     const fn = matchCloudRoute(method, url.pathname, hasServer);
     if (!fn) return prev(input, init);

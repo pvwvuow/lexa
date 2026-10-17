@@ -55,6 +55,7 @@ export async function POST(req: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[feedback/chat]", msg);
-    return NextResponse.json({ error: `${PERSIAN_FAIL}\n(${msg.slice(0, 180)})` }, { status: 502 });
+    // provider / network-guard details stay in the server log only
+    return NextResponse.json({ error: PERSIAN_FAIL }, { status: 502 });
   }
 }
