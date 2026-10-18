@@ -2199,3 +2199,31 @@ Stage Summary:
 - Supabase side of Task 50 = 100% DONE: 006 applied+verified (50-prep-2), org-auth deployed+tested, TOTP confirmed ON.
 - Blocked only on PR #19 (still DRAFT, 4 files: first-login page, centre students panel, 2 docs).
 - When PR ready: merge -> wire into pages -> tsc/qa117/qa118/qa119 -> bump 0.10.22/v64/122 -> APK -> rebuild standalone -> stage -> AppImage + win zip (separate) -> Pages -> Release + delta feed -> verify 18/18 -> worklog.
+
+---
+Task ID: 50
+Agent: Z (main)
+Task: PR #19 merge + phase-1 wiring + three-platform build & release v0.10.22
+
+Work Log:
+- Colleague reported PR #19 complete (head 84ac5d3, 12 files, Ready). Verified, redeployed org-auth from PR head (PATCH -> version 2, ACTIVE, verify_jwt=false), merged PR #19 via API (merge commit fa669e5).
+- Untracked stray lexa-pr19/ working copies from git (auto-committed earlier), excluded supabase/ (Deno) and lexa-pr19/ from tsconfig.
+- Read docs/ORG_P1_SETUP.md wiring list and all 5 new components; wired per spec:
+  * AppShell: <OrgFirstLoginGate /> mounted before UpdateBanner.
+  * CloudAuth: third tab «حساب مرکز» (grid-cols-3) rendering OrgSignInForm; orgDone() mirrors e-mail post-sign-in (bridge, account-switch guard, pull/adopt or push, gate handles forced password/terms); internal e-mails hidden in CloudAccountArea via isInternalEmail («حساب دانشجویی مرکز آموزشی» fallback).
+  * OrgView: new tab «دانشجویان و حساب‌ها» (canManage) rendering <OrgStudentsPanel orgId orgName>.
+  * AdminOrgRow: fields «کد مرکز» + «ظرفیت دانشجو» saved via adminSetOrgAccounts (ORG_CODE_RE validated).
+  * orgs.ts: Org type + orgOf now carry code/student_seats.
+  * SettingsView: OrgAccountsSection (RedeemOrgCode + MfaPanel) in both signed-in branches (org students have sb session but no server profile).
+- tsc: 0 errors. qa117 13/13, qa118 6/6, new qa120-org-p1-wiring 8/8 (org/settings render + centre sign-in tab + form).
+- Bumped 0.10.22 / sw v64 / versionCode 122.
+- ENV REBUILD (fresh container): Android SDK reinstalled to /home/z/android-sdk (cmdline-tools zip redownloaded after truncation; sdkmanager --install stuck via pipe -> ran plain with setsid); full JDK 21 (Temurin) to /home/z/jdk-21 (system JRE had no javac); release keystore found at download/android/lexa-release.keystore -> copied to android/. build-apk.sh parks src/app/api (never call bare build:apk).
+- Builds: APK download/android/Lexa-0.10.22.apk (6.7MB) -> AppImage (121.8MB) & win zip (168.9MB) separately -> Pages deployed (build-pages.sh, NEXT_PUBLIC_APP_VERSION=0.10.22).
+- Release: python3 scripts/release-app-update.py 0.10.22 -> GitHub release v0.10.22 (id 416400587, 4 assets) + app-v0.10.22 tag + delta feed + lexa-latest.apk staged.
+- Verification: verify-release-0122 18/18; qa119-pages-live-0122 11/11; live bundle chunk contains «حساب مرکز».
+- New env files (gitignored): .supabase-secret, .supabase-pat, android/local.properties.
+
+Stage Summary:
+- v0.10.22 LIVE on all three platforms; phase 1 (centre accounts, centre sign-in, TOTP, audit) shipped end-to-end.
+- Supabase side verified earlier (006 applied 6/6 tables, RLS locked, TOTP on, aal2 enforced, org-auth v2 deployed).
+- Deferred per doc: profile badges orgBadges()+badgeLabel() (phase 2). Keystore/SDK/JDK paths documented for future rebuilds.
