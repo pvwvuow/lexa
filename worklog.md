@@ -2323,3 +2323,27 @@ Work Log:
 Stage Summary:
 - v0.10.24 روی هر سه پلتفرم + Pages زنده شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.24 — فازهای ۴ (زمان مطالعه/آمار من/داشبورد)، ۵ (کلیدهای API)، ۶ (گزارش مقایسه) و ۷ (کانکتور UI) با بستهٔ همکار؛ PRهای 22-25 بسته شد.
 - باقی کارهای سمت کاربر: ① اجرای supabase/012_connector.sql (فاز ۷ هنوز روی DB اعمال نشده — تب کانکتور تا آن موقع خطای داخلی می‌دهد)، ② secretهای تابع: LEXA_API_PEPPER (برای کار کلیدهای API ضروری است) و LEXA_CRON_SECRET، ③ PAT تازهٔ سوپاباس — PAT قبلی با ریست محیط پاک شد و تابع‌های org-api/org-connector روی DB فعلی کد قدیمیِ من را اجرا می‌کنند (بدون مسیر /manage → ساخت کلید از پنل تا redeploy خطا می‌دهد؛ بقیهٔ فاز ۴/۶ مستقیم RPC کار می‌کنند)، ④ یادآوری امنیتی همیشگی: rotate sb_secret، PAT، توکن گیت و توکن تلگرام.
+
+---
+Task ID: 53
+Agent: Z (main)
+Task: دستور «بخش جدید اومد برو اون هم ادغام کن» — ادغام فاز A1 کنسول پلتفرم + سه صفحهٔ ناقص، بیلد سه‌گانه و انتشار v0.10.25
+
+Work Log:
+- بستهٔ جدید: PR 26 (docs/ADMIN_PLATFORM.md — طرح A1 تا A7) از قبل merge شده بود؛ شاخهٔ feat/admin-console-a1 پیاده‌سازی A1 بود: کلاینت admin-console.ts، کیت ConsoleKit، WorkspaceHome، CentreWorkspace، AdminAuditPage، SQL 013 و تابع admin-users — ولی سه صفحه (PlatformConsole/AdminCentresPage/AdminUsersPage) در شاخه نبود.
+- بهداشت گیت: کامیت اشتباه local.properties از تاریخچهٔ محلی کنار گذاشته و فایل gitignore شد (فقط sdk.dir داشت، بدون رمز).
+- ادغام: merge feat/admin-console-a1 (۴ کامیت) + پیاده‌سازی سه صفحهٔ ناموجود از روی سند راه‌اندازی (QA §4) و کلاینت/کیت همکار: PlatformConsole (بخش‌های overview/requests/learning/security + میزبان سه صفحه)، AdminCentresPage (چرخهٔ عمر کامل: فعال‌سازی/تعلیق با دلیل/بایگانی/حذف زمان‌بندی‌شده/حذف دائمی با type-to-confirm + پلن/صندلی/کد ورود)، AdminUsersPage (پشت aal2؛ جست‌وجو/فیلتر/پروندهٔ کاربر/تغییر نقش با دلیل/تعلیق/خروج اجباری/بازنشانی دومرحله‌ای).
+- سیم‌کشی طبق ADMIN_A1_SETUP §3: AppShell (usePlatformConsoleActive + بازگشت زودهنگام کنسول تمام‌صفحه + WorkspaceHome جای DashboardView)، OrgView (شاخهٔ staff → CentreWorkspace با گروه‌های پیشخوان/آموزش/افراد/گزارش‌ها/اتصال/تنظیمات + ظرفیت از lexa_org_capacity؛ بازدیدکننده مثل قبل). روتر از قبل #/admin/<section> را می‌گیرد.
+- درس جدید ابزار: خروجی bash حتی از python -c هم «[m…» را می‌خورد (به‌عنوان ANSI) — تشخیص «کد خراب» که نبود؛ راه‌حل: repr بایت‌ها را در فایل بریز و با Read بخوان.
+- گیت SQL: qa-013-check.py با کلید publishable → 12/13 — همهٔ RPCهای lexa_admin_* و lexa_user_flags زنده و قفل (013 توسط کاربر اجرا شده)؛ فقط تابع admin-users هنوز دیپلوی نشده (404) — تا دیپلوی، دکمه‌های تعلیق/خروج/بازنشانی پیام راهنما می‌دهند (مثل الگوی 012 در v0.10.24).
+- بامپ: 0.10.25 / sw v67 / versionCode 125. ENV REBUILD سوم: Temurin 21 (/home/z/jdk-21) + SDK 35 + build-tools 35.0.0 + cmdline-tools؛ keystore از download/android بازگشت. سرور next dev قدیمی قبل از بیلد کشته شد.
+- درس حیاتی: در این کانتینر fuser وجود ندارد — pkill -f server.js هرگز next-server را نمی‌گیرد و «ports-free» قافیه‌ای فریب داد؛ سرور کهنهٔ بیلد قبلی روی 3210 ماند و کل QA یک‌جا ۵۳ خطا داد (ChunkLoadError روی chunk حذف‌شده)؛ با kill PID مستقیم + ss -tlnp حل شد → QA کامل سبز.
+- وسط بیلد، همکار PR 27 (اسکواش همان شاخهٔ A1 ولی با سه صفحهٔ کامل‌تر خودش) و بعد PR 28 (فاز A2!) را merge کرد. سیاست «به نفع همکار»: سه صفحهٔ من با نسخهٔ نهایی همکار جایگزین شد (merge 3da4285)؛ سیم‌کشی و qa123 (نی‌دل‌های «کنسول مدیریت پلتفرم/صف کارها») ماند. A2 فقط در سورس main آمد — باینری‌های v0.10.25 فقط A1.
+- QA روی بیلد نهایی: qa117=13/13، qa118=6/6، qa120=8/8، qa121=13/13، qa122=24/26 (فقط دو پین نسخهٔ قدیمی 0.10.24)، qa123 جدید=35/35.
+- انتشار: build-pages → PAGES_READY 0.10.25 (SW v67)؛ release-app-update.py → release id 416629503 با ۴ asset (AppImage 121.9MB + win.zip 169MB + APK 6.4MB + checksums)، تگ‌های v0.10.25/app-v0.10.25، فید دلتا و purge jsDelivr. دو بار push reject شد چون همکار هم‌زمان PR 27/28 را merge می‌کرد → merge و دوباره؛ دو کامیت دلتای موقتی در تاریخچه ماند (بی‌اثر — تگ روی درخت نهایی است).
+- وریفای: verify-release-0125 → 16/16 ✓ (شش زنجیرهٔ دلتا 0.9.2…0.10.24→0.10.25 همه MISSING:0، مانیفست دو کانال یکسان). qa119-pages-live-0125 → 15/15 ✓ (SW v67، باندل لایو شامل کنسول A1 + RPCهای 013 + admin-users + رگرسیون فازهای ۲/۳/۴/۶/۷، صفر pageerror).
+
+Stage Summary:
+- v0.10.25 روی هر سه پلتفرم + Pages زنده شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.25 — فاز A1 (کنسول سوپرادمین: نمای کلی/درخواست‌ها/مراکز/کاربران/ممیزی/امنیت/یادگیری + خانهٔ وابسته به نقش + قالب حرفه‌ای پنل مرکز) با SQL 013 وریفای‌شدهٔ زنده.
+- فاز A2 (PR 28: کنسول مرکز، درخت سازمانی، نقش‌ها و ماتریس مجوز) در main ادغام شده ولی SQL 014 هنوز روی DB اجرا نشده (0/7 پراب) → v0.10.26 بعد از اجرای 014 توسط کاربر + سیم‌کشی OrgView طبق ADMIN_A2_SETUP §3.
+- کارهای سمت کاربر: ① دیپلوی تابع admin-users: supabase functions deploy admin-users --no-verify-jwt (تا آن وقت چهار عمل حساب در «کاربران و نقش‌ها» پیام راهنما می‌دهند؛ جست‌وجو/پرونده/تغییر نقش کار می‌کند)، ② اجرای supabase/014_centre_console.sql برای فاز A2، ③ یادآوری امنیتی همیشگی: rotate sb_secret، PAT سوپاباس، توکن گیت و توکن تلگرام.
