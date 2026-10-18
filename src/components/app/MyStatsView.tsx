@@ -1,55 +1,37 @@
 "use client";
-/* «آمار من» (phase 4 of docs/ORG_LEARNING.md): the user's own active study time.
- * Daily bars of the last 30 days + totals. Only ACTIVE time counts — the page in
- * front of the eyes with activity in the last two minutes; a heartbeat per minute. */
+/* "My stats" (phase 4): my active study time, streak, what I studied, finished lessons, and
+ * what my centres can see. Data: supabase/009_study_time.sql via src/lib/cloud-api/study.ts. */
 import * as React from "react";
-import { Activity, Info, Loader2, RefreshCw, Timer } from "lucide-react";
-import { faDayLabel, faShortHours, myStudy, studyError, type StudyDay } from "@/lib/cloud-api/study";
+import { BarChart3, Flame, RefreshCw, Trash2 } from "lucide-react";
+import {
+  EVENT_LABELS, KIND_LABELS, addDays, faDay, fmtDuration, forgetMyStudy, myLearning, myStudy, studyError, summarize,
+  tehranToday, type StudyDay,
+} from "@/lib/cloud-api/study";
+import { myOrgAccounts, type MyOrgAccount } from "@/lib/cloud-api/org-accounts";
+import { clearStudyQueue, flushStudy, onStudyTick, unsentSeconds } from "@/lib/study-tracker";
+import { StatCard, StudyBars } from "./StudyBars";
 
-const BTN = "inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold hover:border-bronze disabled:opacity-50";
-
-function Chart({ rows }: { rows: StudyDay[] }) {
-  const data = [...rows].reverse(); // oldest → newest
-  const max = Math.max(3600, ...data.map((d) => d.seconds));
-  const W = 700, H = 180, GAP = 4;
-  const bw = data.length ? (W - GAP * (data.length - 1)) / data.length : W;
-  return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H + 26}`} className="min-w-[560px]" role="img" aria-label="نمودار زمان مطالعهٔ روزانه">
-        {[0.5, 1].map((f) => (
-          <line key={f} x1="0" x2={W} y1={H - (H - 18) * f} y2={H - (H - 18) * f} className="stroke-border" strokeDasharray="3 5" strokeWidth="1" />
-        ))}
-        {data.map((d, i) => {
-          const h = Math.max(3, ((H - 18) * d.seconds) / max);
-          const x = i * (bw + GAP);
-          return (
-            <g key={d.day}>
-              <title>{`${faDayLabel(d.day)} — ${faShortHours(d.seconds)}`}</title>
-              <rect x={x} y={H - h} width={Math.max(6, bw)} height={h} rx={Math.min(6, Math.max(3, bw / 3))}
-                className={d.seconds > 0 ? "fill-bronze" : "fill-muted-foreground/25"} opacity={d.seconds > 0 ? 0.9 : 1} />
-              {(i === data.length - 1 || i % 7 === 0) && (
-                <text x={x + Math.max(6, bw) / 2} y={H + 14} textAnchor="middle" className="fill-muted-foreground" fontSize="9">
-                  {new Date(`${d.day}T00:00:00`).toLocaleDateString("fa-IR", { day: "numeric", month: "short" })}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
+const btn = "inline-flex items-center gap-1 rounded-xl border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted disabled:opacity-50";
 
 export function MyStatsView() {
-  const [rows, setRows] = React.useState<StudyDay[] | null>(null);
+  const [rows, setRows] = React.useState<StudyDay[]>([]);
+  const [events, setEvents] = React.useState<Record<string, { n: number; total: number }>>({});
+  const [orgs, setOrgs] = React.useState<MyOrgAccount[]>([]);
+  const [pending, setPending] = React.useState(0);
   const [err, setErr] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const today = tehranToday();
 
   const load = React.useCallback(async () => {
     setBusy(true);
     setErr("");
     try {
-      setRows(await myStudy());
+      await flushStudy();
+      const [r, e, o] = await Promise.all([myStudy(365), myLearning(90), myOrgAccounts().catch(() => [])]);
+      setRows(r);
+      setEvents(e);
+      setOrgs(o.filter((x) => x.termsAcceptedAt));
+      setPending(unsentSeconds());
     } catch (e) {
       setErr(studyError(e));
     } finally {
@@ -57,72 +39,83 @@ export function MyStatsView() {
     }
   }, []);
   React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => onStudyTick(() => setPending(unsentSeconds())), []);
 
-  const sum = (days: number) => {
-    const cutoff = Date.now() - days * 86400000;
-    return (rows ?? []).filter((r) => Date.parse(`${r.day}T00:00:00Z`) >= cutoff).reduce((a, r) => a + r.seconds, 0);
+  const sum = summarize(rows, today);
+  const forget = async () => {
+    if (!window.confirm("همهٔ زمان‌های مطالعه و فعالیت‌های ثبت‌شدهٔ شما پاک شود؟ نمره‌ها و نتیجهٔ آزمون‌های رسمی پاک نمی‌شوند. این کار برگشت ندارد.")) return;
+    try {
+      await forgetMyStudy();
+      clearStudyQueue();
+      void load();
+    } catch (e) {
+      setErr(studyError(e));
+    }
   };
-  const today = sum(1); // «امروز» = the row whose day started in the last 24 h
 
+  const from30 = addDays(today, -29);
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5 px-4 pb-28 pt-6 sm:px-6" dir="rtl">
+    <div className="space-y-5" dir="rtl">
       <div className="flex items-center gap-2">
-        <h1 className="flex flex-1 items-center gap-2 text-lg font-extrabold"><Timer className="h-5 w-5 text-bronze" /> آمار من</h1>
-        <button className={BTN} onClick={() => void load()} disabled={busy}>{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} تازه‌سازی</button>
+        <h2 className="flex flex-1 items-center gap-1 text-base font-bold"><BarChart3 className="h-5 w-5" /> آمار من</h2>
+        <button className={btn} onClick={() => void load()} disabled={busy}><RefreshCw className="h-3.5 w-3.5" /> تازه‌سازی</button>
+      </div>
+      {err && <p className="rounded-xl border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/30">{err}</p>}
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <StatCard label="امروز" value={fmtDuration(sum.today + pending)} hint={pending > 0 ? "بخشی هنوز در حال ارسال است" : undefined} />
+        <StatCard label="۷ روز اخیر" value={fmtDuration(sum.last7)} />
+        <StatCard label="۳۰ روز اخیر" value={fmtDuration(sum.last30)} hint={`${sum.activeDays30.toLocaleString("fa-IR")} روز فعال`} />
+        <StatCard label="روزهای پشت‌سرهم" value={`${sum.streak.toLocaleString("fa-IR")} روز`} hint="روزی دست‌کم ۵ دقیقه" />
       </div>
 
-      {err && (
-        <p className="rounded-xl border border-red-300 bg-red-50 p-3 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">{err}</p>
-      )}
+      <section className="space-y-2 rounded-xl border border-border p-3">
+        <h3 className="flex items-center gap-1 text-sm font-bold"><Flame className="h-4 w-4 text-bronze" /> ۳۰ روز اخیر</h3>
+        <StudyBars from={from30} to={today} data={rows} />
+        {sum.bestDay && <p className="text-[11px] text-muted-foreground">بهترین روز: {faDay(sum.bestDay.day, { dateStyle: "medium" })} با {fmtDuration(sum.bestDay.seconds)}</p>}
+      </section>
 
-      {rows === null && !err && (
-        <div className="flex justify-center py-20 text-bronze"><Loader2 className="h-6 w-6 animate-spin" /></div>
-      )}
-
-      {rows !== null && (
-        <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              { label: "امروز", sec: today, hot: true },
-              { label: "۷ روز گذشته", sec: sum(7) },
-              { label: "۳۰ روز گذشته", sec: sum(30) },
-              { label: "مجموع ثبت‌شده", sec: (rows ?? []).reduce((a, r) => a + r.seconds, 0) },
-            ].map((c) => (
-              <div key={c.label} className="rounded-2xl border border-border bg-card p-4 shadow-card">
-                <p className="text-[11px] text-muted-foreground">{c.label}</p>
-                <p className={`mt-1 text-lg font-extrabold ${c.hot ? "text-bronze" : ""}`}>{faShortHours(c.sec)}</p>
-              </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <section className="space-y-2 rounded-xl border border-border p-3">
+          <h3 className="text-sm font-bold">چه چیزی خواندم (یک سال اخیر)</h3>
+          {!sum.byKind.length && <p className="text-xs text-muted-foreground">هنوز زمانی ثبت نشده است.</p>}
+          <ul className="space-y-1 text-xs">
+            {sum.byKind.map(([k, v]) => (
+              <li key={k} className="flex items-center gap-2">
+                <span className="w-28 shrink-0">{KIND_LABELS[k] ?? k}</span>
+                <span className="h-2 flex-1 overflow-hidden rounded bg-muted">
+                  <span className="block h-full bg-bronze" style={{ width: `${Math.round((v / Math.max(1, sum.total)) * 100)}%` }} />
+                </span>
+                <span className="w-28 shrink-0 text-end text-muted-foreground">{fmtDuration(v)}</span>
+              </li>
             ))}
-          </div>
+          </ul>
+        </section>
+        <section className="space-y-2 rounded-xl border border-border p-3">
+          <h3 className="text-sm font-bold">فعالیت‌ها (۹۰ روز اخیر)</h3>
+          {!Object.keys(events).length && <p className="text-xs text-muted-foreground">هنوز فعالیتی ثبت نشده است.</p>}
+          <ul className="space-y-1 text-xs">
+            {Object.entries(events).map(([k, v]) => (
+              <li key={k} className="flex justify-between"><span>{EVENT_LABELS[k] ?? k}</span><span className="font-bold">{v.n.toLocaleString("fa-IR")}</span></li>
+            ))}
+          </ul>
+        </section>
+      </div>
 
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-card">
-            <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold"><Activity className="h-4 w-4 text-bronze" /> زمان فعال روزانه (۳۰ روز گذشته)</h2>
-            {rows.length ? <Chart rows={rows} /> : <p className="text-xs text-muted-foreground">هنوز زمانی ثبت نشده است. با مطالعهٔ فعال در Lexa، هر دقیقه فقط وقتی ثبت می‌شود که صفحه جلوی چشم شما و در حال کار با آن باشید.</p>}
-          </section>
-
-          <section className="rounded-2xl border border-border bg-card p-4 text-xs shadow-card">
-            <h2 className="mb-2 flex items-center gap-1.5 text-sm font-bold"><Activity className="h-4 w-4 text-bronze" /> روزهای اخیر</h2>
-            {rows.length ? (
-              <ul className="divide-y divide-border">
-                {[...rows].slice(0, 14).map((d) => (
-                  <li key={d.day} className="flex items-center gap-3 py-2">
-                    <span className="min-w-28 text-muted-foreground">{faDayLabel(d.day)}</span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <span className="block h-full rounded-full bg-bronze/80" style={{ width: `${Math.min(100, (d.seconds / Math.max(3600, ...rows.map((x) => x.seconds))) * 100)}%` }} />
-                    </span>
-                    <span className="min-w-20 text-end font-bold">{faShortHours(d.seconds)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="text-muted-foreground">—</p>}
-          </section>
-
-          <p className="flex items-start gap-2 rounded-2xl border border-dashed border-border bg-muted/40 p-3 text-[11px] leading-5 text-muted-foreground">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            زمان مطالعه برای همهٔ کاربران واردشده ثبت می‌شود و در سقف ۱۲ ساعت در روز محاسبه می‌گردد. طبق شرایط استفاده، ادمین Lexa به زمان‌های ثبت‌شده دسترسی دارد؛ مراکز آموزشی نیز فقط زمان دانشجویان رسمی خودشان را می‌بینند.
+      <section className="space-y-2 rounded-xl border border-border p-3 text-xs text-muted-foreground">
+        <h3 className="text-sm font-bold text-foreground">چه کسی این آمار را می‌بیند؟</h3>
+        <p>فقط زمان فعال شمرده می‌شود: وقتی صفحهٔ Lexa جلوی چشم شماست و در دو دقیقهٔ اخیر کاری کرده‌اید؛ حداکثر ۱۲ ساعت در روز.</p>
+        <p>طبق شرایط استفاده، مدیر Lexa آمار کلی همهٔ کاربران را می‌بیند.</p>
+        {orgs.length > 0 ? (
+          <p>
+            {orgs.map((o) => o.orgName).join("، ")}: فقط زمان مطالعهٔ شما از روزی که دانشجوی رسمی شدید تا وقتی دانشجوی فعال هستید،
+            و زمانی که روی محتوای همان مرکز گذاشته‌اید. هیچ مرکزی دادهٔ مرکز دیگر را نمی‌بیند.
           </p>
-        </>
-      )}
+        ) : (
+          <p>شما دانشجوی رسمی هیچ مرکزی نیستید؛ هیچ مرکز آموزشی این آمار را نمی‌بیند.</p>
+        )}
+        <button className={`${btn} text-red-700`} onClick={() => void forget()}><Trash2 className="h-3.5 w-3.5" /> پاک کردن زمان‌های مطالعهٔ من</button>
+      </section>
     </div>
   );
 }

@@ -1,136 +1,161 @@
--- Lexa 011: the comparison report (phase 6 of docs/ORG_LEARNING.md). Run after 010.
--- Safe to re-run.
+-- Lexa 011: comparison report (phase 6 of docs/ORG_LEARNING.md).
+-- Run in the Supabase SQL editor after 006 to 010. Safe to re-run.
 --
--- For one class of one term of one centre: final grades of its enrolled students versus
--- their study time inside the term window, WITHOUT free users and WITHOUT identities:
---   * three groups by study hours (thresholds adjustable): inactive < p_inactive,
---     low p_inactive..p_low inclusive, high > p_low
---   * per group: count, mean, median — a group under 10 students is NEVER shown
---   * difference of means high vs the rest with a 95 % confidence interval
---     (normal approximation, valid at n >= 10 per side)
---   * the controlled version: partial correlation of study hours and final grade
---     controlling the prior GPA (lexa_org_prior_gpa of phase 3), shown only with
---     10+ students that have both numbers
---   * scatter points (study hours, final grade, group key) — only from shown groups
--- The client must always print: «این مقایسه همبستگی است و به‌تنهایی اثر لکسا را ثابت
--- نمی‌کند.» — no inference about Lexa's effect may be drawn from this report alone.
-create or replace function public.lexa_compare_report(o uuid, p_class uuid, p_term uuid,
-  p_inactive numeric default 1, p_low numeric default 10)
+-- Final grades of official students against their study time in the same term:
+--   * one point = one official student in one term; grade = mean of the student's final grades in the
+--     chosen classes of that term, scaled to 20; dropped enrolments and free users never count
+--   * study time = active time (lexa_study_daily) inside the term dates and inside the days the centre
+--     may see (official day .. left_at); basis 'all' = all of Lexa, 'org' = only the centre's content
+--   * students the centre could see for less than 80% of the term are left out (their study time
+--     before becoming official is hidden, so they would land in the wrong group)
+--   * groups: under cut_low hours, cut_low..cut_high, over cut_high (default 1 and 10)
+--   * a group with fewer than 10 students is hidden: no points, no numbers
+-- The app computes mean, median, differences with 95% CI and the prior-GPA-controlled model from the
+-- returned points (src/lib/compare-stats.ts); points carry no names or ids.
+
+do $$ begin
+  if to_regclass('public.lexa_org_api_keys') is null or to_regclass('public.lexa_study_daily') is null then
+    raise exception 'run 006, 007, 008, 009 and 010 first';
+  end if;
+end $$;
+
+-- internal: builds the report; callers check access (granted to nobody)
+create or replace function public.lexa_compare_build(o uuid, term uuid, class_ids uuid[], d_from date, d_to date,
+                                                     cut_low numeric, cut_high numeric, basis text)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare
-  v_window record;
-  v_rows record;
-  v_gr record;
+  v_today date := (now() at time zone 'Asia/Tehran')::date;
+  v_min int := 10;
   v_out jsonb;
-  v_groups jsonb := '[]'::jsonb;
-  g record;
-  v_high_n int; v_rest_n int;
-  v_high_mean numeric; v_rest_mean numeric;
-  v_high_sd numeric; v_rest_sd numeric;
-  v_se numeric; v_diff numeric;
-  v_rhf numeric; v_rhg numeric; v_rfg numeric; v_partial numeric; v_ctrl_n int;
-  v_scatter jsonb := '[]'::jsonb;
 begin
-  perform public.lexa_org_require_manager(o, true);
-  if p_inactive is null or p_inactive < 0.1 or p_inactive > 24
-     or p_low is null or p_low < 0.5 or p_low > 40 or p_low <= p_inactive then
+  if cut_low is null or cut_high is null or cut_low <= 0 or cut_high <= cut_low or cut_high > 1000
+     or coalesce(basis, '') not in ('all', 'org') then
     raise exception 'bad_input';
   end if;
-  if not exists (select 1 from public.lexa_org_classes c
-                 where c.id = p_class and c.org_id = o and c.term_id = p_term) then
-    raise exception 'not_found';
-  end if;
-  select t.starts_on, t.ends_on, t.created_at into v_window
-    from public.lexa_org_terms t where t.id = p_term and t.org_id = o;
-  if not found then raise exception 'not_found'; end if;
-
-  -- every enrolled student of the class with their term study hours, final grade, prior gpa
-  create temp table cmp_rows on commit drop as
-  select st.id as student_id, st.user_id,
-         coalesce((select sum(t.seconds) from public.lexa_study_sessions t
-                    where t.user_id = st.user_id and t.org_id = o
-                      and t.day >= coalesce(v_window.starts_on, (v_window.created_at at time zone 'Asia/Tehran')::date)
-                      and t.day <= coalesce(v_window.ends_on, public.lexa_study_day())), 0) / 3600.0 as hours,
-         (select g.score from public.lexa_org_grades g
-           where g.class_id = p_class and g.student_id = st.id and g.component = 'final'
-           order by g.updated_at desc limit 1) as final,
-         (select p.gpa from public.lexa_org_prior_gpa p
-           where p.org_id = o and p.student_id = st.id limit 1) as prior
-  from public.lexa_org_enrollments e
-  join public.lexa_org_students st on st.id = e.student_id
-  where e.class_id = p_class and e.org_id = o and e.status in ('enrolled', 'completed');
-
-  select count(*)::int as n, count(final)::int as with_final into v_gr from cmp_rows;
-
-  v_groups := '[]'::jsonb;
-  for g in
-    select key, count(*)::int as n, avg(final) as mean, percentile_cont(0.5) within group (order by final) as median
-    from (select case when hours < p_inactive then 'inactive'
-                      when hours <= p_low then 'low'
-                      else 'high' end as key, hours, final
-          from cmp_rows) x
-    group by key
-  loop
-    v_groups := v_groups || jsonb_build_object(
-      'key', g.key, 'n', g.n, 'shown', g.n >= 10,
-      'mean', case when g.n >= 10 and g.mean is not null then round(g.mean::numeric, 2) end,
-      'median', case when g.n >= 10 and g.median is not null then round(g.median::numeric, 2) end);
-  end loop;
-
-  -- difference of means: high vs the rest, 95 % CI by normal approximation
-  select count(*) filter (where k = 'high'), avg(final) filter (where k = 'high'),
-         stddev_samp(final) filter (where k = 'high'),
-         count(*) filter (where k <> 'high'), avg(final) filter (where k <> 'high'),
-         stddev_samp(final) filter (where k <> 'high')
-    into v_high_n, v_high_mean, v_high_sd, v_rest_n, v_rest_mean, v_rest_sd
-  from (select case when hours < p_inactive then 'inactive' when hours <= p_low then 'low' else 'high' end as k, final
-        from cmp_rows where final is not null) y;
-
-  v_out := jsonb_build_object(
-    'n', v_gr.n, 'with_final', v_gr.with_final,
-    'window', jsonb_build_object(
-      'from', coalesce(v_window.starts_on, (v_window.created_at at time zone 'Asia/Tehran')::date),
-      'to', coalesce(v_window.ends_on, public.lexa_study_day())),
-    'groups', v_groups,
-    'thresholds', jsonb_build_object('inactive', p_inactive, 'low', p_low));
-
-  v_diff := null;
-  if v_high_n >= 10 and v_rest_n >= 10 and v_high_sd is not null and v_rest_sd is not null then
-    v_diff := v_high_mean - v_rest_mean;
-    v_se := sqrt(nullif(v_high_sd * v_high_sd / v_high_n + v_rest_sd * v_rest_sd / v_rest_n, 0));
-  end if;
-  v_out := v_out || jsonb_build_object('diff', jsonb_build_object(
-    'shown', v_diff is not null,
-    'high_n', v_high_n, 'rest_n', v_rest_n,
-    'high_mean', case when v_high_n >= 10 and v_high_mean is not null then round(v_high_mean, 2) end,
-    'rest_mean', case when v_rest_n >= 10 and v_rest_mean is not null then round(v_rest_mean, 2) end,
-    'diff', case when v_diff is not null then round(v_diff, 2) end,
-    'lo', case when v_diff is not null and v_se is not null then round(v_diff - 1.96 * v_se, 2) end,
-    'hi', case when v_diff is not null and v_se is not null then round(v_diff + 1.96 * v_se, 2) end));
-
-  -- controlled by prior GPA: partial correlation of hours and final
-  select count(*)::int, corr(hours, final), corr(hours, prior), corr(prior, final)
-    into v_ctrl_n, v_rhf, v_rhg, v_rfg
-  from cmp_rows where final is not null and prior is not null;
-  v_partial := null;
-  if v_ctrl_n >= 10 and v_rhf is not null and v_rhg is not null and v_rfg is not null
-     and (1 - v_rhg * v_rhg) > 0 and (1 - v_rfg * v_rfg) > 0 then
-    v_partial := (v_rhf - v_rhg * v_rfg) / sqrt((1 - v_rhg * v_rhg) * (1 - v_rfg * v_rfg));
-  end if;
-  v_out := v_out || jsonb_build_object('control', jsonb_build_object(
-    'shown', v_partial is not null, 'n', v_ctrl_n,
-    'r_raw', case when v_rhf is not null then round(v_rhf::numeric, 2) end,
-    'r_partial', case when v_partial is not null then round(v_partial::numeric, 2) end));
-
-  -- scatter points only from groups with at least 10 students (no identities)
-  select coalesce(jsonb_agg(jsonb_build_object('h', round(hours::numeric, 2), 'g', final, 'k', k)), '[]'::jsonb)
-    into v_scatter
-  from (select hours, final,
-               case when hours < p_inactive then 'inactive' when hours <= p_low then 'low' else 'high' end as k,
-               count(*) over (partition by case when hours < p_inactive then 'inactive' when hours <= p_low then 'low' else 'high' end) as gn
-        from cmp_rows where final is not null) z
-  where gn >= 10;
-  v_out := v_out || jsonb_build_object('scatter', v_scatter, 'disclaimer', true);
-
+  with cls as (
+    select c.id, c.org_id, c.term_id, t.starts_on, least(t.ends_on, v_today) as ends_on
+    from public.lexa_org_classes c
+    join public.lexa_org_terms t on t.id = c.term_id
+    where case when term is not null then c.term_id = term
+               else t.starts_on between d_from and d_to and (o is null or c.org_id = o) end
+      and (o is null or c.org_id = o)
+      and (class_ids is null or c.id = any(class_ids))
+  ), enr as (
+    select cls.org_id, cls.term_id, cls.starts_on, cls.ends_on, e.student_id,
+      avg(g.score / g.max_score * 20) as grade
+    from cls
+    join public.lexa_org_enrollments e on e.class_id = cls.id and e.status <> 'dropped'
+    left join public.lexa_org_grades g on g.class_id = cls.id and g.student_id = e.student_id and g.component = 'final'
+    group by cls.org_id, cls.term_id, cls.starts_on, cls.ends_on, e.student_id
+  ), st as (
+    select enr.*, s.user_id, (s.user_id is not null and s.terms_accepted_at is not null) as official,
+      greatest(enr.starts_on, public.lexa_official_day(s)) as w0,
+      least(enr.ends_on, coalesce(s.left_at, enr.ends_on)) as w1
+    from enr join public.lexa_org_students s on s.id = enr.student_id
+  ), ok as (
+    select st.*,
+      case when st.starts_on is null or st.ends_on is null or st.ends_on < st.starts_on then null
+           else greatest(0, st.w1 - st.w0 + 1)::numeric / (st.ends_on - st.starts_on + 1) end as coverage
+    from st
+  ), pts as (
+    select ok.org_id, ok.student_id, round(ok.grade, 2) as g,
+      round(coalesce((select sum(case when basis = 'org' then coalesce((d.by_org ->> ok.org_id::text)::int, 0)
+                                       else d.seconds end)
+                      from public.lexa_study_daily d
+                      where d.user_id = ok.user_id and d.day between ok.w0 and ok.w1), 0) / 3600.0, 2) as h,
+      (select p.gpa from public.lexa_org_prior_gpa p where p.org_id = ok.org_id and p.student_id = ok.student_id) as p
+    from ok
+    where ok.official and ok.grade is not null and ok.coverage >= 0.8
+  ), grp as (
+    select pts.*, case when pts.h < cut_low then 'none' when pts.h <= cut_high then 'low' else 'high' end as k
+    from pts
+  ), sizes as (
+    select k, count(*)::int as n from grp group by k
+  )
+  select jsonb_build_object(
+    'cuts', jsonb_build_array(cut_low, cut_high),
+    'basis', basis,
+    'min_group', v_min,
+    'counts', jsonb_build_object(
+      'enrolled', (select count(*) from enr),
+      'no_account', (select count(*) from ok where not ok.official),
+      'no_final', (select count(*) from ok where ok.official and ok.grade is null),
+      'no_dates', (select count(*) from ok where ok.official and ok.grade is not null and ok.coverage is null),
+      'partial', (select count(*) from ok where ok.official and ok.grade is not null and ok.coverage < 0.8),
+      'with_prior', (select count(*) from grp join sizes using (k) where sizes.n >= v_min and grp.p is not null),
+      'orgs', (select count(distinct grp.org_id) from grp join sizes using (k) where sizes.n >= v_min),
+      'terms', (select count(distinct cls.term_id) from cls)),
+    'groups', (select jsonb_agg(jsonb_build_object('k', x.k,
+                  'n', case when coalesce(sizes.n, 0) >= v_min then sizes.n end,
+                  'hidden', coalesce(sizes.n, 0) < v_min) order by x.ord)
+               from (values ('none', 1), ('low', 2), ('high', 3)) as x(k, ord)
+               left join sizes on sizes.k = x.k),
+    'points', coalesce((select jsonb_agg(jsonb_build_object('h', grp.h, 'g', grp.g, 'p', grp.p, 'k', grp.k)
+                                         order by grp.h, grp.g)
+                        from grp join sizes using (k) where sizes.n >= v_min), '[]'::jsonb)
+  ) into v_out;
   return v_out;
 end $$;
+
+-- a centre's report for one term (all classes or some of them): owner, manager or Lexa admin, two-factor
+create or replace function public.lexa_compare_report(o uuid, term uuid, class_ids uuid[] default null,
+                                                      cut_low numeric default 1, cut_high numeric default 10,
+                                                      basis text default 'all')
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if public.lexa_is_admin() then
+    if not public.lexa_mfa_ok() then raise exception 'mfa required'; end if;
+  else
+    perform public.lexa_org_require_manager(o, true);
+  end if;
+  if term is null or not exists (select 1 from public.lexa_org_terms t where t.id = term and t.org_id = o) then
+    raise exception 'not_found';
+  end if;
+  if class_ids is not null and (cardinality(class_ids) = 0 or cardinality(class_ids) > 500) then
+    raise exception 'bad_input';
+  end if;
+  return public.lexa_compare_build(o, term, class_ids, null, null, cut_low, cut_high, basis);
+end $$;
+
+-- Lexa admin: every centre's terms that started between d_from and d_to, pooled (o = null) or one centre
+create or replace function public.lexa_admin_compare_report(d_from date, d_to date, o uuid default null,
+                                                            cut_low numeric default 1, cut_high numeric default 10,
+                                                            basis text default 'all')
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.lexa_is_admin() then raise exception 'admin only'; end if;
+  if not public.lexa_mfa_ok() then raise exception 'mfa required'; end if;
+  if d_from is null or d_to is null or d_to < d_from or d_to - d_from > 800 then raise exception 'bad_input'; end if;
+  return public.lexa_compare_build(o, null, null, d_from, d_to, cut_low, cut_high, basis);
+end $$;
+
+-- terms a centre can build the report for, with a quick count (what the picker shows)
+create or replace function public.lexa_compare_terms(o uuid)
+returns table (term_id uuid, title text, starts_on date, ends_on date, status text, classes int, finals int)
+language plpgsql stable security definer set search_path = public as $$
+#variable_conflict use_column
+begin
+  if public.lexa_is_admin() then
+    if not public.lexa_mfa_ok() then raise exception 'mfa required'; end if;
+  else
+    perform public.lexa_org_require_manager(o, true);
+  end if;
+  return query
+    select t.id, t.title, t.starts_on, t.ends_on, t.status,
+      (select count(*)::int from public.lexa_org_classes c where c.term_id = t.id),
+      (select count(*)::int from public.lexa_org_grades g join public.lexa_org_classes c on c.id = g.class_id
+        where c.term_id = t.id and g.component = 'final')
+    from public.lexa_org_terms t
+    where t.org_id = o
+    order by t.starts_on desc nulls last, t.created_at desc;
+end $$;
+
+revoke execute on function public.lexa_compare_build(uuid, uuid, uuid[], date, date, numeric, numeric, text)
+  from public, anon, authenticated;
+revoke execute on function public.lexa_compare_report(uuid, uuid, uuid[], numeric, numeric, text) from public, anon;
+revoke execute on function public.lexa_admin_compare_report(date, date, uuid, numeric, numeric, text) from public, anon;
+revoke execute on function public.lexa_compare_terms(uuid) from public, anon;
+
+grant execute on function public.lexa_compare_report(uuid, uuid, uuid[], numeric, numeric, text) to authenticated, service_role;
+grant execute on function public.lexa_admin_compare_report(date, date, uuid, numeric, numeric, text) to authenticated;
+grant execute on function public.lexa_compare_terms(uuid) to authenticated, service_role;
