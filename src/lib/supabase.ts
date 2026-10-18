@@ -17,6 +17,21 @@ export function sbUser(){ return current?.user ?? null; }
 /** توکن دسترسی جاری برای «پل حساب» — سرور با آن هویت را نزد Supabase راستی‌آزمایی می‌کند */
 export function sbAccessToken(){ return current?.access_token ?? null; }
 export function sbReady(){ return supaConfigured(); }
+/** adopt a session minted elsewhere: centre sign-in (supabase/functions/org-auth) or a
+ *  verified second factor (src/lib/mfa.ts). Listeners fire like after a normal sign-in. */
+export function sbAdoptSession(t: { access_token: string; refresh_token: string; user: { id: string; email?: string } }){
+  save({access_token:t.access_token,refresh_token:t.refresh_token,user:{id:t.user.id,email:t.user.email||""}});
+}
+/** assurance level of the current session ("aal2" after a verified second factor, else "aal1") */
+export function sbAal(): string {
+  const tok = current?.access_token;
+  if (!tok) return "";
+  try {
+    const p = tok.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const j = JSON.parse(atob(p + "=".repeat((4 - (p.length % 4)) % 4))) as { aal?: string };
+    return j.aal || "aal1";
+  } catch { return "aal1"; }
+}
 
 async function call(path: string, opts: RequestInit = {}, retried = false): Promise<Response>{
   const res = await fetch(supaUrl() + path, { ...opts, headers: { apikey: supaKey(), Authorization: "Bearer " + (current?.access_token ?? supaKey()), "Content-Type": "application/json", ...(opts.headers||{}) } });
