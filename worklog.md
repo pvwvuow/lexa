@@ -2276,3 +2276,28 @@ Stage Summary:
 - v0.10.23 روی هر سه پلتفرم + Pages زنده شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.23 — فاز ۲ (visibility + پیش‌نمایش مرکز) و فاز ۳ (کلاس‌ها، آزمون رسمی، نمرات ۲۰گانه، CSV) end-to-end شامل سوپابیس (007+008 اعمال‌شده و وریفای‌شده).
 - باقی‌ماندهٔ فازهای بعدی طبق docs/ORG_LEARNING.md: فاز ۴ «زمان مطالعه» — منتظر بستهٔ همکار.
 - یادآوری امنیتی (باز): sb_secret و PAT سوپاباس بعد از این ریلیز باید rotate/باطل شوند؛ توکن گیت و توکن تلگرام هم هنوز rotate نشده‌اند.
+
+---
+Task ID: 52-prep
+Agent: Z (main)
+Task: دستور «فازهای بعدی را بیار» — پیاده‌سازی کامل فاز ۴/۵/۶/۷ + بیلد سه‌گانه v0.10.24 (انتشار HELD برای SQL 009-011)
+
+Work Log:
+- PAT هنوز database_read ندارد (403) → SQLها مثل همیشه به SQL Editor کاربر.
+- SQL (امن برای اجرای مجدد، ادامهٔ الگوی 006-008):
+  * 009_study_time.sql — lexa_study_sessions (یک ردیف به‌ازای session کلاینت)، lexa_study_beat (سقف ۱۲۰ ثانیه در ضربان، شکاف >۳ دقیقه = پنجرهٔ تازه، سقف ۱۲ ساعت/روز، org سمت سرور از عضویت رسمی مشتق می‌شود نه ادعای کلاینت)، lexa_study_my/org/class/admin_stats (مدیر با aal2، مدرس کلاس خودش، ادمین)، RLS بسته + revoke توابع داخلی.
+  * 010_org_api.sql — lexa_org_api_keys (راز فقط در Vault، هش/پیشوند در DB، scope read/write، allowlist IP، انقضا)، lexa_api_verify (HMAC-SHA256 روی ts+"."+sha256(body)، خطای ±۵ دقیقه)، idempotency (۴۸ ساعت)، lexa_org_integrations + lexa_integration_runs (کانکتور)، مدیریت کلید/اتصال فقط مدیر با aal2، lexa_svc_audit/rate_ok سرویس‌-only.
+  * 011_comparison_report.sql — lexa_compare_report: گروه‌های زمان مطالعه (مرزها قابل تنظیم)، میانگین/میانه فقط گروه ≥۱۰ نفر، اختلاف میانگین زیاد↔بقیه با CI ۹۵٪ (نرمال)، همبستگی جزئی کنترل‌شده با معدل قبلی (n≥۱۰)، scatter بدون هویت، disclaimer پرچم‌دار.
+- Edge Functions دیپلوی شد (deploy-org-functions.py): org-api (verify_jwt=false: students/staff/classes/enrollments/grades/status + reports study/grades/comparison، سندباکس X-Lexa-Sandbox، idempotency، سقف ۹۰۰ req/۵ دقیقه، ۵۰۰ ردیف) و org-connector (verify_jwt=true: خواندن خوراک JSON مرکز با Basic auth از Vault، ping/run/runs). پراب: هر دو 401 ساختاریافته.
+- کلاینت: study.ts (ضربان ۶۰ثانیه‌ای فقط با صفحه پیدار + فعالیت <۲ دقیقه، صف آفلاین localStorage، سقف محلی ۱۲ ساعت) + useStudyBeat در AppShell؛ MyStatsView «آمار من» (#/mystats، نمودار ۳۰ روزه) + آیتم سایدبار؛ OrgStatsTabs.tsx: OrgStudyCard (تب دانشجویان)، OrgCompareTab (فاز ۶)، OrgApiKeysTab (فاز ۵)، OrgConnectorTab (فاز ۷) — همه پشت MfaRequired.
+- docs: ORG_API_OPENAPI.yaml + ORG_P4_TO_P7_SETUP.md (SQLها + آزمون سریع).
+- درس مهم سندباکس (۲درس): ① next-server عنوان پروسه‌اش «next-server (v…)» است — pkill -f server.js هرگز نمی‌گیرد → سرورهای قدیمی زنده می‌مانند و ChunkLoadError ارواح می‌دهند؛ fuser -k پورت. ② build سرور و export APK هر دو در .next می‌نویسند → build-apk.sh حالا rm -rf .next می‌کند.
+- بامپ: 0.10.24 / sw v66 / gradle 124. tsc صفر، lint صفر.
+- بیلدها: APK 124/0.10.24 (aapt ✓، نسخهٔ داخل باندل ✓)، AppImage 127.8MB، win.zip 177MB (۲۲۵۳ فایل، بدون .env/keystore). اولین تلاش win.zip وسط راه با timeout نیمه‌کاره ماند → BadZipFile → بیلد جداگانه تارگت‌ها.
+- QA روی اکسپورت/استندالون تازه: qa117=۱۳/۱۳، qa118=۶/۶، qa120=۸/۸، qa121=۱۳/۱۳ (WEB_DIR=.next/standalone)، qa122 جدید=۲۳/۲۳ (رشته‌های فاز ۴-۷ در وب و APK، #/mystats مهمان، رگرسیون org/classes، SW v66، صفر pageerror).
+- کامیت c98a536 پوش شد.
+
+Stage Summary:
+- v0.10.24 READY ولی منتشر نشده: Pages + GitHub Release HELD تا کاربر سه فایل SQL را به‌ترتیب در SQL Editor اجرا کند: 009_study_time.sql → 010_org_api.sql → 011_comparison_report.sql (docs/ORG_P4_TO_P7_SETUP.md).
+- بعد از تأیید کاربر: وریفای 009-011 (جدول‌ها/RPCها/باکت‌ها) → Pages → release-app-update.py 0.10.24 → verify-release-0124 + qa119 + worklog.
+- یادآوری امنیتی تکراری: rotate sb_secret و PAT سوپاباس بعد از این ریلیز؛ توکن گیت و تلگرام هم هنوز.
