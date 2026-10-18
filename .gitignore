@@ -111,3 +111,4 @@ scripts/newbook/*.pdf
 lexa-fix-errors/
 .supabase-secret
 .supabase-pat
+lexa-pr19/
