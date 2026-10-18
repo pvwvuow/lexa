@@ -1,13 +1,16 @@
 "use client";
 /* Centre console (phase A2 of docs/ADMIN_PLATFORM.md). The workspace of a centre's staff: centre home,
- * organisation tree, staff, roles and the permission matrix, centre audit, plus the existing OrgView
- * tabs passed in as sections. Each section is shown only to people whose permissions allow it; the
+ * organisation tree, staff, roles and the permission matrix, centre audit; terms and calendar, course
+ * catalogue, classes and cohorts (phase A3); plus the existing OrgView tabs passed in as sections. A
+ * built-in section replaces a legacy section with the same key. Each section is shown only to people whose permissions allow it; the
  * server checks every call again. */
 import * as React from "react";
-import { Activity, Building2, KeyRound, LayoutDashboard, Network, ShieldCheck, UsersRound } from "lucide-react";
+import {
+  Activity, BookOpen, Building2, CalendarDays, ClipboardList, KeyRound, LayoutDashboard, Network, GraduationCap, ShieldCheck, UsersRound,
+} from "lucide-react";
 import { MfaPanel } from "@/components/app/MfaPanel";
 import {
-  BASE_ROLE_LABEL, makeAccess, orgConsoleError, orgMyAccess, type Access,
+  BASE_ROLE_LABEL, makeAccess, orgConsoleError, orgMyAccess, type Access, type PermKey,
 } from "@/lib/cloud-api/org-console";
 import { Notice, Panel, useLoad, type IconType, type NavGroup } from "./ConsoleKit";
 import { CentreWorkspace, type CentreIdentity } from "./CentreWorkspace";
@@ -16,6 +19,10 @@ import { OrgStructurePage } from "./OrgStructurePage";
 import { OrgStaffPage } from "./OrgStaffPage";
 import { OrgRolesPage } from "./OrgRolesPage";
 import { OrgAuditPage } from "./OrgAuditPage";
+import { OrgTermsPage } from "./OrgTermsPage";
+import { OrgCoursesPage } from "./OrgCoursesPage";
+import { OrgClassesPage } from "./OrgClassesPage";
+import { OrgCohortsPage } from "./OrgCohortsPage";
 
 export type LegacyGroup = "people" | "teaching" | "insight" | "connect" | "settings";
 /** an existing OrgView tab shown as a console section; recommended keys: students, classes, exams,
@@ -28,6 +35,16 @@ const LEGACY_GROUP_LABEL: Record<LegacyGroup, string> = {
   people: "دانشجویان و اعضا", teaching: "آموزش", insight: "گزارش‌ها", connect: "اتصال‌ها", settings: "تنظیمات",
 };
 const ORDER: LegacyGroup[] = ["people", "teaching", "insight", "connect", "settings"];
+
+const TEACH_NAV: { key: string; label: string; icon: IconType; perms: PermKey[] }[] = [
+  { key: "terms", label: "ترم‌ها و تقویم", icon: CalendarDays, perms: ["org.terms.manage", "org.classes.manage", "org.enroll.manage"] },
+  { key: "courses", label: "درس‌ها", icon: BookOpen, perms: ["org.classes.manage", "org.enroll.manage", "org.terms.manage"] },
+  { key: "classes", label: "کلاس‌ها و ثبت‌نام", icon: ClipboardList, perms: ["org.classes.manage", "org.enroll.manage"] },
+  { key: "cohorts", label: "گروه‌های ورودی", icon: GraduationCap, perms: ["org.students.manage", "org.enroll.manage"] },
+];
+const TEACH_PAGES: Record<string, React.ComponentType<CentrePageProps> | undefined> = {
+  terms: OrgTermsPage, courses: OrgCoursesPage, classes: OrgClassesPage, cohorts: OrgCohortsPage,
+};
 
 export interface CentreNav { go: (section: string) => void; has: (section: string) => boolean }
 export interface CentrePageProps { orgId: string; access: Access; nav: CentreNav }
@@ -49,6 +66,15 @@ export function CentreConsole({ orgId, centre, capacity, legacy = [], initialSec
     try { return window.localStorage.getItem(storeKey) || ""; } catch { return ""; }
   });
 
+  /** built-in teaching sections this person may open (they replace legacy sections with the same key) */
+  const teachKeys = React.useMemo(() => {
+    const out = new Set<string>();
+    const a = access;
+    if (!a) return out;
+    for (const t of TEACH_NAV) if (t.perms.some((x) => a.canSomewhere(x))) out.add(t.key);
+    return out;
+  }, [access]);
+
   const groups: NavGroup[] = React.useMemo(() => {
     const out: NavGroup[] = [];
     const a = access;
@@ -63,13 +89,17 @@ export function CentreConsole({ orgId, centre, capacity, legacy = [], initialSec
       org.push({ key: "roles", label: "نقش‌ها و دسترسی", icon: ShieldCheck });
     }
     if (org.length) out.push({ label: "سازمان", items: org });
+    const teach = TEACH_NAV.filter((t) => teachKeys.has(t.key));
+    const builtIn = teachKeys;
     for (const g of ORDER) {
-      const items = legacy.filter((l) => l.group === g).map((l) => ({ key: l.key, label: l.label, icon: l.icon, badge: l.badge }));
+      const items: NavGroup["items"] = legacy.filter((l) => l.group === g && !builtIn.has(l.key))
+        .map((l) => ({ key: l.key, label: l.label, icon: l.icon, badge: l.badge }));
+      if (g === "teaching") items.unshift(...teach.map(({ key, label, icon }) => ({ key, label, icon })));
       if (items.length) out.push({ label: LEGACY_GROUP_LABEL[g], items });
     }
     out.push({ label: "حساب من", items: [{ key: "security", label: "امنیت من", icon: KeyRound }] });
     return out;
-  }, [access, legacy]);
+  }, [access, legacy, teachKeys]);
 
   const keys = React.useMemo(() => new Set(groups.flatMap((g) => g.items.map((i) => i.key))), [groups]);
   const active = keys.has(section) ? section : (groups[0]?.items[0]?.key ?? "security");
@@ -97,8 +127,10 @@ export function CentreConsole({ orgId, centre, capacity, legacy = [], initialSec
     body = <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-muted/60" />)}</div>;
   } else {
     const p: CentrePageProps = { orgId, access, nav };
-    const leg = legacy.find((l) => l.key === active);
-    body = leg ? leg.render()
+    const leg = teachKeys.has(active) ? undefined : legacy.find((l) => l.key === active);
+    const teachPage = TEACH_PAGES[active];
+    body = teachPage && teachKeys.has(active) ? React.createElement(teachPage, p)
+      : leg ? leg.render()
       : active === "home" ? <CentreHomePage {...p} />
       : active === "structure" ? <OrgStructurePage {...p} />
       : active === "staff" ? <OrgStaffPage {...p} />
