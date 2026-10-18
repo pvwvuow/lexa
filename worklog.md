@@ -2257,3 +2257,22 @@ Stage Summary:
 - Why hold: the new client sends visibility on every post/course save — without the 007 column all centre-member saves would 400.
 - After user confirms SQL: verify schema (OpenAPI diff) + RPC presence + lexa-org-media bucket, then publish Pages, release-app-update.py 0.10.23, verify-release + qa119-pages-live, worklog push.
 - Security pending (user): revoke sb_secret posted in chat; revoke Supabase PAT after release.
+
+---
+Task ID: 51
+Agent: Z (main)
+Task: دستور «خب منتشر کن» — گیت SQL 007+008 وریفای شد، انتشار Pages + ریلیز v0.10.23 + وریفای کامل
+
+Work Log:
+- گیت انتشار (انتظار از 51-prep): پریوب زندهٔ 007+008 با سرویس‌کی ساخته شد (scripts/qa-007-008-check.py): ۵۳ چک — ستون‌های visibility/allow_preview روی lexa_posts و lexa_tcourses (007)، هر ۱۱ جدول کلاس/آزمون/نمره (008: lexa_org_terms/courses/classes/enrollments/class_content/exams/exam_questions/exam_attempts/exam_answers/grades/prior_gpa)، ۳۸ RPC در OpenAPI، باکت خصوصی lexa-org-media → همه سبز؛ یعنی کاربر SQLها را اجرا کرده بود. تنها «FAIL» نمایشی: lexa_visibility_guard در OpenAPI نیست چون 007 عمداً revoke execute آن را از anon/authenticated کرده (trigger داخلی) — رفتار طراحی‌شده، نه نقص.
+- انتشار Pages: build-pages.sh → PAGES_READY 0.10.23 (SW v65). درس ابزاری: در لایوت Pages، _next/ و sw.js در ریشهٔ سایت‌اند نه /app/ — پراب‌های زنده باید از /_next/… و /sw.js بگیرند (qa119 اول ۶/۹ گرفت، بعد اصلاح مسیر ۱۰/۱۰ شد).
+- ریلیز: release-app-update.py 0.10.23 → release id 416451740 با ۴ asset (AppImage 121.8MB + win.zip 168.9MB + APK 6.4MB + checksums)، تگ‌های v0.10.23 و app-v0.10.23، فید دلتا (a2af822) و purge jsDelivr مانیفست+APK.
+- وریفای ریلیز: verify-release-0123 (الگوی 0122 با prevs جدید: 0.9.2/0.9.3/0.10.21/0.10.22) → ۱۴/۱۴ ✓ — مانیفست ۱۶۷۳ فایل روی هر دو کانال، دلتای 0.10.22→0.10.23 = ۵۲ فایل MISSING:0، ریلیز در صدر فهرست.
+- وریفای لایو Pages: qa119-pages-live-0123 (الگوی 0122 + ادعاهای فاز ۲/۳) → ۱۰/۱۰ ✓ — داشبورد 200، SW v65، باندل لایو شامل lexa_exam_start (فاز ۳) و رشتهٔ «دوره‌های مراکز آموزشی (پیش‌نمایش)» (فاز ۲)، #/classes مهمان بدون کرش، #/org رگرسیون، صفر pageerror.
+- نکتهٔ داده‌ای: بخش پیش‌نمایش کتابخانهٔ عمومی الان خالی است چون هنوز هیچ دورهٔ مرکزی با allow_preview ساخته نشده (OrgPreviewSection با rows خالی null برمی‌گرداند — طراحی صحیح).
+- ابزارهای نسخه‌دار کامیت شدند: scripts/qa-007-008-check.py، verify-release-0123.py، qa119-pages-live-0123.mjs + دو آرتیفکت بازتولید بیلد.
+
+Stage Summary:
+- v0.10.23 روی هر سه پلتفرم + Pages زنده شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.23 — فاز ۲ (visibility + پیش‌نمایش مرکز) و فاز ۳ (کلاس‌ها، آزمون رسمی، نمرات ۲۰گانه، CSV) end-to-end شامل سوپابیس (007+008 اعمال‌شده و وریفای‌شده).
+- باقی‌ماندهٔ فازهای بعدی طبق docs/ORG_LEARNING.md: فاز ۴ «زمان مطالعه» — منتظر بستهٔ همکار.
+- یادآوری امنیتی (باز): sb_secret و PAT سوپاباس بعد از این ریلیز باید rotate/باطل شوند؛ توکن گیت و توکن تلگرام هم هنوز rotate نشده‌اند.
