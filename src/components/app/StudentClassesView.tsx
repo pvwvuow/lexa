@@ -42,7 +42,16 @@ export function StudentClassesView() {
     return () => window.clearInterval(t);
   }, []);
 
-  if (running) return <ExamRunner examId={running} onDone={() => { setRunning(null); void load(); }} />;
+  /* برگزاری آزمون تمام‌صفحه است — نوار بالا/پایین و منوها زیر اورلی پنهان می‌شوند */
+  if (running) {
+    return (
+      <div className="fixed inset-0 z-[80] overflow-y-auto bg-background">
+        <div className="mx-auto max-w-2xl px-4 py-6">
+          <ExamRunner examId={running} onDone={() => { setRunning(null); void load(); }} />
+        </div>
+      </div>
+    );
+  }
   if (result) return <ResultView exam={result.exam} data={result.data} onClose={() => setResult(null)} />;
 
   const openResult = async (x: MyExam) => {

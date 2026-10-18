@@ -10,6 +10,8 @@ import {
 import type { QuizQuestion } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
 import { errText } from "@/lib/social-client";
+import { uploadOrgMedia } from "@/lib/cloud-api/visibility";
+import { ThumbImg } from "./common";
 
 /* ─── قالب پیش‌نویس سؤال در ویرایشگر ── */
 export interface QuizDraft {
@@ -221,11 +223,14 @@ export function QuizEditor({
 
 /* ═══ انتخاب تصویر شاخص — آپلود یا لینک، کاملاً دلخواه ══════════════════════ */
 export function ThumbnailPicker({
-  value, onChange, label = "تصویر شاخص (دلخواه)",
+  value, onChange, label = "تصویر شاخص (دلخواه)", orgId = null, orgMedia = false,
 }: {
   value: string;
   onChange: (url: string) => void;
   label?: string;
+  /** وقتی سطح دسترسی «دانشجویان مرکز» یا «کلاس» است، تصویر به باکت خصوصی مرکز می‌رود (۰۰۷) */
+  orgId?: string | null;
+  orgMedia?: boolean;
 }) {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
@@ -242,12 +247,17 @@ export function ThumbnailPicker({
     }
     setBusy(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/cover/upload", { method: "POST", body: fd });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "آپلود تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.");
-      onChange(j.url);
+      if (orgMedia && orgId) {
+        // رسانهٔ خصوصی مرکز: lexa-org://<org>/<user>/<file> — فقط اعضا و دانشجویان رسمی می‌بینند
+        onChange(await uploadOrgMedia(orgId, file, file.name || "cover"));
+      } else {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/cover/upload", { method: "POST", body: fd });
+        const j = await res.json();
+        if (!res.ok) throw new Error(j.error ?? "آپلود تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.");
+        onChange(j.url);
+      }
     } catch (e) {
       setErr(errText(e, "آپلود تصویر انجام نشد؛ لطفاً دوباره تلاش کنید."));
     } finally {
@@ -294,7 +304,7 @@ export function ThumbnailPicker({
         /* پیش‌نمایش تصویر انتخاب‌شده */
         <div className="group relative overflow-hidden rounded-xl border border-border">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="تصویر شاخص" className="h-32 w-full object-cover sm:h-36" referrerPolicy="no-referrer" />
+          <ThumbImg src={value} alt="تصویر شاخص" className="h-32 w-full object-cover sm:h-36" />
           <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/45 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
             <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-1.5 text-[11px] font-bold text-gray-900 hover:bg-white">
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />} تغییر

@@ -14,6 +14,9 @@ import { useTargetRating, addTCourseLocally, errText } from "@/lib/social-client
 import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
+import { VisibilityBadge } from "./VisibilityPicker";
+import { CloudAuthDialog } from "./CloudAuth";
+import { coursePreviews, previewLabel, type CoursePreview } from "@/lib/cloud-api/visibility";
 import { ensureChapterContent, isLazyLesson, peekTextState, useTextsVersion } from "@/lib/law/texts";
 import { applyCourseUpdate, refreshPackUpdates, usePackUpdates } from "@/lib/updater";
 
@@ -38,6 +41,10 @@ export function CourseView({ id }: { id: string }) {
   const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
   const [remoteLoading, setRemoteLoading] = React.useState(false);
   const [remoteFailed, setRemoteFailed] = React.useState(false);
+  // دورهٔ «دانشجویان مرکز» با پیش‌نمایش عمومی: RLS پاسخ ۴۰۴ می‌دهد — کارت عمومی را نشان بده (۰۰۷)
+  const [gate, setGate] = React.useState<CoursePreview | null>(null);
+  const [authOpen, setAuthOpen] = React.useState(false);
+  const auth = useAuth();
   const [offlineUsed, setOfflineUsed] = React.useState(false);
 
   React.useEffect(() => {
@@ -65,6 +72,15 @@ export function CourseView({ id }: { id: string }) {
     return () => { alive = false; };
   }, [local, remoteCourse, remoteFailed, id]);
 
+  React.useEffect(() => {
+    if (!remoteFailed || local) return;
+    let alive = true;
+    coursePreviews(null, 200)
+      .then((rows) => { if (alive) setGate(rows.find((r) => r.id === id) ?? null); })
+      .catch(() => { /* آفلاین — پیام سادهٔ پیدا نشد */ });
+    return () => { alive = false; };
+  }, [remoteFailed, local, id]);
+
   const course: Course | undefined = local ?? remoteCourse ?? undefined;
 
   // نوع آفلاین: دورهٔ آماده (در باندل) / دورهٔ مدرس (کتابخانهای یا پیش‌نمایش سروری)
@@ -81,6 +97,41 @@ export function CourseView({ id }: { id: string }) {
         <p className="flex items-center justify-center gap-2 p-16 text-sm text-bronze">
           <Loader2 className="h-5 w-5 animate-spin" /> در حال بارگذاری دوره…
         </p>
+      );
+    }
+    if (gate) {
+      const signed = !!auth.user;
+      return (
+        <div className="mx-auto max-w-lg px-4 pt-16">
+          <div className="rounded-[28px] border border-border bg-card p-8 text-center shadow-card" dir="rtl">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-bronze/10 text-bronze"><GraduationCap className="h-7 w-7" /></span>
+            <h1 className="mt-4 text-xl font-extrabold">{gate.title}</h1>
+            {gate.tagline && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{gate.tagline}</p>}
+            <p className="mt-4 rounded-xl bg-bronze/[0.07] px-4 py-3 text-sm font-bold text-bronze">
+              {previewLabel(gate.orgName)} — «این دوره مخصوص دانشجویان {gate.orgName} است»
+            </p>
+            <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground">
+              جلسه‌ها فقط برای دانشجویان رسمی این مرکز باز می‌شود{signed ? "؛ با حساب فعلی‌تان دسترسی ندارید." : "؛ اول وارد حساب شوید."}
+            </p>
+            {!signed && (
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                <button onClick={() => setAuthOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-bronze px-4 py-2.5 text-sm font-bold text-white shadow-card hover:brightness-110">
+                  <LogIn className="h-4 w-4" /> ورود به حساب Lexa
+                </button>
+                <button onClick={() => setAuthOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-bronze/50 px-4 py-2.5 text-sm font-bold text-bronze hover:bg-bronze/10">
+                  <GraduationCap className="h-4 w-4" /> ورود با حساب مرکز
+                </button>
+              </div>
+            )}
+            <button onClick={() => navigate({ view: "org", id: gate.orgSlug || undefined })}
+              className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-bronze">
+              صفحهٔ مرکز آموزشی <GraduationCap className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <CloudAuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+        </div>
       );
     }
     return <p className="p-10 text-center text-muted-foreground">درس پیدا نشد.</p>;
@@ -228,7 +279,13 @@ function CourseBody({
             <CourseIcon icon={course.icon} className="h-7 w-7" />
           </span>
           <div className="flex-1 space-y-1">
-            <h1 className="text-2xl font-bold">{course.title}</h1>
+            <h1 className="text-2xl font-bold">
+              {course.title}{" "}
+              <VisibilityBadge
+                value={(course as Course & { _visibility?: string })._visibility}
+                orgName={(course as Course & { _org?: { name?: string } | null })._org?.name ?? ""}
+              />
+            </h1>
             <CourseDescription text={course.description} />
             {course.sourceLabel && (
               <p className="pt-1 text-xs text-bronze">منبع: {course.sourceLabel}</p>

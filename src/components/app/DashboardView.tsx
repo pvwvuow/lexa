@@ -13,7 +13,7 @@ import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { requestAuthPrompt } from "@/lib/auth-prompt";
-import { ProgressBar, CourseIcon, UserAvatar } from "./common";
+import { ProgressBar, CourseIcon, UserAvatar , ThumbImg } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
 import { OfflineDownloadButton } from "./offline-ui";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
@@ -415,11 +415,9 @@ function FeedCard({
       {/* جلد — تامنیل استاد یا جلد رنگی دسته با آیکن لوزی */}
       {hasThumb ? (
         <span className="relative block h-[104px] w-full overflow-hidden">
-          <img
+          <ThumbImg
             src={p.thumbnail}
             alt=""
-            dir="ltr"
-            loading="lazy"
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]"
           />
           <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />

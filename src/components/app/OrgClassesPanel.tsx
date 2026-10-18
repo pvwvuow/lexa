@@ -4,6 +4,7 @@
  * Managers see every class (student data needs a two-factor session); teachers only theirs. */
 import * as React from "react";
 import { ArrowRight, BookOpen, Download, FileUp, GraduationCap, Plus, RefreshCw, Save, Trash2, Users } from "lucide-react";
+import { MfaPanel } from "./MfaPanel";
 import { sbSelect, inList } from "@/lib/cloud-api/rest";
 import { downloadText } from "@/lib/cloud-api/org-accounts";
 import { visibilityLabel } from "@/lib/cloud-api/visibility";
@@ -21,6 +22,8 @@ const btn = "inline-flex items-center gap-1 rounded-xl border border-border px-3
 const btnMain = "inline-flex items-center gap-1 rounded-xl bg-bronze px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50";
 
 function ErrorLine({ text }: { text: string }) {
+  /* خطای «ورود دومرحله‌ای» (aal2) → همان UI فاز ۱: ثبت/تأیید TOTP (docs/ORG_P3_SETUP.md) */
+  if (/دومرحله|دو مرحله|mfa/i.test(text)) return <MfaPanel compact />;
   return text ? <p className="rounded-xl border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:bg-red-950/30">{text}</p> : null;
 }
 

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
+import { myOrgAccounts } from "@/lib/cloud-api/org-accounts";
 import { fa } from "@/lib/fa";
 import { IS_APK } from "@/lib/app-mode";
 import { AuthDialog } from "./AuthDialog";
@@ -24,6 +25,17 @@ import { UserAvatar } from "./common";
  *  «حساب، حساب است» — حساب ابری (ساپابیس) روی همهٔ پلتفرم‌ها اول است: ثبت‌نام یک‌بار،
  *  پیشرفت روی موبایل و کامپیوتر یکی. APK فقط حساب ابری دارد؛ حساب سروری محلی برای
  *  مدرسان/مدیریت با دکمهٔ فرعی در دسترس می‌ماند. */
+/** آیا این حساب دست‌کم یک «حساب مرکز» پذیرفته دارد؟ (یک بار در هر نشست پرسیده می‌شود) */
+let orgClassesCheck: Promise<boolean> | null = null;
+function hasAcceptedOrgAccount(): Promise<boolean> {
+  if (!orgClassesCheck) {
+    orgClassesCheck = myOrgAccounts()
+      .then((rows) => rows.some((r) => r.termsAcceptedAt))
+      .catch(() => false);
+  }
+  return orgClassesCheck;
+}
+
 export function AccountArea() {
   const auth = useAuth();
   const [cloudUser, setCloudUser] = React.useState<SbUser | null>(() => sbUser());
@@ -31,6 +43,12 @@ export function AccountArea() {
   const [open, setOpen] = React.useState(false);
   const [localOpen, setLocalOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [hasOrgClasses, setHasOrgClasses] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    void hasAcceptedOrgAccount().then((v) => { if (alive) setHasOrgClasses(v); });
+    return () => { alive = false; };
+  }, []);
   const [leaving, setLeaving] = React.useState(false);
 
   // درخواست باز شدن پنجرهٔ ورود از هر نقطهٔ اپ (فالو/امتیاز/کامنت مهمان) —
@@ -124,6 +142,15 @@ export function AccountArea() {
               className="cursor-pointer rounded-lg gap-2 text-bronze"
             >
               <GraduationCap className="h-4 w-4" /> پنل مدرس
+            </DropdownMenuItem>
+          )}
+
+          {hasOrgClasses && (
+            <DropdownMenuItem
+              onClick={() => { setMenuOpen(false); navigate({ view: "classes" }); }}
+              className="cursor-pointer rounded-lg gap-2 text-bronze"
+            >
+              <GraduationCap className="h-4 w-4" /> کلاس‌های من
             </DropdownMenuItem>
           )}
 

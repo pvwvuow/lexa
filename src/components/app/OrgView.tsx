@@ -13,7 +13,7 @@ import * as React from "react";
 import {
   Building2, Loader2, Search, Plus, Check, X, Users, GraduationCap, Settings2, ShieldCheck,
   MailPlus, Mail, Globe, MapPin, CalendarClock, BadgeCheck, UserPlus, LogIn, Newspaper,
-  Crown, Trash2, Upload, ArrowLeft, Send, Clock3, Sparkles,
+  Crown, Trash2, Upload, ArrowLeft, Send, Clock3, Sparkles, Lock, Eye,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
@@ -31,6 +31,8 @@ import {
 } from "@/lib/cloud-api/orgs";
 import type { TCourseCard, FeedPost } from "@/lib/social-client";
 import { OrgStudentsPanel } from "./OrgStudentsPanel";
+import { OrgClassesPanel } from "./OrgClassesPanel";
+import { coursePreviews, previewLabel, type CoursePreview } from "@/lib/cloud-api/visibility";
 import { adminSetOrgAccounts, ORG_CODE_RE } from "@/lib/cloud-api/org-accounts";
 import { UserAvatar, CourseIcon } from "./common";
 import { inputCls, labelCls } from "./StudioView";
@@ -577,7 +579,7 @@ function AdminRoleTool() {
 }
 
 /* === صفحهٔ مرکز آموزشی === */
-type OrgTab = "teachers" | "content" | "manage" | "students" | "settings";
+type OrgTab = "teachers" | "content" | "classes" | "manage" | "students" | "settings";
 
 function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   const auth = useAuth();
@@ -629,9 +631,14 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   }
 
   const active = members.filter((m) => m.status === "active");
+  // تب «کلاس‌ها» برای همهٔ اعضای فعال مرکز (مدرس هم) — فاز ۳ (docs/ORG_P3_SETUP.md)
+  const isMember = signed && !!me && me.status === "active";
   const tabs: { key: OrgTab; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
     { key: "teachers", label: `مدرسان (${fa(active.length)})`, Icon: Users },
     { key: "content", label: "دوره‌ها و مطالب", Icon: Newspaper },
+    ...(isMember || canManage ? [
+      { key: "classes" as OrgTab, label: "کلاس‌ها", Icon: GraduationCap },
+    ] : []),
     ...(canManage ? [
       { key: "students" as OrgTab, label: "دانشجویان و حساب‌ها", Icon: GraduationCap },
       { key: "manage" as OrgTab, label: "مدیریت مدرسان", Icon: UserPlus },
@@ -692,6 +699,9 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
 
       {tab === "teachers" && (membersErr ? <RetryBox msg={membersErr} onRetry={() => void load()} /> : <OrgTeachersTab members={active} />)}
       {tab === "content" && <OrgContentTab org={org} canManage={canManage} />}
+      {(tab === "classes") && (isMember || canManage) && (
+        <OrgClassesPanel orgId={org.id} orgName={org.name} canManage={canManage} isOwner={isOwner} />
+      )}
       {tab === "students" && canManage && <OrgStudentsPanel orgId={org.id} orgName={org.name} />}
       {tab === "manage" && canManage && <OrgManageTab org={org} members={members} isOwner={isOwner} onChanged={() => void load()} />}
       {tab === "settings" && canManage && <OrgSettingsTab org={org} onSaved={(o) => setOrg(o)} />}
@@ -825,7 +835,39 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
           </div>
         )}
       </section>
+      <OrgCoursePreviews orgId={org.id} />
     </div>
+  );
+}
+
+/** کارت‌های قفل‌شدهٔ دوره‌های «دانشجویان مرکز» که پیش‌نمایش عمومی دارند (۰۰۷) */
+function OrgCoursePreviews({ orgId }: { orgId: string }) {
+  const [rows, setRows] = React.useState<CoursePreview[] | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    coursePreviews(orgId, 24).then((r) => { if (alive) setRows(r); }).catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [orgId]);
+  if (!rows?.length) return null;
+  return (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-lg font-bold"><Eye className="h-5 w-5 text-bronze" /> پیش‌نمایش دوره‌ها ({fa(rows.length)})</h2>
+      <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+        این دوره‌ها فقط برای دانشجویان رسمی مرکز باز می‌شوند؛ بقیه فقط کارت معرفی را می‌بینند.
+      </p>
+      <div className="grid gap-3 md:grid-cols-2">
+        {rows.map((c) => (
+          <button key={c.id} onClick={() => navigate({ view: "course", id: c.id })}
+            className={`${card} flex items-center gap-3 p-4 text-start transition-colors hover:border-bronze/50`}>
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-bronze/10 text-bronze"><Lock className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-bold hover:text-bronze">{c.title}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{previewLabel(c.orgName)} · {fa(c.chapters)} فصل</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

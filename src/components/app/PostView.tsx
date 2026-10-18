@@ -8,7 +8,9 @@ import {
 import type { LessonSection } from "@/lib/law/types";
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
+import { VisibilityBadge } from "./VisibilityPicker";
 import { requestAuthPrompt } from "@/lib/auth-prompt";
+import { ThumbImg } from "./common";
 import { fa } from "@/lib/fa";
 import { categoryLabel } from "@/lib/social-shared";
 import { useTargetRating } from "@/lib/social-client";
@@ -28,6 +30,9 @@ interface PostData {
   updatedAt: string;
   author: { id: string; username: string; displayName: string; bio: string; avatarUrl?: string | null };
   canManage: boolean;
+  /** سطح دسترسی (۰۰۷/۰۰۸) و مرکز منتسب — برای نشان «مخصوص دانشجویان مرکز» */
+  visibility?: string;
+  org?: { id: string; name: string; slug: string; logoUrl?: string | null } | null;
 }
 interface CommentItem {
   id: string;
@@ -263,16 +268,16 @@ export function PostView({ id }: { id: string }) {
           )}
         </div>
 
-        <h1 className="mt-4 text-2xl font-extrabold leading-relaxed">{data.title}</h1>
+        <h1 className="mt-4 text-2xl font-extrabold leading-relaxed">
+          {data.title} <VisibilityBadge value={(data as PostData & { visibility?: string }).visibility} orgName={data.org?.name ?? ""} />
+        </h1>
         {data.summary && <p className="mt-2 leading-loose text-muted-foreground">{data.summary}</p>}
 
         {/* تصویر شاخص آپلودی مدرس */}
         {typeof data.thumbnail === "string" && data.thumbnail.trim() !== "" && (
-          <img
+          <ThumbImg
             src={data.thumbnail}
             alt=""
-            dir="ltr"
-            loading="lazy"
             className="mt-4 max-h-[340px] w-full rounded-2xl border border-border object-cover shadow-card"
           />
         )}

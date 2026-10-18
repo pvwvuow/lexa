@@ -8,6 +8,7 @@ import {
 import type { SectionType, LawRef, LessonSection } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
 import { goBack } from "@/lib/router";
+import { useMediaUrl } from "@/lib/cloud-api/visibility";
 
 /** دکمهٔ بازگشت به صفحهٔ قبل — در سرصفحهٔ همهٔ زیرصفحه‌ها یکدست استفاده می‌شود */
 export function BackButton({ label = "بازگشت" }: { label?: string }) {
@@ -926,4 +927,12 @@ export function ImeSearchInput({
   }), []);
 
   return <input ref={ref} defaultValue="" data-imesearch={sid} {...rest} />;
+}
+
+/** تصویر محتوای مدرس — نشانی‌های lexa-org:// (رسانهٔ خصوصی مرکز) با لینک امضاشده باز می‌شوند؛
+ *  اگر خواننده دسترسی نداشته باشد چیزی رندر نمی‌شود. URLهای عادی سرِ جایشان می‌مانند. */
+export function ThumbImg({ src, alt = "", className }: { src?: string | null; alt?: string; className?: string }) {
+  const url = useMediaUrl(src);
+  if (!url) return null;
+  return <img src={url} alt={alt} dir="ltr" loading="lazy" referrerPolicy="no-referrer" className={className} />;
 }

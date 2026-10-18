@@ -20,6 +20,7 @@ import { useApp } from "./store";
 import {
   sbUser, sbPushState, sbPullState, collectLocal, applyLocal, onAuthChange,
 } from "./supabase";
+import { pruneLostAccess } from "./cloud-api/visibility";
 
 // توجه: sbUser باید «همراه با تغییر نشست» خوانده شود — uidOf در هر فراخوانی تازه است
 
@@ -164,10 +165,15 @@ export function useCloudAutoSync() {
       schedulePush(2500);
     });
 
+    // نسخه‌های آفلاین دوره‌های کلاسی/مرکزی که دسترسی به آن‌ها تمام شده، از دستگاه پاک شوند
+    void pruneLostAccess();
+
     // ۳) پس از ورود وسط نشست (دیالوگ/کارت ابر خودش pull/push اولیه را می‌زند) —
     //    فقط محافظ بوت را پاک کنیم تا رفرشِ اعمالِ ابر یک‌باره ممکن باشد
     const off = onAuthChange(() => {
       try { sessionStorage.removeItem(BOOT_GUARD); } catch { /* ignore */ }
+      // خروج/تعویض حساب یا تغییر وضعیت دانشجو: نسخه‌های بی‌دسترسی پاک شوند
+      void pruneLostAccess();
     });
 
     return () => {

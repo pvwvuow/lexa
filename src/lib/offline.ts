@@ -99,6 +99,8 @@ export interface OfflineCardCourse {
   _categories?: string[];
   _status?: string;
   _updatedAt?: string;
+  /** سطح دسترسی دورهٔ مدرس (۰۰۷/۰۰۸) — مبنای پاک‌سازی نسخهٔ آفلاین با از دست رفتن دسترسی */
+  _visibility?: string;
   teacher: { id: string; username: string; displayName: string; avatarUrl?: string | null };
 }
 

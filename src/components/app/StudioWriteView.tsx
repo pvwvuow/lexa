@@ -29,9 +29,12 @@ import {
   useHistoryState, useEditorShortcuts,
 } from "./studio-editor";
 import { OrgPublishPicker } from "./OrgView";
+import { VisibilityPicker } from "@/components/app/VisibilityPicker";
+import { asVisibility, visibilityProblem } from "@/lib/cloud-api/visibility";
+import { usePublishOrgs } from "@/lib/cloud-api/orgs";
 
-type PostD = PostDraft & { orgId?: string };
-type CourseD = CourseDraft & { orgId?: string };
+type PostD = PostDraft & { orgId?: string; visibility?: string };
+type CourseD = CourseDraft & { orgId?: string; visibility?: string; allowPreview?: boolean };
 
 /* ── محافظ دسترسی: فقط استاد/مدیر ── */
 function TeacherOnly({ children }: { children: React.ReactNode }) {
@@ -210,6 +213,7 @@ function WritePostPage({ id }: { id?: string }) {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
   const [tab, setTab] = React.useState<PostTab>("content");
+  const { orgs: publishOrgs } = usePublishOrgs();
   const [mobileView, setMobileView] = React.useState<"edit" | "preview">("edit");
   const [showPreview, setShowPreview] = React.useState(true);
   const [focusId, setFocusId] = React.useState<string | null>(null);
@@ -219,7 +223,7 @@ function WritePostPage({ id }: { id?: string }) {
   React.useEffect(() => {
     let alive = true;
     (async () => {
-      if (isNew) { h.reset({ ...EMPTY_POST, orgId: "" }); return; }
+      if (isNew) { h.reset({ ...EMPTY_POST, orgId: "", visibility: "public" }); return; }
       try {
         const res = await fetch(`/api/posts/${id}`);
         const j = await res.json();
@@ -233,6 +237,7 @@ function WritePostPage({ id }: { id?: string }) {
           quiz: quizPayloadToDraft(j.post.quiz ?? []),
           blocks: (j.post.blocks as LessonSection[]) ?? [],
           orgId: j.post.orgId ?? "",
+          visibility: asVisibility(j.post.visibility),
         });
       } catch (e) {
         if (alive) setErr(e instanceof Error ? e.message : "خطا در بارگذاری مطلب");
@@ -261,6 +266,8 @@ function WritePostPage({ id }: { id?: string }) {
     const { errors } = countIssues(d.blocks);
     const valid = d.blocks.filter((s) => !sectionIssues(s).some((i) => i.level === "error"));
     if (!valid.length) { setErr("دست‌کم یک بخش کامل لازم است — چک‌لیست انتشار را ببین."); setTab("content"); return; }
+    const visProblem = visibilityProblem(asVisibility(d.visibility), d.orgId);
+    if (visProblem) { setErr(visProblem); setTab("meta"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     if (errors > 0 && !window.confirm(`${fa(errors)} ایراد در بخش‌ها هست؛ بخش‌های ناقص هنگام ذخیره حذف یا ساده می‌شوند. با همین وضع ذخیره شود؟`)) return;
     setBusy(true); setErr("");
     try {
@@ -350,8 +357,13 @@ function WritePostPage({ id }: { id?: string }) {
                   <label className={labelCls}>شاخه‌های کتابخانهٔ عمومی (چند گزینه مجاز است)</label>
                   <CategoryChips value={d.categories} onChange={(cats) => set((x) => ({ ...x, categories: cats, category: cats[0] ?? "" }))} />
                 </div>
-                <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => set((x) => ({ ...x, thumbnail }))} />
+                <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => set((x) => ({ ...x, thumbnail }))}
+                  orgId={d.orgId || null} orgMedia={["org", "class"].includes(asVisibility(d.visibility))} />
                 <OrgPublishPicker value={d.orgId ?? ""} onChange={(orgId) => set((x) => ({ ...x, orgId }))} />
+                <VisibilityPicker kind="post" value={asVisibility(d.visibility)}
+                  onChange={(visibility) => set((x) => ({ ...x, visibility }))}
+                  orgId={d.orgId ?? null} onOrgChange={(orgId) => set((x) => ({ ...x, orgId: orgId ?? undefined }))}
+                  orgs={publishOrgs} />
               </section>
             )}
 
@@ -487,6 +499,7 @@ function WriteCoursePage({ id }: { id?: string }) {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
   const [sel, setSel] = React.useState<Sel>({ kind: "info" });
+  const { orgs: publishOrgs } = usePublishOrgs();
   const [lessonTab, setLessonTab] = React.useState<"content" | "quiz" | "preview">("content");
   const [outlineOpen, setOutlineOpen] = React.useState(false);
   const [focusId, setFocusId] = React.useState<string | null>(null);
@@ -496,7 +509,7 @@ function WriteCoursePage({ id }: { id?: string }) {
   React.useEffect(() => {
     let alive = true;
     (async () => {
-      if (isNew) { h.reset({ ...EMPTY_COURSE, chapters: [], orgId: "" }); return; }
+      if (isNew) { h.reset({ ...EMPTY_COURSE, chapters: [], orgId: "", visibility: "public", allowPreview: false }); return; }
       try {
         const res = await fetch(`/api/tcourses/${id}`);
         const j = await res.json();
@@ -522,6 +535,8 @@ function WriteCoursePage({ id }: { id?: string }) {
           thumbnail: (c._thumbnail as string) ?? "",
           chapters,
           orgId: (c._orgId as string) ?? "",
+          visibility: asVisibility(c._visibility),
+          allowPreview: c._allowPreview === true,
         });
       } catch (e) {
         if (alive) setErr(e instanceof Error ? e.message : "خطا در بارگذاری دوره");
@@ -575,10 +590,12 @@ function WriteCoursePage({ id }: { id?: string }) {
         quiz: draftToQuizPayload(c.quiz),
         lessons: c.lessons.map((l) => ({ title: l.title, minutes: l.minutes, sections: l.sections, quiz: draftToQuizPayload(l.quiz) })),
       }));
+      const visProblem = visibilityProblem(asVisibility(d.visibility), d.orgId);
+      if (visProblem) { setErr(visProblem); setSel({ kind: "info" }); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       const res = await fetch("/api/tcourses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...d, orgId: d.orgId || null, chapters }),
+        body: JSON.stringify({ ...d, orgId: d.orgId || null, chapters, visibility: d.visibility ?? "public", allowPreview: d.allowPreview === true }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j.error ?? "ذخیره ناموفق بود.");
@@ -687,7 +704,8 @@ function WriteCoursePage({ id }: { id?: string }) {
                 <label className={labelCls}>توضیح دوره</label>
                 <textarea value={d.description} onChange={(e) => mutate((x) => ({ ...x, description: e.target.value }), "desc")} rows={3} maxLength={2000} className={`${inputCls} resize-y`} />
               </div>
-              <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))} />
+              <ThumbnailPicker value={d.thumbnail} onChange={(thumbnail) => mutate((x) => ({ ...x, thumbnail }))}
+                orgId={d.orgId || null} orgMedia={["org", "class"].includes(asVisibility(d.visibility))} />
               <div>
                 <label className={labelCls}>شاخه‌های کتابخانهٔ عمومی (چند گزینه مجاز است)</label>
                 <CategoryChips value={d.categories} onChange={(cats) => mutate((x) => ({ ...x, categories: cats, category: cats[0] ?? "other" }))} />
@@ -707,6 +725,11 @@ function WriteCoursePage({ id }: { id?: string }) {
                 </div>
               </div>
               <OrgPublishPicker value={d.orgId ?? ""} onChange={(orgId) => mutate((x) => ({ ...x, orgId }))} />
+              <VisibilityPicker kind="course" value={asVisibility(d.visibility)}
+                onChange={(visibility) => mutate((x) => ({ ...x, visibility }))}
+                orgId={d.orgId ?? null} onOrgChange={(orgId) => mutate((x) => ({ ...x, orgId: orgId ?? undefined }))}
+                orgs={publishOrgs} allowPreview={d.allowPreview === true}
+                onAllowPreview={(allowPreview) => mutate((x) => ({ ...x, allowPreview }))} />
               <div className="rounded-xl border border-dashed border-bronze/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
                 <p className="mb-1 flex items-center gap-1.5 font-extrabold text-bronze"><Sparkles className="h-3.5 w-3.5" /> نقشهٔ ساخت</p>
                 از فهرست کنار صفحه فصل بساز، داخل هر فصل جلسه اضافه کنید و روی هر جلسه بزنید تا فقط همان باز شود. الگوی پیشنهادی هر جلسه: درآمد ← مفهوم ← مستند قانونی ← نکات ← مثال یا جدول ← سؤال ← جمع‌بندی + آزمون.

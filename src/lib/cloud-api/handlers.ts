@@ -148,7 +148,7 @@ async function myFollowIds(me: PublicUser | null): Promise<Set<string>> {
 // --- row shapes ---
 interface OrgMini { id: string; name: string; slug: string; logo_url: string }
 interface PostRow {
-  id: string; author_id: string; org_id: string | null; title: string; summary: string; tags: string;
+  id: string; author_id: string; org_id: string | null; visibility?: string; title: string; summary: string; tags: string;
   category: string; categories: unknown; thumbnail: string; quiz?: unknown; blocks?: unknown;
   created_at: string; updated_at: string;
   author?: Partial<ProfileRow> | null;
@@ -156,7 +156,8 @@ interface PostRow {
   lexa_comments?: { count: number }[];
 }
 interface CourseRow {
-  id: string; teacher_id: string; org_id: string | null; title: string; tagline: string; description: string;
+  id: string; teacher_id: string; org_id: string | null; visibility?: string; allow_preview?: boolean;
+  title: string; tagline: string; description: string;
   icon: string; accent: string; category: string; categories: unknown; status: string; thumbnail: string;
   chapters: unknown; published_at: string | null; created_at: string; updated_at: string;
   teacher?: Partial<ProfileRow> | null;
@@ -170,7 +171,11 @@ interface CourseRow {
 const AUTHOR_EMBED = "author:lexa_profiles!lexa_posts_author_id_fkey(id,username,display_name,avatar_url,bio)";
 const TEACHER_EMBED = "teacher:lexa_profiles!lexa_tcourses_teacher_id_fkey(id,username,display_name,avatar_url)";
 const ORG_EMBED = "org:lexa_orgs(id,name,slug,logo_url)";
-const POST_CARD_COLS = `id,author_id,org_id,title,summary,tags,category,categories,thumbnail,created_at,updated_at,${AUTHOR_EMBED},${ORG_EMBED},lexa_comments(count)`;
+const POST_CARD_COLS = `id,author_id,org_id,visibility,title,summary,tags,category,categories,thumbnail,created_at,updated_at,${AUTHOR_EMBED},${ORG_EMBED},lexa_comments(count)`;
+
+/* visibility level of a post/course (007 + 008); unknown values fall back to public */
+const VISIBILITY_LEVELS = ["public", "users", "org", "class", "draft"];
+const safeVisibility = (v: unknown): string => (typeof v === "string" && VISIBILITY_LEVELS.includes(v) ? v : "public");
 
 function orgOut(o: OrgMini | null | undefined) {
   return o ? { id: o.id, name: o.name, slug: o.slug, logoUrl: o.logo_url || null } : null;
@@ -198,6 +203,7 @@ function postCard(p: PostRow, agg?: RatingInfo) {
     score: feedScore(p.created_at, agg),
     author: { id: author.id, username: author.username, displayName: author.displayName, avatarUrl: author.avatarUrl },
     org: orgOut(p.org),
+    _visibility: safeVisibility(p.visibility),
   };
 }
 
@@ -212,7 +218,11 @@ function courseOf(row: CourseRow): Course & Record<string, unknown> {
     },
     teacher,
   );
-  return { ...c, _updatedAt: row.updated_at, _orgId: row.org_id, _org: orgOut(row.org) } as Course & Record<string, unknown>;
+  return {
+    ...c,
+    _updatedAt: row.updated_at, _orgId: row.org_id, _org: orgOut(row.org),
+    _visibility: safeVisibility(row.visibility), _allowPreview: row.allow_preview === true,
+  } as Course & Record<string, unknown>;
 }
 
 function courseCard(row: CourseRow, me: PublicUser | null, lib: Set<string>, students: Map<string, number>, agg?: RatingInfo) {
@@ -415,6 +425,7 @@ async function myPosts(): Promise<CloudRes> {
       quizCount: Array.isArray(p.quiz) ? p.quiz.length : 0,
       createdAt: p.created_at, updatedAt: p.updated_at,
       commentsCount: p.lexa_comments?.[0]?.count ?? 0,
+      visibility: safeVisibility(p.visibility),
       org: orgOut(p.org),
     })),
   });
@@ -434,6 +445,7 @@ async function createPost(req: CloudReq): Promise<CloudRes> {
   const rows = await sbInsert<{ id: string }>("lexa_posts", {
     author_id: me.id,
     org_id: await orgIdFrom(b),
+    visibility: safeVisibility(b.visibility),
     title,
     summary: String(b.summary ?? "").trim().slice(0, 280),
     tags: String(b.tags ?? "").trim().slice(0, 120),
@@ -465,6 +477,7 @@ async function getPost(id: string): Promise<CloudRes> {
       createdAt: p.created_at, updatedAt: p.updated_at,
       author: { ...author, bio: p.author?.bio || "" },
       orgId: p.org_id, org: orgOut(p.org),
+      visibility: safeVisibility(p.visibility),
       canManage: !!me && (me.id === p.author_id || me.role === "admin"),
     },
     comments: (() => {
@@ -506,6 +519,7 @@ async function putPost(id: string, req: CloudReq): Promise<CloudRes> {
   if ("thumbnail" in b) patch.thumbnail = safeThumbnail(b.thumbnail);
   if ("quiz" in b) patch.quiz = sanitizeQuiz(b.quiz);
   if ("orgId" in b) patch.org_id = await orgIdFrom(b);
+  if ("visibility" in b) patch.visibility = safeVisibility(b.visibility);
   await sbUpdate("lexa_posts", `id=eq.${id}`, patch, "id");
   return ok({ ok: true });
 }
@@ -625,6 +639,8 @@ async function saveCourse(req: CloudReq): Promise<CloudRes> {
     thumbnail: safeThumbnail(b.thumbnail),
     chapters,
     org_id: await orgIdFrom(b),
+    visibility: safeVisibility(b.visibility),
+    allow_preview: b.allow_preview === true,
   };
   const id = typeof b.id === "string" ? b.id : "";
   if (id) {

@@ -46,6 +46,7 @@ import { MobileMenuDrawer } from "./MobileMenuDrawer";
 import { UpdateBanner } from "./UpdateBanner";
 import { ApkUpdateBanner } from "./ApkUpdateBanner";
 import { OrgFirstLoginGate } from "./OrgFirstLoginGate";
+import { StudentClassesView } from "./StudentClassesView";
 
 type NavMode = "expanded" | "rail";
 
@@ -498,6 +499,7 @@ export function AppShell() {
           {route.view === "post" && (SOCIAL_OFF ? <ApkUnavailable title="مطلب مدرس" /> : <PostView id={route.id} />)}
           {route.view === "org" && (SOCIAL_OFF ? <ApkUnavailable title="مراکز آموزشی" /> : <OrgView key={route.id ?? "hub"} id={route.id} />)}
           {route.view === "library" && <PublicLibraryView />}
+          {route.view === "classes" && (SOCIAL_OFF ? <ApkUnavailable title="کلاس‌های من" /> : <StudentClassesView />)}
           {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && (SOCIAL_OFF ? <ApkUnavailable title="پروفایل مدرس" /> : <TeacherProfileView id={route.id} />)}
           {/* پنل مدیریت: خودِ AdminView بر اساس IS_APK کنسول ابری (Supabase) یا نمای سروری را رندر می‌کند — گیت اینجا نسخهٔ ابری را هم می‌بست */}

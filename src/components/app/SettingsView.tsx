@@ -32,7 +32,7 @@ import {
   kindLabel,
   type UpdateManifest, type PackStatus, type InstalledPack,
 } from "@/lib/updater";
-import { UserAvatar } from "./common";
+import { UserAvatar , ThumbImg } from "./common";
 import { CloudSyncCard } from "./CloudSyncCard";
 import { AppUpdateCard } from "./AppUpdateCard";
 import { RedeemOrgCode } from "./RedeemOrgCode";
@@ -1097,7 +1097,7 @@ function OfflineSettings() {
               return (
                 <li key={key} className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
                   {m.kind === "post" && card.thumbnail ? (
-                    <img src={card.thumbnail} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                    <ThumbImg src={card.thumbnail} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
                   ) : (
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-bronze/10 text-bronze">
                       {m.kind === "post" ? <FileText className="h-4.5 w-4.5" /> : <BookOpen className="h-4.5 w-4.5" />}

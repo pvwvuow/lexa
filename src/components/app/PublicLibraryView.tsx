@@ -3,7 +3,7 @@
 // --- کتابخانهٔ عمومی — همهٔ دوره‌ها و مطالب اساتید به تفکیک شاخه ---
 import * as React from "react";
 import {
-  LibraryBig, BookPlus, BookCheck, Loader2, GraduationCap, Star,
+  LibraryBig, BookPlus, BookCheck, Loader2, GraduationCap, Star, Lock,
   MessageCircle, Clock3, LogIn, Users, Layers3, Trash2, Sparkles, Landmark, CircleCheck,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
@@ -17,6 +17,8 @@ import { usePublicLibrary, toggleBuiltinHidden, addTCourseLocally, errText, type
 import { listInstalledPacks } from "@/lib/updater";
 import { SOCIAL_OFF } from "@/lib/app-mode";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
+import { VisibilityBadge } from "./VisibilityPicker";
+import { coursePreviews, previewLabel, type CoursePreview } from "@/lib/cloud-api/visibility";
 import { OfflineDownloadButton } from "./offline-ui";
 
 /** افزودن/حذف یک دوره از کتابخانهٔ من؛ true یعنی اضافه شد */
@@ -96,7 +98,10 @@ function CourseCardLib({
           <CourseIcon icon={c.icon} className="h-4.5 w-4.5 -rotate-45 text-bronze" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-bold">{c.title}</p>
+          <p className="truncate font-bold">
+            {c.title}{" "}
+            <VisibilityBadge value={(c as TCourseCard & { _visibility?: string })._visibility} orgName={(c as TCourseCard & { _org?: { name?: string } | null })._org?.name ?? ""} />
+          </p>
           <p className="truncate text-xs text-muted-foreground">{c.tagline}</p>
           {isPrep && <p className="mt-1"><PrepBadge /></p>}
           {(c._categories?.length ?? 0) > 0 && (
@@ -542,8 +547,42 @@ export function PublicLibraryView() {
               </div>
             )}
           </section>
+
+          <OrgPreviewSection />
         </>
       )}
     </div>
+  );
+}
+
+/** کارت‌های قفل‌شدهٔ دوره‌های مرکزهای آموزشی با پیش‌نمایش عمومی (۰۰۷) — در کتابخانهٔ عمومی */
+function OrgPreviewSection() {
+  const [rows, setRows] = React.useState<CoursePreview[]>([]);
+  React.useEffect(() => {
+    let alive = true;
+    coursePreviews(null, 12)
+      .then((r) => { if (alive) setRows(r); })
+      .catch(() => { /* آفلاین یا خالی — بخش دیده نمی‌شود */ });
+    return () => { alive = false; };
+  }, []);
+  if (!rows.length) return null;
+  return (
+    <section className="space-y-3" dir="rtl">
+      <h2 className="flex items-center gap-2 text-lg font-bold">
+        <GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های مراکز آموزشی (پیش‌نمایش)
+      </h2>
+      <div className="grid gap-3 md:grid-cols-2">
+        {rows.map((c) => (
+          <button key={c.id} onClick={() => navigate({ view: "course", id: c.id })}
+            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 text-start shadow-card transition-colors hover:border-bronze/50">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-bronze/10 text-bronze"><Lock className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-bold hover:text-bronze">{c.title}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{previewLabel(c.orgName)} · {fa(c.chapters)} فصل</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
