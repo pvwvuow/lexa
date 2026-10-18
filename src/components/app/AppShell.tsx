@@ -49,6 +49,10 @@ import { UpdateBanner } from "./UpdateBanner";
 import { ApkUpdateBanner } from "./ApkUpdateBanner";
 import { OrgFirstLoginGate } from "./OrgFirstLoginGate";
 import { StudentClassesView } from "./StudentClassesView";
+// فاز A1 طرح پنل مدیریت — کنسول تمام‌صفحهٔ ادمین پلتفرم و خانهٔ وابسته به نقش (docs/ADMIN_A1_SETUP.md §3.1)
+import { PlatformConsole } from "@/components/console/PlatformConsole";
+import { WorkspaceHome } from "@/components/console/WorkspaceHome";
+import { usePlatformConsoleActive } from "@/lib/workspace";
 
 type NavMode = "expanded" | "rail";
 
@@ -162,6 +166,8 @@ function ApkUnavailable({ title }: { title: string }) {
 export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
+  // فاز A1 — ادمین ابری به‌جای پوستهٔ یادگیری، کنسول پلتفرم را می‌بیند (خانه یا #/admin)
+  const consoleOn = usePlatformConsoleActive(route.view, auth.user?.role);
   useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
   // فاز ۴ — ردیاب زمان مطالعهٔ فعال (صفحه پیدار + فعالیت اخیر؛ صف آفلاین داخلی خودش)
   React.useEffect(() => {
@@ -271,6 +277,18 @@ export function AppShell() {
       <div className="grid min-h-screen place-items-center bg-background">
         <div className="flex items-center gap-3 text-bronze"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-bronze" /><span className="font-bold">Lexa</span></div>
       </div>
+    );
+  }
+
+  // فاز A1 — کنسول پلتفرم تمام‌صفحه است: بدون سایدبار، داک و نوار بالا؛ فقط پرچم‌های سراسری می‌مانند
+  if (consoleOn) {
+    return (
+      <>
+        <PlatformConsole />
+        <OrgFirstLoginGate />
+        <UpdateBanner />
+        <ApkUpdateBanner />
+      </>
     );
   }
 
@@ -490,7 +508,7 @@ export function AppShell() {
             <BackButton />
           </div>
         )}
-        {route.view === "home" && <DashboardView />}
+        {route.view === "home" && <WorkspaceHome learningHome={<DashboardView />} />}
           {route.view === "study" && <StudyListView />}
           {/* key=id: با رفتن از یک دوره/پرونده/دفترچه به دیگری، وضعیت قبلی نمی‌ماند */}
           {route.view === "course" && <CourseView key={route.id} id={route.id} />}

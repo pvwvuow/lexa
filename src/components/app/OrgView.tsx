@@ -14,6 +14,7 @@ import {
   Building2, Loader2, Search, Plus, Check, X, Users, GraduationCap, Settings2, ShieldCheck,
   MailPlus, Mail, Globe, MapPin, CalendarClock, BadgeCheck, UserPlus, LogIn, Newspaper,
   Crown, Trash2, Upload, ArrowLeft, Send, Clock3, Sparkles, Lock, Eye, ArrowLeftRight, KeyRound, Link2, Gauge,
+  BookOpen, UserCog, PlugZap,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
@@ -37,7 +38,8 @@ import { OrgApiPanel } from "./OrgApiPanel"; // فاز ۵ — کلیدهای API
 import { ComparisonReportPanel } from "./ComparisonReportPanel"; // فاز ۶ — گزارش مقایسه
 import { OrgConnectorPanel } from "./OrgConnectorPanel"; // فاز ۷ — کانکتور
 import { coursePreviews, previewLabel, type CoursePreview } from "@/lib/cloud-api/visibility";
-import { adminSetOrgAccounts, ORG_CODE_RE } from "@/lib/cloud-api/org-accounts";
+import { adminSetOrgAccounts, ORG_CODE_RE, orgCapacity, type OrgCapacity } from "@/lib/cloud-api/org-accounts";
+import { CentreWorkspace } from "@/components/console/CentreWorkspace"; // فاز A1 — قالب حرفه‌ای پنل مرکز (docs/ADMIN_A1_SETUP.md §3.3)
 import { UserAvatar, CourseIcon } from "./common";
 import { inputCls, labelCls } from "./StudioView";
 
@@ -619,6 +621,16 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   const canManage = signed && (auth.user?.role === "admin" || (!!me && me.status === "active" && (me.role === "owner" || me.role === "manager")));
   const isOwner = signed && (auth.user?.role === "admin" || (!!me && me.status === "active" && me.role === "owner"));
 
+  // فاز A1 — ظرفیت صندلی‌ها برای سربرگ پنل مرکز (فقط مدیر)
+  const [cap, setCap] = React.useState<OrgCapacity | null>(null);
+  React.useEffect(() => {
+    const oid = org?.id;
+    if (!oid || !canManage) { setCap(null); return; }
+    let live = true;
+    orgCapacity(oid).then((c) => { if (live) setCap(c); }).catch(() => { if (live) setCap(null); });
+    return () => { live = false; };
+  }, [org?.id, canManage]);
+
   if (org === undefined) {
     return <div className="flex justify-center py-24 text-bronze"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
@@ -656,6 +668,75 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
       { key: "settings" as OrgTab, label: "تنظیمات پنل", Icon: Settings2 },
     ] : []),
   ];
+
+  // فاز A1 — اعضای فعال (مالک/مدیر/مدرس) پنل را در قالب حرفه‌ای CentreWorkspace می‌بینند؛
+  // بازدیدکننده همان نمای عمومی قبلی را می‌بیند (docs/ADMIN_A1_SETUP.md §3.3)
+  const staff = isMember || canManage;
+  const allowedTabs = tabs.map((t) => t.key);
+  const groups = [
+    { label: "پیشخوان", items: [{ key: "dash", label: "داشبورد", icon: Gauge }] },
+    { label: "آموزش", items: [
+      { key: "classes", label: "ترم‌ها و کلاس‌ها", icon: GraduationCap },
+      { key: "content", label: "دوره‌ها و مطالب", icon: BookOpen },
+    ] },
+    { label: "افراد", items: [
+      { key: "students", label: "دانشجویان و حساب‌ها", icon: Users },
+      { key: "manage", label: "مدرسان و مدیران", icon: UserCog },
+      { key: "teachers", label: "صفحهٔ عمومی مدرسان", icon: Globe, badge: active.length },
+    ] },
+    { label: "گزارش‌ها", items: [{ key: "compare", label: "گزارش مقایسه", icon: ArrowLeftRight }] },
+    { label: "اتصال سامانه", items: [
+      { key: "api", label: "کلیدهای API", icon: KeyRound },
+      { key: "connect", label: "کانکتور", icon: PlugZap },
+    ] },
+    { label: "تنظیمات", items: [{ key: "settings", label: "تنظیمات پنل", icon: Settings2 }] },
+  ]
+    .map((g) => ({ ...g, items: g.items.filter((i) => allowedTabs.includes(i.key as OrgTab)) }))
+    .filter((g) => g.items.length);
+  const roleLabel = !signed || !me
+    ? "مدیر Lexa"
+    : me.role === "owner" ? "مالک مرکز" : me.role === "manager" ? "مدیر پنل" : "مدرس";
+
+  if (staff) {
+    return (
+      <>
+        <div className="mx-auto w-full max-w-7xl px-4 pt-4 sm:px-6">
+          <button onClick={() => navigate({ view: "org" })} className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-bronze">
+            <ArrowLeft className="h-3.5 w-3.5 rotate-180" /> دانشگاه‌ها و موسسه‌ها
+          </button>
+        </div>
+        <CentreWorkspace
+          centre={{
+            name: org.name, slug: org.slug, logoUrl: org.logoUrl || undefined,
+            kindLabel: orgKindLabel(org.kind), city: org.city, status: org.status,
+            planLabel: ORG_PLANS.find((p) => p.key === org.plan)?.label, expiresAt: org.expiresAt,
+          }}
+          roleLabel={roleLabel}
+          groups={groups}
+          active={tab}
+          onSelect={(k) => setTab(k as OrgTab)}
+          capacity={cap ? { students: cap.studentsUsed, studentSeats: cap.studentSeats, teachers: cap.teachersUsed, teacherSeats: cap.teacherSeats } : null}
+        >
+          {canManage && !isOrgLive(org) && (
+            <p className="mb-4 rounded-xl bg-amber-400/15 px-4 py-2.5 text-[12px] leading-relaxed text-amber-800 dark:text-amber-300">
+              {org.status === "pending" ? "پنل در انتظار فعال‌سازی است — پس از هماهنگی با پشتیبانی Lexa فعال می‌شود و تا آن زمان دعوت مدرس ممکن نیست." : "پنل فعال نیست (معلق یا منقضی). برای تمدید با پشتیبانی Lexa تماس بگیرید."}
+              {org.adminNote ? ` یادداشت Lexa: ${org.adminNote}` : ""}
+            </p>
+          )}
+          {tab === "dash" && <OrgDashboardPanel orgId={org.id} orgName={org.name} canManage={canManage} />}
+          {tab === "teachers" && (membersErr ? <RetryBox msg={membersErr} onRetry={() => void load()} /> : <OrgTeachersTab members={active} />)}
+          {tab === "content" && <OrgContentTab org={org} canManage={canManage} />}
+          {tab === "classes" && <OrgClassesPanel orgId={org.id} orgName={org.name} canManage={canManage} isOwner={isOwner} />}
+          {tab === "students" && canManage && <OrgStudentsPanel orgId={org.id} orgName={org.name} />}
+          {tab === "compare" && canManage && <ComparisonReportPanel orgId={org.id} orgName={org.name} />}
+          {tab === "api" && canManage && <OrgApiPanel orgId={org.id} />}
+          {tab === "connect" && canManage && <OrgConnectorPanel orgId={org.id} />}
+          {tab === "manage" && canManage && <OrgManageTab org={org} members={members} isOwner={isOwner} onChanged={() => void load()} />}
+          {tab === "settings" && canManage && <OrgSettingsTab org={org} onSaved={(o) => setOrg(o)} />}
+        </CentreWorkspace>
+      </>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-28 pt-6 sm:px-6">
