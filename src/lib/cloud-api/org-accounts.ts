@@ -277,7 +277,7 @@ const HEADER_KEYS: Record<keyof PersonInput, string[]> = {
   entryYear: ["entry_year", "entry", "year", "ورودی", "سال ورود"],
   existingAccount: ["existing", "existing_account", "has_account", "حساب قبلی", "حساب دارد"],
 };
-const norm = (s: string) => s.toLowerCase().replace(/[\\u200c\s_]+/g, " ").trim();
+const norm = (s: string) => s.toLowerCase().replace(/[\u200c\s_]+/g, " ").trim();
 
 /** map CSV rows (first row = headers) to people; unknown columns are ignored */
 export function peopleFromCsv(rows: string[][]): { people: PersonInput[]; missing: string[] } {
