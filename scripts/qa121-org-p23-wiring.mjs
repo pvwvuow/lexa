@@ -30,11 +30,19 @@ await probe(APK, "APK", ["/classes", "/library", "/org"]);
 
 // B) built bundles must carry the new wiring strings
 function bundleHas(baseDir, needles) {
-  const chunksDir = join(baseDir, "_next", "static", "chunks");
+  // APK export: <base>/_next/static/chunks — web standalone: <base>/.next/static/chunks
+  const candidates = [
+    join(baseDir, "_next", "static", "chunks"),
+    join(baseDir, ".next", "static", "chunks"),
+  ];
   let hay = "";
-  try {
-    for (const f of readdirSync(chunksDir)) if (f.endsWith(".js")) hay += readFileSync(join(chunksDir, f), "utf8");
-  } catch { return false; }
+  for (const chunksDir of candidates) {
+    try {
+      for (const f of readdirSync(chunksDir)) if (f.endsWith(".js")) hay += readFileSync(join(chunksDir, f), "utf8");
+      if (hay) break;
+    } catch { /* try next layout */ }
+  }
+  if (!hay) return false;
   return needles.every((n) => hay.includes(n));
 }
 const NEEDLES = [
