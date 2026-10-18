@@ -2180,3 +2180,22 @@ Stage Summary:
 - Supabase DB side of Task 50 is DONE & verified (006 applied, schema exact, RLS locked).
 - Remaining blockers: (a) org-auth function deploy — needs suppat_ PAT from user OR user deploys via dashboard/CLI; (b) PR #19 still DRAFT, 4 files missing (first-login page, students panel, 2 docs) — «ادامه» posted on PR.
 - New capability: service key enables full DB audit + auth admin + function invoke testing once deployed.
+
+---
+Task ID: 50-prep-3
+Agent: Z (main)
+Task: org-auth edge function deployed via Management API + TOTP confirmed
+
+Work Log:
+- User created Supabase PAT (stored in gitignored .supabase-pat; GitHub push protection had blocked earlier push containing sb_secret — script now reads keys from gitignored files only, amended commit c4438a7 pushed).
+- PAT validated: project "lexa" (eu-north-1, ACTIVE_HEALTHY), 0 functions before.
+- Fetched supabase/functions/org-auth/index.ts (533 lines) from PR branch feat/org-accounts-p1.
+- Deployed via scripts/deploy-org-auth.py (Management API POST /v1/projects/{ref}/functions, verify_jwt=false) -> HTTP 201, slug=org-auth, status=ACTIVE, verify_jwt=False.
+- Invoke probes (2x): POST {} -> {"error":"not_signed_in"} 401; POST {"action":"login"} -> {"error":"bad_credentials"} 401 — function executes, structured app-level errors. lexa_rate_events stayed empty (probes rejected pre-recording).
+- Auth config check: mfa_totp_enroll_enabled=true, mfa_totp_verify_enabled=true, mfa_allow_low_aal=false, phone/webauthn disabled — TOTP ON, aal2 enforced (matches 006 design). No PATCH needed.
+- Function actions: login (no session) + provision/reset_password/set_status/issue_code/set_password (session-checked). Env: falls back to auto-injected SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY; LEXA_INTERNAL_EMAIL_DOMAIN defaults accounts.lexa.invalid.
+
+Stage Summary:
+- Supabase side of Task 50 = 100% DONE: 006 applied+verified (50-prep-2), org-auth deployed+tested, TOTP confirmed ON.
+- Blocked only on PR #19 (still DRAFT, 4 files: first-login page, centre students panel, 2 docs).
+- When PR ready: merge -> wire into pages -> tsc/qa117/qa118/qa119 -> bump 0.10.22/v64/122 -> APK -> rebuild standalone -> stage -> AppImage + win zip (separate) -> Pages -> Release + delta feed -> verify 18/18 -> worklog.

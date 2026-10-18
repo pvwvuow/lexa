@@ -110,3 +110,4 @@ scripts/newbook/*.pdf
 .platform-keep/
 lexa-fix-errors/
 .supabase-secret
+.supabase-pat
