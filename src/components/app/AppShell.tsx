@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Home, BookOpen, Settings, Upload, Scale,
   ChevronsLeft, ChevronsRight, ChevronDown, PlayCircle, ShieldCheck, GraduationCap, PenSquare,
-  LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree, NotebookTabs, Building2,
+  LibraryBig, Landmark, Menu, ScrollText, CloudOff, ListTree, NotebookTabs, Building2, Timer,
 } from "lucide-react";
 import { useRoute, navigate, type Route } from "@/lib/router";
 import { setChromeHidden } from "@/lib/chrome";
@@ -36,6 +36,8 @@ import { PublicLibraryView } from "./PublicLibraryView";
 import { TeacherProfileView } from "./TeacherProfileView";
 import { LawLibraryView } from "./LawLibraryView";
 import { StudyListView } from "./StudyListView";
+import { MyStatsView } from "./MyStatsView";
+import { useStudyBeat } from "@/lib/cloud-api/study";
 import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
@@ -161,6 +163,7 @@ export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
   useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
+  useStudyBeat(!!auth.user); // زمان مطالعهٔ فعال — ضربان هر ۶۰ ثانیه (فاز ۴)
   // دعوت‌های سازمانیِ در انتظار — روی آیتم «مراکز آموزشی» نشان داده می‌شود
   const orgInvites = useOrgInviteCount();
   const orgLabel = orgInvites > 0 ? `مراکز آموزشی (${fa(orgInvites)} دعوت)` : "مراکز آموزشی";
@@ -357,6 +360,8 @@ export function AppShell() {
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
+        {/* آمار من — زمان مطالعهٔ فعال خودم (فاز ۴) */}
+        {auth.user && <SideItem icon={Timer} label="آمار من" rail={rail} active={current === "mystats"} onClick={() => go({ view: "mystats" })} />}
         {/* شبکهٔ مدرسان: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
         {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="مدرسان و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
         {/* پنل مراکز آموزشی: دانشگاه‌ها، مؤسسه‌ها و آموزشگاه‌ها؛ دعوت مدرسان و درخواست حساب مدرس */}
@@ -500,6 +505,7 @@ export function AppShell() {
           {route.view === "org" && (SOCIAL_OFF ? <ApkUnavailable title="مراکز آموزشی" /> : <OrgView key={route.id ?? "hub"} id={route.id} />)}
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "classes" && (SOCIAL_OFF ? <ApkUnavailable title="کلاس‌های من" /> : <StudentClassesView />)}
+          {route.view === "mystats" && <MyStatsView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
           {route.view === "teacher" && (SOCIAL_OFF ? <ApkUnavailable title="پروفایل مدرس" /> : <TeacherProfileView id={route.id} />)}
           {/* پنل مدیریت: خودِ AdminView بر اساس IS_APK کنسول ابری (Supabase) یا نمای سروری را رندر می‌کند — گیت اینجا نسخهٔ ابری را هم می‌بست */}

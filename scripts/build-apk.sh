@@ -16,6 +16,9 @@ trap 'if [ -d .api-parked ]; then rm -rf src/app/api; mv .api-parked src/app/api
 
 echo "[2/5] اکسپورت ایستا (NEXT_PUBLIC_APP_MODE=apk)…"
 rm -rf out
+# بیلد سرور و اکسپورت هر دو در .next می‌نویسند — بدون پاک‌سازی، chunkهای بیلد قبلی
+# در ارجاع صفحات می‌مانند و ChunkLoadError می‌دهد (درس v0.10.24)
+rm -rf .next
 # نسخهٔ بیلد به کلاینت تزریق می‌شود تا به‌روزرسانی درون‌برنامه‌ای بتواند مقایسه کند
 NEXT_PUBLIC_APP_MODE=apk NEXT_PUBLIC_APP_VERSION="${VERSION:-}" bun run build:apk
 

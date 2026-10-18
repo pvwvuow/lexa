@@ -24,6 +24,8 @@ export type Route =
   | { view: "org"; id?: string }
   /** کلاس‌های من — دانشجوی رسمی مرکز (فاز ۳) */
   | { view: "classes" }
+  /** آمار من — زمان مطالعهٔ فعال خودم (فاز ۴) */
+  | { view: "mystats" }
   | { view: "write"; kind: "post" | "course"; id?: string };
 
 export function routeToHash(r: Route): string {
@@ -61,7 +63,7 @@ export function parseHash(h: string): Route {
   if (head === "law") return { view: "law", id: id ? safeDecode(id) : undefined, no: parts[2] ? safeDecode(parts[2]) : undefined };
   if (head === "write" && (parts[1] === "post" || parts[1] === "course"))
     return { view: "write", kind: parts[1], id: parts[2] };
-  if (["cards", "settings", "import", "admin", "teachers", "studio", "library", "study", "classes"].includes(head)) return { view: head as never };
+  if (["cards", "settings", "import", "admin", "teachers", "studio", "library", "study", "classes", "mystats"].includes(head)) return { view: head as never };
   return { view: "home" };
 }
 

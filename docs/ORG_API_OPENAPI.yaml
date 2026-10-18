@@ -1,0 +1,210 @@
+# Lexa Org API — OpenAPI 3.1 (phase 5 of docs/ORG_LEARNING.md)
+#
+# Base URL: https://tldjbpfcibangzmvzwfw.supabase.co/functions/v1/org-api
+#
+# Authentication (every request):
+#   X-Lexa-Key:       lxk_<prefix>          — the key prefix created in the centre panel
+#   X-Lexa-Timestamp: unix seconds (±5 min)
+#   X-Lexa-Signature: hex(HMAC-SHA256(secret, timestamp + "." + sha256hex(rawBody)))
+#                       for GET requests body is empty → sha256hex("") =
+#                       e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+#   X-Lexa-Idempotency: optional, 8..100 chars — POSTs replay the stored answer for 48 h
+#   X-Lexa-Sandbox: 1   optional — validate everything, write nothing
+#
+# Limits: 900 requests / 5 min per centre · 500 rows per POST · errors carry the row index.
+# The secret is shown once at creation and stored only in Supabase Vault.
+openapi: 3.1.0
+info:
+  title: Lexa Org API
+  version: "1.0"
+  description: >
+    Bulk ingest and reports for a centre of Lexa. Duplicate rows are matched by
+    external_id or the centre username and UPDATED (never duplicated). Every change
+    is audited. Reports contain student references (external_id/username), never
+    internal identities.
+servers:
+  - url: https://tldjbpfcibangzmvzwfw.supabase.co/functions/v1/org-api
+paths:
+  /v1/students:
+    post:
+      summary: Bulk upsert of official students
+      security: [{ lexaKey: [write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  maxItems: 500
+                  items:
+                    type: object
+                    properties:
+                      external_id: { type: string, maxLength: 80 }
+                      username: { type: string, pattern: "^[A-Za-z0-9._-]{2,40}$" }
+                      student_no: { type: string, maxLength: 40 }
+                      full_name: { type: string, maxLength: 80 }
+                      field: { type: string, maxLength: 80 }
+                      entry_year: { type: string, maxLength: 10 }
+                      status: { type: string, enum: [active, suspended, graduated, withdrawn] }
+      responses:
+        "200": { description: processed + per-row errors }
+        "401": { description: bad key/signature/timestamp }
+        "403": { description: scope missing }
+        "413": { description: more than 500 rows }
+        "429": { description: rate limited }
+  /v1/students/{ref}/status:
+    post:
+      summary: Change one student's status (ref = external_id | username | uuid)
+      security: [{ lexaKey: [write] }]
+      parameters: [{ name: ref, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, suspended, graduated, withdrawn] }
+      responses:
+        "200": { description: done }
+        "404": { description: student_not_found | bad_status }
+  /v1/staff:
+    post:
+      summary: Link EXISTING Lexa profiles (by e-mail) as centre staff usernames
+      description: Accounts themselves are created by the centre panel (phase 1); the API only links usernames that already exist in Lexa.
+      security: [{ lexaKey: [write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    required: [email, username]
+                    properties:
+                      email: { type: string }
+                      username: { type: string, pattern: "^[A-Za-z0-9._-]{2,40}$" }
+      responses:
+        "200": { description: processed + per-row errors (profile_not_found) }
+  /v1/classes:
+    post:
+      summary: Bulk upsert of classes (term and subject are found by title/code or created)
+      security: [{ lexaKey: [write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      external_id: { type: string, maxLength: 80 }
+                      title: { type: string, maxLength: 120 }
+                      term: { type: string, description: term uuid or title }
+                      course: { type: string, description: subject code (or object {code,title}) }
+                      teacher_username: { type: string, description: must already be linked as staff }
+      responses:
+        "200": { description: processed + per-row errors }
+  /v1/enrollments:
+    post:
+      summary: Bulk upsert of enrolments (refs = external_id | username | uuid)
+      security: [{ lexaKey: [write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    required: [class, student]
+                    properties:
+                      class: { type: string }
+                      student: { type: string }
+                      status: { type: string, enum: [enrolled, completed, dropped] }
+      responses:
+        "200": { description: processed + per-row errors }
+  /v1/grades:
+    post:
+      summary: Bulk upsert of grades (unique per class+student+component, source=api)
+      security: [{ lexaKey: [write] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    required: [class, student, component, score]
+                    properties:
+                      class: { type: string }
+                      student: { type: string }
+                      component: { type: string, enum: [midterm, final_exam, final] }
+                      score: { type: number }
+                      max_score: { type: number, default: 20 }
+                      note: { type: string, maxLength: 200 }
+      responses:
+        "200": { description: processed + per-row errors }
+  /v1/reports/study:
+    get:
+      summary: Per-student active study seconds of the centre (read scope)
+      security: [{ lexaKey: [read] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: rows of {student_id, org_username, full_name, status, seconds, days}
+  /v1/reports/grades:
+    get:
+      summary: Final marks of one class (read scope)
+      security: [{ lexaKey: [read] }]
+      parameters:
+        - { name: class, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: rows of {student, score, max_score, updated_at}
+        "404": { description: class_not_found }
+  /v1/reports/comparison:
+    get:
+      summary: The phase-6 comparison report (read scope) — groups under 10 students are never shown
+      security: [{ lexaKey: [read] }]
+      parameters:
+        - { name: class, in: query, required: true, schema: { type: string } }
+        - { name: term, in: query, required: true, schema: { type: string } }
+        - { name: inactive, in: query, schema: { type: number, default: 1 } }
+        - { name: low, in: query, schema: { type: number, default: 10 } }
+      responses:
+        "200":
+          description: the same JSON as the manager panel, including the disclaimer flag
+components:
+  securitySchemes:
+    lexaKey:
+      type: apiKey
+      in: header
+      name: X-Lexa-Key
+      description: Combined with X-Lexa-Timestamp and X-Lexa-Signature (HMAC-SHA256).
