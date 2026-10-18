@@ -2301,3 +2301,25 @@ Stage Summary:
 - v0.10.24 READY ولی منتشر نشده: Pages + GitHub Release HELD تا کاربر سه فایل SQL را به‌ترتیب در SQL Editor اجرا کند: 009_study_time.sql → 010_org_api.sql → 011_comparison_report.sql (docs/ORG_P4_TO_P7_SETUP.md).
 - بعد از تأیید کاربر: وریفای 009-011 (جدول‌ها/RPCها/باکت‌ها) → Pages → release-app-update.py 0.10.24 → verify-release-0124 + qa119 + worklog.
 - یادآوری امنیتی تکراری: rotate sb_secret و PAT سوپاباس بعد از این ریلیز؛ توکن گیت و تلگرام هم هنوز.
+
+---
+Task ID: 52
+Agent: Z (main)
+Task: دستور «منتشر کن» — ادغام بستهٔ همکار (PR 22-25)، سیم‌کشی، بیلد سه‌گانهٔ تازه و انتشار v0.10.24
+
+Work Log:
+- محیط ریست شده بود (آرتیفکت‌ها و .supabase-secret/.supabase-pat پاک شده). کلید سرویس فقط به‌صورت کوتاه «sb_secret_1_oUX...» در worklog بود → گیت SQL با کلید publishable ساخته شد (scripts/qa-009-011-check.py + scripts/qa-colleague-p4-p7.py): جدول/RPC غایب = PGRST202/205، موجود+قفل = 401/400 داخلی.
+- کشف کلیدی: کاربر SQLهای **همکار** را اجرا کرده نه مال من — زنده: lexa_study_beats (نه lexa_study_sessions من)، lexa_org_api_idem (نه lexa_api_idempotency من)؛ 009+010+011 همکار اعمال‌شده، 012 (کانکتور) نه. علت: همکار PRهای 22-25 را کامل تحویل داده بود (SQL 009-012، دو تابع Edge، کلاینت کامل، docs/ORG_P4..P7_SETUP).
+- تصمیم: ادغام PR 25 (feat/org-connector-p7) در main — فقط ۷ تداخل add/add (009/010/011، دو Edge Function، study.ts، MyStatsView) همه به نفع همکار حل شد (merge 71e7124). بعد از پوش، هر ۴ PR روی گیت‌هاب MERGED شد.
+- سیم‌کشی روی بستهٔ همکار طبق docs/ORG_P4_SETUP.md و بقیهٔ SETUPها: startStudyTracker در AppShell؛ useStudyContext در QuizView («quiz») + CourseView («tcourse»/«course» تشخیص از tBooks) + PostView («post») + FlashcardsView («flashcards») + LawLibraryView («law»)؛ رویداد quiz_done در finish() و cards_reviewed در اتمام صف؛ ExamRunner تغییر همکار (exam_done) با ادغام آمد. OrgView: تب اول «داشبورد» (OrgDashboardPanel، همهٔ اعضای فعال) + تب‌های «گزارش مقایسه»/«کلیدهای API»/«کانکتور» با پنل‌های همکار (canManage)؛ OrgClassesPanel تب «فعالیت» (ClassActivityPanel)؛ AdminView بخش «زمان مطالعه» (AdminStudyPanel) + «گزارش مقایسه» (ComparisonReportPanel admin با adminOrgs). OrgStatsTabs قدیمی حذف شد.
+- درس ابزار: خروجی bash/grep دنبالهٔ «[m» را می‌خورد (ANSI) — متن فایل را با Read/python بخوان. پنل کلید: create/rotate از /functions/v1/org-api/manage (نه RPC مستقیم) — needleهای qa122 اصلاح شد (lexa_org_api_key_revoke + org-api/manage).
+- ENV REBUILD دوم: Android SDK 35 + build-tools 35.0.0 + cmdline-tools در /home/z/android-sdk؛ JDK سیستم JRE-only بود (بدون javac) → Temurin 21 در /home/z/jdk-21؛ keystore از download/android بازگشت؛ local.properties ساخته شد. سرور next dev قدیمی (1.5GB) بیلد استندالون را OOM می‌کرد → kill → بیلد OK.
+- بیلدها: APK 124/0.10.24 (aapt ✓) 6.7MB → استندالون → stage-electron-app.sh (بعد از rebuild یادآوری شد: بدون آن afterPack خطای «electron-stage خالی است») → AppImage 127.8MB + win.zip 177MB (2256 فایل، بدون keystore/.env) هرکدام جدا (درس 52-prep).
+- QA روی استندالون/اکسپورت تازه: qa117=13/13، qa118=6/6 (بار اول سرد بود)، qa120=8/8، qa121=13/13 (WEB_DIR=.next/standalone لازم)، qa122=26/26 (needleهای فاز ۴-۷ همکار). خطاهای eslint جدید (react-hooks v6) روی الگوهای قدیمی‌اند (unsavedRef در ExamRunner از فاز ۳، t.Icon) — رگرسیون این ریلیز نیست.
+- انتشار: build-pages.sh → PAGES_READY 0.10.24 (SW v66، /app/ 200). release-app-update.py 0.10.24 → release id 416566778 با ۴ asset (APK 6.7 + AppImage 127.8 + win 177.2 + checksums)، تگ‌های v0.10.24/app-v0.10.24، فید دلتا (0c0f16f) و purge jsDelivr.
+- وریفای: verify-release-0124 → 15/15 ✓ (دلتاهای 0.9.2/0.9.3/0.10.21/0.10.22/0.10.23→0.10.24، MISSING:0). درس جدید: ریپو از سقف 50MB jsDelivr برای @main گذشت («Package size exceeded») → کانال main وریفای از raw.githubusercontent گرفته می‌شود؛ کلاینت به @main وابسته نیست (آپدیتر از api.github.com تگ app-v را می‌گیرد). qa119-pages-live-0124 → 13/13 ✓ (SW v66، باندل لایو شامل lexa_study_track/lexa_my_study/lexa_compare_report/org-connector، #/mystats مهمان بدون کرش، رگرسیون فازهای ۲/۳، صفر pageerror).
+- کامیت‌ها: 71e7124 (merge)، 3b3e061 (wiring)، 0c0f16f (delta feed) + این کامیت (دو اسکریپت وریفای + worklog).
+
+Stage Summary:
+- v0.10.24 روی هر سه پلتفرم + Pages زنده شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.24 — فازهای ۴ (زمان مطالعه/آمار من/داشبورد)، ۵ (کلیدهای API)، ۶ (گزارش مقایسه) و ۷ (کانکتور UI) با بستهٔ همکار؛ PRهای 22-25 بسته شد.
+- باقی کارهای سمت کاربر: ① اجرای supabase/012_connector.sql (فاز ۷ هنوز روی DB اعمال نشده — تب کانکتور تا آن موقع خطای داخلی می‌دهد)، ② secretهای تابع: LEXA_API_PEPPER (برای کار کلیدهای API ضروری است) و LEXA_CRON_SECRET، ③ PAT تازهٔ سوپاباس — PAT قبلی با ریست محیط پاک شد و تابع‌های org-api/org-connector روی DB فعلی کد قدیمیِ من را اجرا می‌کنند (بدون مسیر /manage → ساخت کلید از پنل تا redeploy خطا می‌دهد؛ بقیهٔ فاز ۴/۶ مستقیم RPC کار می‌کنند)، ④ یادآوری امنیتی همیشگی: rotate sb_secret، PAT، توکن گیت و توکن تلگرام.
