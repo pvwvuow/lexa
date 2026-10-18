@@ -1,5 +1,6 @@
 "use client";
-/* Content visibility (phase 2 of docs/ORG_LEARNING.md, supabase/007_content_visibility.sql).
+/* Content visibility (phase 2 of docs/ORG_LEARNING.md, supabase/007_content_visibility.sql;
+ * the level "class" comes from supabase/008_classes_exams_grades.sql).
  * RLS decides what each reader gets; this file has the labels for the editor, the public
  * preview cards of centre-only courses, the private centre media bucket and the clean-up of
  * offline copies after access is lost. */
@@ -9,24 +10,26 @@ import { supaUrl } from "@/lib/supabase-config";
 import { useApp } from "@/lib/store";
 import { HttpError, inList, isUuid, sbRpc, sbSelect } from "./rest";
 
-export type Visibility = "public" | "users" | "org" | "draft";
+export type Visibility = "public" | "users" | "org" | "class" | "draft";
 
 export const VISIBILITIES: { key: Visibility; label: string; hint: string }[] = [
   { key: "public", label: "عمومی", hint: "همه، حتی بدون ورود به حساب" },
   { key: "users", label: "کاربران Lexa", hint: "هر کسی که وارد حساب Lexa شده باشد" },
   { key: "org", label: "دانشجویان مرکز", hint: "فقط دانشجویان رسمی و مدرسان مرکز انتخاب‌شده" },
+  { key: "class", label: "کلاس", hint: "فقط مدرس و دانشجویان کلاس‌هایی که در پنل کلاس به آن وصل می‌کنید" },
   { key: "draft", label: "پیش‌نویس", hint: "فقط خودتان و مدیران همان مرکز" },
 ];
 export const visibilityLabel = (v: string | null | undefined) =>
   VISIBILITIES.find((x) => x.key === v)?.label ?? "عمومی";
 
 export function asVisibility(v: unknown): Visibility {
-  return v === "users" || v === "org" || v === "draft" ? v : "public";
+  return v === "users" || v === "org" || v === "class" || v === "draft" ? v : "public";
 }
 
 /** problems before saving (Persian), or "" */
 export function visibilityProblem(v: Visibility, orgId: string | null | undefined): string {
   if (v === "org" && !orgId) return "برای «دانشجویان مرکز»، مرکز آموزشی را انتخاب کنید.";
+  if (v === "class" && !orgId) return "برای «کلاس»، مرکز آموزشی را انتخاب کنید.";
   return "";
 }
 
