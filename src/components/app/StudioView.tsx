@@ -324,7 +324,7 @@ function faDay(iso: string) {
 
 export function StudioView() {
   const { user, status } = useAuth();
-  const { courses: myCourses, reload: reloadCourses } = useTCourses(true);
+  const { courses: myCourses, loading: coursesLoading, error: coursesErr, reload: reloadCourses } = useTCourses(true);
   const [posts, setPosts] = React.useState<MyPost[]>([]);
   const [postsErr, setPostsErr] = React.useState(false);
   const [tab, setTab] = React.useState<"posts" | "courses">("posts");
@@ -485,9 +485,18 @@ export function StudioView() {
       {/* دوره‌های من */}
       {tab === "courses" && (
         <section className="space-y-2.5">
-          {myCourses.length === 0 && (
+          {coursesLoading && myCourses.length === 0 && (
+            <p className="flex items-center justify-center gap-2 py-8 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت دوره‌ها…</p>
+          )}
+          {!coursesLoading && coursesErr && myCourses.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-destructive/40 bg-card px-5 py-8 text-center shadow-card">
+              <p className="text-sm text-destructive">{coursesErr}</p>
+              <button onClick={() => void reloadCourses()} className="mt-3 rounded-xl border border-border px-4 py-2 text-xs font-bold transition-colors hover:border-bronze hover:text-bronze">تلاش دوباره</button>
+            </div>
+          )}
+          {!coursesLoading && !coursesErr && myCourses.length === 0 && (
             <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
-              هنوز دوره‌ای نساخته‌ای — «دورهٔ جدید» را بزن و جلساتت را با المان‌های تدریس آماده کن.
+              هنوز دوره‌ای نساخته‌اید — با «دورهٔ جدید» شروع کنید و جلسات را با المان‌های تدریس آماده کنید.
             </p>
           )}
           {myCourses.map((c) => {

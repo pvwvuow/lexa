@@ -289,24 +289,28 @@ export const adminSetOrg = (orgId: string, f: { status: OrgStatus; plan: OrgPlan
 export function useMyMemberships() {
   const [items, setItems] = React.useState<MyMembership[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // shown on the hub with a retry: an empty list after a failure is not "no invitations"
+  const [error, setError] = React.useState("");
   const [uid, setUid] = React.useState<string | null>(() => sbUser()?.id ?? null);
   const reqRef = React.useRef(0);
   React.useEffect(() => onAuthChange(() => setUid(sbUser()?.id ?? null)), []);
   const reload = React.useCallback(async () => {
     const id = ++reqRef.current;
+    setError("");
     if (!sbUser()) { setItems([]); setLoading(false); return; }
     setLoading(true);
     try {
       const rows = await myMemberships();
       if (id === reqRef.current) setItems(rows);
-    } catch {
+    } catch (e) {
       // keep what we had: a network blip must not make invitations / my centres vanish
+      if (id === reqRef.current) setError(orgError(e));
     } finally {
       if (id === reqRef.current) setLoading(false);
     }
   }, []);
   React.useEffect(() => { void reload(); }, [reload, uid]);
-  return { items, loading, reload };
+  return { items, loading, error, reload };
 }
 
 export function isOrgLive(o: Pick<Org, "status" | "expiresAt">): boolean {

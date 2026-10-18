@@ -285,11 +285,11 @@ export function PostView({ id }: { id: string }) {
           ) : (
             <button
               onClick={() => requestAuthPrompt("برای امتیاز دادن")}
-              title="برای امتیاز دادن، وارد شو"
+              title="برای امتیاز دادن، وارد حساب شوید"
               className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/60 hover:text-bronze"
             >
               <StarRating value={rating.agg.avg} count={rating.agg.count} size={13} />
-              <span className="inline-flex items-center gap-1"><LogIn className="h-3 w-3" /> برای امتیاز دادن وارد شو</span>
+              <span className="inline-flex items-center gap-1"><LogIn className="h-3 w-3" /> برای امتیاز دادن وارد حساب شوید</span>
             </button>
           )}
           {user && rating.agg.count > 0 && (
@@ -384,7 +384,7 @@ export function PostView({ id }: { id: string }) {
               onChange={(e) => setText(e.target.value)}
               rows={3}
               maxLength={1200}
-              placeholder={replyTo ? `پاسخ به نظر «${replyTo.username}»…` : `دیدگاهت دربارهٔ «${data.title}» را بنویس…`}
+              placeholder={replyTo ? `پاسخ به نظر «${replyTo.username}»…` : `دیدگاه خود را دربارهٔ «${data.title}» بنویسید…`}
               className="w-full resize-none rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-bronze"
               aria-label="متن کامنت"
             />

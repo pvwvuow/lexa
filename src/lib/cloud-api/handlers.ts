@@ -318,12 +318,12 @@ async function shrinkImage(file: Blob, maxSide: number, maxBytes: number): Promi
 
 function uploadError(e: unknown): CloudRes {
   const m = e instanceof HttpError ? `${e.message} ${e.code}` : String(e ?? "");
-  if (/row-level security|unauthorized|403/i.test(m)) return fail(403, "اجازهٔ بارگذاری تصویر وجود ندارد؛ یک بار از حساب خارج و دوباره وارد شو.");
+  if (/row-level security|unauthorized|403/i.test(m)) return fail(403, "اجازهٔ بارگذاری تصویر وجود ندارد؛ یک بار از حساب خارج و دوباره وارد شوید.");
   if (/bucket not found/i.test(m)) return fail(503, "فضای ذخیرهٔ تصاویر هنوز راه‌اندازی نشده است.");
   if (/maximum allowed size|too large|413/i.test(m)) return fail(400, "حجم تصویر بیش از حد مجاز است.");
-  if (/mime/i.test(m)) return fail(400, "این قالب تصویر پشتیبانی نمی‌شود؛ تصویر PNG، JPG یا WebP انتخاب کن.");
+  if (/mime/i.test(m)) return fail(400, "این قالب تصویر پشتیبانی نمی‌شود؛ تصویر PNG، JPG یا WebP انتخاب کنید.");
   if (e instanceof TypeError) return fail(503, MSG.offline);
-  return fail(500, "بارگذاری تصویر انجام نشد؛ دوباره تلاش کن.");
+  return fail(500, "بارگذاری تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.");
 }
 
 async function uploadImage(req: CloudReq, prefix: string, maxBytes: number, allowGif: boolean, maxSide: number): Promise<{ url: string } | CloudRes> {
@@ -340,7 +340,7 @@ async function uploadImage(req: CloudReq, prefix: string, maxBytes: number, allo
     if (small) { blob = small; type = small.type; ext = IMAGE_EXT[type]; }
   }
   if (!type.startsWith("image/")) return fail(400, "فایل انتخاب‌شده تصویر نیست.");
-  if (!ext || (!allowGif && ext === "gif")) return fail(400, "این قالب تصویر پشتیبانی نمی‌شود؛ تصویر PNG، JPG یا WebP انتخاب کن.");
+  if (!ext || (!allowGif && ext === "gif")) return fail(400, "این قالب تصویر پشتیبانی نمی‌شود؛ تصویر PNG، JPG یا WebP انتخاب کنید.");
   if (blob.size > maxBytes) return fail(400, `حجم تصویر باید کمتر از ${Math.round(maxBytes / 1048576)} مگابایت باشد.`);
   const path = `${me.id}/${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
   try {
@@ -376,6 +376,14 @@ async function coverUpload(req: CloudReq): Promise<CloudRes> {
   if (!me) return fail(401, MSG.login);
   if (!isTeacher(me) && req.query.get("kind") !== "org") return fail(403, MSG.teacher);
   const logo = req.query.get("kind") === "org";
+  if (logo && me.role !== "admin") {
+    // centre logos: only an active owner/manager of some centre (same rule as the settings tab)
+    const rows = await sbSelect<{ org_id: string }>(
+      "lexa_org_members",
+      `user_id=eq.${me.id}&status=eq.active&role=in.(owner,manager)&select=org_id&limit=1`,
+    );
+    if (!rows.length) return fail(403, MSG.forbidden);
+  }
   const up = await uploadImage(req, logo ? "logo" : "cover", 4 * 1024 * 1024, false, logo ? 600 : 1600);
   if ("status" in up) return up;
   return ok({ ok: true, url: up.url });
@@ -459,13 +467,18 @@ async function getPost(id: string): Promise<CloudRes> {
       orgId: p.org_id, org: orgOut(p.org),
       canManage: !!me && (me.id === p.author_id || me.role === "admin"),
     },
-    comments: comments.map((c) => {
-      const a = authorOf(c.user, c.user_id);
-      return {
-        id: c.id, text: c.text, createdAt: c.created_at, replyToId: c.reply_to_id,
-        userId: c.user_id, username: a.displayName, avatarUrl: a.avatarUrl,
-      };
-    }),
+    comments: (() => {
+      // «در پاسخ به …» must survive a reload, not only show right after replying
+      const nameById = new Map(comments.map((c) => [c.id, authorOf(c.user, c.user_id).displayName]));
+      return comments.map((c) => {
+        const a = authorOf(c.user, c.user_id);
+        return {
+          id: c.id, text: c.text, createdAt: c.created_at, replyToId: c.reply_to_id,
+          replyToUsername: c.reply_to_id ? nameById.get(c.reply_to_id) ?? null : null,
+          userId: c.user_id, username: a.displayName, avatarUrl: a.avatarUrl,
+        };
+      });
+    })(),
   });
 }
 
@@ -682,7 +695,7 @@ async function follow(req: CloudReq): Promise<CloudRes> {
   if (!me) return fail(401, "برای دنبال کردن، ابتدا وارد شوید.");
   const teacherId = String((req.body as { teacherId?: unknown } | null)?.teacherId ?? "");
   if (!isUuid(teacherId)) return fail(400, "استاد نامعتبر است.");
-  if (teacherId === me.id) return fail(400, "نمی‌توانی خودت را دنبال کنی.");
+  if (teacherId === me.id) return fail(400, "امکان دنبال کردن حساب خودتان وجود ندارد.");
   const removed = await sbDelete("lexa_follows", `student_id=eq.${me.id}&teacher_id=eq.${teacherId}`);
   if (removed) return ok({ ok: true, following: false });
   try {

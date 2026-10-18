@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
 import { useApp } from "@/lib/store";
-import { useSocial, useTCourses, isInLocalLibrary, addTCourseLocally } from "@/lib/social-client";
+import { useSocial, useTCourses, isInLocalLibrary, addTCourseLocally, errText } from "@/lib/social-client";
 import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { CourseIcon, UserAvatar } from "./common";
 import { TeacherFeedTeasers } from "./DashboardView";
@@ -22,6 +22,8 @@ export function TeachersView() {
   const tBooks = useApp((s) => s.tBooks);
   const [err, setErr] = React.useState("");
   const [busyId, setBusyId] = React.useState("");
+  // دکمهٔ دنبال کردن تا پایان درخواست قفل می‌شود (دو ضربهٔ سریع وضعیت را برعکس نمی‌کند)
+  const [followBusyId, setFollowBusyId] = React.useState("");
 
   async function onFollow(id: string) {
     if (!user) {
@@ -29,11 +31,15 @@ export function TeachersView() {
       requestAuthPrompt("برای دنبال کردن مدرس");
       return;
     }
+    if (followBusyId) return;
     setErr("");
+    setFollowBusyId(id);
     try {
       await toggleFollow(id);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+      setErr(errText(e, "دنبال کردن انجام نشد؛ لطفاً دوباره تلاش کنید."));
+    } finally {
+      setFollowBusyId("");
     }
   }
 
@@ -143,15 +149,22 @@ export function TeachersView() {
                 </div>
                 <button
                   onClick={() => onFollow(t.id)}
-                  title={!user ? "برای دنبال کردن، وارد شو" : undefined}
-                  className={`inline-flex shrink-0 items-center gap-1.5 self-center rounded-full px-4 py-2 text-xs font-bold transition-all ${
+                  disabled={followBusyId === t.id}
+                  title={!user ? "برای دنبال کردن، وارد حساب شوید" : undefined}
+                  className={`inline-flex shrink-0 items-center gap-1.5 self-center rounded-full px-4 py-2 text-xs font-bold transition-all disabled:opacity-45 ${
                     t.isFollowing
                       ? "border border-success/50 bg-success/10 text-success"
-                      : "bg-primary text-primary-foreground hover:brightness-110 disabled:opacity-45"
+                      : "bg-primary text-primary-foreground hover:brightness-110"
                   }`}
                 >
-                  {t.isFollowing ? <UserCheck className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-                  {t.isFollowing ? "دنبال می‌کنی" : "دنبال کردن"}
+                  {followBusyId === t.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : t.isFollowing ? (
+                    <UserCheck className="h-3.5 w-3.5" />
+                  ) : (
+                    <UserPlus className="h-3.5 w-3.5" />
+                  )}
+                  {followBusyId === t.id ? "در حال انجام…" : t.isFollowing ? "دنبال می‌کنید" : "دنبال کردن"}
                 </button>
               </div>
 

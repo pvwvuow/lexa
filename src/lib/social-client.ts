@@ -70,6 +70,15 @@ async function jf<T>(url: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+/** User-facing error text: browser network errors ("Failed to fetch", …) are English
+ *  and meaningless to users, so only Persian server messages are shown as-is. */
+export function errText(e: unknown, fallback: string): string {
+  const m = e instanceof Error ? e.message : "";
+  return m && /[\u0600-\u06FF]/.test(m) ? m : fallback;
+}
+
+const NET_FAIL = "دریافت اطلاعات انجام نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.";
+
 export function faNum(n: number): string {
   try { return n.toLocaleString("fa-IR"); } catch { return String(n); }
 }
@@ -123,7 +132,7 @@ export function useSocial() {
       setShowingAll(!!f?.showingAll);
     } catch (e) {
       if (id === reqRef.current) {
-        setError(e instanceof Error && e.message ? e.message : "دریافت اساتید ناموفق بود؛ اینترنت را چک کن.");
+        setError(errText(e, NET_FAIL));
       }
     } finally {
       if (id === reqRef.current) setLoading(false);
@@ -165,17 +174,20 @@ export function useSocial() {
 export function useTCourses(mine = false) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // a failed load must not look like "no courses yet"
+  const [error, setError] = React.useState("");
   const reqRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
     const id = ++reqRef.current;
     setLoading(true);
+    setError("");
     try {
       const d = await jf<{ courses: TCourseCard[] }>(`/api/tcourses${mine ? "?mine=1" : ""}`);
       // APK: the HTML 404 page comes back as {} — never put undefined into state
       if (id === reqRef.current) setCourses(Array.isArray(d?.courses) ? d.courses : []);
-    } catch {
-      /* ignore */
+    } catch (e) {
+      if (id === reqRef.current) setError(errText(e, NET_FAIL));
     } finally {
       if (id === reqRef.current) setLoading(false);
     }
@@ -200,7 +212,7 @@ export function useTCourses(mine = false) {
     [],
   );
 
-  return { courses, loading, reload: load, toggleLibrary, setCourses };
+  return { courses, loading, error, reload: load, toggleLibrary, setCourses };
 }
 
 /** آیا این دورهٔ استاد در کتابخانهٔ محلی همین دستگاه هست؟ (مهمان‌ها بدون حساب اضافه می‌کنند) */
@@ -276,11 +288,14 @@ export function usePublicLibrary(cat: string, enabled = true) {
   const [courses, setCourses] = React.useState<TCourseCard[]>([]);
   const [posts, setPosts] = React.useState<FeedPost[]>([]);
   const [loading, setLoading] = React.useState(enabled);
+  // a failed request is shown with a retry button, never as an empty category
+  const [error, setError] = React.useState("");
   // switching category A → B: a slow reply for A must not overwrite B
   const reqRef = React.useRef(0);
 
   const load = React.useCallback(async () => {
     const id = ++reqRef.current;
+    setError("");
     if (!enabled) { setCourses([]); setPosts([]); setLoading(false); return; }
     setLoading(true);
     try {
@@ -290,8 +305,8 @@ export function usePublicLibrary(cat: string, enabled = true) {
       if (id !== reqRef.current) return;
       setCourses(Array.isArray(d?.courses) ? d.courses : []);
       setPosts(Array.isArray(d?.posts) ? d.posts : []);
-    } catch {
-      /* بی‌صدا */
+    } catch (e) {
+      if (id === reqRef.current) setError(errText(e, NET_FAIL));
     } finally {
       if (id === reqRef.current) setLoading(false);
     }
@@ -301,7 +316,7 @@ export function usePublicLibrary(cat: string, enabled = true) {
     void load();
   }, [load]);
 
-  return { courses, posts, loading, reload: load };
+  return { courses, posts, loading, error, reload: load };
 }
 
 export interface TeacherProfileData {
@@ -349,7 +364,7 @@ export function useTeacherProfile(userId?: string | null) {
         return;
       }
       if (!res.ok) {
-        setError(d.error || "دریافت پروفایل ناموفق بود؛ دوباره تلاش کن.");
+        setError(d.error || "دریافت پروفایل انجام نشد؛ لطفاً دوباره تلاش کنید.");
         return;
       }
       setData({
@@ -358,7 +373,7 @@ export function useTeacherProfile(userId?: string | null) {
         posts: Array.isArray(d.posts) ? d.posts : [],
       });
     } catch {
-      if (id === reqRef.current) setError("اتصال به سرور برقرار نشد؛ اینترنت را چک کن و دوباره بزن.");
+      if (id === reqRef.current) setError(NET_FAIL);
     } finally {
       if (id === reqRef.current) setLoading(false);
     }

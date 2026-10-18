@@ -10,7 +10,7 @@ import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { CourseIcon, ProgressBar, StarRating, UserAvatar } from "./common";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
-import { useTargetRating, addTCourseLocally } from "@/lib/social-client";
+import { useTargetRating, addTCourseLocally, errText } from "@/lib/social-client";
 import { requestAuthPrompt } from "@/lib/auth-prompt";
 import { getOfflineItem } from "@/lib/offline";
 import { OfflineDownloadButton, OfflineUpdatedPill } from "./offline-ui";
@@ -173,6 +173,9 @@ function CourseBody({
   const [packUpdating, setPackUpdating] = React.useState(false);
   const [packUpdateNotes, setPackUpdateNotes] = React.useState<string | null>(null);
   const [packUpdateError, setPackUpdateError] = React.useState(false);
+  // خطای افزودن به کتابخانه — به‌جای بی‌صدا رد شدن، نمایش داده می‌شود
+  const [libErr, setLibErr] = React.useState("");
+  const [libBusy, setLibBusy] = React.useState(false);
 
   React.useEffect(() => {
     void refreshPackUpdates();
@@ -362,24 +365,40 @@ function CourseBody({
 
         {!inLibrary && (
           <p className="relative mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-            این دوره را به کتابخانهٔ خود اضافه نکرده‌ای؛ پیش‌نمایش فهرست جلسات آزاد است و درس‌ها کامل باز می‌شوند.
+            این دوره را به کتابخانهٔ خود اضافه نکرده‌اید؛ پیش‌نمایش فهرست جلسات آزاد است و درس‌ها کامل باز می‌شوند.
+            {libErr && <span className="w-full font-bold text-destructive">{libErr}</span>}
             <button
+              disabled={libBusy}
               onClick={async () => {
                 // مهمان: افزودن محلی بدون حساب — پس از افزودن، همان لحظه در بخش مطالعه است
-                if (!auth.user) {
-                  await addTCourseLocally(course.id);
-                  return;
+                setLibErr("");
+                setLibBusy(true);
+                try {
+                  if (!auth.user) {
+                    const done = await addTCourseLocally(course.id);
+                    if (!done) setLibErr("دوره بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
+                    return;
+                  }
+                  const res = await fetch("/api/library", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ courseId: course.id }),
+                  });
+                  const j = (await res.json().catch(() => ({}))) as { error?: string };
+                  if (!res.ok) {
+                    setLibErr(errText(new Error(j.error ?? ""), "افزودن به کتابخانه انجام نشد؛ لطفاً دوباره تلاش کنید."));
+                    return;
+                  }
+                  await refreshLibrary();
+                } catch (e) {
+                  setLibErr(errText(e, "افزودن به کتابخانه انجام نشد؛ اتصال اینترنت را بررسی کنید."));
+                } finally {
+                  setLibBusy(false);
                 }
-                await fetch("/api/library", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ courseId: course.id }),
-                });
-                await refreshLibrary();
               }}
-              className="ms-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:brightness-110"
+              className="ms-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition-colors hover:brightness-110 disabled:opacity-45"
             >
-              {auth.user ? "افزودن به کتابخانهٔ من" : "افزودن به کتابخانهٔ همین دستگاه"}
+              {libBusy ? "در حال افزودن…" : auth.user ? "افزودن به کتابخانهٔ من" : "افزودن به کتابخانهٔ همین دستگاه"}
             </button>
           </p>
         )}

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { QuizQuestion } from "@/lib/law/types";
 import { fa } from "@/lib/fa";
+import { errText } from "@/lib/social-client";
 
 /* ─── قالب پیش‌نویس سؤال در ویرایشگر ── */
 export interface QuizDraft {
@@ -236,7 +237,7 @@ export function ThumbnailPicker({
     setErr("");
     // large photos are shrunk before upload (cloud handler); only refuse absurd files
     if (file.size > 25 * 1024 * 1024) {
-      setErr("حجم این فایل بیش از حد بزرگ است؛ تصویری کوچک‌تر از ۲۵ مگابایت انتخاب کن.");
+      setErr("حجم این فایل بیش از حد بزرگ است؛ تصویری کوچک‌تر از ۲۵ مگابایت انتخاب کنید.");
       return;
     }
     setBusy(true);
@@ -245,10 +246,10 @@ export function ThumbnailPicker({
       fd.append("file", file);
       const res = await fetch("/api/cover/upload", { method: "POST", body: fd });
       const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "آپلود ناموفق بود.");
+      if (!res.ok) throw new Error(j.error ?? "آپلود تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.");
       onChange(j.url);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+      setErr(errText(e, "آپلود تصویر انجام نشد؛ لطفاً دوباره تلاش کنید."));
     } finally {
       setBusy(false);
     }
@@ -257,6 +258,11 @@ export function ThumbnailPicker({
   function commitUrl() {
     const u = urlDraft.trim();
     if (!u) return;
+    // مسیرهای /api/ نشانی تصویر نیستند (آپلودها حالا در فضای ذخیرهٔ ابری هستند)
+    if (u.startsWith("/api/")) {
+      setErr("این یک مسیر داخلی سرور است، نشانی تصویر نیست؛ لینک را با https:// وارد کنید.");
+      return;
+    }
     if (!/^https?:\/\/[\w.-]+/i.test(u) && !(u.startsWith("/") && !u.startsWith("//"))) {
       setErr("لینک باید با https:// شروع شود یا مسیر داخلی باشد.");
       return;
@@ -315,7 +321,7 @@ export function ThumbnailPicker({
               value={urlDraft}
               onChange={(e) => setUrlDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitUrl(); } if (e.key === "Escape") setUrlMode(false); }}
-              placeholder="https://… یا /api/cover/…"
+              placeholder="https://…"
               dir="ltr"
               className={`${inputCls} pe-8 text-start text-[12.5px]`}
               aria-label="آدرس تصویر"

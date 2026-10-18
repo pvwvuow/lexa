@@ -346,7 +346,8 @@ const CATEGORY_COVER: Record<string, { bg: string; Icon: React.ComponentType<{ c
 };
 
 function LatestPostsSection() {
-  const { feed, loading } = useSocial();
+  // خطا نباید به‌شکل «هنوز مطلبی منتشر نشده» نمایش داده شود
+  const { feed, loading, error, reload } = useSocial();
 
   return (
     <SectionSlider
@@ -365,13 +366,21 @@ function LatestPostsSection() {
         [0, 1, 2, 3].map((i) => <FeedCardSkeleton key={i} />)
       ) : feed.length > 0 ? (
         feed.slice(0, 10).map((p) => <FeedCard key={p.id} p={p} />)
+      ) : error ? (
+        <div className="flex min-w-[240px] flex-1 flex-col items-start justify-center gap-2 self-stretch rounded-2xl border border-dashed border-destructive/40 bg-card px-4 py-6 text-start text-xs leading-relaxed text-destructive">
+          {error}
+          <span className="flex gap-2">
+            <button onClick={() => void reload()} className="rounded-lg border border-border px-3 py-1.5 font-bold text-foreground transition-colors hover:border-bronze hover:text-bronze">تلاش دوباره</button>
+            <button onClick={() => navigate({ view: "teachers" })} className="rounded-lg px-2 py-1.5 font-bold text-bronze hover:underline">مدرسان و مقالات ←</button>
+          </span>
+        </div>
       ) : (
         <button
           onClick={() => navigate({ view: "teachers" })}
           className="flex min-w-[240px] flex-1 items-center justify-center gap-3 self-stretch rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-start text-xs leading-relaxed text-muted-foreground transition-colors hover:border-bronze/50"
         >
           <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
-          هنوز مطلبی منتشر نشده؛ از «مدرسان و مقالات» یکی را دنبال کنید تا تازه‌هایش این‌جا بدرخشد.
+          هنوز مطلبی منتشر نشده است؛ برای مشاهدهٔ مطالب به «مدرسان و مقالات» بروید.
         </button>
       )}
     </SectionSlider>

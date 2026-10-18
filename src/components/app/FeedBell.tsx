@@ -1,8 +1,8 @@
 "use client";
 
-// ─── زنگ «تازه‌ها» — شمار مطلب‌های جدید استادها از آخرین بازدید ───────────────
+// ─── زنگ «تازه‌ها» — شمار مطلب‌های جدید مدرسان از آخرین بازدید ────────────────
 import * as React from "react";
-import { Bell, GraduationCap } from "lucide-react";
+import { Bell, GraduationCap, Loader2 } from "lucide-react";
 import { useSocial } from "@/lib/social-client";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
@@ -20,7 +20,7 @@ function readSeen(): number {
 }
 
 export function FeedBell() {
-  const { feed } = useSocial();
+  const { feed, loading, error, reload } = useSocial();
   const [seen, setSeen] = React.useState(0);
   React.useEffect(() => setSeen(readSeen()), []);
 
@@ -42,8 +42,8 @@ export function FeedBell() {
     >
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={`مطالب تازهٔ اساتید${count ? ` — ${fa(count)} مطلب جدید` : ""}`}
-          title="مطالب تازهٔ اساتید"
+          aria-label={`مطالب تازهٔ مدرسان${count ? ` — ${fa(count)} مطلب جدید` : ""}`}
+          title="مطالب تازهٔ مدرسان"
           className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/85 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze"
         >
           <Bell className="h-[17px] w-[17px]" />
@@ -56,9 +56,23 @@ export function FeedBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={10} className="w-80 rounded-2xl p-1.5">
         <p className="flex items-center gap-2 px-2.5 pb-1.5 pt-2 text-xs font-extrabold">
-          <Bell className="h-3.5 w-3.5 text-bronze" /> مطالب تازهٔ اساتید
+          <Bell className="h-3.5 w-3.5 text-bronze" /> مطالب تازهٔ مدرسان
         </p>
-        {feed.length === 0 ? (
+        {feed.length === 0 && loading ? (
+          <p className="flex items-center gap-2 px-2.5 pb-2.5 text-[11px] text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-bronze" /> در حال دریافت…
+          </p>
+        ) : feed.length === 0 && error ? (
+          <div className="px-2.5 pb-2.5 text-[11px] leading-relaxed text-destructive">
+            {error}
+            <button
+              onClick={(e) => { e.preventDefault(); void reload(); }}
+              className="ms-2 font-bold text-bronze hover:underline"
+            >
+              تلاش دوباره
+            </button>
+          </div>
+        ) : feed.length === 0 ? (
           <p className="px-2.5 pb-2.5 text-[11px] leading-relaxed text-muted-foreground">
             هنوز مطلب تازه‌ای منتشر نشده است.
           </p>
@@ -86,7 +100,7 @@ export function FeedBell() {
               onClick={() => navigate({ view: "teachers" })}
               className="cursor-pointer gap-2 rounded-xl py-2 text-[11.5px] font-bold text-bronze"
             >
-              <GraduationCap className="h-3.5 w-3.5" /> همهٔ اساتید و مقالات
+              <GraduationCap className="h-3.5 w-3.5" /> همهٔ مدرسان و مقالات
             </DropdownMenuItem>
           </>
         )}

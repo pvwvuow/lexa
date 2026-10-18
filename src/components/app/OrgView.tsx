@@ -42,6 +42,16 @@ function faDate(iso: string | null | undefined): string {
   try { return new Date(iso).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" }); } catch { return ""; }
 }
 
+/** a failed request: message + retry (never shown as an empty list) */
+function RetryBox({ msg, onRetry }: { msg: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-destructive/40 bg-card px-5 py-6 text-center shadow-card">
+      <p className="text-sm leading-relaxed text-destructive">{msg}</p>
+      <button className={`${btnGhost} mt-3`} onClick={onRetry}>تلاش دوباره</button>
+    </div>
+  );
+}
+
 function useCloudSignedIn(): boolean {
   const { user } = useAuth();
   return !!user && !!sbUser() && sbUser()!.id === user.id;
@@ -114,6 +124,14 @@ function OrgHub() {
       </header>
 
       {!signed && <SignInNote what="برای دیدن دعوت‌ها، عضویت در مرکز آموزشی یا ثبت پنل" />}
+
+      {signed && mem.error && !mem.items.length && (
+        <RetryBox msg={`دعوت‌ها و مراکز شما دریافت نشد: ${mem.error}`} onRetry={() => void mem.reload()} />
+      )}
+
+      {signed && mem.loading && !mem.items.length && !mem.error && (
+        <p className="flex items-center gap-2 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت دعوت‌ها و مراکز شما…</p>
+      )}
 
       {signed && invites.length > 0 && <InvitesCard items={invites} onDone={() => void mem.reload()} />}
 
@@ -204,7 +222,7 @@ function TeacherRequestCard() {
     myTeacherRequest().then(setReq).catch(() => setReq(null));
   }, []);
   async function send() {
-    if (f.fullName.trim().length < 2) { setErr("نام و نام خانوادگی را کامل بنویس."); return; }
+    if (f.fullName.trim().length < 2) { setErr("نام و نام خانوادگی را کامل وارد کنید."); return; }
     setBusy(true); setErr("");
     try {
       await requestTeacherAccount(f);
@@ -260,9 +278,12 @@ function OrgDirectory() {
   const [orgs, setOrgs] = React.useState<Org[] | null>(null);
   const [q, setQ] = React.useState("");
   const [err, setErr] = React.useState("");
-  React.useEffect(() => {
-    listActiveOrgs().then(setOrgs).catch((e) => { setOrgs([]); setErr(orgError(e)); });
+  const load = React.useCallback(() => {
+    setErr("");
+    setOrgs(null);
+    listActiveOrgs().then(setOrgs).catch((e) => setErr(orgError(e)));
   }, []);
+  React.useEffect(load, [load]);
   const shown = (orgs ?? []).filter((o) => !q.trim() || `${o.name} ${o.city}`.includes(q.trim()));
   return (
     <section className="space-y-3">
@@ -273,12 +294,13 @@ function OrgDirectory() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی نام یا شهر…" className={`${inputCls} ps-9`} />
         </label>
       </div>
-      <ErrLine msg={err} />
-      {orgs === null ? (
+      {err ? (
+        <RetryBox msg={err} onRetry={load} />
+      ) : orgs === null ? (
         <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>
       ) : shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
-          {orgs.length ? "مرکزی با این نام پیدا نشد." : "هنوز مرکزی پنل فعال ندارد — اولین باشید!"}
+          {orgs.length ? "مرکزی با این نام یا شهر پیدا نشد." : "هنوز هیچ مرکز آموزشی فعالی ثبت نشده است."}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -508,7 +530,7 @@ function AdminRoleTool() {
       <h3 className="mb-2 text-[13px] font-extrabold text-bronze">تغییر نقش کاربر</h3>
       <div className="flex flex-wrap gap-2">
         <input className={`${inputCls} max-w-xs`} dir="ltr" value={uname} onChange={(e) => setUname(e.target.value)} placeholder="username" />
-        <button className={btnGhost} onClick={() => void look()}><Search className="h-4 w-4" /> پیدا کن</button>
+        <button className={btnGhost} onClick={() => void look()}><Search className="h-4 w-4" /> جست‌وجو</button>
       </div>
       {found && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
@@ -537,12 +559,22 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   const [members, setMembers] = React.useState<OrgMember[]>([]);
   const [tab, setTab] = React.useState<OrgTab>("teachers");
   const [err, setErr] = React.useState("");
+  // members failed to load: never shown as "no teachers yet" (and managers would lose their tabs)
+  const [membersErr, setMembersErr] = React.useState("");
 
   const load = React.useCallback(async () => {
+    setErr("");
+    setMembersErr("");
     try {
       const o = await getOrg(idOrSlug);
       setOrg(o);
-      if (o) setMembers(await orgMembers(o.id).catch(() => []));
+      if (o) {
+        try {
+          setMembers(await orgMembers(o.id));
+        } catch (e) {
+          setMembersErr(orgError(e));
+        }
+      }
     } catch (e) {
       setErr(orgError(e));
       setOrg(null);
@@ -562,6 +594,9 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
       <div className="mx-auto max-w-md pt-20 text-center">
         <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">{err || "این مرکز آموزشی پیدا نشد یا هنوز فعال نشده است."}</p>
         <button onClick={() => navigate({ view: "org" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">همهٔ مراکز آموزشی <ArrowLeft className="h-4 w-4" /></button>
+        {err && (
+          <button onClick={() => { setOrg(undefined); void load(); }} className={`${btnGhost} mt-3`}>تلاش دوباره</button>
+        )}
       </div>
     );
   }
@@ -627,7 +662,7 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
         ))}
       </nav>
 
-      {tab === "teachers" && <OrgTeachersTab members={active} />}
+      {tab === "teachers" && (membersErr ? <RetryBox msg={membersErr} onRetry={() => void load()} /> : <OrgTeachersTab members={active} />)}
       {tab === "content" && <OrgContentTab org={org} canManage={canManage} />}
       {tab === "manage" && canManage && <OrgManageTab org={org} members={members} isOwner={isOwner} onChanged={() => void load()} />}
       {tab === "settings" && canManage && <OrgSettingsTab org={org} onSaved={(o) => setOrg(o)} />}
@@ -654,7 +689,7 @@ function JoinButton({ org, me, onChanged }: { org: Org; me?: OrgMember; onChange
   if (me?.status === "active") return <span className="rounded-full bg-success/10 px-3 py-1 text-[11px] font-bold text-success">{ROLE_LABEL[me.role]}{me.title ? ` · ${me.title}` : ""}</span>;
   if (me?.status === "requested") return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-[11px] font-bold text-muted-foreground"><Clock3 className="h-3.5 w-3.5" /> درخواست عضویت در انتظار</span>;
   if (me?.status === "invited") {
-    return <button className={btnPrimary} onClick={() => navigate({ view: "org" })}><Mail className="h-4 w-4" /> دعوت داری — پاسخ بده</button>;
+    return <button className={btnPrimary} onClick={() => navigate({ view: "org" })}><Mail className="h-4 w-4" /> مشاهدهٔ دعوت‌نامه</button>;
   }
   if (!signed || (auth.user?.role !== "teacher" && auth.user?.role !== "admin")) return null;
   async function ask() {
@@ -699,15 +734,19 @@ function OrgTeachersTab({ members }: { members: OrgMember[] }) {
 function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
   const [data, setData] = React.useState<{ courses: TCourseCard[]; posts: FeedPost[] } | null>(null);
   const [err, setErr] = React.useState("");
+  // load failure (vs. an action error): the lists are not shown as empty
+  const [loadErr, setLoadErr] = React.useState("");
   const load = React.useCallback(async () => {
+    setLoadErr("");
     try {
       const res = await fetch(`/api/library/public?org=${encodeURIComponent(org.id)}`);
-      const j = (await res.json()) as { courses?: TCourseCard[]; posts?: FeedPost[]; error?: string };
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      const j = (ct.includes("json") ? await res.json().catch(() => ({})) : {}) as { courses?: TCourseCard[]; posts?: FeedPost[]; error?: string };
       if (!res.ok) throw new Error(j.error ?? "");
       setData({ courses: Array.isArray(j.courses) ? j.courses : [], posts: Array.isArray(j.posts) ? j.posts : [] });
     } catch (e) {
-      setErr(e instanceof Error && e.message ? e.message : "دریافت محتوا ناموفق بود.");
-      setData({ courses: [], posts: [] });
+      const m = e instanceof Error ? e.message : "";
+      setLoadErr(m && /[\u0600-\u06FF]/.test(m) ? m : "دریافت دوره‌ها و مطالب انجام نشد؛ اتصال اینترنت را بررسی کنید.");
     }
   }, [org.id]);
   React.useEffect(() => { void load(); }, [load]);
@@ -715,10 +754,11 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
     if (!window.confirm("از صفحهٔ مرکز برداشته شود؟ (در صفحهٔ خود مدرس می‌ماند)")) return;
     try { await unlinkFromOrg(org.id, kind, id); void load(); } catch (e) { setErr(orgError(e)); }
   }
+  if (loadErr && !data) return <RetryBox msg={loadErr} onRetry={() => void load()} />;
   if (!data) return <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>;
   return (
     <div className="space-y-6">
-      <ErrLine msg={err} />
+      <ErrLine msg={err || loadErr} />
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌ها ({fa(data.courses.length)})</h2>
         {data.courses.length === 0 ? (

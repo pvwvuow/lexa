@@ -13,7 +13,7 @@ import { useApp } from "@/lib/store";
 import { builtinCourses } from "@/lib/law/courses";
 import type { Course } from "@/lib/law/types";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
-import { usePublicLibrary, toggleBuiltinHidden, addTCourseLocally, type TCourseCard, type FeedPost } from "@/lib/social-client";
+import { usePublicLibrary, toggleBuiltinHidden, addTCourseLocally, errText, type TCourseCard, type FeedPost } from "@/lib/social-client";
 import { listInstalledPacks } from "@/lib/updater";
 import { SOCIAL_OFF } from "@/lib/app-mode";
 import { CourseIcon, StarRating, UserAvatar } from "./common";
@@ -27,7 +27,7 @@ async function toggleInLibrary(courseId: string): Promise<boolean> {
     body: JSON.stringify({ courseId }),
   });
   const d = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(d.error ?? "خطا در تغییر کتابخانه.");
+  if (!res.ok) throw new Error(d.error ?? "تغییر کتابخانه انجام نشد؛ لطفاً دوباره تلاش کنید.");
   await refreshLibrary();
   return !!d.inLibrary;
 }
@@ -49,21 +49,32 @@ function CourseCardLib({
   setBusyId: (v: string) => void;
   onErr: (m: string) => void;
 }) {
+  // the card keeps its own copy: after removing a course the button must flip back
+  // to «افزودن» right away (the list itself is not re-fetched)
+  const localHas = useApp((s) => s.tBooks.some((t) => t.id === c.id));
+  const [serverIn, setServerIn] = React.useState(c.inLibrary);
+  React.useEffect(() => setServerIn(c.inLibrary), [c.inLibrary]);
+  const inLib = user ? serverIn : localHas;
+
   async function act() {
+    if (busyId) return;
     setBusyId(c.id);
+    onErr("");
     try {
       // مهمان: افزودن محلی بدون حساب + پرش به دوره
       if (!user) {
+        if (localHas) { navigate({ view: "course", id: c.id }); return; }
         const done = await addTCourseLocally(c.id);
         if (done) setTimeout(() => navigate({ view: "course", id: c.id }), 150);
         else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
         return;
       }
       const added = await toggleInLibrary(c.id);
+      setServerIn(added);
       // افزودن موفق مستقیماً به دوره می‌رود تا در بخش مطالعه بازش کند
       if (added) setTimeout(() => navigate({ view: "course", id: c.id }), 250);
     } catch (e) {
-      onErr(e instanceof Error ? e.message : "خطایی رخ داد.");
+      onErr(errText(e, "تغییر کتابخانه انجام نشد؛ اتصال اینترنت را بررسی کنید."));
     } finally {
       setBusyId("");
     }
@@ -131,26 +142,27 @@ function CourseCardLib({
         onClick={act}
         disabled={busyId === c.id}
         className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-45 ${
-          c.inLibrary
+          inLib
             ? "border border-success/50 bg-success/10 text-success"
             : "bg-primary text-primary-foreground hover:brightness-110"
         }`}
+        title={inLib && user ? "برای حذف از کتابخانهٔ من دوباره بزنید" : undefined}
       >
         {busyId === c.id ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : c.inLibrary ? (
+        ) : inLib ? (
           <>
-            <BookCheck className="h-4 w-4" /> در کتابخانهٔ مطالعهٔ توست
+            <BookCheck className="h-4 w-4" /> در کتابخانهٔ من
           </>
         ) : (
           <>
-            <BookPlus className="h-4 w-4" /> افزودن به عنوان کتاب
+            <BookPlus className="h-4 w-4" /> افزودن به کتابخانهٔ من
           </>
         )}
       </button>
       {!user && (
         <p className="mt-1.5 flex items-center justify-center gap-1 text-[10px] leading-relaxed text-muted-foreground">
-          <CircleCheck className="h-3 w-3 text-success" /> بدون حساب هم اضافه می‌شود (همین دستگاه)؛ با حساب همه‌جا همگام می‌ماند
+          <CircleCheck className="h-3 w-3 text-success" /> بدون حساب روی همین دستگاه ذخیره می‌شود؛ با ورود به حساب، روی همهٔ دستگاه‌ها در دسترس است
         </p>
       )}
     </div>
@@ -316,16 +328,16 @@ function BuiltinCourseCard({ c }: { c: Course }) {
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : inLib ? (
-            <><BookCheck className="h-4 w-4" /> در کتابخانهٔ مطالعهٔ توست</>
+            <><BookCheck className="h-4 w-4" /> در کتابخانهٔ من</>
           ) : (
-            <><BookPlus className="h-4 w-4" /> افزودن به عنوان کتاب</>
+            <><BookPlus className="h-4 w-4" /> افزودن به کتابخانهٔ من</>
           )}
         </button>
         {inLib && (
           <button
             onClick={act}
             disabled={busy}
-            title="حذف از کتابخانهٔ من — پیشرفتت حفظ می‌شود و هر وقت خواستی برمی‌گردد"
+            title="حذف از کتابخانهٔ من — پیشرفت شما حفظ می‌شود و هر زمان بخواهید برمی‌گردد"
             aria-label={`حذف ${c.title} از کتابخانه`}
             className="grid h-[42px] w-[46px] shrink-0 place-items-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive disabled:opacity-40"
           >
@@ -335,7 +347,7 @@ function BuiltinCourseCard({ c }: { c: Course }) {
       </div>
       {!inLib && (
         <p className="mt-1.5 text-center text-[10px] leading-relaxed text-muted-foreground">
-          حذف شده؛ با همین دکمه برگردان — پیشرفت، تست و یادداشت‌هایت سر جایش می‌ماند.
+          از کتابخانه حذف شد؛ با همین دکمه می‌توانید آن را برگردانید. پیشرفت، آزمون‌ها و یادداشت‌های شما حفظ می‌شود.
         </p>
       )}
     </div>
@@ -366,7 +378,7 @@ export function PublicLibraryView() {
   const packCourses = React.useMemo(() => customCourses.filter((c) => packIds.has(c.id)), [customCourses, packIds]);
   // تب داخلی هیچ فراخوانی شبکه‌ای نمی‌زند؛ داده‌اش از خود باندل می‌آید.
   // در APK (بدون سرور) بخش اساتید اصلاً درخواست نمی‌زند — پیام راهنما جای آن می‌نشیند.
-  const { courses, posts, loading } = usePublicLibrary(cat, cat !== "builtin" && !SOCIAL_OFF);
+  const { courses, posts, loading, error: loadErr, reload } = usePublicLibrary(cat, cat !== "builtin" && !SOCIAL_OFF);
 
   const [busyId, setBusyId] = React.useState("");
   const [err, setErr] = React.useState("");
@@ -381,8 +393,8 @@ export function PublicLibraryView() {
           کتابخانهٔ عمومی
         </h1>
         <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          دوره‌های آمادهٔ خودِ Lexa + آنچه اساتید منتشر کرده‌اند — دسته‌بندی‌شده بر اساس شاخه.
-          هر چیزی را خواستی به بخش مطالعهٔ خودت اضافه یا حذف کن؛ حتی دوره‌هایی که هنوز در حال آماده‌سازی‌اند.
+          دوره‌های آمادهٔ Lexa و دوره‌ها و مطالبی که مدرسان منتشر کرده‌اند، به تفکیک شاخه.
+          هر دوره را می‌توانید به کتابخانهٔ مطالعهٔ خود اضافه یا از آن حذف کنید.
         </p>
       </header>
 
@@ -415,7 +427,7 @@ export function PublicLibraryView() {
       {!auth.user && (
         <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
           <LogIn className="h-4 w-4 shrink-0 text-bronze" />
-          دیدنِ آزاد است؛ دوره‌های آماده را حتی بدون حساب می‌توانی به کتابخانه بیفزایی یا برداری — ولی برای امتیاز دادن وارد شوید.
+          مشاهده برای همه آزاد است و دوره‌ها را بدون حساب هم می‌توانید به کتابخانه اضافه کنید؛ برای امتیاز دادن وارد حساب شوید.
         </p>
       )}
 
@@ -424,8 +436,8 @@ export function PublicLibraryView() {
         <section className="space-y-3">
           <h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5 text-bronze" /> دوره‌های آماده ({fa(builtinCourses.length)})</h2>
           <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            جزوات رسمی Lexa بر پایهٔ جزوه‌های معتبر دانشگاهی — خودت انتخاب می‌کنی کدام را به «کتابخانهٔ من»
-            بیفزایی؛ افزودن و حذف هر لحظه آزاد است و پیشرفت، تست و یادداشت‌هایت همیشه محفوظ می‌ماند.
+            جزوات Lexa بر پایهٔ منابع درسی دانشگاهی. هر کدام را بخواهید به «کتابخانهٔ من» اضافه کنید؛
+            حذف و افزودن دوباره، پیشرفت، آزمون‌ها و یادداشت‌های شما را پاک نمی‌کند.
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             {builtinCourses.map((c) => (
@@ -484,14 +496,22 @@ export function PublicLibraryView() {
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-bronze/10 text-2xl">📚</div>
           <p className="font-bold">مطالب و دوره‌های اساتید</p>
           <p className="mx-auto mt-2 max-w-sm text-xs leading-loose text-muted-foreground">
-            دوره‌های سروری اساتید در نسخهٔ اندروید فعلاً در دسترس نیست؛ ولی دوره‌های اساتید همین بالا نمایش داده می‌شود و «دوره‌های آماده» هم کامل است.
+            دوره‌ها و مطالب آنلاین مدرسان در این نسخه در دسترس نیست؛ دوره‌های نصب‌شده در بالا و «دوره‌های آماده» به‌طور کامل در دسترس‌اند.
           </p>
         </div>
       )}
       {!SOCIAL_OFF && cat !== "builtin" && loading && (
         <p className="flex items-center gap-2 py-8 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت کتابخانه…</p>
       )}
-      {!SOCIAL_OFF && cat !== "builtin" && !loading && (
+      {!SOCIAL_OFF && cat !== "builtin" && !loading && loadErr && (
+        <div className="rounded-2xl border border-dashed border-destructive/40 bg-card px-5 py-8 text-center shadow-card">
+          <p className="text-sm text-destructive">{loadErr}</p>
+          <button onClick={() => void reload()} className="mt-3 rounded-xl border border-border px-4 py-2 text-xs font-bold transition-colors hover:border-bronze hover:text-bronze">
+            تلاش دوباره
+          </button>
+        </div>
+      )}
+      {!SOCIAL_OFF && cat !== "builtin" && !loading && !loadErr && (
         <>
           {/* دوره‌ها */}
           <section className="space-y-3">
