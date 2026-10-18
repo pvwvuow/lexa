@@ -35,9 +35,9 @@ const fail = (status: number, error: string): CloudRes => ({ status, body: { err
 
 const MSG = {
   login: "برای این کار ابتدا با حساب Lexa (ایمیل) وارد شو.",
-  teacher: "این کار مخصوص حساب‌های استادی است.",
+  teacher: "این کار فقط برای حساب‌های مدرس است.",
   forbidden: "اجازهٔ این کار را نداری.",
-  offline: "اتصال به سرور ابری Lexa برقرار نشد — اینترنت را چک کن.",
+  offline: "اتصال به Lexa برقرار نشد؛ اتصال اینترنت را بررسی کن.",
   rate: "کمی آهسته‌تر — چند لحظه بعد دوباره امتحان کن.",
   badJson: "درخواست نامعتبر است.",
   postNotFound: "مطلب یافت نشد.",
@@ -164,7 +164,8 @@ interface CourseRow {
 }
 
 const AUTHOR_EMBED = "author:lexa_profiles(id,username,display_name,avatar_url,bio)";
-const TEACHER_EMBED = "teacher:lexa_profiles(id,username,display_name,avatar_url)";
+// lexa_library also links courses↔profiles, so the FK must be named (else PGRST201).
+const TEACHER_EMBED = "teacher:lexa_profiles!teacher_id(id,username,display_name,avatar_url)";
 const ORG_EMBED = "org:lexa_orgs(id,name,slug,logo_url)";
 const POST_CARD_COLS = `id,author_id,org_id,title,summary,tags,category,categories,thumbnail,created_at,updated_at,${AUTHOR_EMBED},${ORG_EMBED},lexa_comments(count)`;
 
@@ -266,7 +267,7 @@ async function patchProfile(req: CloudReq): Promise<CloudRes> {
   const patch: Record<string, unknown> = {};
   if ("displayName" in b) patch.display_name = typeof b.displayName === "string" ? b.displayName.trim().slice(0, 48) || null : null;
   if ("bio" in b) {
-    if (me.role === "user") return fail(400, "بیو فقط برای حساب‌های استادی است.");
+    if (me.role === "user") return fail(400, "معرفی کوتاه فقط برای حساب‌های مدرس است.");
     patch.bio = typeof b.bio === "string" ? b.bio.trim().slice(0, 320) || null : null;
   }
   if (typeof b.username === "string" && b.username.trim() && b.username.trim() !== me.username) {
@@ -284,22 +285,70 @@ async function patchProfile(req: CloudReq): Promise<CloudRes> {
 
 const IMAGE_EXT: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp", "image/gif": "gif" };
 
-async function uploadImage(req: CloudReq, prefix: string, maxBytes: number, allowGif: boolean): Promise<{ url: string } | CloudRes> {
+/** Phone photos are often 3-12 MB (and sometimes HEIC): shrink and re-encode in the
+ *  browser so every picture fits the bucket limits instead of being refused. */
+async function shrinkImage(file: Blob, maxSide: number, maxBytes: number): Promise<Blob | null> {
+  if (typeof document === "undefined" || typeof createImageBitmap !== "function") return null;
+  let bmp: ImageBitmap;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    return null; // a format this browser cannot decode
+  }
+  const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bmp.width * scale));
+  canvas.height = Math.max(1, Math.round(bmp.height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) { bmp.close(); return null; }
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close();
+  const encode = (type: string, q: number) => new Promise<Blob | null>((res) => canvas.toBlob(res, type, q));
+  for (const q of [0.86, 0.74, 0.6]) {
+    let out = await encode("image/webp", q);
+    // browsers without a WebP encoder hand back PNG: use JPEG there
+    if (!out || out.type !== "image/webp") out = await encode("image/jpeg", q);
+    if (out && out.size <= maxBytes) return out;
+  }
+  return null;
+}
+
+function uploadError(e: unknown): CloudRes {
+  const m = e instanceof HttpError ? `${e.message} ${e.code}` : String(e ?? "");
+  if (/row-level security|unauthorized|403/i.test(m)) return fail(403, "اجازهٔ بارگذاری تصویر وجود ندارد؛ یک بار از حساب خارج و دوباره وارد شو.");
+  if (/bucket not found/i.test(m)) return fail(503, "فضای ذخیرهٔ تصاویر هنوز راه‌اندازی نشده است.");
+  if (/maximum allowed size|too large|413/i.test(m)) return fail(400, "حجم تصویر بیش از حد مجاز است.");
+  if (/mime/i.test(m)) return fail(400, "این قالب تصویر پشتیبانی نمی‌شود؛ تصویر PNG، JPG یا WebP انتخاب کن.");
+  if (e instanceof TypeError) return fail(503, MSG.offline);
+  return fail(500, "بارگذاری تصویر انجام نشد؛ دوباره تلاش کن.");
+}
+
+async function uploadImage(req: CloudReq, prefix: string, maxBytes: number, allowGif: boolean, maxSide: number): Promise<{ url: string } | CloudRes> {
   const me = await cloudMe();
   if (!me) return fail(401, MSG.login);
   const file = req.form?.get("file");
   if (!file || typeof file === "string") return fail(400, "فایلی انتخاب نشده است.");
-  const type = (file.type || "").toLowerCase();
-  const ext = IMAGE_EXT[type];
-  if (!ext || (!allowGif && ext === "gif")) return fail(400, "فقط تصویر PNG، JPG یا WebP پذیرفته می‌شود.");
-  if (file.size > maxBytes) return fail(400, `حجم تصویر باید کمتر از ${Math.round(maxBytes / 1048576)} مگابایت باشد.`);
+  let blob: Blob = file;
+  let type = (file.type || "").toLowerCase().replace("image/jpg", "image/jpeg");
+  let ext = IMAGE_EXT[type];
+  const big = file.size > maxBytes;
+  if (!ext || (!allowGif && ext === "gif") || big || (ext !== "gif" && file.size > 600 * 1024)) {
+    const small = await shrinkImage(file, maxSide, maxBytes);
+    if (small) { blob = small; type = small.type; ext = IMAGE_EXT[type]; }
+  }
+  if (!type.startsWith("image/")) return fail(400, "فایل انتخاب‌شده تصویر نیست.");
+  if (!ext || (!allowGif && ext === "gif")) return fail(400, "این قالب تصویر پشتیبانی نمی‌شود؛ تصویر PNG، JPG یا WebP انتخاب کن.");
+  if (blob.size > maxBytes) return fail(400, `حجم تصویر باید کمتر از ${Math.round(maxBytes / 1048576)} مگابایت باشد.`);
   const path = `${me.id}/${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
-  const url = await sbUpload(path, file, type === "image/jpg" ? "image/jpeg" : type);
-  return { url };
+  try {
+    return { url: await sbUpload(path, blob, type) };
+  } catch (e) {
+    return uploadError(e);
+  }
 }
 
 async function avatarUpload(req: CloudReq): Promise<CloudRes> {
-  const up = await uploadImage(req, "avatar", 2 * 1024 * 1024, true);
+  const up = await uploadImage(req, "avatar", 2 * 1024 * 1024, true, 512);
   if ("status" in up) return up;
   const me = (await cloudMe())!;
   const old = mediaPathOf(me.avatarUrl);
@@ -323,7 +372,8 @@ async function coverUpload(req: CloudReq): Promise<CloudRes> {
   const me = await cloudMe();
   if (!me) return fail(401, MSG.login);
   if (!isTeacher(me) && req.query.get("kind") !== "org") return fail(403, MSG.teacher);
-  const up = await uploadImage(req, req.query.get("kind") === "org" ? "logo" : "cover", 4 * 1024 * 1024, false);
+  const logo = req.query.get("kind") === "org";
+  const up = await uploadImage(req, logo ? "logo" : "cover", 4 * 1024 * 1024, false, logo ? 600 : 1600);
   if ("status" in up) return up;
   return ok({ ok: true, url: up.url });
 }
@@ -883,10 +933,10 @@ export async function runCloud(fn: (req: CloudReq) => Promise<CloudRes>, req: Cl
       if (e.status === 401) return fail(401, MSG.login);
       if (e.status === 403 || e.code === "42501") return fail(403, MSG.forbidden);
       if (e.status === 404 || e.code === "PGRST205" || e.code === "42P01") {
-        return fail(503, "بخش اجتماعی ابری هنوز راه‌اندازی نشده است (اسکریپت پایگاه داده اجرا نشده).");
+        return fail(503, "این بخش هنوز راه‌اندازی نشده است.");
       }
       if (e.code === "22P02") return fail(404, "مورد خواسته‌شده یافت نشد.");
-      return fail(e.status >= 400 && e.status < 600 ? e.status : 500, m.startsWith("cloud error") ? "خطای سرور ابری." : m);
+      return fail(e.status >= 400 && e.status < 600 ? e.status : 500, m.startsWith("cloud error") ? "خطای سامانه؛ لطفاً دوباره تلاش کنید." : m);
     }
     return fail(503, MSG.offline);
   }

@@ -22,9 +22,10 @@ async function fail(res: Response): Promise<never> {
   let msg = "";
   let code = "";
   try {
-    const j = (await res.json()) as { message?: string; error?: string; error_description?: string; msg?: string; code?: string };
+    const j = (await res.json()) as { message?: string; error?: string; error_description?: string; msg?: string; code?: string; statusCode?: string | number };
     msg = j.message || j.error_description || j.error || j.msg || "";
-    code = j.code || "";
+    // Storage answers HTTP 400 with the real status inside the body
+    code = j.code || (j.statusCode ? String(j.statusCode) : "");
   } catch { /* not JSON */ }
   throw new HttpError(res.status, msg || `cloud error ${res.status}`, code);
 }
@@ -103,10 +104,12 @@ export function mediaPathOf(url: string | null | undefined): string {
   return url.startsWith(prefix) ? url.slice(prefix.length) : "";
 }
 
+/** Paths are unique (time + random), so no upsert: with x-upsert Storage also needs a
+ *  SELECT policy on storage.objects, which 002 never had, and every upload was refused. */
 export async function sbUpload(path: string, file: Blob, contentType: string): Promise<string> {
   const res = await sbFetch(`/storage/v1/object/${MEDIA_BUCKET}/${path}`, {
     method: "POST",
-    headers: { "Content-Type": contentType, "x-upsert": "true", "cache-control": "31536000" },
+    headers: { "Content-Type": contentType, "cache-control": "max-age=31536000" },
     body: file,
   });
   if (!res.ok) await fail(res);
