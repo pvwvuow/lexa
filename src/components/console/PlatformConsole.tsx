@@ -1,422 +1,499 @@
 "use client";
-/* Lexa platform console (phase A1 of docs/ADMIN_PLATFORM.md) — the full-screen operations console a
- * cloud admin sees instead of the learning shell. Sections live on #/admin/<section>; the frame, the
- * role-based home and the three module pages (centres, users, audit) are the A1 deliverable. */
+/* Lexa platform console (phase A1 of docs/ADMIN_PLATFORM.md): the Lexa admin's home. A full-screen
+ * workspace with its own navigation: overview, requests, centres, users, audit log, learning
+ * analytics and security. Sections live in the address (#/admin/<section>) so back/forward and
+ * links work. Reads and writes go through supabase/013_admin_console.sql. */
 import * as React from "react";
 import {
-  Activity, AlertTriangle, ArrowLeftRight, Building2, CalendarClock, GraduationCap, Inbox, KeyRound,
-  LogIn, ScrollText, ShieldCheck, Users,
+  Activity, AlertTriangle, ArrowLeftRight, BookOpen, Building2, CheckCircle2, ClipboardList, Clock, Gauge,
+  GraduationCap, Inbox, KeyRound, LayoutDashboard, LibraryBig, LogOut, PlugZap, ScrollText, Settings,
+  ShieldAlert, ShieldCheck, Timer, Upload, UserCheck, Users, XCircle,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
-import { consoleSectionFromHash, setWorkspacePref, useCloudSignedIn } from "@/lib/workspace";
-import { adminReviewTeacher, adminTeacherRequests, adminOrgs, type TeacherRequest, type Org } from "@/lib/cloud-api/orgs";
-import {
-  actionLabel, adminError, adminHome, adminOrgLifecycle, faAgo, faDateTime, faHours, faNum,
-  type AdminOrgRow,
-} from "@/lib/cloud-api/admin-console";
-import { orgError } from "@/lib/cloud-api/orgs";
 import { useAal } from "@/lib/mfa";
-import { MfaPanel } from "@/components/app/MfaPanel";
+import { consoleSectionFromHash, setWorkspacePref } from "@/lib/workspace";
 import {
-  Badge, Btn, ConsoleFrame, EmptyState, KeyValues, Kpi, Notice, PageHeader, Panel, RefreshBtn,
-  TrendChart, useLoad, type NavGroup,
+  actionLabel, adminError, adminHome, adminOrgLifecycle, adminOrgsOverview, adminUsers, faAgo, faDate, faDateTime,
+  faDaysLeft, faHours, faNum, type AdminAlert, type AdminHome, type AdminOrgRow,
+} from "@/lib/cloud-api/admin-console";
+import { adminReviewTeacher, adminTeacherRequests, type TeacherRequest } from "@/lib/cloud-api/orgs";
+import { MfaPanel } from "@/components/app/MfaPanel";
+import { AdminStudyPanel } from "@/components/app/AdminStudyPanel";
+import { ComparisonReportPanel } from "@/components/app/ComparisonReportPanel";
+import {
+  Badge, Btn, ConfirmDialog, ConsoleFrame, DataTable, Drawer, EmptyState, KeyValues, Kpi, Notice, PageHeader, Panel,
+  RefreshBtn, SearchBox, TrendChart, useLoad, type ConfirmSpec, type NavGroup, type Tone,
 } from "./ConsoleKit";
 import { AdminCentresPage } from "./AdminCentresPage";
 import { AdminUsersPage } from "./AdminUsersPage";
 import { AdminAuditPage } from "./AdminAuditPage";
 
-const ALERT_LABEL: Record<string, string> = {
-  admins_no_mfa: "مدیری بدون ورود دومرحله‌ای",
-  org_delete_due: "مهلت حذف مرکز سرآمده",
-  org_expired: "اعتبار مرکز تمام‌شده",
-  org_expiring: "اعتبار مرکز رو به پایان",
-  org_students_full: "صندلی دانشجوی مرکز پرشده",
-  org_teachers_full: "صندلی مدرس مرکز پرشده",
-  connector_failed: "اجرای ناموفق کانکتور (۲۴ ساعت)",
-  api_errors: "خطای بالای API (۲۴ ساعت)",
+export type ConsoleSection = "overview" | "requests" | "centres" | "users" | "audit" | "learning" | "security";
+const SECTIONS: ConsoleSection[] = ["overview", "requests", "centres", "users", "audit", "learning", "security"];
+const TITLES: Record<ConsoleSection, string> = {
+  overview: "نمای کلی", requests: "درخواست‌ها", centres: "مراکز آموزشی", users: "کاربران",
+  audit: "گزارش ممیزی", learning: "تحلیل یادگیری", security: "امنیت",
 };
 
-export function PlatformConsole() {
+/** shared state between sections: jump to a centre / user with a search */
+export interface ConsoleNav {
+  go: (s: ConsoleSection, opts?: { centre?: string; q?: string }) => void;
+}
+
+export function PlatformConsole({ onExit }: { onExit?: () => void }) {
   const auth = useAuth();
-  const cloud = useCloudSignedIn();
-  const [section, setSection] = React.useState("overview");
+  const aal = useAal();
+  const [section, setSection] = React.useState<ConsoleSection>(() => {
+    const s = consoleSectionFromHash("overview") as ConsoleSection;
+    return SECTIONS.includes(s) ? s : "overview";
+  });
+  const [centreFocus, setCentreFocus] = React.useState<string | null>(null);
+  const [userQuery, setUserQuery] = React.useState("");
+  const [topQ, setTopQ] = React.useState("");
+  const home = useLoad(() => adminHome(), []);
+
   React.useEffect(() => {
-    const read = () => setSection(consoleSectionFromHash("overview"));
-    read();
-    window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
+    const onHash = () => {
+      const s = consoleSectionFromHash("overview") as ConsoleSection;
+      if (SECTIONS.includes(s)) setSection(s);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const go = (key: string) => { window.location.hash = key === "overview" ? "#/admin" : `#/admin/${key}`; };
-  const toLearning = () => { setWorkspacePref("learning"); navigate({ view: "home" }); };
+  const go = React.useCallback<ConsoleNav["go"]>((s, opts) => {
+    if (opts?.centre !== undefined) setCentreFocus(opts.centre);
+    if (opts?.q !== undefined) setUserQuery(opts.q);
+    setSection(s);
+    const h = `#/admin/${s}`;
+    if (window.location.hash !== h) window.location.hash = h;
+    window.scrollTo({ top: 0 });
+  }, []);
 
-  if (!cloud || auth.user?.role !== "admin") {
-    return (
-      <div dir="rtl" className="grid min-h-screen place-items-center bg-background p-6">
-        <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-card">
-          <ShieldCheck className="mx-auto mb-3 h-10 w-10 text-bronze" />
-          <h1 className="font-display text-lg font-extrabold">کنسول مدیریت Lexa</h1>
-          <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-            این کنسول با حساب ابری Lexa که نقش مدیر دارد باز می‌شود. اگر تازه مدیر شده‌اید یک‌بار خارج و دوباره وارد شوید.
-          </p>
-          <div className="mt-5 flex justify-center gap-2">
-            <Btn kind="primary" icon={LogIn} onClick={toLearning}>رفتن به محیط یادگیری</Btn>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const exit = () => {
+    setWorkspacePref("learning");
+    if (onExit) onExit();
+    else navigate({ view: "home" });
+  };
 
+  const k = home.data?.kpis;
+  const qd = home.data?.queues;
+  const alerts = home.data?.alerts ?? [];
   const groups: NavGroup[] = [
-    { label: "خانه", items: [
-      { key: "overview", label: "نمای کلی", icon: Activity },
-      { key: "requests", label: "درخواست‌ها", icon: Inbox },
-    ] },
-    { label: "مدیریت", items: [
-      { key: "centres", label: "مراکز آموزشی", icon: Building2 },
-      { key: "users", label: "کاربران و نقش‌ها", icon: Users },
-      { key: "audit", label: "گزارش ممیزی", icon: ScrollText },
-      { key: "security", label: "امنیت", icon: ShieldCheck },
-    ] },
-    { label: "تحلیل", items: [
-      { key: "learning", label: "یادگیری", icon: GraduationCap },
-    ] },
+    {
+      label: "پیشخوان",
+      items: [
+        { key: "overview", label: "نمای کلی", icon: LayoutDashboard, badge: alerts.length || null, tone: alerts.some((a) => a.rank <= 2) ? "bad" : "warn" },
+        { key: "requests", label: "درخواست‌ها", icon: Inbox, badge: ((qd?.teacher_requests ?? 0) + (qd?.org_requests ?? 0)) || null },
+      ],
+    },
+    {
+      label: "مدیریت",
+      items: [
+        { key: "centres", label: "مراکز آموزشی", icon: Building2, badge: qd?.orgs_delete_due || null, tone: "bad" },
+        { key: "users", label: "کاربران و نقش‌ها", icon: Users },
+        { key: "audit", label: "گزارش ممیزی", icon: ScrollText },
+      ],
+    },
+    {
+      label: "گزارش‌ها",
+      items: [{ key: "learning", label: "تحلیل یادگیری", icon: Activity }],
+    },
+    {
+      label: "سیستم",
+      items: [{ key: "security", label: "امنیت", icon: ShieldCheck, badge: k?.admins_no_mfa || null, tone: "warn" }],
+    },
   ];
 
+  const footer = (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2.5 rounded-lg bg-white/[0.05] px-2.5 py-2">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-bronze/90 text-[13px] font-bold text-[#132018]">
+          {(auth.user?.displayName || auth.user?.username || "?").slice(0, 1)}
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block truncate text-[12.5px] font-bold text-white">{auth.user?.displayName || auth.user?.username}</span>
+          <span className="block text-[10.5px] text-white/50">مدیر Lexa</span>
+        </span>
+        {aal === "aal2"
+          ? <span title="ورود دومرحله‌ای تأییدشده"><ShieldCheck className="h-4 w-4 text-emerald-400" /></span>
+          : <button type="button" title="ورود دومرحله‌ای لازم است" onClick={() => go("security")}><ShieldAlert className="h-4 w-4 text-amber-400" /></button>}
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button type="button" onClick={exit} className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-1.5 text-[11.5px] font-semibold text-white/75 hover:bg-white/[0.06] hover:text-white">
+          <BookOpen className="h-3.5 w-3.5" /> محیط یادگیری
+        </button>
+        <button type="button" onClick={() => navigate({ view: "settings" })} className="flex items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2 py-1.5 text-[11.5px] font-semibold text-white/75 hover:bg-white/[0.06] hover:text-white">
+          <Settings className="h-3.5 w-3.5" /> تنظیمات
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button type="button" onClick={() => navigate({ view: "import" })} className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-white/55 hover:text-white">
+          <Upload className="h-3.5 w-3.5" /> افزودن کتاب
+        </button>
+        <button type="button" onClick={() => navigate({ view: "library" })} className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-white/55 hover:text-white">
+          <LibraryBig className="h-3.5 w-3.5" /> کتابخانه
+        </button>
+      </div>
+    </div>
+  );
+
+  const nav: ConsoleNav = { go };
   return (
-    <ConsoleFrame product="Lexa" workspace="کنسول مدیریت پلتفرم" groups={groups} active={section} onSelect={go}
-      crumbs={["Lexa", "کنسول مدیریت", sectionTitle(section)]}
-      footer={
-        <div className="space-y-2">
-          <button type="button" onClick={toLearning}
-            className="flex w-full items-center gap-2.5 rounded-lg bg-white/[0.06] px-3 py-2 text-[12.5px] font-semibold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white">
-            <GraduationCap className="h-4 w-4 text-bronze" /> محیط یادگیری
+    <ConsoleFrame
+      product="Lexa"
+      workspace="کنسول مدیریت پلتفرم"
+      groups={groups}
+      active={section}
+      onSelect={(s) => go(s as ConsoleSection)}
+      footer={footer}
+      crumbs={["کنسول مدیریت", TITLES[section]]}
+      topActions={
+        <>
+          <SearchBox value={topQ} onChange={setTopQ} placeholder="جستجوی کاربر (نام، ایمیل)…" className="hidden w-72 md:block"
+            onEnter={() => { if (topQ.trim()) go("users", { q: topQ.trim() }); }} />
+          {aal !== "aal2" && <Btn size="sm" kind="secondary" icon={ShieldAlert} onClick={() => go("security")} className="text-amber-700 dark:text-amber-400">ورود دومرحله‌ای</Btn>}
+          <button type="button" onClick={exit} className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground sm:inline-flex">
+            <LogOut className="h-4 w-4" /> خروج از کنسول
           </button>
-          <p className="px-1 text-[10px] leading-relaxed text-white/35">فاز A1 طرح پنل مدیریت · هر تغییر حساس در گزارش ممیزی ثبت می‌شود</p>
-        </div>
-      }>
-      {section === "overview" && <Overview onGo={go} />}
-      {section === "requests" && <RequestsSection />}
-      {section === "centres" && <AdminCentresPage />}
-      {section === "users" && <AdminUsersPage />}
+        </>
+      }
+    >
+      {section === "overview" && <OverviewPage home={home.data} error={home.error} busy={home.busy} at={home.at} reload={home.reload} nav={nav} />}
+      {section === "requests" && <RequestsPage onChanged={home.reload} />}
+      {section === "centres" && <AdminCentresPage focus={centreFocus} onFocusDone={() => setCentreFocus(null)} onChanged={home.reload} />}
+      {section === "users" && <AdminUsersPage initialQuery={userQuery} />}
       {section === "audit" && <AdminAuditPage />}
-      {section === "security" && <SecuritySection onGo={go} />}
-      {section === "learning" && <LearningSection />}
-      {!["overview", "requests", "centres", "users", "audit", "security", "learning"].includes(section) && (
-        <EmptyState title="این بخش در فاز A1 نیست" text="بخش‌های موجود از منوی کنار صفحه انتخاب می‌شوند." action={<Btn kind="primary" onClick={() => go("overview")}>نمای کلی</Btn>} />
-      )}
+      {section === "learning" && <LearningPage />}
+      {section === "security" && <SecurityPage nav={nav} />}
     </ConsoleFrame>
   );
 }
 
-function sectionTitle(s: string): string {
-  const map: Record<string, string> = {
-    overview: "نمای کلی", requests: "درخواست‌ها", centres: "مراکز آموزشی", users: "کاربران و نقش‌ها",
-    audit: "گزارش ممیزی", security: "امنیت", learning: "یادگیری",
-  };
-  return map[s] ?? "نمای کلی";
-}
-
-// ─── overview ────────────────────────────────────────────────────────────────────────────────
-function Overview({ onGo }: { onGo: (k: string) => void }) {
-  const home = useLoad(() => adminHome(), []);
-  const h = home.data;
-  const aal = useAal();
-  return (
-    <>
-      <PageHeader title="نمای کلی" description="وضعیت پلتفرم در یک نگاه: کاربران، یادگیری، مراکز، صف‌های کار و هشدارها."
-        meta={h ? <>امروز {faDate_(h.today)} · محاسبه‌شده {faAgo(h.generated_at)}</> : undefined}
-        actions={<RefreshBtn onClick={() => void home.reload()} busy={home.busy} at={home.at} />} />
-      {home.error ? <div className="mb-4"><Notice tone="bad" title="داده‌های کنسول خوانده نشد">{adminError(home.error)}</Notice></div> : null}
-      {h && !h.mfa && aal !== "aal2" && (
-        <div className="mb-4"><Notice tone="warn" title="ورود دومرحله‌ای شما فعال نیست"
-          action={<Btn size="sm" kind="primary" onClick={() => onGo("security")}>فعال‌سازی</Btn>}>
-          برای بخش کاربران، گزارش ممیزی و هر تغییر حساسی به نشست دومرحله‌ای نیاز دارید.
-        </Notice></div>
-      )}
-      {h && (
-        <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="کاربران Lexa" value={faNum(h.kpis.users)} icon={Users}
-              hint={<>+{faNum(h.kpis.users_new_7d)} در ۷ روز · ورودهای موفق هفته: {faNum(h.kpis.signins_7d)}</>}
-              spark={h.series.map((p) => p.signups)} />
-            <Kpi label="یادگیرندهٔ امروز" value={faNum(h.kpis.learners_1d)} icon={GraduationCap}
-              hint={<>۷ روز: {faNum(h.kpis.learners_7d)} · ۳۰ روز: {faNum(h.kpis.learners_30d)}</>}
-              spark={h.series.map((p) => p.learners)} />
-            <Kpi label="مطالعهٔ ۷ روز" value={`${faHours(h.kpis.study_seconds_7d)} ساعت`} icon={CalendarClock}
-              hint={<>۳۰ روز: {faHours(h.kpis.study_seconds_30d)} ساعت</>}
-              spark={h.series.map((p) => p.seconds)} />
-            <Kpi label="مراکز فعال" value={faNum(h.kpis.orgs_active)} icon={Building2}
-              hint={<>{faNum(h.kpis.orgs_pending)} در انتظار · {faNum(h.kpis.orgs_expired)} تمام‌شده · {faNum(h.kpis.orgs_suspended)} معلق · {faNum(h.kpis.orgs_archived)} بایگانی</>} />
-            <Kpi label="دانشجوی رسمی" value={faNum(h.kpis.official_students)} icon={GraduationCap}
-              hint={<>{faNum(h.kpis.student_seats)} صندلی خریداری‌شده</>} />
-            <Kpi label="کلاس‌های فعال" value={faNum(h.kpis.classes_active)} icon={ArrowLeftRight}
-              hint={<>{faNum(h.kpis.exams_next_7d)} آزمون رسمی در ۷ روز آینده</>} />
-            <Kpi label="مدیران Lexa" value={faNum(h.kpis.admins)} icon={ShieldCheck}
-              tone={h.kpis.admins_no_mfa ? "warn" : "brand"}
-              hint={h.kpis.admins_no_mfa ? <>{faNum(h.kpis.admins_no_mfa)} مدیر بدون ورود دومرحله‌ای</> : "همهٔ مدیرها دومرحله‌ای دارند"} />
-            <Kpi label="کاربران معلق" value={faNum(h.kpis.suspended_users)} icon={AlertTriangle}
-              tone={h.kpis.suspended_users ? "warn" : "brand"} hint="پس از تعلیق، ورود بلافاصله بسته می‌شود" />
-          </div>
-          <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <Panel title="۳۰ روز گذشته" description="ثبت‌نام، یادگیرندهٔ فعال و ساعت مطالعه در یک نمودار">
-              <TrendChart labels={h.series.map((p) => p.day.slice(5))} height={220}
-                series={[
-                  { name: "یادگیرندهٔ فعال", color: "#8a6a30", area: true, values: h.series.map((p) => p.learners) },
-                  { name: "ثبت‌نام", color: "#3b82f6", values: h.series.map((p) => p.signups) },
-                  { name: "ساعت مطالعه", color: "#10b981", values: h.series.map((p) => Math.round(p.seconds / 360) / 10) },
-                ]} format={(v) => faNum(v)} />
-            </Panel>
-            <Panel title="هشدارها" description="نزدیک‌ترین کارهایی که به توجه ادمین نیاز دارند">
-              {h.alerts.length === 0
-                ? <EmptyState icon={ShieldCheck} title="هشداری نیست" text="همهٔ مراکز، کلیدها و کانکتورها در وضعیت سالم‌اند." />
-                : (
-                  <ul className="space-y-2">
-                    {h.alerts.map((a, i) => (
-                      <li key={`${a.kind}-${i}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-border px-3 py-2 text-[12.5px]">
-                        <Badge tone={a.rank <= 2 ? "bad" : a.rank <= 4 ? "warn" : "muted"} dot>{ALERT_LABEL[a.kind] ?? a.kind}</Badge>
-                        {a.name && <b className="truncate">{a.name}</b>}
-                        {a.used !== undefined && a.cap !== undefined && <span className="tabular-nums text-muted-foreground">{faNum(a.used)} از {faNum(a.cap)}</span>}
-                        {a.count !== undefined && <span className="tabular-nums text-muted-foreground">تعداد: {faNum(a.count)}</span>}
-                        {a.org_id && <button type="button" onClick={() => onGo("centres")} className="ms-auto text-[11.5px] font-bold text-bronze hover:underline">مشاهدهٔ مرکز</button>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-            </Panel>
-          </div>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <Panel title="صف‌های کار" description="کارهای در انتظار تصمیم ادمین">
-              <KeyValues items={[
-                ["درخواست حساب مدرس", <QueueLink key="t" count={h.queues.teacher_requests} oldest={h.queues.teacher_requests_oldest} onClick={() => onGo("requests")} />],
-                ["درخواست ساخت مرکز", <QueueLink key="o" count={h.queues.org_requests} oldest={h.queues.org_requests_oldest} onClick={() => onGo("requests")} />],
-                ["حذف‌های سرآمده", <QueueLink key="d" count={h.queues.orgs_delete_due} onClick={() => onGo("centres")} />],
-                ["حذف‌های زمان‌بندی‌شده", <QueueLink key="s" count={h.queues.orgs_delete_scheduled} onClick={() => onGo("centres")} />],
-              ]} />
-              {(h.kpis.connector_failed_24h !== null || h.kpis.api_errors_24h !== null) && (
-                <p className="mt-3 text-[11.5px] text-muted-foreground">
-                  {h.kpis.connector_failed_24h !== null ? <>اجرای ناموفق کانکتور ۲۴ ساعت: {faNum(h.kpis.connector_failed_24h)} · </> : null}
-                  {h.kpis.api_errors_24h !== null ? <>خطاهای API ۲۴ ساعت: {faNum(h.kpis.api_errors_24h)}</> : null}
-                </p>
-              )}
-            </Panel>
-            <Panel title="فعالیت اخیر" description="آخرین رویدادهای ممیزی — جزئیات کامل در «گزارش ممیزی»"
-              actions={<Btn size="sm" kind="ghost" icon={ScrollText} onClick={() => onGo("audit")}>گزارش ممیزی</Btn>}>
-              {h.recent.length === 0
-                ? <EmptyState icon={ScrollText} title="رویدادی ثبت نشده است" />
-                : (
-                  <ul className="space-y-1.5 text-[12px]">
-                    {h.recent.slice(0, 12).map((r) => (
-                      <li key={r.id} className="flex flex-wrap items-center gap-2 border-b border-border/50 pb-1.5 last:border-0">
-                        <span className="tabular-nums text-muted-foreground">{faDateTime(r.at)}</span>
-                        <b>{actionLabel(r.action)}</b>
-                        {r.actor && <span dir="ltr" className="text-muted-foreground">@{r.actor}</span>}
-                        {(r.org || r.target_name) && <span className="text-muted-foreground">· {r.org ?? r.target_name}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-            </Panel>
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-function QueueLink({ count, oldest, onClick }: { count: number; oldest?: string | null; onClick: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <Badge tone={count > 0 ? "warn" : "muted"} dot={count > 0}>{faNum(count)} در صف</Badge>
-      {count > 0 && oldest && <span className="text-[11px] text-muted-foreground">قدیمی‌ترین: {faAgo(oldest)}</span>}
-      {count > 0 && <button type="button" onClick={onClick} className="ms-auto text-[11.5px] font-bold text-bronze hover:underline">بررسی</button>}
-    </span>
-  );
-}
-
-function faDate_(day: string): string {
-  try { return new Date(`${day}T12:00:00Z`).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" }); }
-  catch { return day; }
-}
-
-// ─── requests ────────────────────────────────────────────────────────────────────────────────
-function RequestsSection() {
-  const teachers = useLoad(() => adminTeacherRequests("pending"), []);
-  const orgs = useLoad(() => adminOrgs(), []);
-  const [err, setErr] = React.useState("");
-  const [busy, setBusy] = React.useState("");
-  const orgRequests = (orgs.data ?? []).filter((o: Org) => o.status === "pending");
-  const [confirm, setConfirm] = React.useState<{ uid: string; name: string } | null>(null);
-
-  async function review(uid: string, approve: boolean, note = "") {
-    setBusy(uid); setErr("");
-    try { await adminReviewTeacher(uid, approve, note); void teachers.reload(); }
-    catch (e) { setErr(orgError(e)); } finally { setBusy(""); }
+// --- overview ---
+function alertView(a: AdminAlert): { tone: Tone; title: string; text: string } {
+  const name = a.name ?? "";
+  switch (a.kind) {
+    case "admins_no_mfa": return { tone: "bad", title: "مدیر بدون ورود دومرحله‌ای", text: `${faNum(a.count)} حساب مدیر Lexa هنوز ورود دومرحله‌ای ندارد.` };
+    case "org_delete_due": return { tone: "bad", title: `مهلت حذف «${name}» تمام شده`, text: "مرکز آمادهٔ حذف دائمی است؛ تصمیم بگیرید: حذف یا لغو." };
+    case "org_expired": return { tone: "bad", title: `اعتبار «${name}» تمام شده`, text: `از ${faDate(a.at)} حساب‌های مرکز دسترسی رسمی ندارند.` };
+    case "org_expiring": return { tone: "warn", title: `اعتبار «${name}» رو به پایان است`, text: `${faDate(a.at)} (${faDaysLeft(a.at)})` };
+    case "org_students_full": return { tone: "warn", title: `ظرفیت دانشجوی «${name}» پر است`, text: `${faNum(a.used)} از ${faNum(a.cap)} حساب دانشجویی.` };
+    case "org_teachers_full": return { tone: "warn", title: `ظرفیت مدرس «${name}» پر است`, text: `${faNum(a.used)} از ${faNum(a.cap)} صندلی مدرس.` };
+    case "connector_failed": return { tone: "bad", title: `کانکتور «${name}» خطا داده`, text: `${faNum(a.count)} اجرای ناموفق در ۲۴ ساعت؛ آخرین: ${faAgo(a.at)}.` };
+    case "api_errors": return { tone: "warn", title: `خطای API در «${name}»`, text: `${faNum(a.count)} پاسخ خطای سرور در ۲۴ ساعت.` };
+    default: return { tone: "muted", title: String(a.kind), text: "" };
   }
-  async function activateOrg(o: AdminOrgRow | { id: string; name: string; slug: string }) {
-    setBusy(o.id); setErr("");
-    try { await adminOrgLifecycle(o.id, "activate"); void orgs.reload(); }
-    catch (e) { setErr(adminError(e)); } finally { setBusy(""); }
-  }
-
-  return (
-    <>
-      <PageHeader title="درخواست‌ها" description="درخواست حساب مدرس و ساخت مرکز آموزشی. تأیید یا رد هر درخواست در گزارش ممیزی ثبت می‌شود." />
-      {err && <div className="mb-4"><Notice tone="bad" title="کار انجام نشد">{err}</Notice></div>}
-      <Panel className="mb-4" title="درخواست‌های حساب مدرس" icon={Users}
-        description="تأیید یعنی نقش حساب به «مدرس» تغییر می‌کند؛ رد با دلیل برای متقاضی نمایش داده می‌شود."
-        actions={<RefreshBtn onClick={() => void teachers.reload()} busy={teachers.busy} at={teachers.at} />}>
-        {teachers.error ? <Notice tone="bad" title="فهرست خوانده نشد">{orgError(teachers.error)}</Notice>
-          : (teachers.data ?? []).length === 0 ? <EmptyState icon={Inbox} title="درخواستی در صف نیست" />
-          : (
-            <ul className="space-y-2">
-              {(teachers.data ?? []).map((r: TeacherRequest) => (
-                <li key={r.userId} className="rounded-lg border border-border p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <b className="text-[13px]">{r.fullName}</b>
-                    {r.user?.username && <span dir="ltr" className="text-[11px] text-muted-foreground">@{r.user.username}</span>}
-                    <span className="text-[11px] text-muted-foreground">{faAgo(r.createdAt)}</span>
-                    <span className="ms-auto flex gap-2">
-                      <Btn size="sm" kind="primary" busy={busy === r.userId} onClick={() => void review(r.userId, true)}>تأیید</Btn>
-                      <Btn size="sm" onClick={() => setConfirm({ uid: r.userId, name: r.fullName })}>رد…</Btn>
-                    </span>
-                  </div>
-                  {r.credentials && <p className="mt-1.5 text-[11.5px]"><b>سوابق:</b> {r.credentials}</p>}
-                  {r.bio && <p className="mt-1 text-[11.5px] text-muted-foreground">{r.bio}</p>}
-                  {r.contact && <p className="mt-1 text-[11px] text-muted-foreground">تماس: {r.contact}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-      </Panel>
-      <Panel title="مراکز در انتظار فعال‌سازی" icon={Building2}
-        description="پس از فعال‌سازی، صاحب مرکز می‌تواند مدرس دعوت کند و کلاس بسازد."
-        actions={<RefreshBtn onClick={() => void orgs.reload()} busy={orgs.busy} at={orgs.at} />}>
-        {orgs.error ? <Notice tone="bad" title="فهرست مراکز خوانده نشد">{adminError(orgs.error)}</Notice>
-          : orgRequests.length === 0 ? <EmptyState icon={Inbox} title="مرکزی در صف فعال‌سازی نیست" />
-          : (
-            <ul className="space-y-2">
-              {orgRequests.map((o) => (
-                <li key={o.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
-                  <b className="text-[13px]">{o.name}</b>
-                  <span dir="ltr" className="text-[11px] text-muted-foreground">{o.slug}</span>
-                  <Badge tone="info">در انتظار</Badge>
-                  <span className="text-[11px] text-muted-foreground">{faAgo(o.createdAt)}</span>
-                  <span className="ms-auto flex gap-2">
-                    <Btn size="sm" kind="primary" busy={busy === o.id} onClick={() => void activateOrg(o)}>فعال‌سازی</Btn>
-                    <Btn size="sm" onClick={() => { window.location.hash = "#/admin/centres"; }}>مراکز آموزشی</Btn>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-      </Panel>
-      <RejectTeacherDialog confirm={confirm} onClose={() => setConfirm(null)} onDone={(uid, reason) => void review(uid, false, reason)} busy={busy} />
-    </>
-  );
 }
 
-function RejectTeacherDialog({ confirm, onClose, onDone, busy }: {
-  confirm: { uid: string; name: string } | null; onClose: () => void; onDone: (uid: string, reason: string) => void; busy: string;
+function OverviewPage({ home, error, busy, at, reload, nav }: {
+  home: AdminHome | null; error: unknown; busy: boolean; at: Date | null; reload: () => Promise<void>; nav: ConsoleNav;
 }) {
-  const [reason, setReason] = React.useState("");
-  const [err, setErr] = React.useState("");
-  React.useEffect(() => { setReason(""); setErr(""); }, [confirm]);
-  if (!confirm) return null;
-  const ok = reason.trim().length >= 3;
-  return (
-    <div className="fixed inset-0 z-[60] grid place-items-center p-4" dir="rtl" role="alertdialog" aria-modal>
-      <button type="button" aria-label="انصراف" className="absolute inset-0 bg-black/45" onClick={onClose} disabled={busy === confirm.uid} />
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-2xl">
-        <h3 className="text-[15px] font-extrabold">رد درخواست مدرس</h3>
-        <p className="mt-2 text-[12.5px] text-muted-foreground">درخواست «{confirm.name}» رد می‌شود. دلیل برای متقاضی نمایش داده می‌شود.</p>
-        <textarea rows={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)}
-          className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] outline-none focus:border-bronze"
-          placeholder="مثلاً مدارک هویتی ناقص است — پس از تکمیل دوباره درخواست بدهید." />
-        {err && <p role="alert" className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[12px] text-red-700 dark:text-red-400">{err}</p>}
-        <div className="mt-4 flex justify-end gap-2">
-          <Btn onClick={onClose} disabled={busy === confirm.uid}>انصراف</Btn>
-          <Btn kind="danger" busy={busy === confirm.uid} disabled={!ok}
-            onClick={() => { onDone(confirm.uid, reason.trim()); onClose(); }}>رد درخواست</Btn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── security ────────────────────────────────────────────────────────────────────────────────
-function SecuritySection({ onGo }: { onGo: (k: string) => void }) {
-  const home = useLoad(() => adminHome(), []);
-  const h = home.data;
-  const aal = useAal();
+  if (error && !home) {
+    return (
+      <>
+        <PageHeader title="نمای کلی پلتفرم" />
+        <Notice tone="bad" title="داده‌های کنسول خوانده نشد" action={<Btn size="sm" onClick={() => void reload()}>تلاش دوباره</Btn>}>{adminError(error)}</Notice>
+      </>
+    );
+  }
+  const k = home?.kpis;
+  const q = home?.queues;
+  const series = home?.series ?? [];
+  const labels = series.map((p) => faDate(p.day));
+  const v = (n: number | null | undefined) => (home ? faNum(n ?? 0) : "…");
   return (
     <>
-      <PageHeader title="امنیت" description="ورود دومرحله‌ای خودتان، وضعیت مدیران و کارهای حساس محافظت‌شده."
-        actions={<RefreshBtn onClick={() => void home.reload()} busy={home.busy} at={home.at} />} />
-      {home.error ? <div className="mb-4"><Notice tone="bad" title="وضعیت امنیتی خوانده نشد">{adminError(home.error)}</Notice></div> : null}
-      {h && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          <Kpi label="نشست دومرحله‌ای شما" value={aal === "aal2" ? "فعال" : "غیرفعال"} icon={KeyRound}
-            tone={aal === "aal2" ? "ok" : "warn"} hint={h.mfa ? "عامل دومرحله‌ای ثبت شده است" : "هنوز عاملی ثبت نکرده‌اید"} />
-          <Kpi label="مدیران بدون دومرحله‌ای" value={faNum(h.kpis.admins_no_mfa ?? 0)} icon={ShieldCheck}
-            tone={h.kpis.admins_no_mfa ? "warn" : "ok"} hint="این مدیرها به بخش کاربران و ممیزی راه ندارند"
-          />
-          <Kpi label="کاربران معلق" value={faNum(h.kpis.suspended_users)} icon={AlertTriangle}
-            tone={h.kpis.suspended_users ? "warn" : "muted"} hint="پرونده و رفع تعلیق در «کاربران و نقش‌ها»"
-          />
+      <PageHeader
+        title="نمای کلی پلتفرم"
+        description="وضعیت لحظه‌ای Lexa: کاربران، مراکز، یادگیری، صف کارها و هشدارهایی که به تصمیم شما نیاز دارند."
+        meta={home && (
+          <>
+            <span>امروز {faDate(home.today)}</span>
+            <span aria-hidden>·</span>
+            <span>به‌روزرسانی {faDateTime(home.generated_at)}</span>
+            {home.mfa ? <Badge tone="ok" dot>نشست دومرحله‌ای</Badge> : <Badge tone="warn" dot>نشست یک‌مرحله‌ای</Badge>}
+          </>
+        )}
+        actions={<RefreshBtn onClick={() => void reload()} busy={busy} at={at} />}
+      />
+
+      {home && !home.mfa && (
+        <div className="mb-5">
+          <Notice tone="warn" title="ورود دومرحله‌ای فعال نیست"
+            action={<Btn size="sm" kind="primary" icon={KeyRound} onClick={() => nav.go("security")}>فعال‌سازی</Btn>}>
+            کاربران، گزارش ممیزی و همهٔ تغییرات (تعلیق، پلن، نقش) فقط با نشست دومرحله‌ای باز می‌شوند.
+          </Notice>
         </div>
       )}
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="ورود دومرحله‌ای من" icon={KeyRound} description="برنامهٔ احراز هویت (TOTP). برای بخش کاربران، گزارش ممیزی و همهٔ تغییرهای حساس لازم است.">
-          <MfaPanel />
-        </Panel>
-        <Panel title="حفاظ‌های فاز A1" icon={ShieldCheck}>
-          <ul className="space-y-2 text-[12.5px] leading-relaxed text-muted-foreground">
-            <li>· تغییر نقش، تعلیق، خروج اجباری و بازنشانی دومرحله‌ای فقط با نشست دومرحله‌ای و با دلیل انجام می‌شود.</li>
-            <li>· تعلیق مدیر یا خودتان پذیرفته نمی‌شود؛ آخرین مدیر Lexa هم قابل تنزل نیست.</li>
-            <li>· حذف دائمی مرکز سه‌مرحله‌ای است: تعلیق ← بایگانی ← حذف زمان‌بندی‌شده (۳۰ روز) با امکان لغو.</li>
-            <li>· همهٔ کارهای بالا در گزارش ممیزی با انجام‌دهنده، هدف، دلیل و مقدار قبل/بعد ثبت می‌شوند.</li>
+
+      {!!home?.alerts.length && (
+        <Panel title="نیازمند توجه" icon={AlertTriangle} className="mb-5" bodyClass="p-0"
+          actions={<Badge tone="bad">{faNum(home.alerts.length)} مورد</Badge>}>
+          <ul className="divide-y divide-border">
+            {home.alerts.slice(0, 8).map((a, i) => {
+              const av = alertView(a);
+              return (
+                <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${av.tone === "bad" ? "bg-red-500" : "bg-amber-500"}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold">{av.title}</p>
+                    <p className="truncate text-[11.5px] text-muted-foreground">{av.text}</p>
+                  </div>
+                  {a.org_id && <Btn size="sm" onClick={() => nav.go("centres", { centre: a.org_id })}>بررسی</Btn>}
+                  {a.kind === "admins_no_mfa" && <Btn size="sm" onClick={() => nav.go("security")}>بررسی</Btn>}
+                </li>
+              );
+            })}
           </ul>
-          <div className="mt-3 flex gap-2">
-            <Btn size="sm" icon={ScrollText} onClick={() => onGo("audit")}>گزارش ممیزی</Btn>
-            <Btn size="sm" icon={Users} onClick={() => onGo("users")}>کاربران و نقش‌ها</Btn>
-          </div>
+          {home.alerts.length > 8 && <p className="border-t border-border px-4 py-2 text-[11.5px] text-muted-foreground">و {faNum(home.alerts.length - 8)} مورد دیگر در «مراکز آموزشی».</p>}
+        </Panel>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi label="کاربران" value={v(k?.users)} icon={Users} spark={series.map((p) => p.signups)}
+          hint={k ? `${faNum(k.users_new_7d)} نفر جدید در ۷ روز · ${faNum(k.signins_7d)} ورود` : undefined} onClick={() => nav.go("users")} />
+        <Kpi label="یادگیرندهٔ فعال (۷ روز)" value={v(k?.learners_7d)} icon={Activity} tone="ok" spark={series.map((p) => p.learners)}
+          hint={k ? `امروز ${faNum(k.learners_1d)} · ۳۰ روز ${faNum(k.learners_30d)}` : undefined} onClick={() => nav.go("learning")} />
+        <Kpi label="ساعت مطالعه (۳۰ روز)" value={k ? faHours(k.study_seconds_30d) : "…"} icon={Timer} tone="info" spark={series.map((p) => p.seconds)}
+          hint={k ? `${faHours(k.study_seconds_7d)} ساعت در ۷ روز اخیر` : undefined} />
+        <Kpi label="مراکز فعال" value={v(k?.orgs_active)} icon={Building2}
+          hint={k ? `${faNum(k.orgs_pending)} در انتظار · ${faNum(k.orgs_suspended)} معلق · ${faNum(k.orgs_expired)} منقضی` : undefined}
+          onClick={() => nav.go("centres")} />
+        <Kpi label="دانشجوی رسمی" value={v(k?.official_students)} icon={GraduationCap}
+          hint={k ? `از ${faNum(k.student_seats)} صندلی خریداری‌شده` : undefined} />
+        <Kpi label="کلاس فعال" value={v(k?.classes_active)} icon={ClipboardList} hint={k ? `${faNum(k.exams_next_7d)} آزمون رسمی در ۷ روز آینده` : undefined} />
+        <Kpi label="مدرسان" value={v(k?.teachers)} icon={UserCheck} hint={k ? `${faNum(k.admins)} مدیر Lexa` : undefined} />
+        <Kpi label="حساب معلق" value={v(k?.suspended_users)} icon={ShieldAlert} tone={k?.suspended_users ? "warn" : "muted"}
+          onClick={() => nav.go("users")} hint="تعلیق‌ها با دلیل در ممیزی ثبت می‌شوند" />
+      </div>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+        <Panel title="روند ۳۰ روز اخیر" description="یادگیرندگان فعال و ثبت‌نام‌های تازه، به روز تهران" className="xl:col-span-2">
+          {series.length
+            ? <TrendChart labels={labels} series={[
+                { name: "یادگیرندهٔ فعال", values: series.map((p) => p.learners), color: "#b08d4f", area: true },
+                { name: "ثبت‌نام تازه", values: series.map((p) => p.signups), color: "#0f766e" },
+              ]} />
+            : <div className="h-48 animate-pulse rounded-lg bg-muted/60" />}
+        </Panel>
+
+        <Panel title="صف کارها" icon={Inbox} bodyClass="p-0">
+          <ul className="divide-y divide-border">
+            <QueueRow icon={UserCheck} label="درخواست حساب مدرس" n={q?.teacher_requests} oldest={q?.teacher_requests_oldest} onOpen={() => nav.go("requests")} />
+            <QueueRow icon={Building2} label="درخواست پنل مرکز" n={q?.org_requests} oldest={q?.org_requests_oldest} onOpen={() => nav.go("requests")} />
+            <QueueRow icon={XCircle} label="مرکز آمادهٔ حذف دائمی" n={q?.orgs_delete_due} tone="bad" onOpen={() => nav.go("centres")} />
+            <QueueRow icon={Clock} label="مرکز در دورهٔ مهلت حذف" n={q?.orgs_delete_scheduled} onOpen={() => nav.go("centres")} />
+          </ul>
+        </Panel>
+      </div>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+        <Panel title="سلامت و امنیت" icon={Gauge} bodyClass="p-0">
+          <ul className="divide-y divide-border text-[13px]">
+            <HealthRow icon={PlugZap} label="اجرای ناموفق کانکتور (۲۴ ساعت)" n={k?.connector_failed_24h} missing="SQL 012 هنوز اجرا نشده" />
+            <HealthRow icon={ArrowLeftRight} label="خطای سرور در API مراکز (۲۴ ساعت)" n={k?.api_errors_24h} missing="SQL 010 هنوز اجرا نشده" />
+            <HealthRow icon={ShieldAlert} label="مدیر Lexa بدون ورود دومرحله‌ای" n={k?.admins_no_mfa} missing="خوانده نشد" />
+          </ul>
+        </Panel>
+
+        <Panel title="فعالیت‌های اخیر" icon={ScrollText} className="xl:col-span-2" bodyClass="p-0"
+          actions={<Btn size="sm" kind="ghost" onClick={() => nav.go("audit")}>همهٔ رویدادها</Btn>}>
+          {!home ? <div className="m-4 h-40 animate-pulse rounded-lg bg-muted/60" />
+            : !home.mfa ? <div className="p-4"><EmptyState icon={ShieldAlert} title="با ورود دومرحله‌ای دیده می‌شود" text="گزارش ممیزی شامل اطلاعات دانشجویان است." /></div>
+            : !home.recent.length ? <div className="p-4"><EmptyState title="هنوز رویدادی ثبت نشده" /></div>
+            : (
+              <ul className="divide-y divide-border">
+                {home.recent.map((r) => (
+                  <li key={r.id} className="flex items-center gap-3 px-4 py-2 text-[12.5px]">
+                    <span className="w-24 shrink-0 text-[11px] tabular-nums text-muted-foreground">{faAgo(r.at)}</span>
+                    <span className="min-w-0 flex-1 truncate"><b>{actionLabel(r.action)}</b>{r.target_name && <> · {r.target_name}</>}{r.org && <span className="text-muted-foreground"> · {r.org}</span>}</span>
+                    <span className="hidden shrink-0 text-[11.5px] text-muted-foreground sm:inline">{r.actor ? `@${r.actor}` : "سیستم"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
         </Panel>
       </div>
     </>
   );
 }
 
-// ─── learning ────────────────────────────────────────────────────────────────────────────────
-function LearningSection() {
-  const home = useLoad(() => adminHome(), []);
-  const h = home.data;
+function QueueRow({ icon: Icon, label, n, oldest, onOpen, tone }: {
+  icon: React.ComponentType<{ className?: string }>; label: string; n?: number; oldest?: string | null; onOpen: () => void; tone?: Tone;
+}) {
+  const has = (n ?? 0) > 0;
+  return (
+    <li>
+      <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-3 text-start hover:bg-muted/50">
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-semibold">{label}</span>
+          {has && oldest && <span className="block text-[11px] text-muted-foreground">قدیمی‌ترین: {faAgo(oldest)}</span>}
+        </span>
+        {n === undefined ? <span className="h-4 w-6 animate-pulse rounded bg-muted" />
+          : has ? <Badge tone={tone ?? "warn"}>{faNum(n)}</Badge> : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+      </button>
+    </li>
+  );
+}
+
+function HealthRow({ icon: Icon, label, n, missing }: { icon: React.ComponentType<{ className?: string }>; label: string; n?: number | null; missing: string }) {
+  return (
+    <li className="flex items-center gap-3 px-4 py-3">
+      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {n === undefined ? <span className="h-4 w-6 animate-pulse rounded bg-muted" />
+        : n === null ? <span className="text-[11px] text-muted-foreground">{missing}</span>
+        : n > 0 ? <Badge tone="bad">{faNum(n)}</Badge> : <Badge tone="ok" dot>سالم</Badge>}
+    </li>
+  );
+}
+
+// --- requests ---
+function RequestsPage({ onChanged }: { onChanged: () => void }) {
+  const teachers = useLoad(() => adminTeacherRequests("pending"), []);
+  const orgs = useLoad(() => adminOrgsOverview().then((r) => r.filter((o) => o.status === "pending")), []);
+  const [open, setOpen] = React.useState<TeacherRequest | null>(null);
+  const [confirm, setConfirm] = React.useState<ConfirmSpec | null>(null);
+  const [note, setNote] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState("");
+
+  const done = () => { void teachers.reload(); void orgs.reload(); onChanged(); };
+  async function review(approve: boolean) {
+    if (!open) return;
+    setBusy(true); setErr("");
+    try { await adminReviewTeacher(open.userId, approve, note.trim()); setOpen(null); setNote(""); done(); }
+    catch (e) { setErr(adminError(e)); } finally { setBusy(false); }
+  }
+  const orgAct = (o: AdminOrgRow, act: "activate" | "archive") => setConfirm({
+    title: act === "activate" ? `فعال‌سازی «${o.name}»` : `رد درخواست «${o.name}»`,
+    text: act === "activate"
+      ? "پنل مرکز فعال می‌شود و مدیرانش می‌توانند مدرس دعوت کنند و حساب دانشجویی بسازند. پلن، ظرفیت و انقضا را بعداً از «مراکز آموزشی» تنظیم کنید."
+      : "درخواست بایگانی می‌شود و دلیل آن در گزارش ممیزی می‌ماند. بعداً قابل بازگردانی است.",
+    confirmLabel: act === "activate" ? "فعال کن" : "رد درخواست",
+    danger: act === "archive",
+    needReason: act === "archive",
+    run: (reason) => adminOrgLifecycle(o.id, act, reason),
+  });
+
   return (
     <>
-      <PageHeader title="یادگیری" description="روند یادگیری سراسری پلتفرم: یادگیرندهٔ فعال، ساعت مطالعه، کلاس‌ها و آزمون‌های رسمی."
-        actions={<RefreshBtn onClick={() => void home.reload()} busy={home.busy} at={home.at} />} />
-      {home.error ? <div className="mb-4"><Notice tone="bad" title="آمار یادگیری خوانده نشد">{adminError(home.error)}</Notice></div> : null}
-      {h && (
-        <>
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="یادگیرندهٔ امروز" value={faNum(h.kpis.learners_1d)} icon={GraduationCap} hint={<>دیروز تا امروز</>} spark={h.series.map((p) => p.learners)} />
-            <Kpi label="یادگیرندهٔ ۷ روز" value={faNum(h.kpis.learners_7d)} icon={Users} hint={<>۳۰ روز: {faNum(h.kpis.learners_30d)}</>} />
-            <Kpi label="ساعت مطالعهٔ ۷ روز" value={faHours(h.kpis.study_seconds_7d)} icon={CalendarClock} hint={<>۳۰ روز: {faHours(h.kpis.study_seconds_30d)} ساعت</>} spark={h.series.map((p) => p.seconds)} />
-            <Kpi label="کلاس فعال" value={faNum(h.kpis.classes_active)} icon={ArrowLeftRight} hint={<>{faNum(h.kpis.exams_next_7d)} آزمون رسمی در ۷ روز آینده</>} />
+      <PageHeader title="درخواست‌ها" description="درخواست‌های حساب مدرس و پنل مرکز آموزشی که منتظر تصمیم شما هستند."
+        actions={<RefreshBtn onClick={done} busy={teachers.busy || orgs.busy} />} />
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Panel title="حساب مدرس" icon={UserCheck} bodyClass="p-0" actions={teachers.data && <Badge tone={teachers.data.length ? "warn" : "ok"}>{faNum(teachers.data.length)}</Badge>}>
+          {teachers.error ? <div className="p-4"><Notice tone="bad" title="خوانده نشد">{adminError(teachers.error)}</Notice></div> : (
+            <DataTable rows={teachers.data} rowKey={(r) => r.userId} onRowClick={(r) => { setOpen(r); setNote(""); setErr(""); }}
+              empty={<EmptyState icon={CheckCircle2} title="درخواستی در انتظار نیست" />}
+              columns={[
+                { key: "n", header: "متقاضی", cell: (r) => <span><b>{r.fullName}</b><span className="block text-[11px] text-muted-foreground">@{r.user?.username}</span></span> },
+                { key: "c", header: "سوابق", hideBelow: "md", cell: (r) => <span className="line-clamp-2 text-[12px] text-muted-foreground">{r.credentials || "—"}</span> },
+                { key: "t", header: "زمان", cell: (r) => <span className="whitespace-nowrap text-[12px] text-muted-foreground">{faAgo(r.createdAt)}</span> },
+              ]} />
+          )}
+        </Panel>
+        <Panel title="پنل مرکز آموزشی" icon={Building2} bodyClass="p-0" actions={orgs.data && <Badge tone={orgs.data.length ? "warn" : "ok"}>{faNum(orgs.data.length)}</Badge>}>
+          {orgs.error ? <div className="p-4"><Notice tone="bad" title="خوانده نشد">{adminError(orgs.error)}</Notice></div> : (
+            <DataTable rows={orgs.data} rowKey={(r) => r.id}
+              empty={<EmptyState icon={CheckCircle2} title="درخواستی در انتظار نیست" />}
+              columns={[
+                { key: "n", header: "مرکز", cell: (o) => <span><b>{o.name}</b><span className="block text-[11px] text-muted-foreground" dir="ltr">{o.slug}{o.city ? ` · ${o.city}` : ""}</span></span> },
+                { key: "o", header: "درخواست‌دهنده", hideBelow: "md", cell: (o) => <span className="text-[12px]">{o.owner_username ? `@${o.owner_username}` : "—"}{o.contact && <span className="block text-[11px] text-muted-foreground">{o.contact}</span>}</span> },
+                { key: "t", header: "زمان", hideBelow: "sm", cell: (o) => <span className="text-[12px] text-muted-foreground">{faAgo(o.created_at)}</span> },
+                { key: "a", header: "", cell: (o) => (
+                  <div className="flex justify-end gap-1.5">
+                    <Btn size="sm" kind="primary" onClick={() => orgAct(o, "activate")}>فعال‌سازی</Btn>
+                    <Btn size="sm" kind="ghost" onClick={() => orgAct(o, "archive")}>رد</Btn>
+                  </div>
+                ) },
+              ]} />
+          )}
+        </Panel>
+      </div>
+
+      <Drawer open={!!open} onClose={() => setOpen(null)} title={open?.fullName ?? ""} subtitle={open?.user ? `@${open.user.username} · ${faDateTime(open.createdAt)}` : undefined}
+        footer={
+          <div className="space-y-2">
+            {err && <p role="alert" className="text-[12px] text-red-600">{err}</p>}
+            <div className="flex justify-end gap-2">
+              <Btn kind="secondary" busy={busy} onClick={() => void review(false)}>رد درخواست</Btn>
+              <Btn kind="primary" busy={busy} onClick={() => void review(true)}>تأیید و ساخت حساب مدرس</Btn>
+            </div>
           </div>
-          <Panel title="۳۰ روز گذشته" description="یادگیرندهٔ فعال و ساعت مطالعه — جزئیات هر مرکز در «مراکز آموزشی»">
-            <TrendChart labels={h.series.map((p) => p.day.slice(5))} height={230}
-              series={[
-                { name: "یادگیرندهٔ فعال", color: "#8a6a30", area: true, values: h.series.map((p) => p.learners) },
-                { name: "ساعت مطالعه", color: "#10b981", values: h.series.map((p) => Math.round(p.seconds / 360) / 10) },
-              ]} format={(v) => faNum(v)} />
+        }>
+        {open && (
+          <>
+            <KeyValues items={[["نام کامل", open.fullName], ["راه ارتباط", open.contact || "—"], ["سوابق", open.credentials || "—"], ["معرفی", open.bio || "—"]]} />
+            <label className="block space-y-1">
+              <span className="text-[12px] font-bold">یادداشت برای متقاضی (اختیاری؛ در رد درخواست به او نشان داده می‌شود)</span>
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={600}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[13px] outline-none focus:border-bronze" />
+            </label>
+          </>
+        )}
+      </Drawer>
+      <ConfirmDialog spec={confirm} onClose={() => setConfirm(null)} onDone={done} errorText={adminError} />
+    </>
+  );
+}
+
+// --- learning analytics ---
+function LearningPage() {
+  const orgs = useLoad(() => adminOrgsOverview(), []);
+  return (
+    <>
+      <PageHeader title="تحلیل یادگیری" description="زمان مطالعهٔ فعال در کل Lexa و گزارش مقایسهٔ زمان مطالعه با نمره در هر مرکز." />
+      <div className="space-y-5">
+        <Panel title="زمان مطالعه" icon={Timer}><AdminStudyPanel /></Panel>
+        <Panel title="گزارش مقایسه" icon={ArrowLeftRight}
+          description="هم‌بستگی زمان مطالعه و نمره؛ گروه‌های کمتر از ۱۰ نفر برای حفظ حریم خصوصی پنهان می‌شوند.">
+          <ComparisonReportPanel admin orgs={(orgs.data ?? []).map((o) => ({ id: o.id, name: o.name }))} />
+        </Panel>
+      </div>
+    </>
+  );
+}
+
+// --- security ---
+function SecurityPage({ nav }: { nav: ConsoleNav }) {
+  const aal = useAal();
+  const admins = useLoad(() => (aal === "aal2" ? adminUsers({ role: "admin", limit: 100 }) : Promise.resolve(null)), [aal]);
+  return (
+    <>
+      <PageHeader title="امنیت" description="ورود دومرحله‌ای شما، مدیران Lexa و قواعدی که از داده‌ها محافظت می‌کنند." />
+      <div className="grid gap-5 xl:grid-cols-3">
+        <div className="space-y-5 xl:col-span-2">
+          <Panel title="ورود دومرحله‌ای حساب شما" icon={KeyRound}><MfaPanel /></Panel>
+          <Panel title="مدیران Lexa" icon={ShieldCheck} bodyClass="p-0"
+            actions={<Btn size="sm" kind="ghost" onClick={() => nav.go("users")}>مدیریت نقش‌ها</Btn>}>
+            {aal !== "aal2" ? <div className="p-4"><EmptyState icon={ShieldAlert} title="با ورود دومرحله‌ای دیده می‌شود" /></div> : (
+              <DataTable rows={admins.data?.rows ?? (admins.busy ? null : [])} rowKey={(r) => r.id}
+                columns={[
+                  { key: "u", header: "مدیر", cell: (r) => <span><b>{r.display_name || r.username}</b><span className="block text-[11px] text-muted-foreground">@{r.username} · {r.email_masked}</span></span> },
+                  { key: "m", header: "ورود دومرحله‌ای", cell: (r) => r.mfa ? <Badge tone="ok" dot>فعال</Badge> : <Badge tone="bad" dot>ندارد</Badge> },
+                  { key: "l", header: "آخرین ورود", cell: (r) => <span className="text-[12px] text-muted-foreground">{faAgo(r.last_sign_in_at)}</span> },
+                ]} />
+            )}
           </Panel>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground">
-            ثبت زمان مطالعه فقط با صفحهٔ پیدار و فعالیت واقعی شمرده می‌شود (ضربان ۶۰ ثانیه‌ای، سقف ۱۲ ساعت در روز)؛ اعداد این نما با «آمار من» دانشجوها هم‌مبناست.
-          </p>
-        </>
-      )}
+        </div>
+        <Panel title="قواعد حفاظتی فعال" icon={ShieldCheck}>
+          <ul className="space-y-3 text-[12.5px] leading-relaxed">
+            {[
+              ["کمترین دسترسی", "هر کار در پایگاه داده بررسی می‌شود؛ پنهان‌بودن دکمه به‌تنهایی دسترسی نمی‌دهد."],
+              ["ورود دومرحله‌ای", "کاربران، ممیزی و همهٔ تغییرات مدیریتی فقط با نشست دومرحله‌ای."],
+              ["دلیل و ممیزی", "تعلیق، تغییر نقش، بایگانی و حذف بدون دلیل انجام نمی‌شود و در گزارش ممیزی تغییرناپذیر می‌ماند."],
+              ["تعلیق پیش از حذف", "مرکز اول معلق، بعد بایگانی و بعد با مهلت دست‌کم ۷ روز حذف می‌شود؛ حذف دائمی با تایپ نشانی مرکز."],
+              ["حداقل یک مدیر", "آخرین مدیر Lexa را نمی‌توان کنار گذاشت و حساب مدیر معلق نمی‌شود."],
+              ["کمینه‌سازی داده", "ایمیل‌ها در فهرست نیمه‌پنهان‌اند؛ دیدن پروندهٔ کامل یک کاربر هم ثبت می‌شود."],
+            ].map(([t, d]) => (
+              <li key={t} className="flex gap-2.5"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" /><span><b>{t}:</b> <span className="text-muted-foreground">{d}</span></span></li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
     </>
   );
 }
