@@ -3,6 +3,7 @@
 // ─── کتابخانهٔ قوانین — ساختاری متفاوت از دوره‌ها: حس «نسخهٔ خطی و برگهٔ دادگاه» ──
 // فهرست قانون‌ها + متن‌خوان ماده‌به‌ماده با جستجو، نشان‌گذاری، اندازهٔ قلم و چاپ.
 import * as React from "react";
+import { useStudyContext } from "@/lib/study-tracker"; // فاز ۴ — زمان مطالعه
 import {
   Scale, Search, Bookmark, BookmarkCheck, Copy, Check, Printer,
   AArrowDown, AArrowUp, Landmark, ScrollText, Diamond, FileSearch, X,
@@ -624,6 +625,7 @@ function LawReader({ law }: { law: LawCode }) {
 // ═══ دروازهٔ اصلی ══════════════════════════════════════════════════════════════
 
 export function LawLibraryView({ id }: { id?: string }) {
+  useStudyContext("law", id ?? null); // فاز ۴ — زمان مطالعهٔ متن قانون
   const { marks } = useLawMarks();
   const [full, setFull] = React.useState<FullLawData | null>(null);
   React.useEffect(() => {

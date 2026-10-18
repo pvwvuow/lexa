@@ -12,9 +12,9 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { fail++; console.error(`  ✗ ${n} ${x}`); } };
 
 const NEEDLES = [
-  "آمار من", "گزارش مقایسه", "کلیدهای API", "اتصال سازمان",
-  "زمان مطالعه", "lexa_study_beat", "lexa_compare_report",
-  "lexa_api_key_create", "lexa_integration_save", "org-connector",
+  "آمار من", "گزارش مقایسه", "کلیدهای API", "کانکتور", "داشبورد",
+  "زمان مطالعه", "lexa_study_track", "lexa_my_study", "lexa_compare_report",
+  "lexa_org_api_key_revoke", "org-api/manage", "lexa_org_integration_save", "org-connector",
   "این مقایسه همبستگی است",
 ];
 
@@ -40,7 +40,7 @@ try {
   console.error("out chunks error", e.message);
 }
 ok("APK: باندل اکسپورت خوانده شد", apkBundle.length > 100000);
-for (const needle of ["آمار من", "گزارش مقایسه", "lexa_study_beat", "org-connector"]) {
+for (const needle of ["آمار من", "گزارش مقایسه", "lexa_study_track", "org-connector"]) {
   ok(`APK: «${needle}» در باندل`, apkBundle.includes(needle));
 }
 ok("APK: نسخهٔ 0.10.24 در باندل", apkBundle.includes("0.10.24"));

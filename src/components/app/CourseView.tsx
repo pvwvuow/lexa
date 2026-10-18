@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useStudyContext } from "@/lib/study-tracker"; // فاز ۴ — زمان مطالعه
 import { ChevronDown, CheckCircle2, CircleDot, Timer, ClipboardList, Sparkles, GraduationCap, Loader2, Star, WifiOff, Download, RefreshCw, LogIn } from "lucide-react";
 import type { Course } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -25,6 +26,8 @@ const BUILTIN_IDS = new Set(builtinCourses.map((b) => b.id));
 export function CourseView({ id }: { id: string }) {
   const custom = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
+  // فاز ۴ — دورهٔ مدرس = tcourse، دورهٔ داخلی/وارداتی = course (docs/ORG_P4_SETUP.md)
+  useStudyContext(tBooks.some((t) => t.id === id) ? "tcourse" : "course", id);
   const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
   const progress = useApp((s) => s.progress);
   const openLesson = useApp((s) => s.openLesson);

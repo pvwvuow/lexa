@@ -13,7 +13,7 @@ import * as React from "react";
 import {
   Building2, Loader2, Search, Plus, Check, X, Users, GraduationCap, Settings2, ShieldCheck,
   MailPlus, Mail, Globe, MapPin, CalendarClock, BadgeCheck, UserPlus, LogIn, Newspaper,
-  Crown, Trash2, Upload, ArrowLeft, Send, Clock3, Sparkles, Lock, Eye, ArrowLeftRight, KeyRound, Link2,
+  Crown, Trash2, Upload, ArrowLeft, Send, Clock3, Sparkles, Lock, Eye, ArrowLeftRight, KeyRound, Link2, Gauge,
 } from "lucide-react";
 import { navigate } from "@/lib/router";
 import { fa } from "@/lib/fa";
@@ -32,7 +32,10 @@ import {
 import type { TCourseCard, FeedPost } from "@/lib/social-client";
 import { OrgStudentsPanel } from "./OrgStudentsPanel";
 import { OrgClassesPanel } from "./OrgClassesPanel";
-import { OrgApiKeysTab, OrgCompareTab, OrgConnectorTab, OrgStudyCard } from "./OrgStatsTabs";
+import { OrgDashboardPanel } from "./OrgDashboardPanel"; // فاز ۴ — داشبورد مرکز (بستهٔ همکار)
+import { OrgApiPanel } from "./OrgApiPanel"; // فاز ۵ — کلیدهای API مراکز
+import { ComparisonReportPanel } from "./ComparisonReportPanel"; // فاز ۶ — گزارش مقایسه
+import { OrgConnectorPanel } from "./OrgConnectorPanel"; // فاز ۷ — کانکتور
 import { coursePreviews, previewLabel, type CoursePreview } from "@/lib/cloud-api/visibility";
 import { adminSetOrgAccounts, ORG_CODE_RE } from "@/lib/cloud-api/org-accounts";
 import { UserAvatar, CourseIcon } from "./common";
@@ -580,14 +583,14 @@ function AdminRoleTool() {
 }
 
 /* === صفحهٔ مرکز آموزشی === */
-type OrgTab = "teachers" | "content" | "classes" | "manage" | "students" | "settings" | "compare" | "api" | "connect";
+type OrgTab = "dash" | "teachers" | "content" | "classes" | "manage" | "students" | "settings" | "compare" | "api" | "connect";
 
 function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   const auth = useAuth();
   const signed = useCloudSignedIn();
   const [org, setOrg] = React.useState<Org | null | undefined>(undefined);
   const [members, setMembers] = React.useState<OrgMember[]>([]);
-  const [tab, setTab] = React.useState<OrgTab>("teachers");
+  const [tab, setTab] = React.useState<OrgTab>("dash");
   const [err, setErr] = React.useState("");
   // members failed to load: never shown as "no teachers yet" (and managers would lose their tabs)
   const [membersErr, setMembersErr] = React.useState("");
@@ -635,6 +638,10 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   // تب «کلاس‌ها» برای همهٔ اعضای فعال مرکز (مدرس هم) — فاز ۳ (docs/ORG_P3_SETUP.md)
   const isMember = signed && !!me && me.status === "active";
   const tabs: { key: OrgTab; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+    // تب «داشبورد» اولین تب است و برای همهٔ اعضای فعال دیده می‌شود — فاز ۴ (docs/ORG_P4_SETUP.md)
+    ...(isMember || canManage ? [
+      { key: "dash" as OrgTab, label: "داشبورد", Icon: Gauge },
+    ] : []),
     { key: "teachers", label: `مدرسان (${fa(active.length)})`, Icon: Users },
     { key: "content", label: "دوره‌ها و مطالب", Icon: Newspaper },
     ...(isMember || canManage ? [
@@ -644,7 +651,7 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
       { key: "students" as OrgTab, label: "دانشجویان و حساب‌ها", Icon: GraduationCap },
       { key: "compare" as OrgTab, label: "گزارش مقایسه", Icon: ArrowLeftRight },
       { key: "api" as OrgTab, label: "کلیدهای API", Icon: KeyRound },
-      { key: "connect" as OrgTab, label: "اتصال سازمان", Icon: Link2 },
+      { key: "connect" as OrgTab, label: "کانکتور", Icon: Link2 },
       { key: "manage" as OrgTab, label: "مدیریت مدرسان", Icon: UserPlus },
       { key: "settings" as OrgTab, label: "تنظیمات پنل", Icon: Settings2 },
     ] : []),
@@ -701,20 +708,18 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
         ))}
       </nav>
 
+      {tab === "dash" && (isMember || canManage) && (
+        <OrgDashboardPanel orgId={org.id} orgName={org.name} canManage={canManage} />
+      )}
       {tab === "teachers" && (membersErr ? <RetryBox msg={membersErr} onRetry={() => void load()} /> : <OrgTeachersTab members={active} />)}
       {tab === "content" && <OrgContentTab org={org} canManage={canManage} />}
       {(tab === "classes") && (isMember || canManage) && (
         <OrgClassesPanel orgId={org.id} orgName={org.name} canManage={canManage} isOwner={isOwner} />
       )}
-      {tab === "students" && canManage && (
-        <div className="space-y-4">
-          <OrgStudentsPanel orgId={org.id} orgName={org.name} />
-          <OrgStudyCard orgId={org.id} />
-        </div>
-      )}
-      {tab === "compare" && canManage && <OrgCompareTab orgId={org.id} />}
-      {tab === "api" && canManage && <OrgApiKeysTab orgId={org.id} />}
-      {tab === "connect" && canManage && <OrgConnectorTab orgId={org.id} />}
+      {tab === "students" && canManage && <OrgStudentsPanel orgId={org.id} orgName={org.name} />}
+      {tab === "compare" && canManage && <ComparisonReportPanel orgId={org.id} orgName={org.name} />}
+      {tab === "api" && canManage && <OrgApiPanel orgId={org.id} />}
+      {tab === "connect" && canManage && <OrgConnectorPanel orgId={org.id} />}
       {tab === "manage" && canManage && <OrgManageTab org={org} members={members} isOwner={isOwner} onChanged={() => void load()} />}
       {tab === "settings" && canManage && <OrgSettingsTab org={org} onSaved={(o) => setOrg(o)} />}
     </div>

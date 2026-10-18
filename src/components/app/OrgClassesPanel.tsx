@@ -16,6 +16,7 @@ import {
   type ClassContent, type ClassRow, type ClassStudent, type Course, type GradeComponent, type Term, type TermStatus,
 } from "@/lib/cloud-api/org-classes";
 import { OrgExamsPanel } from "./OrgExamsPanel";
+import { ClassActivityPanel } from "./ClassActivityPanel"; // فاز ۴ — فعالیت کلاس (بستهٔ همکار)
 
 const input = "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm";
 const btn = "inline-flex items-center gap-1 rounded-xl border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted disabled:opacity-50";
@@ -321,7 +322,7 @@ function PriorGpaImport({ orgId, onDone }: { orgId: string; onDone: () => void }
   );
 }
 
-type Tab = "students" | "grades" | "exams" | "content";
+type Tab = "students" | "grades" | "exams" | "content" | "activity";
 
 function ClassDetail({ cls, orgId, canManage, isOwner, onBack, onDeleted }: {
   cls: ClassRow;
@@ -379,6 +380,7 @@ function ClassDetail({ cls, orgId, canManage, isOwner, onBack, onDeleted }: {
     { key: "grades", label: "نمره‌ها" },
     { key: "exams", label: "آزمون‌های رسمی" },
     { key: "content", label: "محتوای کلاس" },
+    { key: "activity", label: "فعالیت" },
   ];
   const active = cls.status === "active";
   return (
@@ -411,6 +413,7 @@ function ClassDetail({ cls, orgId, canManage, isOwner, onBack, onDeleted }: {
       )}
       {tab === "exams" && <OrgExamsPanel classId={cls.id} className={classDisplayName(cls)} canEdit={active} isOwner={isOwner} />}
       {tab === "content" && <ContentTab cls={cls} orgId={orgId} canEdit={active} />}
+      {tab === "activity" && <ClassActivityPanel classId={cls.id} className={classDisplayName(cls)} />}
     </div>
   );
 }

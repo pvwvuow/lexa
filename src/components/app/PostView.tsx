@@ -2,6 +2,7 @@
 
 // ─── صفحهٔ یک مطلب مدرس: رندر با همان المان‌های تدریس + کامنت و ریپلای ────────
 import * as React from "react";
+import { useStudyContext } from "@/lib/study-tracker"; // فاز ۴ — زمان مطالعه
 import {
   Loader2, MessageCircle, Send, Trash2, Scale, Quote, ListChecks, Lightbulb,
   GitCompareArrows, HelpCircle, BookOpen, GraduationCap, ArrowLeft, X, CornerDownLeft, LogIn } from "lucide-react";
@@ -57,6 +58,7 @@ const BLOCK_LABEL: Record<string, { t: string; Icon: React.ComponentType<{ class
 };
 
 export function PostView({ id }: { id: string }) {
+  useStudyContext("post", id); // فاز ۴ — زمان مطالعهٔ مطلب
   const [data, setData] = React.useState<PostData | null>(null);
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [loading, setLoading] = React.useState(true);

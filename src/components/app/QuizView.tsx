@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useStudyContext, trackLearningEvent } from "@/lib/study-tracker"; // فاز ۴ — زمان مطالعه
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, ChevronDown, Sparkles, RefreshCcw, Scale,
@@ -40,6 +41,7 @@ function mergeWeakTopics(adds: string[]) {
 }
 
 export function QuizView({ id }: { id?: string }) {
+  useStudyContext("quiz", id ?? null); // فاز ۴ — زمان مطالعهٔ نوع quiz
   const custom = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
   const hiddenBuiltins = useApp((s) => s.hiddenBuiltins);
@@ -393,6 +395,8 @@ export function QuizView({ id }: { id?: string }) {
       mergeWeakTopics([...wrongT]); // مرکز آزمون: مباحث ضعیف ثبت می‌شود، نه رکورد پیشرفت جعلی
     }
     setWeakVer((v) => v + 1); // آمار «مباحث ضعیف» بلافاصله در تنظیمات دیده شود
+    // فاز ۴ — رویداد پایان تمرین برای «آمار من» (per docs/ORG_P4_SETUP.md)
+    trackLearningEvent("quiz_done", "quiz", id ?? ctx?.lesson.id ?? "hub", score);
     setPhase("result");
   }
 

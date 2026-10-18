@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useStudyContext, trackLearningEvent } from "@/lib/study-tracker"; // فاز ۴ — زمان مطالعه
 import { RotateCcw, Check, BookX } from "lucide-react";
 import type { Flashcard } from "@/lib/law/types";
 import { builtinCourses } from "@/lib/law/courses";
@@ -37,6 +38,7 @@ function buildDeck(): Flashcard[] {
 }
 
 export function FlashcardsView() {
+  useStudyContext("flashcards", null); // فاز ۴ — زمان مطالعهٔ فلش‌کارت (بدون شناسهٔ دسته)
   const custom = useApp((s) => s.customCourses);
   const tBooks = useApp((s) => s.tBooks);
   const [deck, setDeck] = React.useState<Flashcard[]>([]);
@@ -90,6 +92,16 @@ export function FlashcardsView() {
   }, [tBooks, rebuildDeck]);
 
   const finished = deck.length > 0 && pos >= order.length;
+
+  // فاز ۴ — رویداد پایان مرور فلش‌کارت (یک بار برای هر اتمام صف)
+  const reviewReported = React.useRef(false);
+  React.useEffect(() => {
+    if (finished && !reviewReported.current) {
+      reviewReported.current = true;
+      trackLearningEvent("cards_reviewed", "flashcards", "deck", stats.known + stats.review);
+    }
+    if (!finished) reviewReported.current = false;
+  }, [finished, stats.known, stats.review]);
 
   function advance(known: boolean) {
     setFlipped(false);

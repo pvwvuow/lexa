@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   Users, Activity, ClipboardCheck, Award, BookOpenCheck, Search, ShieldCheck,
   Loader2, CloudCheck, ChevronDown, StickyNote, KeyRound, UserRound, Lock,
-  Building2, RefreshCw, LogIn,
+  Building2, RefreshCw, LogIn, Timer, ArrowLeftRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-client";
 import { fa, pct } from "@/lib/fa";
@@ -16,6 +16,9 @@ import { ProgressBar, StatChip } from "./common";
 import { AdminFeedbackSection } from "./AdminFeedbackSection";
 import { AdminTeachersSection } from "./AdminTeachersSection";
 import { AdminConsole } from "./OrgView";
+import { AdminStudyPanel } from "./AdminStudyPanel"; // فاز ۴ — نمای کلی زمان مطالعه (بستهٔ همکار)
+import { ComparisonReportPanel } from "./ComparisonReportPanel"; // فاز ۶ — گزارش مقایسهٔ ادمین
+import { adminOrgs } from "@/lib/cloud-api/orgs";
 
 // ─── انواع داده ─────────────────────────────────────────────────────────────────────────────
 interface AdminUser {
@@ -675,6 +678,31 @@ function CloudAdminView() {
         </button>
       </header>
       <AdminConsole />
+      <AdminStudySection />
+    </div>
+  );
+}
+
+/* فاز ۴+۶ — بخش «زمان مطالعه» و «گزارش مقایسه» برای مدیر Lexa (docs/ORG_P4_SETUP.md و ORG_P6_SETUP.md) */
+function AdminStudySection() {
+  const [orgs, setOrgs] = React.useState<{ id: string; name: string }[]>([]);
+  React.useEffect(() => {
+    let live = true;
+    adminOrgs()
+      .then((rows) => { if (live) setOrgs(rows.map((o) => ({ id: o.id, name: o.name }))); })
+      .catch(() => { /* بدون فهرست مراکز فقط گزارش تجمیعی پیشنهاد می‌شود */ });
+    return () => { live = false; };
+  }, []);
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold"><Timer className="h-5 w-5 text-bronze" /> زمان مطالعه</h2>
+        <AdminStudyPanel />
+      </section>
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 font-display text-lg font-bold"><ArrowLeftRight className="h-5 w-5 text-bronze" /> گزارش مقایسه</h2>
+        <ComparisonReportPanel admin orgs={orgs} />
+      </section>
     </div>
   );
 }

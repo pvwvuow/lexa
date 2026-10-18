@@ -37,7 +37,7 @@ import { TeacherProfileView } from "./TeacherProfileView";
 import { LawLibraryView } from "./LawLibraryView";
 import { StudyListView } from "./StudyListView";
 import { MyStatsView } from "./MyStatsView";
-import { useStudyBeat } from "@/lib/cloud-api/study";
+import { startStudyTracker } from "@/lib/study-tracker"; // فاز ۴ — ردیاب زمان مطالعهٔ همکار
 import { StudioWriteView } from "./StudioWriteView";
 import { ExamPackRoute } from "./ExamPacksView";
 import { BackButton } from "./common";
@@ -163,7 +163,10 @@ export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
   useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
-  useStudyBeat(!!auth.user); // زمان مطالعهٔ فعال — ضربان هر ۶۰ ثانیه (فاز ۴)
+  // فاز ۴ — ردیاب زمان مطالعهٔ فعال (صفحه پیدار + فعالیت اخیر؛ صف آفلاین داخلی خودش)
+  React.useEffect(() => {
+    startStudyTracker();
+  }, []);
   // دعوت‌های سازمانیِ در انتظار — روی آیتم «مراکز آموزشی» نشان داده می‌شود
   const orgInvites = useOrgInviteCount();
   const orgLabel = orgInvites > 0 ? `مراکز آموزشی (${fa(orgInvites)} دعوت)` : "مراکز آموزشی";
