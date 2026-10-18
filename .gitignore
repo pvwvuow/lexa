@@ -112,3 +112,4 @@ lexa-fix-errors/
 .supabase-secret
 .supabase-pat
 lexa-pr19/
+local.properties
