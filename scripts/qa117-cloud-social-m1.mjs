@@ -43,19 +43,19 @@ console.log("▌ B) حساب ابری: ثبت‌نام → خروج");
   // دکمهٔ اصلی هدر → پنجرهٔ حساب ابری (سلکتورهای qa116)
   await page.locator("button:has-text('ورود / ثبت‌نام')").first().click().catch(() => {});
   await page.waitForTimeout(900);
-  ok("پنجرهٔ حساب ابری باز شد", (await page.locator("text=حساب ابری Lexa").count()) > 0);
-  if ((await page.locator("text=حساب ابری Lexa").count()) > 0) {
+  ok("پنجرهٔ حساب ابری باز شد", (await page.locator("text=حساب کاربری Lexa").count()) > 0);
+  if ((await page.locator("text=حساب کاربری Lexa").count()) > 0) {
     await page.getByRole("tab", { name: "ثبت‌نام" }).click().catch(() => {});
     await page.waitForTimeout(400);
     await page.locator("input[type=email]").fill(email);
     await page.locator("input[type=password]").first().fill(pwd);
     await page.locator("input[type=password]").nth(1).fill(pwd);
-    await page.locator("button:has-text('ساخت حساب و انتقال پیشرفت من')").click();
+    await page.locator("button:has-text('ساخت حساب')").click();
     await page.waitForTimeout(3500);
     const tok = await page.evaluate(() => localStorage.getItem("lexa-sb-auth-v1"));
     ok("ثبت‌نام ابری → توکن نشست ذخیره شد", !!tok && tok.includes("access_token"), String(tok ?? "").slice(0, 40));
     // خروج ابری از منوی حساب
-    await page.locator("button[aria-label^='حساب ابری']").first().click().catch(() => {});
+    await page.locator("button[aria-label^='حساب']").first().click().catch(() => {});
     await page.waitForTimeout(700);
     await page.locator("[role='menuitem']:has-text('خروج')").first().click().catch(() => {});
     await page.waitForTimeout(1800);
