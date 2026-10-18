@@ -13,8 +13,8 @@ let pass = 0, fail = 0;
 const ok = (n, c, x = "") => { if (c) { pass++; console.log(`  ✓ ${n}`); } else { fail++; console.error(`  ✗ ${n} ${x}`); } };
 
 const NEEDLES = [
-  "کنسول مدیریت Lexa", "نمای کلی", "درخواست‌ها", "مراکز آموزشی", "کاربران و نقش‌ها",
-  "گزارش ممیزی", "محیط یادگیری", "صف‌های کار", "هشدارها", "در صف حذف", "حذف دائمی",
+  "کنسول مدیریت پلتفرم", "نمای کلی", "درخواست‌ها", "مراکز آموزشی", "کاربران و نقش‌ها",
+  "گزارش ممیزی", "محیط یادگیری", "صف کارها", "هشدارها", "در صف حذف", "حذف دائمی",
   "lexa_admin_home", "lexa_admin_orgs_overview", "lexa_admin_org_lifecycle",
   "lexa_admin_users", "lexa_admin_user_detail", "lexa_admin_change_role", "lexa_admin_audit",
   "admin-users", "lexa-workspace", "این کار به ورود دومرحله‌ای نیاز دارد",
@@ -42,7 +42,7 @@ try {
   console.error("out chunks error", e.message);
 }
 ok("APK: باندل اکسپورت خوانده شد", apkBundle.length > 100000);
-for (const needle of ["کنسول مدیریت Lexa", "کاربران و نقش‌ها", "lexa_admin_users", "admin-users"]) {
+for (const needle of ["کنسول مدیریت پلتفرم", "کاربران و نقش‌ها", "lexa_admin_users", "admin-users"]) {
   ok(`APK: «${needle}» در باندل`, apkBundle.includes(needle));
 }
 ok("APK: نسخهٔ 0.10.25 در باندل", apkBundle.includes("0.10.25"));
