@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Scale, UserRound, KeyRound, Loader2, CloudUpload, CloudCheck,
+  Scale, UserRound, KeyRound, Loader2, CloudUpload,
   ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert, Settings, AtSign, GraduationCap,
 } from "lucide-react";
 import {
@@ -33,6 +33,7 @@ import { useAuth } from "@/lib/auth-client";
 import { navigate } from "@/lib/router";
 import { builtinCourses } from "@/lib/law/courses";
 import { useApp } from "@/lib/store";
+import { UserAvatar } from "./common";
 import {
   normalizeUsername, usernameProblem, usernameTaken,
   rememberPendingUsername, clearPendingUsername, applyPendingUsername,
@@ -138,7 +139,7 @@ export function CloudAuthDialog({
       // نام کاربری انتخاب‌شده در ثبت‌نام (اگر هنوز روی حساب ننشسته)
       const uErr = await applyPendingUsername();
       if (uErr) {
-        setTimeout(() => window.alert(`${uErr}\nاز «تنظیمات ← عمومی» می‌توانید نام کاربری را تغییر دهید.`), 700);
+        setTimeout(() => window.alert(`${uErr}\nاز «تنظیمات و پروفایل» می‌توانید نام کاربری دیگری انتخاب کنید.`), 700);
       }
       // پل حساب: نشست سروری هم ساخته می‌شود تا فالو/امتیاز/کامنت/کتابخانهٔ
       // همگام همان لحظه کار کنند (روی APK بی‌سرور، بی‌صدا رد می‌شود)
@@ -155,7 +156,7 @@ export function CloudAuthDialog({
       if (pullErr) {
         // دادهٔ حساب معلوم نیست — هیچ پوشی نه؛ خروج تا سینک خودکار هم چیزی نفرستد
         await sbSignOut();
-        setError("داده‌های حساب از ابر دریافت نشد؛ برای حفظ اطلاعات شما، کمی بعد دوباره وارد شوید.");
+        setError("دریافت اطلاعات حساب انجام نشد؛ کمی بعد دوباره وارد شوید.");
         return;
       }
       setPassword("");
@@ -193,10 +194,10 @@ export function CloudAuthDialog({
           <DialogHeader className="space-y-1 text-start">
             <DialogTitle className="flex items-center gap-2 font-display text-lg font-bold">
               <ShieldCheck className="h-5 w-5 text-bronze-foreground/90" />
-              حساب ابری Lexa
+              حساب کاربری Lexa
             </DialogTitle>
             <p className="text-xs leading-relaxed opacity-85">
-              با ایمیل حساب بسازید تا پیشرفت شما روی سرور امن ذخیره شود و روی هر دستگاهی با ورود برگردد.
+              با ایمیل حساب بسازید تا پیشرفت مطالعه‌تان ذخیره شود و روی هر دستگاهی با ورود به حساب در دسترس باشد.
             </p>
           </DialogHeader>
         </div>
@@ -240,7 +241,7 @@ export function CloudAuthDialog({
                 />
               </div>
               <span className="block text-[10.5px] leading-relaxed text-muted-foreground/80">
-                ۳ تا ۲۰ نویسه: حروف فارسی یا انگلیسی، رقم، _ و . — در پروفایل و کامنت‌ها با @ نشان داده می‌شود. بعداً از «تنظیمات ← عمومی» هم قابل تغییر است.
+                ۳ تا ۲۰ نویسه: حروف فارسی یا انگلیسی، رقم، _ و . — در پروفایل و کامنت‌ها با @ نشان داده می‌شود. بعداً از «تنظیمات و پروفایل» قابل تغییر است.
               </span>
             </label>
           )}
@@ -308,8 +309,8 @@ export function CloudAuthDialog({
 
           {tab === "login" && (
             <p className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
-              با ورود، پیشرفت ذخیره‌شدهٔ حساب شما روی همین دستگاه بارگذاری می‌شود؛
-              دادهٔ مهمانِ فعلی به‌صورت خودکار به ابر فرستاده و محفوظ می‌ماند.
+              با ورود، پیشرفت ذخیره‌شدهٔ حساب‌تان روی همین دستگاه بارگذاری می‌شود؛
+              پیشرفت فعلی در حالت مهمان هم به حساب منتقل می‌شود.
             </p>
           )}
 
@@ -326,11 +327,11 @@ export function CloudAuthDialog({
               </>
             ) : tab === "login" ? (
               <>
-                <LogIn className="relative z-10 h-4 w-4" /> ورود به حساب ابری
+                <LogIn className="relative z-10 h-4 w-4" /> ورود به حساب
               </>
             ) : (
               <>
-                <CloudUpload className="relative z-10 h-4 w-4" /> ساخت حساب و انتقال پیشرفت من
+                <CloudUpload className="relative z-10 h-4 w-4" /> ساخت حساب
               </>
             )}
           </button>
@@ -453,7 +454,7 @@ export function CloudAccountArea() {
       <>
         <button
           onClick={() => setOpen(true)}
-          title="ورود یا ساخت حساب ابری"
+          title="ورود یا ثبت‌نام"
           className="btn-carbon inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-bold text-bronze"
         >
           <span className="btn-carbon-glow" aria-hidden />
@@ -478,11 +479,9 @@ export function CloudAccountArea() {
         <DropdownMenuTrigger asChild>
           <button
             className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-2 pe-2.5 ps-1.5 shadow-card transition-colors hover:border-bronze/60"
-            aria-label={`حساب ابری ${user.email}`}
+            aria-label={`حساب ${user.email}`}
           >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-bl from-primary/90 to-bronze text-[11px] font-bold text-primary-foreground">
-              {(handle || user.email || "؟").slice(0, 1).toUpperCase()}
-            </span>
+            <UserAvatar src={me?.avatarUrl} name={handle || user.email || "?"} size="xs" />
             <span className="hidden max-w-[120px] truncate text-start text-xs font-bold sm:block" dir="auto">
               {handle || user.email}
             </span>
@@ -492,13 +491,10 @@ export function CloudAccountArea() {
         <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-1.5">
           <DropdownMenuLabel dir="rtl" className="space-y-0.5 px-2">
             <p className="text-[10px] font-bold text-muted-foreground">
-              {role === "admin" ? "حساب ابری — مدیر سامانه" : role === "teacher" ? "حساب ابری — مدرس Lexa" : "حساب ابری"}
+              {role === "admin" ? "مدیر سامانه" : role === "teacher" ? "مدرس" : "حساب کاربری"}
             </p>
             {handle && <p className="truncate text-xs font-bold" dir="auto">@{handle}</p>}
             <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{user.email}</p>
-            <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-success">
-              <CloudCheck className="h-3 w-3" /> همگام‌سازی خودکار فعال — همه‌چیز ذخیره می‌شود
-            </p>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {(role === "teacher" || role === "admin") && (
@@ -535,7 +531,7 @@ export function CloudAccountArea() {
               const pushErr = await sbPushState(blob).catch(() => "net");
               if (pushErr) {
                 setBusy("");
-                window.alert("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشده‌اید. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
+                window.alert("آخرین تغییرات ذخیره نشد، به همین دلیل خروج انجام نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
                 return;
               }
               noteCloudPushed(blob.savedAt);

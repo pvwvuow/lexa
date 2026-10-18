@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogIn, LogOut, ShieldCheck, CloudCheck, Loader2, GraduationCap, Settings } from "lucide-react";
+import { LogIn, LogOut, ShieldCheck, Loader2, GraduationCap, Settings } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +51,7 @@ export function AccountArea() {
         {/* دکمهٔ فیبر کربن — بافت تاریک بافته‌ای با لبهٔ براق و درخشش برنز */}
         <button
           onClick={() => setOpen(true)}
-          title="حساب ابری: ثبت‌نام یک‌بار، همگام روی همهٔ دستگاه‌ها"
+          title="ورود یا ثبت‌نام"
           className="btn-carbon inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-bold text-bronze"
         >
           <span className="btn-carbon-glow" aria-hidden />
@@ -61,8 +61,8 @@ export function AccountArea() {
         {/* حساب سروری محلی — مسیر فرعی برای مدرسان و مدیریت */}
         <button
           onClick={() => setLocalOpen(true)}
-          title="ورود با حساب سروری (مدرسان و مدیریت سامانه)"
-          aria-label="ورود با حساب سروری"
+          title="ورود مدیر یا مدرس"
+          aria-label="ورود مدیر یا مدرس"
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze"
         >
           <ShieldCheck className="h-[18px] w-[18px]" />
@@ -75,13 +75,6 @@ export function AccountArea() {
 
   // ── کاربر واردشده ──
   const u = auth.user;
-  const savedTime =
-    auth.lastSavedAt &&
-    new Date(auth.lastSavedAt).toLocaleTimeString("fa-IR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
   async function doLogout() {
     setLeaving(true);
     await auth.logout();
@@ -118,21 +111,8 @@ export function AccountArea() {
               {u.role === "admin"
                 ? "مدیر سامانه"
                 : u.role === "teacher"
-                  ? "مدرس Lexa"
+                  ? "مدرس"
                   : `عضو از ${new Date(u.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })}`}
-            </p>
-            <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-muted-foreground/80">
-              {auth.syncing ? (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin" /> در حال همگام‌سازی…
-                </>
-              ) : savedTime ? (
-                <>
-                  <CloudCheck className="h-3 w-3 text-success" /> ذخیره شده در {savedTime}
-                </>
-              ) : (
-                <>همگام‌سازی خودکار فعال</>
-              )}
             </p>
           </DropdownMenuLabel>
 
@@ -174,9 +154,6 @@ export function AccountArea() {
             خروج از حساب
           </DropdownMenuItem>
 
-          <div className="rounded-lg border border-dashed border-border px-2.5 py-2 text-[10px] leading-relaxed text-muted-foreground/80">
-            دادهٔ شما بیرون از همین مرورگر هم از دست نمی‌رود؛ با ورود دوباره همه چیز برمی‌گردد.
-          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
@@ -191,7 +168,7 @@ export function SyncHint({ collapsed = false }: { collapsed?: boolean }) {
   if (collapsed) return null;
   return (
     <p className="mt-1 px-3 text-center text-[10px] leading-relaxed text-muted-foreground/70">
-      حساب «{auth.user.username}» فعال است — پیشرفت شما خودکار ذخیره می‌شود
+      @{auth.user.username} · ذخیرهٔ خودکار فعال است
       {auth.lastSavedAt ? ` · ${fa(new Date(auth.lastSavedAt).getHours())}:${fa(String(new Date(auth.lastSavedAt).getMinutes()).padStart(2, "0"))}` : ""}
     </p>
   );

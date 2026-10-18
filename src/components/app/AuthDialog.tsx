@@ -71,7 +71,7 @@ export function AuthDialog({
               حساب کاربری Lexa
             </DialogTitle>
             <p className="text-xs leading-relaxed opacity-85">
-              با ساخت حساب، همهٔ پیشرفتت امن ذخیره می‌شود و روی هر دستگاهی که وارد شوی، خودش برمی‌گردد.
+              با ساخت حساب، پیشرفت مطالعه‌ات ذخیره می‌شود و روی هر دستگاهی با ورود به حساب در دسترس است.
             </p>
           </DialogHeader>
         </div>
@@ -181,15 +181,14 @@ export function AuthDialog({
               </>
             ) : (
               <>
-                <CloudUpload className="relative z-10 h-4 w-4" /> ساخت حساب و انتقال پیشرفت من
+                <CloudUpload className="relative z-10 h-4 w-4" /> ساخت حساب
               </>
             )}
           </button>
 
           {tab === "register" && (
             <p className="rounded-xl border border-dashed border-bronze/40 bg-bronze/[0.06] px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
-              هرچه تا این‌جا بدون حساب مطالعه کرده‌اید (جلسات، تست‌ها، یادداشت‌ها)
-              دقیقاً بعد از ثبت‌نام به حساب‌تان منتقل می‌شود و دیگر هیچ‌وقت از دست نمی‌رود.
+              پیشرفت فعلی‌ات در حالت مهمان (جلسات، تست‌ها و یادداشت‌ها) پس از ثبت‌نام به حسابت منتقل می‌شود.
             </p>
           )}
         </form>

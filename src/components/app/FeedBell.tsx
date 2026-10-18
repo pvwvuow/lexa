@@ -42,8 +42,8 @@ export function FeedBell() {
     >
       <DropdownMenuTrigger asChild>
         <button
-          aria-label={`تازه‌های استادها${count ? ` — ${fa(count)} مطلب جدید` : ""}`}
-          title="تازه‌های استادها"
+          aria-label={`مطالب تازهٔ اساتید${count ? ` — ${fa(count)} مطلب جدید` : ""}`}
+          title="مطالب تازهٔ اساتید"
           className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/85 shadow-card transition-colors hover:border-bronze/70 hover:text-bronze"
         >
           <Bell className="h-[17px] w-[17px]" />
@@ -56,11 +56,11 @@ export function FeedBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={10} className="w-80 rounded-2xl p-1.5">
         <p className="flex items-center gap-2 px-2.5 pb-1.5 pt-2 text-xs font-extrabold">
-          <Bell className="h-3.5 w-3.5 text-bronze" /> تازه‌های استادها
+          <Bell className="h-3.5 w-3.5 text-bronze" /> مطالب تازهٔ اساتید
         </p>
         {feed.length === 0 ? (
           <p className="px-2.5 pb-2.5 text-[11px] leading-relaxed text-muted-foreground">
-            هنوز مطلبی منتشر نشده؛ بعد از انتشار، اینجا خبر می‌شوی.
+            هنوز مطلب تازه‌ای منتشر نشده است.
           </p>
         ) : (
           <>

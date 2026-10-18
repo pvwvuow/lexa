@@ -18,7 +18,7 @@ import { CloudAuthDialog, UsernameDialog } from "./CloudAuth";
 
 /** پیام خطای دوستانه — جزئیات فنی هرگز به کاربر نشان داده نمی‌شود */
 function friendlyCloudError(): string {
-  return "اتصال به حساب ابری برقرار نشد — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید؛ داده‌های شما روی همین دستگاه امن‌اند.";
+  return "اتصال به حساب برقرار نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید. داده‌های این دستگاه حفظ شده‌اند.";
 }
 
 /** نام کاربری حساب فعلی + دکمهٔ تغییر (ابری و محلی) */
@@ -33,7 +33,7 @@ function UsernameCard() {
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 font-bold"><AtSign className="h-5 w-5 text-bronze" /> نام کاربری</h2>
           <p dir="ltr" className="mt-1 truncate text-start text-sm font-bold">@{u.username}</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">در پروفایل، کامنت‌ها و دعوت‌های سازمانی با همین نام پیدایت می‌کنند.</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">این نام در پروفایل، نظرها و دعوت‌نامه‌ها نمایش داده می‌شود.</p>
         </div>
         <button
           onClick={() => setOpen(true)}
@@ -74,14 +74,14 @@ export function CloudSyncCard() {
 
   /** بازیابی اضطراری — فقط برای مواقعی که کاربر فکر می‌کند چیزی گم شده؛ در حالت عادی هرگز لازم نیست */
   async function doRestore() {
-    if (!window.confirm("همهٔ داده‌های همین دستگاه با نسخهٔ ذخیره‌شدهٔ ابر جایگزین می‌شود و صفحه تازه‌سازی می‌گردد. ادامه می‌دهید؟")) return;
+    if (!window.confirm("داده‌های این دستگاه با آخرین نسخهٔ ذخیره‌شده در حساب جایگزین می‌شود و صفحه دوباره بارگذاری می‌شود. ادامه می‌دهید؟")) return;
     setBusy("restore"); setMsg(""); setErr("");
     const { err: e, data } = await sbPullState();
     setBusy("");
     if (e) { setErr(friendlyCloudError()); return; }
-    if (!data) { setMsg("روی ابر هنوز داده‌ای ثبت نشده است."); return; }
+    if (!data) { setMsg("هنوز داده‌ای در حساب ذخیره نشده است."); return; }
     const done = applyLocal(data as Record<string, unknown>);
-    setMsg(done.length ? "بازیابی شد؛ صفحه تازه‌سازی می‌شود…" : "داده‌ای برای بازیابی نبود.");
+    setMsg(done.length ? "بازیابی انجام شد؛ صفحه دوباره بارگذاری می‌شود…" : "داده‌ای برای بازیابی نبود.");
     if (done.length) setTimeout(() => window.location.reload(), 900);
   }
 
@@ -92,7 +92,7 @@ export function CloudSyncCard() {
     const pushErr = await sbPushState(blob).catch(() => "net");
     if (pushErr) {
       setBusy("");
-      setErr("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشده‌اید. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
+      setErr("آخرین تغییرات ذخیره نشد، به همین دلیل خروج انجام نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
       return;
     }
     noteCloudPushed(blob.savedAt);
@@ -102,7 +102,7 @@ export function CloudSyncCard() {
     wipeLocalUserData();
     setUser(null);
     setBusy("");
-    setMsg("از حساب خارج شدید؛ داده‌های شما روی ابر محفوظ است و با ورود دوباره برمی‌گردد.");
+    setMsg("از حساب خارج شدید. با ورود دوباره، اطلاعات شما در دسترس خواهد بود.");
   }
 
   const savedTime = lastPush
@@ -114,11 +114,11 @@ export function CloudSyncCard() {
       <UsernameCard />
       <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
         <h2 className="mb-1 flex items-center gap-2 font-bold">
-          <CloudCog className="h-5 w-5 text-bronze" /> حساب ابری
+          <CloudCog className="h-5 w-5 text-bronze" /> حساب Lexa
         </h2>
         <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-          با حساب ابری، پیشرفت درس‌ها، کتابخانهٔ شخصی، تلاش‌های آزمون و تنظیماتت به‌صورت خودکار روی سرور امن
-          ذخیره می‌شود و روی هر دستگاهی که وارد شوی، خودش برمی‌گردد — نیازی به کاری از سمت تو نیست.
+          پیشرفت درس‌ها، کتابخانهٔ شخصی و نتایج آزمون‌هایت به‌صورت خودکار در حسابت ذخیره می‌شود و روی هر دستگاهی
+          که وارد شوی در دسترس است.
         </p>
 
         {user ? (
@@ -127,7 +127,7 @@ export function CloudSyncCard() {
               <span className="flex items-center gap-2 font-bold text-success"><CheckCircle2 className="h-4 w-4" /> {user.email}</span>
               <span className="flex items-center gap-1.5 text-[11px] font-semibold text-success/90">
                 <CloudCheck className="h-3.5 w-3.5" />
-                همگام‌سازی خودکار فعال{savedTime ? ` · آخرین ذخیره: ${savedTime}` : ""}
+                ذخیرهٔ خودکار فعال{savedTime ? ` · آخرین ذخیره: ${savedTime}` : ""}
               </span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -141,11 +141,11 @@ export function CloudSyncCard() {
               <button
                 onClick={doRestore}
                 disabled={busy !== ""}
-                title="فقط برای مواقع اضطراری — در حالت عادی همگام‌سازی خودکار همه‌چیز را انجام می‌دهد"
+                title="فقط در صورت نیاز؛ در حالت عادی ذخیره و بازیابی خودکار انجام می‌شود"
                 className="text-[11px] font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-45"
               >
                 {busy === "restore" ? <Loader2 className="me-1 inline h-3 w-3 animate-spin" /> : null}
-                بازیابی نسخهٔ ابر روی این دستگاه
+                بازیابی آخرین نسخهٔ حساب روی این دستگاه
               </button>
             </div>
           </div>
@@ -155,7 +155,7 @@ export function CloudSyncCard() {
               <LogIn className="h-4 w-4" /> ورود
             </button>
             <button onClick={() => openAuth("register")} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-bold transition-colors hover:border-bronze hover:text-bronze">
-              <UserPlus className="h-4 w-4" /> ثبت‌نام (با نام کاربری دلخواه)
+              <UserPlus className="h-4 w-4" /> ثبت‌نام
             </button>
           </div>
         )}

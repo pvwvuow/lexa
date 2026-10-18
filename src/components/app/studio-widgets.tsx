@@ -234,8 +234,9 @@ export function ThumbnailPicker({
 
   async function upload(file: File) {
     setErr("");
-    if (file.size > 4 * 1024 * 1024) {
-      setErr("حجم تصویر باید کمتر از ۴ مگابایت باشد.");
+    // large photos are shrunk before upload (cloud handler); only refuse absurd files
+    if (file.size > 25 * 1024 * 1024) {
+      setErr("حجم این فایل بیش از حد بزرگ است؛ تصویری کوچک‌تر از ۲۵ مگابایت انتخاب کن.");
       return;
     }
     setBusy(true);
@@ -347,7 +348,7 @@ export function ThumbnailPicker({
 
       {err && <p className="mt-1.5 text-[11px] font-semibold text-destructive">{err}</p>}
       {!err && !value && !urlMode && (
-        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/70">PNG، JPG یا WebP تا ۴ مگابایت — نمایش در سربرگ و کارت‌ها.</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/70">PNG، JPG یا WebP — نمایش در سربرگ و کارت‌ها.</p>
       )}
     </div>
   );
