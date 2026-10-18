@@ -39,6 +39,9 @@ export interface Org {
   status: OrgStatus;
   plan: OrgPlan;
   seats: number;
+  /** phase 1: centre sign-in code + official student seats (006_org_accounts.sql) */
+  code?: string;
+  studentSeats?: number;
   expiresAt: string | null;
   adminNote: string;
   createdBy: string;
@@ -92,7 +95,9 @@ function orgOf(r: any): Org {
   return {
     id: r.id, slug: r.slug, name: r.name, kind: r.kind, city: r.city ?? "", description: r.description ?? "",
     logoUrl: r.logo_url ?? "", website: r.website ?? "", contact: r.private?.contact ?? "", status: r.status,
-    plan: r.plan, seats: Number(r.seats) || 0, expiresAt: r.expires_at ?? null, adminNote: r.private?.admin_note ?? "",
+    plan: r.plan, seats: Number(r.seats) || 0, code: typeof r.code === "string" ? r.code : "",
+    studentSeats: r.student_seats === null || r.student_seats === undefined ? undefined : Number(r.student_seats) || 0,
+    expiresAt: r.expires_at ?? null, adminNote: r.private?.admin_note ?? "",
     createdBy: r.created_by, createdAt: r.created_at,
   };
 }

@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Scale, UserRound, KeyRound, Loader2, CloudUpload,
-  ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert, Settings, AtSign, GraduationCap,
+  ShieldCheck, LogIn, UserPlus, LogOut, TriangleAlert, Settings, AtSign, GraduationCap, Building2,
 } from "lucide-react";
 import {
   sbUser, sbSignUp, sbSignIn, sbSignOut, sbPushState, sbPullState,
@@ -38,8 +38,10 @@ import {
   normalizeUsername, usernameProblem, usernameTaken,
   rememberPendingUsername, clearPendingUsername, applyPendingUsername,
 } from "@/lib/cloud-api/username";
+import { OrgSignInForm } from "./OrgSignInForm";
+import { isInternalEmail } from "@/lib/cloud-api/org-accounts";
 
-type Tab = "login" | "register";
+type Tab = "login" | "register" | "org";
 
 /** دیالوگ ورود/ثبت‌نام حساب ابری — هم‌شکل دیالوگ حساب دسکتاپ */
 export function CloudAuthDialog({
@@ -183,6 +185,44 @@ export function CloudAuthDialog({
     }
   }
 
+  /** ورود با حساب مرکز موفق شد — همان گام‌های پس از ورود ایمیل: پل حساب، تشخیص تعویض
+   * حساب، بارگذاری دادهٔ ابر (یا فرستادن دادهٔ دستگاه). صفحهٔ اجباریِ تغییر رمز اولیه
+   * و تأیید شرایط را OrgFirstLoginGate خودش نشان می‌دهد. */
+  async function orgDone() {
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+    holdCloudPush(true);
+    try {
+      void auth.bridgeCloud();
+      handleAccountSwitch(sbUser()!.id);
+      const { err: pullErr, data } = await sbPullState();
+      if (pullErr) {
+        await sbSignOut();
+        setError("دریافت اطلاعات حساب انجام نشد؛ کمی بعد دوباره وارد شوید.");
+        return;
+      }
+      setPassword("");
+      const hasData = !!data && typeof data === "object" && Object.keys(data as object).length > 0;
+      if (hasData) {
+        if (adoptCloudBlob(data)) {
+          onOpenChange(false);
+          setTimeout(() => window.location.reload(), 350);
+          return;
+        }
+        onOpenChange(false);
+        return;
+      }
+      const blob = collectLocal();
+      const pushErr = await sbPushState(blob).catch(() => "net");
+      if (!pushErr) noteCloudPushed(blob.savedAt);
+      onOpenChange(false);
+    } finally {
+      holdCloudPush(false);
+      setBusy(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[420px] gap-0 overflow-hidden rounded-2xl border-border bg-card p-0 sm:rounded-2xl">
@@ -202,24 +242,29 @@ export function CloudAuthDialog({
           </DialogHeader>
         </div>
 
-        {/* زبانه‌ها */}
-        <div className="grid grid-cols-2 border-b border-border bg-background/60 p-1" role="tablist">
-          {(["login", "register"] as Tab[]).map((t) => (
+        {/* زبانه‌ها — ورود، ثبت‌نام، حساب مرکز */}
+        <div className="grid grid-cols-3 border-b border-border bg-background/60 p-1" role="tablist">
+          {(["login", "register", "org"] as Tab[]).map((t) => (
             <button
               key={t}
               role="tab"
               aria-selected={tab === t}
               onClick={() => { setTab(t); setError(null); setInfo(null); }}
-              className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1 rounded-xl py-2.5 text-[12.5px] font-bold transition-all duration-200 ${
                 tab === t ? "bg-card text-bronze shadow-card" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t === "login" ? <LogIn className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-              {t === "login" ? "ورود" : "ثبت‌نام"}
+              {t === "login" ? <LogIn className="h-4 w-4" /> : t === "register" ? <UserPlus className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
+              {t === "login" ? "ورود" : t === "register" ? "ثبت‌نام" : "حساب مرکز"}
             </button>
           ))}
         </div>
 
+        {tab === "org" ? (
+          <div className="p-6">
+            <OrgSignInForm onDone={() => void orgDone()} />
+          </div>
+        ) : (
         <form onSubmit={submit} noValidate className="space-y-4 p-6">
           {tab === "register" && (
             <label className="block space-y-1.5">
@@ -336,6 +381,7 @@ export function CloudAuthDialog({
             )}
           </button>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -470,6 +516,8 @@ export function CloudAccountArea() {
   const me = auth.user;
   const role = me?.role;
   const handle = me?.username || "";
+  // internal e-mail of centre-made accounts (u_<uuid>@accounts.lexa.invalid) is never shown
+  const shownEmail = isInternalEmail(user.email) ? "" : user.email;
 
   return (
     <>
@@ -479,11 +527,11 @@ export function CloudAccountArea() {
         <DropdownMenuTrigger asChild>
           <button
             className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-2 pe-2.5 ps-1.5 shadow-card transition-colors hover:border-bronze/60"
-            aria-label={`حساب ${user.email}`}
+            aria-label={`حساب ${handle || shownEmail || "کاربر"}`}
           >
-            <UserAvatar src={me?.avatarUrl} name={handle || user.email || "?"} size="xs" />
+            <UserAvatar src={me?.avatarUrl} name={handle || shownEmail || "?"} size="xs" />
             <span className="hidden max-w-[120px] truncate text-start text-xs font-bold sm:block" dir="auto">
-              {handle || user.email}
+              {handle || shownEmail}
             </span>
           </button>
         </DropdownMenuTrigger>
@@ -494,7 +542,8 @@ export function CloudAccountArea() {
               {role === "admin" ? "مدیر سامانه" : role === "teacher" ? "مدرس" : "حساب کاربری"}
             </p>
             {handle && <p className="truncate text-xs font-bold" dir="auto">@{handle}</p>}
-            <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{user.email}</p>
+            {shownEmail && <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{shownEmail}</p>}
+            {!handle && !shownEmail && <p className="truncate text-[11px] text-muted-foreground">حساب دانشجویی مرکز آموزشی</p>}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {(role === "teacher" || role === "admin") && (

@@ -40,6 +40,6 @@
     "node_modules",
     "examples",
     "skills",
-    "lexa-fix-errors"
+    "lexa-fix-errors", "lexa-pr19", "supabase"
   ]
 }

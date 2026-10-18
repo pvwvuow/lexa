@@ -30,6 +30,8 @@ import {
   type Org, type OrgMember, type MiniUser, type TeacherRequest, type OrgKind, type OrgStatus, type OrgPlan,
 } from "@/lib/cloud-api/orgs";
 import type { TCourseCard, FeedPost } from "@/lib/social-client";
+import { OrgStudentsPanel } from "./OrgStudentsPanel";
+import { adminSetOrgAccounts, ORG_CODE_RE } from "@/lib/cloud-api/org-accounts";
 import { UserAvatar, CourseIcon } from "./common";
 import { inputCls, labelCls } from "./StudioView";
 
@@ -450,6 +452,10 @@ function AdminOrgRow({ o, onSaved }: { o: Org & { creator: MiniUser }; onSaved: 
     status: o.status as OrgStatus, plan: o.plan as OrgPlan, seats: o.seats,
     expires: o.expiresAt ? o.expiresAt.slice(0, 10) : "", note: o.adminNote,
   });
+  // فاز ۱: کد ورود مرکز و ظرفیت دانشجویان رسمی — با lexa_admin_set_org_accounts ذخیره می‌شود
+  const [acc, setAcc] = React.useState({ code: o.code ?? "", studentSeats: o.studentSeats ?? 50 });
+  const [accBusy, setAccBusy] = React.useState(false);
+  const [accMsg, setAccMsg] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [msg, setMsg] = React.useState("");
   async function save() {
@@ -465,6 +471,20 @@ function AdminOrgRow({ o, onSaved }: { o: Org & { creator: MiniUser }; onSaved: 
       setMsg(orgError(e));
     } finally {
       setBusy(false);
+    }
+  }
+  async function saveAccounts() {
+    const code = acc.code.trim().toLowerCase();
+    if (code && !ORG_CODE_RE.test(code)) { setAccMsg("کد مرکز نامعتبر است: ۲ تا ۲۴ نویسهٔ لاتین کوچک، رقم و خط تیره (مثلاً ut)."); return; }
+    setAccBusy(true); setAccMsg("");
+    try {
+      await adminSetOrgAccounts(o.id, code, Math.max(0, Math.min(100000, Number(acc.studentSeats) || 0)));
+      setAccMsg("حساب‌های مرکز ذخیره شد");
+      onSaved();
+    } catch (e) {
+      setAccMsg(orgError(e));
+    } finally {
+      setAccBusy(false);
     }
   }
   return (
@@ -489,6 +509,13 @@ function AdminOrgRow({ o, onSaved }: { o: Org & { creator: MiniUser }; onSaved: 
       </div>
       <input className={`${inputCls} mt-2`} value={f.note} maxLength={600} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="یادداشت مدیر (مثلاً شمارهٔ فاکتور)" />
       {msg && <p className="mt-1.5 text-[11px] text-muted-foreground">{msg}</p>}
+      {/* فاز ۱: حساب‌های رسمی دانشجویان */}
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        <input className={inputCls} dir="ltr" maxLength={24} value={acc.code} onChange={(e) => setAcc({ ...acc, code: e.target.value.toLowerCase() })} placeholder="کد مرکز (مثلاً ut)" aria-label="کد مرکز" title="کد ورود مرکز — با این کد دانشجویان وارد می‌شوند" />
+        <input className={inputCls} type="number" min={0} max={100000} dir="ltr" value={acc.studentSeats} onChange={(e) => setAcc({ ...acc, studentSeats: Number(e.target.value) })} aria-label="ظرفیت دانشجو" title="ظرفیت دانشجویان رسمی" />
+        <button className={btnGhost} disabled={accBusy} onClick={() => void saveAccounts()}>{accBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "ذخیره حساب‌ها"}</button>
+      </div>
+      {accMsg && <p className="mt-1.5 text-[11px] text-muted-foreground">{accMsg}</p>}
     </div>
   );
 }
@@ -550,7 +577,7 @@ function AdminRoleTool() {
 }
 
 /* === صفحهٔ مرکز آموزشی === */
-type OrgTab = "teachers" | "content" | "manage" | "settings";
+type OrgTab = "teachers" | "content" | "manage" | "students" | "settings";
 
 function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   const auth = useAuth();
@@ -606,6 +633,7 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
     { key: "teachers", label: `مدرسان (${fa(active.length)})`, Icon: Users },
     { key: "content", label: "دوره‌ها و مطالب", Icon: Newspaper },
     ...(canManage ? [
+      { key: "students" as OrgTab, label: "دانشجویان و حساب‌ها", Icon: GraduationCap },
       { key: "manage" as OrgTab, label: "مدیریت مدرسان", Icon: UserPlus },
       { key: "settings" as OrgTab, label: "تنظیمات پنل", Icon: Settings2 },
     ] : []),
@@ -664,6 +692,7 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
 
       {tab === "teachers" && (membersErr ? <RetryBox msg={membersErr} onRetry={() => void load()} /> : <OrgTeachersTab members={active} />)}
       {tab === "content" && <OrgContentTab org={org} canManage={canManage} />}
+      {tab === "students" && canManage && <OrgStudentsPanel orgId={org.id} orgName={org.name} />}
       {tab === "manage" && canManage && <OrgManageTab org={org} members={members} isOwner={isOwner} onChanged={() => void load()} />}
       {tab === "settings" && canManage && <OrgSettingsTab org={org} onSaved={(o) => setOrg(o)} />}
     </div>

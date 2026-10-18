@@ -8,7 +8,7 @@ import {
   WifiOff, Download, HardDriveDownload, MonitorSmartphone, CloudOff, DownloadCloud,
   RefreshCw, TriangleAlert, FileText, BookOpen, Wrench,
   Share, SquarePlus, Copy, Check, Apple, Chrome as ChromeIcon, Monitor, ExternalLink,
-  PackageCheck, PackageOpen, CloudDownload, Sparkles,
+  PackageCheck, PackageOpen, CloudDownload, Sparkles, Building2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useApp } from "@/lib/store";
@@ -35,8 +35,22 @@ import {
 import { UserAvatar } from "./common";
 import { CloudSyncCard } from "./CloudSyncCard";
 import { AppUpdateCard } from "./AppUpdateCard";
+import { RedeemOrgCode } from "./RedeemOrgCode";
+import { MfaPanel } from "./MfaPanel";
+import { sbUser } from "@/lib/supabase";
 
 type Tab = "general" | "ai" | "content" | "offline";
+
+/** حساب‌های مراکز آموزشی (فاز ۱): کد فعال‌سازی برای کاربران فعلی + ورود دومرحله‌ای مدیران */
+function OrgAccountsSection() {
+  return (
+    <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-card">
+      <h2 className="flex items-center gap-2 font-bold"><Building2 className="h-5 w-5 text-bronze" /> مرکز آموزشی</h2>
+      <RedeemOrgCode />
+      <MfaPanel />
+    </section>
+  );
+}
 
 export function SettingsView() {
   const [tab, setTab] = React.useState<Tab>("general");
@@ -112,6 +126,8 @@ function GeneralSettings() {
             برای داشتن پروفایل، ابتدا از دکمهٔ «ورود / ثبت‌نام» وارد شو یا حساب بساز.
           </p>
         )}
+        {/* حساب مرکز آموزشی — نشست ساپابیس هست ولی پروفایل سروری ندارد (دانشجوی رسمی) */}
+        {sbUser() && <OrgAccountsSection />}
       </div>
     );
   }
@@ -333,6 +349,8 @@ function GeneralSettings() {
       </section>
 
       <CloudSyncCard />
+
+      <OrgAccountsSection />
 
       <p className="flex items-start gap-2 rounded-2xl bg-accent p-4 text-xs leading-relaxed text-muted-foreground">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />

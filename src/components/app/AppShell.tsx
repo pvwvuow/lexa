@@ -45,6 +45,7 @@ import { OrgView, useOrgInviteCount } from "./OrgView";
 import { MobileMenuDrawer } from "./MobileMenuDrawer";
 import { UpdateBanner } from "./UpdateBanner";
 import { ApkUpdateBanner } from "./ApkUpdateBanner";
+import { OrgFirstLoginGate } from "./OrgFirstLoginGate";
 
 type NavMode = "expanded" | "rail";
 
@@ -508,6 +509,8 @@ export function AppShell() {
           Lexa — ابزار صرفاً آموزشی است و جایگزین مشاورهٔ حقوقی نیست · قانون مدنی © به پرسش‌ها پاسخ می‌دهد، پاسخ نهایی با قاضی است
         </footer>
 
+        {/* حساب‌های مرکز آموزشی — تغییر اجباری رمز اولیه و تأیید شرایط (بازشو نامرئی تا نیاز باشد) */}
+        <OrgFirstLoginGate />
         {/* به‌روزرسانی خودکار دسکتاپ — قرص کوچک گوشهٔ صفحه؛ فقط در اپ الکترون رندر می‌شود */}
         <UpdateBanner />
         {/* به‌روزرسانی درون‌برنامه‌ای اندروید — کشف بی‌صدای نسخهٔ جدید + دانلود/نصب داخل اپ؛ فقط در APK */}
