@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "برای انتشار مطلب، ابتدا وارد شوید." }, { status: 401 });
   if (me.role !== "teacher" && me.role !== "admin")
-    return NextResponse.json({ error: "انتشار مطلب ویژهٔ اساتید است." }, { status: 403 });
+    return NextResponse.json({ error: "انتشار مطلب ویژهٔ مدرسان است." }, { status: 403 });
 
   let body: { title?: string; summary?: string; tags?: string; blocks?: unknown; category?: unknown; categories?: unknown; thumbnail?: unknown; quiz?: unknown };
   try {

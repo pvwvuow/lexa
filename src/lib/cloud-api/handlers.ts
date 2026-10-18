@@ -34,11 +34,11 @@ const ok = (body: unknown): CloudRes => ({ status: 200, body });
 const fail = (status: number, error: string): CloudRes => ({ status, body: { error } });
 
 const MSG = {
-  login: "برای این کار ابتدا با حساب Lexa (ایمیل) وارد شو.",
-  teacher: "این کار مخصوص حساب‌های استادی است.",
-  forbidden: "اجازهٔ این کار را نداری.",
-  offline: "اتصال به سرور ابری Lexa برقرار نشد — اینترنت را چک کن.",
-  rate: "کمی آهسته‌تر — چند لحظه بعد دوباره امتحان کن.",
+  login: "برای این کار ابتدا با حساب Lexa (ایمیل) وارد شوید.",
+  teacher: "این کار مخصوص حساب‌های مدرسی است.",
+  forbidden: "اجازهٔ این کار را ندارید.",
+  offline: "اتصال به سرور ابری Lexa برقرار نشد — اتصال اینترنت را بررسی کنید.",
+  rate: "کمی آهسته‌تر — چند لحظه بعد دوباره تلاش کنید.",
   badJson: "درخواست نامعتبر است.",
   postNotFound: "مطلب یافت نشد.",
   courseNotFound: "دوره یافت نشد.",
@@ -163,8 +163,12 @@ interface CourseRow {
   org?: OrgMini | null;
 }
 
-const AUTHOR_EMBED = "author:lexa_profiles(id,username,display_name,avatar_url,bio)";
-const TEACHER_EMBED = "teacher:lexa_profiles(id,username,display_name,avatar_url)";
+/* Every profile embed names its FK constraint explicitly: PostgREST also sees
+ * many-to-many paths through junction tables (e.g. lexa_library between
+ * lexa_tcourses and lexa_profiles) and fails with PGRST201 when the embed is
+ * ambiguous — the same family of bug as the admin centres list (PR #17). */
+const AUTHOR_EMBED = "author:lexa_profiles!lexa_posts_author_id_fkey(id,username,display_name,avatar_url,bio)";
+const TEACHER_EMBED = "teacher:lexa_profiles!lexa_tcourses_teacher_id_fkey(id,username,display_name,avatar_url)";
 const ORG_EMBED = "org:lexa_orgs(id,name,slug,logo_url)";
 const POST_CARD_COLS = `id,author_id,org_id,title,summary,tags,category,categories,thumbnail,created_at,updated_at,${AUTHOR_EMBED},${ORG_EMBED},lexa_comments(count)`;
 
@@ -266,7 +270,7 @@ async function patchProfile(req: CloudReq): Promise<CloudRes> {
   const patch: Record<string, unknown> = {};
   if ("displayName" in b) patch.display_name = typeof b.displayName === "string" ? b.displayName.trim().slice(0, 48) || null : null;
   if ("bio" in b) {
-    if (me.role === "user") return fail(400, "بیو فقط برای حساب‌های استادی است.");
+    if (me.role === "user") return fail(400, "بیو فقط برای حساب‌های مدرسی است.");
     patch.bio = typeof b.bio === "string" ? b.bio.trim().slice(0, 320) || null : null;
   }
   if (typeof b.username === "string" && b.username.trim() && b.username.trim() !== me.username) {
@@ -394,7 +398,7 @@ async function getPost(id: string): Promise<CloudRes> {
   const comments = await sbSelect<{
     id: string; text: string; created_at: string; reply_to_id: string | null; user_id: string;
     user?: Partial<ProfileRow> | null;
-  }>("lexa_comments", `post_id=eq.${id}&select=id,text,created_at,reply_to_id,user_id,user:lexa_profiles(id,username,display_name,avatar_url)&order=created_at.asc&limit=200`);
+  }>("lexa_comments", `post_id=eq.${id}&select=id,text,created_at,reply_to_id,user_id,user:lexa_profiles!lexa_comments_user_id_fkey(id,username,display_name,avatar_url)&order=created_at.asc&limit=200`);
   const author = authorOf(p.author, p.author_id);
   return ok({
     post: {
@@ -464,14 +468,14 @@ async function addComment(postId: string, req: CloudReq): Promise<CloudRes> {
     id: string; text: string; created_at: string; reply_to_id: string | null; user_id: string;
     user?: Partial<ProfileRow> | null;
   }>("lexa_comments", { post_id: postId, user_id: me.id, text, reply_to_id: replyTo }, {
-    select: "id,text,created_at,reply_to_id,user_id,user:lexa_profiles(id,username,display_name,avatar_url)",
+    select: "id,text,created_at,reply_to_id,user_id,user:lexa_profiles!lexa_comments_user_id_fkey(id,username,display_name,avatar_url)",
   });
   const c = rows[0];
   if (!c) return fail(500, "ثبت نظر ناموفق بود.");
   let replyToUsername: string | null = null;
   if (c.reply_to_id) {
     const parent = await sbSelect<{ user?: Partial<ProfileRow> | null; user_id: string }>(
-      "lexa_comments", `id=eq.${c.reply_to_id}&select=user_id,user:lexa_profiles(id,username,display_name)`,
+      "lexa_comments", `id=eq.${c.reply_to_id}&select=user_id,user:lexa_profiles!lexa_comments_user_id_fkey(id,username,display_name)`,
     );
     if (parent[0]) replyToUsername = authorOf(parent[0].user, parent[0].user_id).displayName;
   }

@@ -149,7 +149,7 @@ function ApkUnavailable({ title }: { title: string }) {
       <h1 className="mb-2 text-lg font-bold">{title}</h1>
       <p className="text-sm leading-loose text-muted-foreground">
         این بخش به سرور مرکزی Lexa وصل است و در نسخهٔ اندروید فعلاً در دسترس نیست.
-        برای شبکهٔ اساتید و کتابخانهٔ عمومی، نسخهٔ وب یا دسکتاپ را باز کن.
+        برای شبکهٔ مدرسان و کتابخانهٔ عمومی، نسخهٔ وب یا دسکتاپ را باز کنید.
       </p>
     </div>
   );
@@ -159,9 +159,9 @@ export function AppShell() {
   const route = useRoute();
   const auth = useAuth();
   useCloudAutoSync(); // سینک ابری خودکار — همهٔ پلتفرم‌ها
-  // دعوت‌های سازمانیِ در انتظار — روی آیتم «دانشگاه‌ها و موسسه‌ها» نشان داده می‌شود
+  // دعوت‌های سازمانیِ در انتظار — روی آیتم «مراکز آموزشی» نشان داده می‌شود
   const orgInvites = useOrgInviteCount();
-  const orgLabel = orgInvites > 0 ? `دانشگاه‌ها و موسسه‌ها (${fa(orgInvites)} دعوت)` : "دانشگاه‌ها و موسسه‌ها";
+  const orgLabel = orgInvites > 0 ? `مراکز آموزشی (${fa(orgInvites)} دعوت)` : "مراکز آموزشی";
   const online = useOnlineStatus();
   const last = useApp((s) => s.lastLocation);
   const progress = useApp((s) => s.progress);
@@ -351,20 +351,20 @@ export function AppShell() {
 
         {/* تست و آزمون — یک ورود یکتا: تست از کتابخانه + دفترچه‌های آماده در دو تب داخل همان صفحه */}
         <SideItem icon={NotebookTabs} label="تست و آزمون" rail={rail} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
-        {/* کتابخانهٔ عمومی — دوره‌های آماده (آفلاین) + مطالب اساتید — در اندروید هم فعال */}
+        {/* کتابخانهٔ عمومی — دوره‌های آماده (آفلاین) + مطالب مدرسان — در اندروید هم فعال */}
         <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={rail} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
         {/* کتابخانهٔ قوانین — متن قانون‌های کشور */}
         <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={rail} active={current === "law"} onClick={() => go({ view: "law" })} />
-        {/* شبکهٔ اساتید: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
-        {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
-        {/* پنل سازمانی: دانشگاه‌ها و موسسه‌ها، دعوت اساتید، درخواست حساب استادی */}
+        {/* شبکهٔ مدرسان: پیشنهاد، فالو، مطالب و دوره‌های آنان */}
+        {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="مدرسان و مقالات" rail={rail} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
+        {/* پنل مراکز آموزشی: دانشگاه‌ها، مؤسسه‌ها و آموزشگاه‌ها؛ دعوت مدرسان و درخواست حساب مدرس */}
         {!SOCIAL_OFF && <SideItem icon={Building2} label={orgLabel} rail={rail} active={current === "org"} onClick={() => go({ view: "org" })} />}
         {/* افزودن کتاب فقط برای مدیر */}
         {auth.user?.role === "admin" && (
           <SideItem icon={Upload} label="افزودن کتاب" rail={rail} active={current === "import"} onClick={() => go({ view: "import" })} />
         )}
         {auth.user?.role === "teacher" && (
-          <SideItem icon={PenSquare} label="اتاق استاد" rail={rail} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+          <SideItem icon={PenSquare} label="پنل مدرس" rail={rail} active={current === "studio"} onClick={() => go({ view: "studio" })} />
         )}
         {auth.user?.role === "admin" && (
           <SideItem
@@ -427,7 +427,7 @@ export function AppShell() {
                 </span>
                 <span className="hidden leading-tight sm:block">
                   <span className="block text-[15px] font-extrabold tracking-tight text-white">Lexa</span>
-                  <span className="block text-[9.5px] font-semibold text-bronze">استاد حقوقی هوشمند</span>
+                  <span className="block text-[9.5px] font-semibold text-bronze">آموزش مفهومی حقوق</span>
                 </span>
               </button>
 
@@ -491,14 +491,14 @@ export function AppShell() {
           {route.view === "cards" && <FlashcardsView />}
           {route.view === "settings" && <SettingsView />}
           {route.view === "import" && (IS_APK ? <ApkUnavailable title="افزودن کتاب" /> : <ImportView />)}
-          {route.view === "teachers" && (SOCIAL_OFF ? <ApkUnavailable title="اساتید و مقالات" /> : <TeachersView />)}
-          {route.view === "studio" && (SOCIAL_OFF ? <ApkUnavailable title="اتاق استاد" /> : <StudioView />)}
+          {route.view === "teachers" && (SOCIAL_OFF ? <ApkUnavailable title="مدرسان و مقالات" /> : <TeachersView />)}
+          {route.view === "studio" && (SOCIAL_OFF ? <ApkUnavailable title="پنل مدرس" /> : <StudioView />)}
           {route.view === "write" && (SOCIAL_OFF ? <ApkUnavailable title="نوشتن مطلب" /> : <StudioWriteView kind={route.kind} id={route.id} />)}
-          {route.view === "post" && (SOCIAL_OFF ? <ApkUnavailable title="مطلب استاد" /> : <PostView id={route.id} />)}
-          {route.view === "org" && (SOCIAL_OFF ? <ApkUnavailable title="دانشگاه‌ها و موسسه‌ها" /> : <OrgView key={route.id ?? "hub"} id={route.id} />)}
+          {route.view === "post" && (SOCIAL_OFF ? <ApkUnavailable title="مطلب مدرس" /> : <PostView id={route.id} />)}
+          {route.view === "org" && (SOCIAL_OFF ? <ApkUnavailable title="مراکز آموزشی" /> : <OrgView key={route.id ?? "hub"} id={route.id} />)}
           {route.view === "library" && <PublicLibraryView />}
           {route.view === "law" && <LawLibraryView id={route.id} />}
-          {route.view === "teacher" && (SOCIAL_OFF ? <ApkUnavailable title="پروفایل استاد" /> : <TeacherProfileView id={route.id} />)}
+          {route.view === "teacher" && (SOCIAL_OFF ? <ApkUnavailable title="پروفایل مدرس" /> : <TeacherProfileView id={route.id} />)}
           {/* پنل مدیریت: خودِ AdminView بر اساس IS_APK کنسول ابری (Supabase) یا نمای سروری را رندر می‌کند — گیت اینجا نسخهٔ ابری را هم می‌بست */}
           {route.view === "admin" && <AdminView />}
         </main>
@@ -571,10 +571,10 @@ export function AppShell() {
               <SideItem icon={NotebookTabs} label="تست و آزمون" rail={false} active={examCenterActive} onClick={() => go({ view: "quiz" })} />
               <SideItem icon={LibraryBig} label="کتابخانهٔ عمومی" rail={false} active={["library", "teacher"].includes(current)} onClick={() => go({ view: "library" })} />
               <SideItem icon={Landmark} label="کتابخانهٔ قوانین" rail={false} active={current === "law"} onClick={() => go({ view: "law" })} />
-              {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="اساتید و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
+              {!SOCIAL_OFF && <SideItem icon={GraduationCap} label="مدرسان و مقالات" rail={false} active={["teachers", "post"].includes(current)} onClick={() => go({ view: "teachers" })} />}
               {!SOCIAL_OFF && <SideItem icon={Building2} label={orgLabel} rail={false} active={current === "org"} onClick={() => go({ view: "org" })} />}
               {auth.user?.role === "teacher" && (
-                <SideItem icon={PenSquare} label="اتاق استاد" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
+                <SideItem icon={PenSquare} label="پنل مدرس" rail={false} active={current === "studio"} onClick={() => go({ view: "studio" })} />
               )}
               {auth.user?.role === "admin" && (
                 <>

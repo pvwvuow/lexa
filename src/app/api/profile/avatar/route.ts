@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!me) return NextResponse.json({ error: "ابتدا وارد شوید." }, { status: 401 });
   if (me.role === "user")
     return NextResponse.json(
-      { error: "آپلود آواتار ویژهٔ اساتید است؛ آواتار شما با حرف اول نام ساخته می‌شود." },
+      { error: "آپلود آواتار ویژهٔ مدرسان است؛ آواتار شما با حرف اول نام ساخته می‌شود." },
       { status: 403 },
     );
   if (!rateLimit(req, `avatar:${me.id}`, 6, 10 * 60_000))

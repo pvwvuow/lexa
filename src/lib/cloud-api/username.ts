@@ -20,7 +20,7 @@ export function usernameProblem(raw: string): string | null {
   const v = normalizeUsername(raw);
   if (v.length < 3 || v.length > 20) return "نام کاربری باید ۳ تا ۲۰ نویسه باشد.";
   if (!RE.test(v)) return "نام کاربری فقط حروف فارسی یا انگلیسی، رقم، _ و . می‌پذیرد (بدون فاصله؛ نباید با . شروع شود).";
-  if (/^u[0-9a-f]{10}$/i.test(v)) return "این شکل نام کاربری رزرو است؛ یکی دیگر انتخاب کن.";
+  if (/^u[0-9a-f]{10}$/i.test(v)) return "این شکل نام کاربری رزرو است؛ یکی دیگر انتخاب کنید.";
   return null;
 }
 
@@ -41,10 +41,10 @@ export async function setMyUsername(raw: string): Promise<string> {
     await sbRpc<string>("lexa_set_username", { uname: v });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    if (/taken/i.test(m)) throw new Error("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+    if (/taken/i.test(m)) throw new Error("این نام کاربری قبلاً گرفته شده است؛ یکی دیگر انتخاب کنید.");
     if (/invalid/i.test(m)) throw new Error("نام کاربری نامعتبر است.");
     if (/not signed in/i.test(m)) throw new Error("اول وارد حساب شو.");
-    throw new Error("نام کاربری ذخیره نشد؛ اتصال اینترنت را چک کن.");
+    throw new Error("نام کاربری ذخیره نشد؛ اتصال اینترنت را بررسی کنید.");
   }
   forgetCloudMe();
   return v;

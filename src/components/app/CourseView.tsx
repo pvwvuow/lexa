@@ -32,8 +32,8 @@ export function CourseView({ id }: { id: string }) {
     [custom, tBooks, hiddenBuiltins, id],
   );
 
-  // ── دورهٔ استاد که هنوز در کتابخانهٔ من نیست: واکشی فقط‌خواندنی از سرور ──
-  // (همان دورهٔ کارت «پروفایل استاد» که با کلیک اینجا باز می‌شود)
+  // ── دورهٔ مدرس که هنوز در کتابخانهٔ من نیست: واکشی فقط‌خواندنی از سرور ──
+  // (همان دورهٔ کارت «پروفایل مدرس» که با کلیک این‌جا باز می‌شود)
   // اگر سرور در دسترس نبود، از نسخهٔ ذخیره‌شدهٔ آفلاین (IndexedDB) می‌خوانیم
   const [remoteCourse, setRemoteCourse] = React.useState<Course | null>(null);
   const [remoteLoading, setRemoteLoading] = React.useState(false);
@@ -67,7 +67,7 @@ export function CourseView({ id }: { id: string }) {
 
   const course: Course | undefined = local ?? remoteCourse ?? undefined;
 
-  // نوع آفلاین: دورهٔ آماده (در باندل) / دورهٔ استاد (کتابخانهای یا پیش‌نمایش سروری)
+  // نوع آفلاین: دورهٔ آماده (در باندل) / دورهٔ مدرس (کتابخانهای یا پیش‌نمایش سروری)
   // دورههای وارداتی/تولیدی محلی از قبل در دستگاه‌اند و دکمه لازم ندارند
   const offlineKind: "builtin" | "tcourse" | null = BUILTIN_IDS.has(id)
     ? "builtin"
@@ -201,7 +201,7 @@ function CourseBody({
     if (ch) void ensureChapterContent(ch);
   }, [openCh, course]);
 
-  // امتیاز ستاره‌ای برای دوره‌های استاد — از هر جای برنامه قابل رأی دادن است
+  // امتیاز ستاره‌ای برای دوره‌های مدرس — از هر جای برنامه قابل رأی دادن است
   const rate = useTargetRating("tcourse", isRemote ? course.id : null);
 
   const allLessons = course.chapters.flatMap((c) => c.lessons);
@@ -230,12 +230,12 @@ function CourseBody({
             {course.sourceLabel && (
               <p className="pt-1 text-xs text-bronze">منبع: {course.sourceLabel}</p>
             )}
-            {/* صاحب دورهٔ استاد — کلیک رفتن به پروفایل او */}
+            {/* صاحب دورهٔ مدرس — کلیک رفتن به پروفایل او */}
             {owner && (
               <button
                 onClick={() => navigate({ view: "teacher", id: (course as Course & { _teacherId?: string })._teacherId ?? "" })}
                 disabled={!(course as Course & { _teacherId?: string })._teacherId}
-                title="پروفایل استاد"
+                title="پروفایل مدرس"
                 className="mt-1 inline-flex w-fit items-center gap-2 rounded-xl px-1 py-0.5 transition-colors hover:bg-muted/60"
               >
                 <UserAvatar src={ownerAvatar} name={owner} size="xs" />
@@ -251,7 +251,7 @@ function CourseBody({
           </div>
         </div>
 
-        {/* امتیازدهی دورهٔ استاد */}
+        {/* امتیازدهی دورهٔ مدرس */}
         {!!isRemote && (
           <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-bronze/25 bg-bronze/[0.05] px-4 py-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-bronze">
@@ -280,7 +280,7 @@ function CourseBody({
           </div>
         )}
 
-        {/* دانلود آفلاین این درس — برای همهٔ دوره‌ها: آمادهٔ اپ و دورهٔ استاد */}
+        {/* دانلود آفلاین این درس — برای همهٔ دوره‌ها: آمادهٔ اپ و دورهٔ مدرس */}
         {offlineKind && (
           <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-border bg-muted/30 px-4 py-3">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
@@ -347,7 +347,7 @@ function CourseBody({
               </details>
             )}
             {packUpdateError && (
-              <p className="mt-2 text-[11px] font-bold text-destructive">نصب ناموفق بود — اتصال اینترنت را چک کن و دوباره بزن.</p>
+              <p className="mt-2 text-[11px] font-bold text-destructive">نصب ناموفق بود — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</p>
             )}
           </div>
         )}

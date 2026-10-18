@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
 
   if ("bio" in body) {
     if (me.role === "user")
-      return NextResponse.json({ error: "معرفی کوتاه ویژهٔ اساتید است." }, { status: 400 });
+      return NextResponse.json({ error: "معرفی کوتاه ویژهٔ مدرسان است." }, { status: 400 });
     data.bio = clean(body.bio, 320) || null;
   }
 

@@ -10,9 +10,9 @@ const IS_APK = process.env.NEXT_PUBLIC_APP_MODE === "apk";
 const WEB_STATIC = process.env.NEXT_PUBLIC_WEB_STATIC === "1";
 
 export const metadata: Metadata = {
-  title: "Lexa — استاد حقوقی هوشمند",
+  title: "Lexa — آموزش مفهومی حقوق",
   description:
-    "اپلیکیشن آموزشی حقوق برای دانشجویان کارشناسی؛ تدریس مرحله‌به‌مرحله حقوق مدنی و تجارت با استاد هوش مصنوعی، تست، فلش‌کارت و کتابخانهٔ قوانین.",
+    "اپلیکیشن آموزشی حقوق برای دانشجویان کارشناسی؛ درس‌نامهٔ مرحله‌به‌مرحلهٔ حقوق مدنی و تجارت با متن مواد قانونی، تست با پاسخ تشریحی، فلش‌کارت و کتابخانهٔ قوانین.",
   icons: { icon: "/favicon.svg", apple: "/icons/apple-touch-icon.png" },
   manifest: "/manifest.webmanifest",
   applicationName: "Lexa",

@@ -56,7 +56,7 @@ function CourseCardLib({
       if (!user) {
         const done = await addTCourseLocally(c.id);
         if (done) setTimeout(() => navigate({ view: "course", id: c.id }), 150);
-        else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
+        else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
         return;
       }
       const added = await toggleInLibrary(c.id);
@@ -415,7 +415,7 @@ export function PublicLibraryView() {
       {!auth.user && (
         <p className="flex items-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
           <LogIn className="h-4 w-4 shrink-0 text-bronze" />
-          دیدنِ آزاد است؛ دوره‌های آماده را حتی بدون حساب می‌توانی به کتابخانه بیفزایی یا برداری — ولی برای امتیاز دادن وارد شو.
+          دیدنِ آزاد است؛ دوره‌های آماده را حتی بدون حساب می‌توانی به کتابخانه بیفزایی یا برداری — ولی برای امتیاز دادن وارد شوید.
         </p>
       )}
 

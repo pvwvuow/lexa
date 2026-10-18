@@ -18,7 +18,7 @@ import { CloudAuthDialog, UsernameDialog } from "./CloudAuth";
 
 /** پیام خطای دوستانه — جزئیات فنی هرگز به کاربر نشان داده نمی‌شود */
 function friendlyCloudError(): string {
-  return "اتصال به حساب ابری برقرار نشد — اینترنت را بررسی کن و دوباره تلاش کن؛ داده‌هایت روی همین دستگاه امن‌اند.";
+  return "اتصال به حساب ابری برقرار نشد — اتصال اینترنت را بررسی کنید و دوباره تلاش کنید؛ داده‌های شما روی همین دستگاه امن‌اند.";
 }
 
 /** نام کاربری حساب فعلی + دکمهٔ تغییر (ابری و محلی) */
@@ -74,7 +74,7 @@ export function CloudSyncCard() {
 
   /** بازیابی اضطراری — فقط برای مواقعی که کاربر فکر می‌کند چیزی گم شده؛ در حالت عادی هرگز لازم نیست */
   async function doRestore() {
-    if (!window.confirm("همهٔ داده‌های همین دستگاه با نسخهٔ ذخیره‌شدهٔ ابر جایگزین می‌شود و صفحه تازه‌سازی می‌گردد. ادامه می‌دهی؟")) return;
+    if (!window.confirm("همهٔ داده‌های همین دستگاه با نسخهٔ ذخیره‌شدهٔ ابر جایگزین می‌شود و صفحه تازه‌سازی می‌گردد. ادامه می‌دهید؟")) return;
     setBusy("restore"); setMsg(""); setErr("");
     const { err: e, data } = await sbPullState();
     setBusy("");
@@ -92,7 +92,7 @@ export function CloudSyncCard() {
     const pushErr = await sbPushState(blob).catch(() => "net");
     if (pushErr) {
       setBusy("");
-      setErr("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشدی. اینترنت را بررسی کن و دوباره بزن.");
+      setErr("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشده‌اید. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
       return;
     }
     noteCloudPushed(blob.savedAt);
@@ -102,7 +102,7 @@ export function CloudSyncCard() {
     wipeLocalUserData();
     setUser(null);
     setBusy("");
-    setMsg("از حساب خارج شدی؛ داده‌هایت روی ابر محفوظ است و با ورود دوباره برمی‌گردد.");
+    setMsg("از حساب خارج شدید؛ داده‌های شما روی ابر محفوظ است و با ورود دوباره برمی‌گردد.");
   }
 
   const savedTime = lastPush

@@ -264,7 +264,7 @@ export const requestTeacherAccount = (f: { fullName: string; bio: string; creden
 export async function adminTeacherRequests(status: "pending" | "approved" | "rejected" = "pending"): Promise<TeacherRequest[]> {
   const rows = await sbSelect(
     "lexa_teacher_requests",
-    `status=eq.${status}&select=*,user:lexa_profiles(id,username,display_name,avatar_url,role)&order=created_at.asc&limit=200`,
+    `status=eq.${status}&select=*,user:lexa_profiles!lexa_teacher_requests_user_id_fkey(id,username,display_name,avatar_url,role)&order=created_at.asc&limit=200`,
   );
   return rows.map(requestOf);
 }

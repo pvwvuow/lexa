@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import {
-  PlayCircle, Clock3, Sparkles, BookOpen, BookMarked,
+  PlayCircle, Clock3, BookOpen, BookMarked,
   UserPlus, UserCheck, MessageCircle, GraduationCap, Rss, LogIn, Star, Trash2,
   ChevronLeft, ChevronRight, LibraryBig, ListChecks, Briefcase, Gavel,
 } from "lucide-react";
@@ -13,7 +13,7 @@ import { mergeAll } from "@/lib/books";
 import { fa } from "@/lib/fa";
 import { navigate } from "@/lib/router";
 import { requestAuthPrompt } from "@/lib/auth-prompt";
-import { ProgressBar, CourseIcon, StatChip, UserAvatar } from "./common";
+import { ProgressBar, CourseIcon, UserAvatar } from "./common";
 import { GlobalSearch } from "./GlobalSearch";
 import { OfflineDownloadButton } from "./offline-ui";
 import { useAuth, refreshLibrary } from "@/lib/auth-client";
@@ -233,7 +233,7 @@ export function DashboardView() {
               <span className="min-w-0 flex-1 space-y-0.5">
                 <span className="flex items-baseline gap-x-2">
                   <span className="truncate text-[12.5px] font-bold group-hover:text-bronze">{n.courseTitle}</span>
-                  {n.owner && <span className="hidden shrink-0 text-[9.5px] font-bold text-muted-foreground sm:inline">استاد {n.owner}</span>}
+                  {n.owner && <span className="hidden shrink-0 text-[9.5px] font-bold text-muted-foreground sm:inline">مدرس {n.owner}</span>}
                   {n.isPrep && <span className="shrink-0 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
                 </span>
                 <span className="block truncate text-[11px] text-muted-foreground">جلسهٔ بعد: {n.lessonTitle}</span>
@@ -244,12 +244,8 @@ export function DashboardView() {
         </SectionSlider>
       )}
 
-      {/* ═══ اساتید Lexa — پیشنهاد اینستاگرامی ═══ */}
+      {/* ═══ مدرسان Lexa — پیشنهاد اینستاگرامی ═══ */}
       <TeacherSuggestions />
-
-      <section className="flex flex-wrap items-center justify-center gap-2 pt-1">
-        <StatChip icon={Sparkles}>برای استریک امروز کافیست یک جلسه را تمام کنی</StatChip>
-      </section>
     </div>
   );
 }
@@ -324,9 +320,9 @@ function HeroPanel({
             </>
           ) : (
             <>
-              <h1 className="text-2xl font-extrabold leading-relaxed sm:text-3xl">به استاد حقوقی هوشمند خوش آمدی</h1>
+              <h1 className="text-2xl font-extrabold leading-relaxed sm:text-3xl">به Lexa خوش آمدید</h1>
               <p className="-mt-1 text-sm leading-relaxed text-primary-foreground/85 sm:text-[15px]">
-                یک درس را انتخاب کن تا استاد بخش‌به‌بخش برایت تدریس کند.
+                یک درس را انتخاب کنید تا جلسه‌به‌جلسه، مرحله‌به‌مرحله تدریس شود.
               </p>
               <GoldCta icon={LibraryBig} onClick={() => navigate({ view: "library" })}>
                 انتخاب درس از کتابخانه
@@ -356,8 +352,8 @@ function LatestPostsSection() {
     <SectionSlider
       icon={Rss}
       title="جدیدترین مطالب"
-      hint="تازه‌های اساتید"
-      ariaLabel="جدیدترین مطالب استادها"
+      hint="تازه‌های مدرسان"
+      ariaLabel="جدیدترین مطالب مدرسان"
       padEnds
       action={
         <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
@@ -375,7 +371,7 @@ function LatestPostsSection() {
           className="flex min-w-[240px] flex-1 items-center justify-center gap-3 self-stretch rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-start text-xs leading-relaxed text-muted-foreground transition-colors hover:border-bronze/50"
         >
           <GraduationCap className="h-5 w-5 shrink-0 text-bronze" />
-          هنوز مطلبی منتشر نشده؛ از «اساتید و مقالات» یکی را دنبال کن تا تازه‌هایش اینجا بدرخشد.
+          هنوز مطلبی منتشر نشده؛ از «مدرسان و مقالات» یکی را دنبال کنید تا تازه‌هایش این‌جا بدرخشد.
         </button>
       )}
     </SectionSlider>
@@ -549,7 +545,7 @@ function MyLibraryShelf({
     <SectionSlider
       icon={BookMarked}
       title="کتابخانهٔ من"
-      hint={`${fa(courses.length - teacherCount)} جزوهٔ پایه · ${fa(teacherCount)} دورهٔ استاد${hidden.length ? ` · ${fa(hidden.length)} عنوان مخفی` : ""}`}
+      hint={`${fa(courses.length - teacherCount)} جزوهٔ پایه · ${fa(teacherCount)} دورهٔ مدرس${hidden.length ? ` · ${fa(hidden.length)} عنوان مخفی` : ""}`}
       ariaLabel="قفسهٔ کتابخانهٔ من"
       padEnds
     >
@@ -758,7 +754,7 @@ export function TeacherSuggestions() {
   async function onFollow(id: string) {
     if (!user) {
       // مهمان: دکمهٔ مرده نیست — پنجرهٔ ورود باز می‌شود (حساب ابری کافی است)
-      requestAuthPrompt("برای دنبال کردن استاد");
+      requestAuthPrompt("برای دنبال کردن مدرس");
       return;
     }
     setErr("");
@@ -771,7 +767,7 @@ export function TeacherSuggestions() {
 
   if (loading && !teachers.length) {
     return (
-      <SectionSlider icon={GraduationCap} title="اساتید Lexa" ariaLabel="اساتید Lexa">
+      <SectionSlider icon={GraduationCap} title="مدرسان Lexa" ariaLabel="مدرسان Lexa">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="min-w-[188px] shrink-0 animate-pulse rounded-2xl border border-border bg-card p-4 pt-5 shadow-card">
             <div className="mx-auto mb-3 h-16 w-16 rounded-full bg-muted" />
@@ -791,9 +787,9 @@ export function TeacherSuggestions() {
   return (
     <SectionSlider
       icon={GraduationCap}
-      title="اساتید Lexa"
-      hint="روی آواتار بزن تا فعالیت کاملش را ببینی"
-      ariaLabel="اساتید Lexa"
+      title="مدرسان Lexa"
+      hint="روی آواتار بزنید تا فعالیت کامل او را ببینید"
+      ariaLabel="مدرسان Lexa"
       action={
         <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">
           دیدن همه ←
@@ -803,7 +799,7 @@ export function TeacherSuggestions() {
       {!user && (
         <p className="flex w-full shrink-0 items-center gap-2 self-stretch rounded-xl border border-dashed border-border bg-card px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:w-[420px]">
           <LogIn className="h-4 w-4 shrink-0 text-bronze" />
-          برای دنبال کردن اساتید و مشاهدهٔ مطالبشان، وارد حساب شو یا حساب بساز.
+          برای دنبال کردن مدرسان و مشاهدهٔ مطالبشان، وارد حساب شوید یا حساب بسازید.
         </p>
       )}
       {err && (
@@ -855,9 +851,9 @@ export function TeacherFeedTeasers() {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-bold"><Rss className="h-5 w-5 text-bronze" /> مطالب اساتید</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold"><Rss className="h-5 w-5 text-bronze" /> مطالب مدرسان</h2>
         <span className="text-[11px] text-muted-foreground">
-          {showingAll ? "برای اختصاصی شدن فید، اساتید را دنبال کن" : "فقط از اساتیدی که دنبال می‌کنی"}
+          {showingAll ? "برای اختصاصی شدن فید، مدرسان را دنبال کنید" : "فقط از مدرسانی که دنبال می‌کنید"}
         </span>
       </div>
 

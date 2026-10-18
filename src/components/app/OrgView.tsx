@@ -1,12 +1,12 @@
 "use client";
 
-/* === دانشگاه‌ها و موسسه‌ها — پنل سازمانی Lexa ===
- * #/org        → هاب: دعوت‌های من، سازمان‌های من، فهرست سازمان‌ها، درخواست حساب
- *                استادی، درخواست پنل سازمانی، و کنسول مدیر Lexa
- * #/org/<slug> → صفحهٔ سازمان: اساتید، دوره‌ها و مطالب؛ برای مدیران پنل:
- *                دعوت/تأیید اساتید، اعضا، تنظیمات
- * یک استاد می‌تواند عضو چند سازمان باشد؛ سازمان استاد را «دعوت» می‌کند و خود
- * استاد می‌پذیرد (یا استاد درخواست عضویت می‌دهد و مدیر پنل تأیید می‌کند).
+/* === مراکز آموزشی — پنل مؤسسات Lexa ===
+ * #/org        → هاب: دعوت‌های من، مراکز من، فهرست مراکز، درخواست حساب
+ *                مدرس، درخواست پنل، و کنسول مدیر Lexa
+ * #/org/<slug> → صفحهٔ مرکز: مدرسان، دوره‌ها و مطالب؛ برای مدیران پنل:
+ *                دعوت/تأیید مدرسان، اعضا، تنظیمات
+ * یک مدرس می‌تواند عضو چند مرکز باشد؛ مرکز به مدرس «دعوت» می‌دهد و خود
+ * مدرس می‌پذیرد (یا مدرس درخواست عضویت می‌دهد و مدیر پنل تأیید می‌کند).
  * داده و دسترسی‌ها: supabase/002_cloud_social.sql
  * --- */
 import * as React from "react";
@@ -51,7 +51,7 @@ function SignInNote({ what }: { what: string }) {
   return (
     <div className={`${card} flex flex-wrap items-center gap-3 border-dashed`}>
       <LogIn className="h-5 w-5 shrink-0 text-bronze" />
-      <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">{what} با حساب Lexa (ایمیل) وارد شو.</p>
+      <p className="min-w-0 flex-1 text-sm leading-relaxed text-muted-foreground">{what} با حساب Lexa (ایمیل) وارد شوید.</p>
       <button className={btnPrimary} onClick={() => requestAuthPrompt(what)}>ورود / ثبت‌نام</button>
     </div>
   );
@@ -85,7 +85,7 @@ function StatusPill({ org }: { org: Pick<Org, "status" | "expiresAt"> }) {
   return <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">منقضی</span>;
 }
 
-const ROLE_LABEL: Record<string, string> = { owner: "مالک پنل", manager: "مدیر پنل", teacher: "استاد" };
+const ROLE_LABEL: Record<string, string> = { owner: "مالک پنل", manager: "مدیر پنل", teacher: "مدرس" };
 
 /* === ورودی === */
 export function OrgView({ id }: { id?: string }) {
@@ -105,21 +105,21 @@ function OrgHub() {
       <header>
         <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight">
           <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><Building2 className="h-6 w-6" /></span>
-          دانشگاه‌ها و موسسه‌ها
+          مراکز آموزشی
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          هر دانشگاه یا موسسه می‌تواند پنل Lexa داشته باشد: اساتیدش را دعوت و مدیریت کند و دوره‌ها و مطالب
-          آن‌ها زیر نام سازمان دیده شود. یک استاد می‌تواند هم‌زمان عضو چند سازمان باشد.
+          هر دانشگاه، مؤسسه یا آموزشگاه می‌تواند پنل Lexa داشته باشد: مدرسان خود را دعوت و مدیریت کند و دوره‌ها و مطالب
+          آن‌ها زیر نام مرکز دیده شود. یک مدرس می‌تواند هم‌زمان عضو چند مرکز باشد.
         </p>
       </header>
 
-      {!signed && <SignInNote what="برای دیدن دعوت‌ها، عضویت در سازمان یا ثبت پنل" />}
+      {!signed && <SignInNote what="برای دیدن دعوت‌ها، عضویت در مرکز آموزشی یا ثبت پنل" />}
 
       {signed && invites.length > 0 && <InvitesCard items={invites} onDone={() => void mem.reload()} />}
 
       {signed && mine.length > 0 && (
         <section className={card}>
-          <h2 className="mb-3 flex items-center gap-2 text-[14px] font-extrabold"><BadgeCheck className="h-4.5 w-4.5 text-bronze" /> سازمان‌های من</h2>
+          <h2 className="mb-3 flex items-center gap-2 text-[14px] font-extrabold"><BadgeCheck className="h-4.5 w-4.5 text-bronze" /> مراکز آموزشی من</h2>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {mine.map((m) => (
               <button key={m.org.id} onClick={() => navigate({ view: "org", id: m.org.slug })} className="flex items-center gap-3 rounded-xl border border-border p-3 text-start transition-colors hover:border-bronze/50">
@@ -157,7 +157,7 @@ function InvitesCard({ items, onDone }: { items: ReturnType<typeof useMyMembersh
     setBusy(orgId + accept); setErr("");
     try {
       await respondInvite(orgId, accept);
-      if (accept) await auth.refreshMe(); // پذیرش دعوت، حساب ساده را استادی می‌کند
+      if (accept) await auth.refreshMe(); // پذیرش دعوت، حساب ساده را مدرسی می‌کند
       onDone();
     } catch (e) {
       setErr(orgError(e));
@@ -167,8 +167,8 @@ function InvitesCard({ items, onDone }: { items: ReturnType<typeof useMyMembersh
   }
   return (
     <section className={`${card} border-bronze/50 bg-gradient-to-l from-bronze/[0.07] to-card`}>
-      <h2 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold"><Mail className="h-4.5 w-4.5 text-bronze" /> دعوت‌نامه‌های سازمانی ({fa(items.length)})</h2>
-      <p className="mb-3 text-[11.5px] leading-relaxed text-muted-foreground">با پذیرش، نامت در صفحهٔ اساتید آن سازمان می‌آید و می‌توانی دوره و مطلب را به نام آن منتشر کنی. اگر هنوز حساب استادی نداری، با پذیرش دعوت فعال می‌شود.</p>
+      <h2 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold"><Mail className="h-4.5 w-4.5 text-bronze" /> دعوت‌نامه‌های مراکز آموزشی ({fa(items.length)})</h2>
+      <p className="mb-3 text-[11.5px] leading-relaxed text-muted-foreground">با پذیرش، نام شما در صفحهٔ مدرسان آن مرکز می‌آید و می‌توانید دوره و مطلب را به نام آن منتشر کنید. اگر هنوز حساب مدرس ندارید، با پذیرش دعوت فعال می‌شود.</p>
       <ErrLine msg={err} />
       <div className="mt-2 space-y-2.5">
         {items.map((m) => (
@@ -222,18 +222,18 @@ function TeacherRequestCard() {
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bronze/15 text-bronze"><GraduationCap className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] font-extrabold">استاد هستی؟</h2>
+          <h2 className="text-[14px] font-extrabold">مدرس هستید؟</h2>
           <p className="text-[11.5px] leading-relaxed text-muted-foreground">
             {req?.status === "pending"
-              ? `درخواست حساب استادی‌ات (${faDate(req.createdAt)}) در صف بررسی مدیر Lexa است.`
+              ? `درخواست حساب مدرس شما (${faDate(req.createdAt)}) در صف بررسی مدیر Lexa است.`
               : req?.status === "rejected"
-                ? `درخواست قبلی تأیید نشد${req.adminNote ? `: ${req.adminNote}` : ""}. می‌توانی با اطلاعات کامل‌تر دوباره بفرستی.`
-                : "با حساب استادی دوره و مطلب منتشر می‌کنی؛ دانشگاه‌ها هم می‌توانند دعوتت کنند (با پذیرش دعوت، حساب استادی خودکار فعال می‌شود)."}
+                ? `درخواست قبلی تأیید نشد${req.adminNote ? `: ${req.adminNote}` : ""}. می‌توانید با اطلاعات کامل‌تر دوباره بفرستید.`
+                : "با حساب مدرس دوره و مطلب منتشر می‌کنید؛ مراکز آموزشی هم می‌توانند دعوتتان کنند (با پذیرش دعوت، حساب مدرس خودکار فعال می‌شود)."}
           </p>
         </div>
         {req?.status !== "pending" && !open && (
           <button className={btnPrimary} onClick={() => { setOpen(true); if (req) setF({ fullName: req.fullName, bio: req.bio, credentials: req.credentials, contact: req.contact }); }}>
-            <Send className="h-4 w-4" /> درخواست حساب استادی
+            <Send className="h-4 w-4" /> درخواست حساب مدرس
           </button>
         )}
       </div>
@@ -267,7 +267,7 @@ function OrgDirectory() {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold"><Building2 className="h-5 w-5 text-bronze" /> سازمان‌های فعال در Lexa</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold"><Building2 className="h-5 w-5 text-bronze" /> مراکز آموزشی فعال در Lexa</h2>
         <label className="relative ms-auto w-full sm:w-64">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="جست‌وجوی نام یا شهر…" className={`${inputCls} ps-9`} />
@@ -278,7 +278,7 @@ function OrgDirectory() {
         <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>
       ) : shown.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
-          {orgs.length ? "سازمانی با این نام پیدا نشد." : "هنوز سازمانی پنل فعال ندارد — اولین باش!"}
+          {orgs.length ? "مرکزی با این نام پیدا نشد." : "هنوز مرکزی پنل فعال ندارد — اولین باشید!"}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -310,13 +310,13 @@ function CreateOrgCard({ onCreated }: { onCreated: () => void }) {
   const [done, setDone] = React.useState("");
   async function submit() {
     const slug = slugify(f.slug);
-    if (f.name.trim().length < 2) { setErr("نام سازمان را بنویس."); return; }
+    if (f.name.trim().length < 2) { setErr("نام مرکز آموزشی را وارد کنید."); return; }
     if (slug.length < 3) { setErr("شناسهٔ لاتین دست‌کم ۳ حرف لاتین/رقم لازم دارد (مثلاً ut-law)."); return; }
-    if (!f.contact.trim()) { setErr("یک راه تماس برای هماهنگی فعال‌سازی بنویس."); return; }
+    if (!f.contact.trim()) { setErr("یک راه تماس برای هماهنگی فعال‌سازی وارد کنید."); return; }
     setBusy(true); setErr("");
     try {
       await createOrg({ ...f, slug });
-      setDone("درخواست پنل ثبت شد. پس از هماهنگی و فعال‌سازی توسط Lexa، از «سازمان‌های من» مدیریتش می‌کنی.");
+      setDone("درخواست پنل ثبت شد. پس از هماهنگی و فعال‌سازی توسط Lexa، از «مراکز آموزشی من» مدیریتش می‌کنید.");
       setOpen(false);
       onCreated();
     } catch (e) {
@@ -330,8 +330,8 @@ function CreateOrgCard({ onCreated }: { onCreated: () => void }) {
       <div className="flex flex-wrap items-center gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Sparkles className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] font-extrabold">پنل Lexa برای دانشگاه یا موسسه‌ات</h2>
-          <p className="text-[11.5px] leading-relaxed text-muted-foreground">درخواست بده؛ بعد از هماهنگی خرید، پنل با ظرفیت اساتید و مدت اعتبار مشخص فعال می‌شود و خودت اساتید را دعوت و مدیریت می‌کنی.</p>
+          <h2 className="text-[14px] font-extrabold">پنل Lexa برای مرکز آموزشی شما</h2>
+          <p className="text-[11.5px] leading-relaxed text-muted-foreground">درخواست دهید؛ پس از هماهنگی خرید، پنل با ظرفیت مدرسان و مدت اعتبار مشخص فعال می‌شود و خودتان مدرسان را دعوت و مدیریت می‌کنید.</p>
         </div>
         {!open && <button className={btnPrimary} onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> درخواست پنل</button>}
       </div>
@@ -339,7 +339,7 @@ function CreateOrgCard({ onCreated }: { onCreated: () => void }) {
       {open && (
         <div className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className={labelCls}>نام سازمان *</label><input className={inputCls} value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="دانشکدهٔ حقوق دانشگاه …" /></div>
+            <div><label className={labelCls}>نام مرکز آموزشی *</label><input className={inputCls} value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="دانشکدهٔ حقوق دانشگاه …" /></div>
             <div>
               <label className={labelCls}>شناسهٔ لاتین (آدرس صفحه) *</label>
               <input className={inputCls} dir="ltr" value={f.slug} maxLength={40} onChange={(e) => setF({ ...f, slug: e.target.value })} placeholder="ut-law" />
@@ -394,7 +394,7 @@ function AdminTeacherRequests() {
   }
   return (
     <div>
-      <h3 className="mb-2 text-[13px] font-extrabold text-bronze">درخواست‌های حساب استادی</h3>
+      <h3 className="mb-2 text-[13px] font-extrabold text-bronze">درخواست‌های حساب مدرس</h3>
       <ErrLine msg={err} />
       {rows === null ? <Loader2 className="h-4 w-4 animate-spin text-bronze" /> : rows.length === 0 ? (
         <p className="text-[12px] text-muted-foreground">درخواستی در صف نیست.</p>
@@ -461,7 +461,7 @@ function AdminOrgRow({ o, onSaved }: { o: Org & { creator: MiniUser }; onSaved: 
         <select className={inputCls} value={f.plan} onChange={(e) => setF({ ...f, plan: e.target.value as OrgPlan })} aria-label="طرح">
           {ORG_PLANS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
-        <input className={inputCls} type="number" min={1} max={2000} dir="ltr" value={f.seats} onChange={(e) => setF({ ...f, seats: Number(e.target.value) })} aria-label="ظرفیت اساتید" title="ظرفیت اساتید" />
+        <input className={inputCls} type="number" min={1} max={2000} dir="ltr" value={f.seats} onChange={(e) => setF({ ...f, seats: Number(e.target.value) })} aria-label="ظرفیت مدرسان" title="ظرفیت مدرسان" />
         <input className={inputCls} type="date" dir="ltr" value={f.expires} onChange={(e) => setF({ ...f, expires: e.target.value })} aria-label="پایان اعتبار" title="پایان اعتبار (خالی = بدون انقضا)" />
         <button className={btnPrimary} disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "ذخیره"}</button>
       </div>
@@ -480,7 +480,7 @@ function AdminOrgs() {
   React.useEffect(load, [load]);
   return (
     <div>
-      <h3 className="mb-2 text-[13px] font-extrabold text-bronze">پنل‌های سازمانی</h3>
+      <h3 className="mb-2 text-[13px] font-extrabold text-bronze">پنل‌های مراکز آموزشی</h3>
       <ErrLine msg={err} />
       {rows === null ? <Loader2 className="h-4 w-4 animate-spin text-bronze" /> : rows.length === 0 ? (
         <p className="text-[12px] text-muted-foreground">هنوز درخواستی ثبت نشده.</p>
@@ -517,7 +517,7 @@ function AdminRoleTool() {
           <span className="text-[11px] text-muted-foreground">نقش فعلی: {found.role}</span>
           <span className="ms-auto flex gap-1.5">
             {(["user", "teacher", "admin"] as const).map((r) => (
-              <button key={r} className={found.role === r ? btnPrimary : btnGhost} onClick={() => void setRole(r)}>{r === "user" ? "کاربر" : r === "teacher" ? "استاد" : "مدیر"}</button>
+              <button key={r} className={found.role === r ? btnPrimary : btnGhost} onClick={() => void setRole(r)}>{r === "user" ? "کاربر" : r === "teacher" ? "مدرس" : "مدیر"}</button>
             ))}
           </span>
         </div>
@@ -527,7 +527,7 @@ function AdminRoleTool() {
   );
 }
 
-/* === صفحهٔ سازمان === */
+/* === صفحهٔ مرکز آموزشی === */
 type OrgTab = "teachers" | "content" | "manage" | "settings";
 
 function OrgPage({ idOrSlug }: { idOrSlug: string }) {
@@ -560,18 +560,18 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
   if (!org) {
     return (
       <div className="mx-auto max-w-md pt-20 text-center">
-        <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">{err || "این سازمان پیدا نشد یا هنوز فعال نشده است."}</p>
-        <button onClick={() => navigate({ view: "org" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">همهٔ سازمان‌ها <ArrowLeft className="h-4 w-4" /></button>
+        <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">{err || "این مرکز آموزشی پیدا نشد یا هنوز فعال نشده است."}</p>
+        <button onClick={() => navigate({ view: "org" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">همهٔ مراکز آموزشی <ArrowLeft className="h-4 w-4" /></button>
       </div>
     );
   }
 
   const active = members.filter((m) => m.status === "active");
   const tabs: { key: OrgTab; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-    { key: "teachers", label: `اساتید (${fa(active.length)})`, Icon: Users },
+    { key: "teachers", label: `مدرسان (${fa(active.length)})`, Icon: Users },
     { key: "content", label: "دوره‌ها و مطالب", Icon: Newspaper },
     ...(canManage ? [
-      { key: "manage" as OrgTab, label: "مدیریت اساتید", Icon: UserPlus },
+      { key: "manage" as OrgTab, label: "مدیریت مدرسان", Icon: UserPlus },
       { key: "settings" as OrgTab, label: "تنظیمات پنل", Icon: Settings2 },
     ] : []),
   ];
@@ -611,13 +611,13 @@ function OrgPage({ idOrSlug }: { idOrSlug: string }) {
         )}
         {canManage && !isOrgLive(org) && (
           <p className="relative mt-4 rounded-xl bg-amber-400/15 px-4 py-2.5 text-[12px] leading-relaxed text-amber-800 dark:text-amber-300">
-            {org.status === "pending" ? "پنل در انتظار فعال‌سازی است — بعد از هماهنگی با پشتیبانی Lexa فعال می‌شود و تا آن زمان دعوت استاد ممکن نیست." : "پنل فعال نیست (معلق یا منقضی). برای تمدید با پشتیبانی Lexa تماس بگیر."}
+            {org.status === "pending" ? "پنل در انتظار فعال‌سازی است — پس از هماهنگی با پشتیبانی Lexa فعال می‌شود و تا آن زمان دعوت مدرس ممکن نیست." : "پنل فعال نیست (معلق یا منقضی). برای تمدید با پشتیبانی Lexa تماس بگیرید."}
             {org.adminNote ? ` یادداشت Lexa: ${org.adminNote}` : ""}
           </p>
         )}
       </header>
 
-      <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="بخش‌های سازمان">
+      <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="بخش‌های مرکز آموزشی">
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} aria-pressed={tab === t.key}
             className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition-all ${
@@ -640,7 +640,7 @@ function SeatsChip({ org, members }: { org: Org; members: OrgMember[] }) {
   React.useEffect(() => { seatsUsed(org.id).then(setUsed).catch(() => setUsed(null)); }, [org.id, members.length]);
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 font-semibold">
-      <Users className="h-3.5 w-3.5 text-bronze" />ظرفیت اساتید {used === null ? "…" : fa(used)} از {fa(org.seats)}
+      <Users className="h-3.5 w-3.5 text-bronze" />ظرفیت مدرسان {used === null ? "…" : fa(used)} از {fa(org.seats)}
     </span>
   );
 }
@@ -665,7 +665,7 @@ function JoinButton({ org, me, onChanged }: { org: Org; me?: OrgMember; onChange
   }
   return (
     <span className="flex flex-col items-end gap-1">
-      <button className={btnGhost} disabled={busy} onClick={() => void ask()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} درخواست عضویت به‌عنوان استاد</button>
+      <button className={btnGhost} disabled={busy} onClick={() => void ask()}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} درخواست عضویت به‌عنوان مدرس</button>
       {msg && <span className="text-[10.5px] text-destructive">{msg}</span>}
     </span>
   );
@@ -674,7 +674,7 @@ function JoinButton({ org, me, onChanged }: { org: Org; me?: OrgMember; onChange
 function OrgTeachersTab({ members }: { members: OrgMember[] }) {
   const list = [...members].sort((a, b) => (a.role === "teacher" ? 1 : 0) - (b.role === "teacher" ? 1 : 0));
   if (!list.length) {
-    return <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">هنوز استادی در این پنل عضو نشده است.</p>;
+    return <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">هنوز مدرسی در این پنل عضو نشده است.</p>;
   }
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -712,7 +712,7 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
   }, [org.id]);
   React.useEffect(() => { void load(); }, [load]);
   async function unlink(kind: "post" | "tcourse", id: string) {
-    if (!window.confirm("از صفحهٔ سازمان برداشته شود؟ (در صفحهٔ خود استاد می‌ماند)")) return;
+    if (!window.confirm("از صفحهٔ مرکز برداشته شود؟ (در صفحهٔ خود مدرس می‌ماند)")) return;
     try { await unlinkFromOrg(org.id, kind, id); void load(); } catch (e) { setErr(orgError(e)); }
   }
   if (!data) return <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>;
@@ -722,7 +722,7 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌ها ({fa(data.courses.length)})</h2>
         {data.courses.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center text-sm text-muted-foreground shadow-card">هنوز دوره‌ای به نام این سازمان منتشر نشده است.</p>
+          <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center text-sm text-muted-foreground shadow-card">هنوز دوره‌ای به نام این مرکز منتشر نشده است.</p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {data.courses.map((c) => (
@@ -732,7 +732,7 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
                   <span className="block truncate font-bold hover:text-bronze">{c.title}</span>
                   <span className="block truncate text-[11px] text-muted-foreground">{c.teacher.displayName} · {fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو</span>
                 </button>
-                {canManage && <button className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="برداشتن از صفحهٔ سازمان" aria-label="برداشتن از صفحهٔ سازمان" onClick={() => void unlink("tcourse", c.id)}><Trash2 className="h-4 w-4" /></button>}
+                {canManage && <button className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="برداشتن از صفحهٔ مرکز" aria-label="برداشتن از صفحهٔ مرکز" onClick={() => void unlink("tcourse", c.id)}><Trash2 className="h-4 w-4" /></button>}
               </div>
             ))}
           </div>
@@ -741,7 +741,7 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-bold"><Newspaper className="h-5 w-5 text-bronze" /> مطالب ({fa(data.posts.length)})</h2>
         {data.posts.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center text-sm text-muted-foreground shadow-card">هنوز مطلبی به نام این سازمان منتشر نشده است.</p>
+          <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center text-sm text-muted-foreground shadow-card">هنوز مطلبی به نام این مرکز منتشر نشده است.</p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             {data.posts.map((p) => (
@@ -750,7 +750,7 @@ function OrgContentTab({ org, canManage }: { org: Org; canManage: boolean }) {
                   <span className="line-clamp-1 block font-display text-[14.5px] font-bold hover:text-bronze">{p.title}</span>
                   <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{p.author.displayName} · {fa(p.commentsCount)} نظر</span>
                 </button>
-                {canManage && <button className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="برداشتن از صفحهٔ سازمان" aria-label="برداشتن از صفحهٔ سازمان" onClick={() => void unlink("post", p.id)}><Trash2 className="h-4 w-4" /></button>}
+                {canManage && <button className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="برداشتن از صفحهٔ مرکز" aria-label="برداشتن از صفحهٔ مرکز" onClick={() => void unlink("post", p.id)}><Trash2 className="h-4 w-4" /></button>}
               </div>
             ))}
           </div>
@@ -784,7 +784,7 @@ function OrgManageTab({ org, members, isOwner, onChanged }: { org: Org; members:
     setSearching(true); setErr(""); setResults(null);
     try {
       const list = await searchTeachers(v);
-      // نام کاربری دقیق — برای دعوت کسی که هنوز حساب استادی ندارد
+      // نام کاربری دقیق — برای دعوت کسی که هنوز حساب مدرس ندارد
       const exact = await findUser(v).catch(() => null);
       const merged = exact && !list.some((x) => x.id === exact.id) ? [exact, ...list] : list;
       setResults(merged);
@@ -799,7 +799,7 @@ function OrgManageTab({ org, members, isOwner, onChanged }: { org: Org; members:
     setBusy("invite"); setErr(""); setOkMsg("");
     try {
       const r = await inviteToOrg(org.id, target.id, title.trim(), note.trim());
-      setOkMsg(r === "active" ? `${target.displayName} به اساتید پنل اضافه شد.` : `دعوت برای ${target.displayName} فرستاده شد؛ بعد از پذیرش او عضو می‌شود.`);
+      setOkMsg(r === "active" ? `${target.displayName} به مدرسان پنل اضافه شد.` : `دعوت برای ${target.displayName} فرستاده شد؛ پس از پذیرش او عضو می‌شود.`);
       setTarget(null); setTitle(""); setNote(""); setResults(null); setQ("");
       onChanged();
     } catch (e) {
@@ -818,13 +818,13 @@ function OrgManageTab({ org, members, isOwner, onChanged }: { org: Org; members:
       <ErrLine msg={err} />
       <OkLine msg={okMsg} />
 
-      {/* دعوت استاد */}
+      {/* دعوت مدرس */}
       <section className={card}>
-        <h2 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold"><MailPlus className="h-4.5 w-4.5 text-bronze" /> دعوت استاد به پنل</h2>
-        <p className="mb-3 text-[11.5px] leading-relaxed text-muted-foreground">نام استاد را جست‌وجو کن یا نام کاربری دقیق کسی را که هنوز حساب استادی ندارد بنویس. دعوت به پروفایلش می‌رود و با پذیرش او عضو می‌شود.</p>
+        <h2 className="mb-1 flex items-center gap-2 text-[14px] font-extrabold"><MailPlus className="h-4.5 w-4.5 text-bronze" /> دعوت مدرس به پنل</h2>
+        <p className="mb-3 text-[11.5px] leading-relaxed text-muted-foreground">نام مدرس را جست‌وجو کنید یا نام کاربری دقیق کسی را که هنوز حساب مدرس ندارد بنویسید. دعوت به پروفایل او می‌رود و با پذیرش، عضو می‌شود.</p>
         {!live && <p className="mb-3 rounded-xl bg-amber-400/15 px-4 py-2 text-[11.5px] text-amber-800 dark:text-amber-300">تا فعال شدن پنل، دعوت ممکن نیست.</p>}
         <div className="flex flex-wrap gap-2">
-          <input className={`${inputCls} min-w-0 flex-1`} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void search()} placeholder="نام استاد یا @نام‌کاربری" disabled={!live} />
+          <input className={`${inputCls} min-w-0 flex-1`} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void search()} placeholder="نام مدرس یا @نام‌کاربری" disabled={!live} />
           <button className={btnGhost} onClick={() => void search()} disabled={!live || searching}>{searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} جست‌وجو</button>
         </div>
         {results && (
@@ -840,7 +840,7 @@ function OrgManageTab({ org, members, isOwner, onChanged }: { org: Org; members:
                     <span className="block truncate text-[13px] font-bold">{u.displayName}</span>
                     <span dir="ltr" className="block truncate text-start text-[10.5px] text-muted-foreground">@{u.username}</span>
                   </span>
-                  <span className="shrink-0 text-[10.5px] text-muted-foreground">{m ? (m.status === "active" ? "عضو است" : m.status === "invited" ? "دعوت شده" : m.status === "requested" ? "درخواست داده" : "") : u.role === "teacher" || u.role === "admin" ? "استاد" : "هنوز استاد نیست"}</span>
+                  <span className="shrink-0 text-[10.5px] text-muted-foreground">{m ? (m.status === "active" ? "عضو است" : m.status === "invited" ? "دعوت شده" : m.status === "requested" ? "درخواست داده" : "") : u.role === "teacher" || u.role === "admin" ? "مدرس" : "هنوز مدرس نیست"}</span>
                 </button>
               );
             })}
@@ -849,7 +849,7 @@ function OrgManageTab({ org, members, isOwner, onChanged }: { org: Org; members:
         {target && (
           <div className="mt-3 space-y-2 rounded-xl border border-bronze/40 p-3">
             <p className="text-[12.5px] font-bold">دعوت از {target.displayName}</p>
-            <input className={inputCls} value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} placeholder="سمت در سازمان (مثلاً: استادیار گروه حقوق خصوصی)" />
+            <input className={inputCls} value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} placeholder="سمت در مرکز (مثلاً: استادیار گروه حقوق خصوصی)" />
             <input className={inputCls} value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} placeholder="پیام کوتاه همراه دعوت (دلخواه)" />
             <div className="flex gap-2">
               <button className={btnPrimary} disabled={busy === "invite"} onClick={() => void invite()}>{busy === "invite" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} ارسال دعوت</button>
@@ -937,7 +937,7 @@ function MemberRow({ org, m, isOwner, isMe, busy, act }: {
       {!owner && (
         <button className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40" disabled={!!busy}
           title={isMe ? "ترک پنل" : "حذف از پنل"} aria-label={isMe ? "ترک پنل" : "حذف از پنل"}
-          onClick={() => { if (window.confirm(isMe ? "از این پنل خارج می‌شوی؟" : `«${m.user.displayName}» از پنل حذف شود؟ (دوره‌ها و مطالبش از صفحهٔ سازمان برداشته می‌شود)`)) void act("x" + m.userId, () => setOrgMember(org.id, m.userId, { remove: true })); }}>
+          onClick={() => { if (window.confirm(isMe ? "از این پنل خارج می‌شوید؟" : `«${m.user.displayName}» از پنل حذف شود؟ (دوره‌ها و مطالبش از صفحهٔ مرکز برداشته می‌شود)`)) void act("x" + m.userId, () => setOrgMember(org.id, m.userId, { remove: true })); }}>
           <Trash2 className="h-4 w-4" />
         </button>
       )}
@@ -978,7 +978,7 @@ function OrgSettingsTab({ org, onSaved }: { org: Org; onSaved: (o: Org) => void 
         {f.logoUrl && <button className={btnGhost} onClick={() => setF({ ...f, logoUrl: "" })}><X className="h-4 w-4" /> حذف لوگو</button>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <div><label className={labelCls}>نام سازمان</label><input className={inputCls} value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
+        <div><label className={labelCls}>نام مرکز آموزشی</label><input className={inputCls} value={f.name} maxLength={100} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
         <div>
           <label className={labelCls}>نوع</label>
           <select className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as OrgKind })}>
@@ -1000,7 +1000,7 @@ function OrgSettingsTab({ org, onSaved }: { org: Org; onSaved: (o: Org) => void 
 
 /* === قطعه‌های قابل‌استفاده در صفحه‌های دیگر === */
 
-/** نشان سازمان‌های یک استاد (پروفایل استاد) */
+/** نشان مراکز آموزشی یک مدرس (پروفایل مدرس) */
 export function OrgBadges({ orgs }: { orgs?: { id: string; name: string; slug: string; logoUrl: string | null; title?: string; role?: string }[] }) {
   if (!orgs?.length) return null;
   return (
@@ -1015,7 +1015,7 @@ export function OrgBadges({ orgs }: { orgs?: { id: string; name: string; slug: s
   );
 }
 
-/** دکمهٔ «دعوت به سازمان» روی پروفایل استاد — فقط برای مدیران پنل‌های فعال */
+/** دکمهٔ «دعوت به مرکز آموزشی» روی پروفایل مدرس — فقط برای مدیران پنل‌های فعال */
 export function OrgInviteButton({ userId, name }: { userId: string; name: string }) {
   const auth = useAuth();
   const { orgs } = useManagedOrgs();
@@ -1042,7 +1042,7 @@ export function OrgInviteButton({ userId, name }: { userId: string; name: string
   return (
     <span className="relative flex flex-col items-start gap-1">
       <button onClick={() => setOpen((v) => !v)} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-bronze/50 bg-bronze/10 px-4 py-2.5 text-sm font-bold text-bronze transition-colors hover:bg-bronze/20">
-        <MailPlus className="h-4 w-4" /> دعوت به سازمان
+        <MailPlus className="h-4 w-4" /> دعوت به مرکز آموزشی
       </button>
       {msg && <span className="text-[10.5px] text-muted-foreground">{msg}</span>}
       {open && (
@@ -1062,7 +1062,7 @@ export function OrgInviteButton({ userId, name }: { userId: string; name: string
   );
 }
 
-/** انتخاب «انتشار به نام» در اتاق استاد: شخصی یا یکی از سازمان‌هایی که عضو فعالش هستم */
+/** انتخاب «انتشار به نام» در پنل مدرس: شخصی یا یکی از مراکزی که عضو فعالش هستید */
 export function OrgPublishPicker({ value, onChange }: { value: string; onChange: (orgId: string) => void }) {
   const { orgs, loading } = usePublishOrgs();
   if (loading || (!orgs.length && !value)) return null;
@@ -1070,11 +1070,11 @@ export function OrgPublishPicker({ value, onChange }: { value: string; onChange:
     <div>
       <label className={labelCls}>انتشار به نام</label>
       <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">فقط خودم (بدون سازمان)</option>
+        <option value="">فقط خودم (بدون مرکز آموزشی)</option>
         {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-        {value && !orgs.some((o) => o.id === value) && <option value={value}>سازمان فعلی (دیگر عضو فعال نیستی)</option>}
+        {value && !orgs.some((o) => o.id === value) && <option value={value}>مرکز فعلی (دیگر عضو فعال نیستید)</option>}
       </select>
-      <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">با انتخاب سازمان، این مورد در صفحهٔ آن سازمان هم دیده می‌شود.</p>
+      <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">با انتخاب مرکز آموزشی، این مورد در صفحهٔ آن مرکز هم دیده می‌شود.</p>
     </div>
   );
 }

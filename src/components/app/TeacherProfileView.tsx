@@ -1,6 +1,6 @@
 "use client";
 
-// --- پروفایل عمومی استاد — فعالیت، دوره‌ها و مطالب او در یک صفحه ---
+// --- پروفایل عمومی مدرس — فعالیت، دوره‌ها و مطالب او در یک صفحه ---
 import * as React from "react";
 import {
   Loader2, UserPlus, UserCheck, BookPlus, BookCheck, MessageCircle,
@@ -46,7 +46,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
           این پروفایل یافت نشد.
         </p>
         <button onClick={() => navigate({ view: "teachers" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">
-          بازگشت به اساتید <ArrowLeft className="h-4 w-4" />
+          بازگشت به مدرسان <ArrowLeft className="h-4 w-4" />
         </button>
       </div>
     );
@@ -73,7 +73,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-7 px-4 pb-28 pt-6 sm:px-6">
       <button onClick={() => navigate({ view: "teachers" })} className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-bronze">
-        <ArrowLeft className="h-3.5 w-3.5 rotate-180" /> همهٔ اساتید
+        <ArrowLeft className="h-3.5 w-3.5 rotate-180" /> همهٔ مدرسان
       </button>
 
       {/* سربرگ پروفایل */}
@@ -87,7 +87,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
             {data.profile.bio ? (
               <p className="max-w-xl pt-1 text-sm leading-relaxed text-muted-foreground">{data.profile.bio}</p>
             ) : null}
-            {/* دانشگاه‌ها و موسسه‌هایی که این استاد عضو فعالشان است */}
+            {/* مراکز آموزشی که این مدرس عضو فعالشان است */}
             <OrgBadges orgs={(data.profile as { orgs?: Parameters<typeof OrgBadges>[0]["orgs"] }).orgs} />
             <p className="flex items-center gap-1.5 pt-0.5 text-[11px] text-muted-foreground/80">
               <CalendarDays className="h-3.5 w-3.5" />
@@ -100,7 +100,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
               initial={data.profile.isFollowing}
               onChanged={() => void reload()}
             />
-            {/* مدیر پنل یک دانشگاه/موسسه، این استاد را به پنلش دعوت می‌کند */}
+            {/* مدیر پنل یک مرکز، این مدرس را به پنلش دعوت می‌کند */}
             <OrgInviteButton userId={data.profile.id} name={data.profile.displayName} />
           </div>
         </div>
@@ -119,9 +119,9 @@ export function TeacherProfileView({ id }: { id?: string }) {
 
       {err && <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{err}</p>}
 
-      {/* دوره‌های استاد */}
+      {/* دوره‌های مدرس */}
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های استاد</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold"><GraduationCap className="h-5 w-5 text-bronze" /> دوره‌های مدرس</h2>
         {data.courses.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
             هنوز دوره‌ای منتشر نکرده است.
@@ -144,7 +144,7 @@ export function TeacherProfileView({ id }: { id?: string }) {
         )}
       </section>
 
-      {/* مطالب استاد */}
+      {/* مطالب مدرس */}
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-bold">مطالب آموزشی</h2>
         {data.posts.length === 0 ? (
@@ -195,7 +195,7 @@ function FollowButton({
   async function toggle() {
     if (!user) {
       // مهمان: پنجرهٔ ورود باز می‌شود — حساب ابری با پل خودکار کافی است
-      requestAuthPrompt("برای دنبال کردن استاد");
+      requestAuthPrompt("برای دنبال کردن مدرس");
       return;
     }
     if (busy) return;
@@ -265,7 +265,7 @@ function ProfileCourseCard({
       if (!user) {
         const done = await addTCourseLocally(c.id);
         if (done) setTimeout(() => navigate({ view: "course", id: c.id }), 150);
-        else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
+        else onErr("دوره بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
         return;
       }
       const res = await fetch("/api/library", {

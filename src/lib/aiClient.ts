@@ -15,7 +15,7 @@ export async function askAi<T = { text: string }>(body: Record<string, unknown>)
     const { runAiTask, PERSIAN_FAIL, AiTaskError } = await import("@/lib/ai/tasks");
     if (!ai.apiKey || ai.provider === "builtin") {
       throw new Error(
-        "برای استفاده از استاد هوشمند در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن."
+        "برای استفاده از هوش مصنوعی در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن."
       );
     }
     try {

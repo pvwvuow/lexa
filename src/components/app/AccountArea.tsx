@@ -23,7 +23,7 @@ import { UserAvatar } from "./common";
 /** بخش حساب کاربری در هدر: مهمان → دکمهٔ ورود؛ واردشده → منوی حساب.
  *  «حساب، حساب است» — حساب ابری (ساپابیس) روی همهٔ پلتفرم‌ها اول است: ثبت‌نام یک‌بار،
  *  پیشرفت روی موبایل و کامپیوتر یکی. APK فقط حساب ابری دارد؛ حساب سروری محلی برای
- *  اساتید/مدیریت با دکمهٔ فرعی در دسترس می‌ماند. */
+ *  مدرسان/مدیریت با دکمهٔ فرعی در دسترس می‌ماند. */
 export function AccountArea() {
   const auth = useAuth();
   const [cloudUser, setCloudUser] = React.useState<SbUser | null>(() => sbUser());
@@ -58,10 +58,10 @@ export function AccountArea() {
           <LogIn className="relative z-10 h-[18px] w-[18px]" />
           <span className="relative z-10 hidden sm:inline">ورود / ثبت‌نام</span>
         </button>
-        {/* حساب سروری محلی — مسیر فرعی برای اساتید و مدیریت */}
+        {/* حساب سروری محلی — مسیر فرعی برای مدرسان و مدیریت */}
         <button
           onClick={() => setLocalOpen(true)}
-          title="ورود با حساب سروری (اساتید و مدیریت سامانه)"
+          title="ورود با حساب سروری (مدرسان و مدیریت سامانه)"
           aria-label="ورود با حساب سروری"
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze"
         >
@@ -118,7 +118,7 @@ export function AccountArea() {
               {u.role === "admin"
                 ? "مدیر سامانه"
                 : u.role === "teacher"
-                  ? "استاد Lexa"
+                  ? "مدرس Lexa"
                   : `عضو از ${new Date(u.createdAt).toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" })}`}
             </p>
             <p className="flex items-center gap-1 pt-0.5 text-[10.5px] text-muted-foreground/80">
@@ -143,7 +143,7 @@ export function AccountArea() {
               onClick={() => { setMenuOpen(false); navigate({ view: "studio" }); }}
               className="cursor-pointer rounded-lg gap-2 text-bronze"
             >
-              <GraduationCap className="h-4 w-4" /> اتاق استاد
+              <GraduationCap className="h-4 w-4" /> پنل مدرس
             </DropdownMenuItem>
           )}
 

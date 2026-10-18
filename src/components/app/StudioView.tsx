@@ -1,6 +1,6 @@
 "use client";
 
-// ─── اتاق استاد: فهرست مطالب و دوره‌های استاد ─────────────────────────────────
+// ─── پنل مدرس: فهرست مطالب و دوره‌های مدرس ─────────────────────────────────
 // صفحهٔ نوشتن/ویرایش به یک صفحهٔ کامل و تخصصی منتقل شده است: StudioWriteView
 // (مسیر #/write/post/new و #/write/course/new) — با پیش‌نمایش زنده و تمام آپشن‌ها.
 import * as React from "react";
@@ -308,10 +308,10 @@ export interface CourseDraft {
 export const EMPTY_COURSE: CourseDraft = { title: "", tagline: "", description: "", icon: "Scale", accent: "bronze", category: "other", categories: ["other"], status: "published", thumbnail: "", chapters: [] };
 export const uid = () => Math.random().toString(36).slice(2, 9);
 
-/* ═══ ویوی اصلی اتاق استاد — فهرست مطالب و دوره‌ها ═══════════════════════════ */
+/* ═══ ویوی اصلی پنل مدرس — فهرست مطالب و دوره‌ها ═══════════════════════════ */
 interface MyPost { id: string; title: string; summary: string; createdAt: string; updatedAt?: string; commentsCount: number; quizCount: number }
 
-/** نشان وضعیت دوره در فهرست اتاق استاد */
+/** نشان وضعیت دوره در فهرست پنل مدرس */
 const COURSE_BADGE: Record<string, { label: string; cls: string }> = {
   published: { label: "منتشر شده", cls: "bg-success/15 text-success" },
   prep: { label: "در حال آماده‌سازی", cls: "bg-amber-400/20 text-amber-600 dark:text-amber-400" },
@@ -356,9 +356,9 @@ export function StudioView() {
       <div className="mx-auto max-w-md pt-20">
         <div className="rounded-2xl border border-dashed border-destructive/50 bg-card p-8 text-center shadow-card">
           <GraduationCap className="mx-auto mb-4 h-10 w-10 text-bronze" />
-          <h2 className="font-display text-lg font-bold">اتاق استاد</h2>
+          <h2 className="font-display text-lg font-bold">پنل مدرس</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            این فضا مخصوص حساب‌های استادی است. مدیر سامانه از «پنل مدیریت» برای شما حساب استاد می‌سازد؛
+            این فضا مخصوص حساب‌های مدرسی است. مدیر سامانه از «پنل مدیریت» برای شما حساب مدرس می‌سازد؛
             سپس با همان یوزر و پسورد وارد شوید تا مطالب و دوره بسازید.
           </p>
         </div>
@@ -406,13 +406,13 @@ export function StudioView() {
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-bronze text-bronze-foreground shadow-card"><PenSquare className="h-6 w-6" /></span>
-            اتاق استاد — {user.displayName || user.username}
+            پنل مدرس — {user.displayName || user.username}
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             صفحهٔ نوشتن تخصصی با تمام المان‌های تدریس اپ، پیش‌نمایش زنده و آزمون — مثل همان درس‌های آماده.
           </p>
         </div>
-        <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">صفحهٔ اساتید ←</button>
+        <button onClick={() => navigate({ view: "teachers" })} className="text-xs font-semibold text-bronze hover:underline">صفحهٔ مدرسان ←</button>
       </header>
 
       {/* تب‌ها */}

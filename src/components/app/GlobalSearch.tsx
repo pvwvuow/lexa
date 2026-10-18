@@ -512,7 +512,7 @@ export function GlobalSearch({ courses, variant = "icon" }: { courses: Course[];
                   <p className="text-center text-xs leading-6 text-muted-foreground">
                     {IS_APK
                       ? "همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — همان لحظه شروع کن."
-                      : "همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام استاد، پروفایلش را هم پیدا می‌کنی."}
+                      : "همهٔ جزوات، جلسه‌ها، مواد قانونی و جداول اینجا فهرست شده‌اند — با نوشتن نام مدرس، پروفایلش را هم پیدا می‌کنید."}
                   </p>
                   {teachers.length > 0 && (
                     <div className="space-y-2">

@@ -546,7 +546,7 @@ function ServerAdminView() {
       {/* پیشنهادهای اصلاح تدریس — انتقاد کاربران + تحلیل AI + تایید/رد مدیر */}
       <AdminFeedbackSection />
 
-      {/* اساتید: ایجاد حساب + آمار فالو/مطلب/دوره */}
+      {/* مدرسان: ایجاد حساب + آمار فالو/مطلب/دوره */}
       <AdminTeachersSection />
 
       {/* جستجو */}
@@ -637,8 +637,8 @@ function CloudAdminView() {
           <h2 className="font-display text-lg font-bold">ناحیهٔ محافظت‌شدهٔ مدیر</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             {!signed
-              ? "با حساب Lexa (ایمیل) که نقش مدیر دارد وارد شو."
-              : `نقش این حساب «${auth.user?.role ?? ""}» است. اگر تازه در Supabase مدیر شدی، «بازخوانی نقش» را بزن یا یک‌بار خارج و دوباره وارد شو.`}
+              ? "با حساب Lexa (ایمیل) که نقش مدیر دارد وارد شوید."
+              : `نقش این حساب «${auth.user?.role ?? ""}» است. اگر تازه در Supabase مدیر شده‌اید، «بازخوانی نقش» را بزنید یا یک‌بار خارج و دوباره وارد شوید.`}
           </p>
           <div className="mt-5 flex justify-center gap-2">
             {!signed ? (
@@ -667,11 +667,11 @@ function CloudAdminView() {
             پنل مدیریت Lexa
           </h1>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            درخواست‌های حساب استادی، پنل‌های دانشگاه‌ها و موسسه‌ها و نقش کاربران — مشترک برای وب، اندروید و دسکتاپ.
+            درخواست‌های حساب مدرس، پنل‌های مراکز آموزشی و نقش کاربران — مشترک برای وب، اندروید و دسکتاپ.
           </p>
         </div>
         <button onClick={() => navigate({ view: "org" })} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-[12px] font-bold text-muted-foreground transition-colors hover:border-bronze/60 hover:text-foreground">
-          <Building2 className="h-4 w-4" /> دانشگاه‌ها و موسسه‌ها
+          <Building2 className="h-4 w-4" /> مراکز آموزشی
         </button>
       </header>
       <AdminConsole />

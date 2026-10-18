@@ -1,6 +1,6 @@
 "use client";
 
-// ─── پنل مدیریت: ایجاد حساب استاد + فهرست اساتید با آمار ──────────────────────
+// ─── پنل مدیریت: ایجاد حساب مدرس + فهرست مدرسان با آمار ──────────────────────
 import * as React from "react";
 import {
   GraduationCap, UserPlus, Loader2, Newspaper, BookOpen, Users, ShieldCheck,
@@ -54,7 +54,7 @@ export function AdminTeachersSection() {
       if (!res.ok) throw new Error(j.error ?? "ایجاد ناموفق بود.");
       setMsg({
         ok: true,
-        text: `حساب استاد ساخته شد → نام کاربری «${j.teacher.username}» با رمزی که وارد کردی؛ نتیجه را به استاد اعلام کن.`,
+        text: `حساب مدرس ساخته شد → نام کاربری «${j.teacher.username}» با رمزی که وارد کردید؛ نتیجه را به مدرس اعلام کنید.`,
       });
       setForm({ username: "", password: "", displayName: "" });
       void load();
@@ -69,14 +69,14 @@ export function AdminTeachersSection() {
     <section className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="flex items-center gap-2 font-display text-lg font-bold">
-          <GraduationCap className="h-5 w-5 text-bronze" /> اساتید سامانه
+          <GraduationCap className="h-5 w-5 text-bronze" /> مدرسان سامانه
         </h2>
-        <span className="text-[11px] text-muted-foreground">استاد می‌تواند مطلب منتشر کند، دوره بسازد و دانشجوها او را دنبال کنند</span>
+        <span className="text-[11px] text-muted-foreground">مدرس می‌تواند مطلب منتشر کند، دوره بسازد و دانشجوها او را دنبال کنند</span>
       </div>
 
-      {/* فرم ساخت حساب استاد */}
+      {/* فرم ساخت حساب مدرس */}
       <form onSubmit={createTeacher} className="rounded-2xl border border-border bg-card p-5 shadow-card">
-        <p className="mb-3 flex items-center gap-2 text-sm font-bold"><UserPlus className="h-4 w-4 text-bronze" /> ایجاد حساب استاد جدید</p>
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold"><UserPlus className="h-4 w-4 text-bronze" /> ایجاد حساب مدرس جدید</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className={labelCls}>نام کاربری *</label>
@@ -84,7 +84,7 @@ export function AdminTeachersSection() {
           </div>
           <div>
             <label className={labelCls}>رمز عبور * (دست‌کم ۶ نویسه)</label>
-            <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="— به استاد بدهید" dir="ltr" className={`${inputCls} text-start`} />
+            <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="— به مدرس بدهید" dir="ltr" className={`${inputCls} text-start`} />
           </div>
           <div>
             <label className={labelCls}>نام نمایشی (اختیاری)</label>
@@ -102,16 +102,16 @@ export function AdminTeachersSection() {
           className="mt-3 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-card transition-all hover:brightness-110 disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-          ساخت حساب استاد
+          ساخت حساب مدرس
         </button>
       </form>
 
-      {/* فهرست اساتید */}
+      {/* فهرست مدرسان */}
       {rows == null ? (
         <p className="flex items-center gap-2 py-4 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>
       ) : rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-6 text-center text-sm text-muted-foreground shadow-card">
-          هنوز حساب استادی نساخته‌اید.
+          هنوز حساب مدرسی نساخته‌اید.
         </p>
       ) : (
         <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">

@@ -20,7 +20,7 @@ export type Route =
   | { view: "law"; id?: string; no?: string }
   | { view: "teacher"; id: string }
   | { view: "study" }
-  /** دانشگاه‌ها و موسسه‌ها — بدون id هاب، با id (slug) صفحهٔ سازمان */
+  /** مراکز آموزشی — بدون id هاب، با id (slug) صفحهٔ مرکز */
   | { view: "org"; id?: string }
   | { view: "write"; kind: "post" | "course"; id?: string };
 

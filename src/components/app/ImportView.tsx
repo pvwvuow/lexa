@@ -32,7 +32,7 @@ export function ImportView() {
           <Lock className="mx-auto mb-4 h-10 w-10 text-destructive/70" />
           <h2 className="font-display text-lg font-bold">افزودن کتاب فقط برای مدیر است</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            تنها حساب مدیریت می‌تواند کتاب جدید وارد کند. اگر استاد هستید، از «اتاق استاد» برای ساخت دورهٔ آنلاین خود استفاده کنید.
+            تنها حساب مدیریت می‌تواند کتاب جدید وارد کند. اگر مدرس هستید، از «پنل مدرس» برای ساخت دورهٔ آنلاین خود استفاده کنید.
           </p>
         </div>
       </div>
@@ -108,7 +108,7 @@ export function ImportView() {
       id: `import-${Date.now()}`,
       title: outline.courseTitle.slice(0, 40) || "دورهٔ وارداتی",
       tagline: "وارداتی از کتاب شخصی",
-      description: "این دوره از متن کتاب/جزوهٔ شما ساخته شده است؛ هر جلسه با یک کلیک توسط استاد هوشمند تدریس کامل میشود.",
+      description: "این دوره از متن کتاب/جزوهٔ شما ساخته شده است؛ هر جلسه با یک کلیک توسط موتور هوشمند تدریس کامل می‌شود.",
       icon: "FileText",
       accent: "green",
       origin: "imported",
@@ -123,7 +123,7 @@ export function ImportView() {
     <div className="mx-auto w-full max-w-3xl space-y-7 px-4 pb-24 pt-6 sm:px-6">
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-bold"><Upload className="h-6 w-6 text-bronze" /> افزودن کتاب جدید</h1>
-        <p className="mt-1 text-sm text-muted-foreground">جزوه یا کتاب حقوقی را به سه گام وارد کن؛ استاد آن را فصل‌بندی و جلسه‌به‌جلسه تدریس خواهد کرد — دقیقاً مثل تجارت ۳.</p>
+        <p className="mt-1 text-sm text-muted-foreground">جزوه یا کتاب حقوقی را در سه گام وارد کنید؛ موتور هوشمند آن را فصل‌بندی و جلسه‌به‌جلسه تدریس خواهد کرد — دقیقاً مثل تجارت ۳.</p>
       </header>
 
       {/* گام ۱: ورودی */}
@@ -152,7 +152,7 @@ export function ImportView() {
       {/* گام ۲: نقشه دوره */}
       {slices && !outline && (
         <section className="space-y-3 rounded-2xl border border-border bg-card p-5 shadow-card">
-          <h2 className="font-bold"><Sparkles className="me-1 inline h-4 w-4 text-bronze" /> گام ۲: ساخت نقشهٔ فصل‌ها با استاد</h2>
+          <h2 className="font-bold"><Sparkles className="me-1 inline h-4 w-4 text-bronze" /> گام ۲: ساخت نقشهٔ فصل‌ها با موتور هوشمند</h2>
           <button onClick={outlineIt} disabled={busyStep !== null} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
             {busyStep === "outline" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} تحلیل و بندی فصل‌ها
           </button>

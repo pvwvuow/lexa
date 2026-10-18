@@ -1,6 +1,6 @@
 "use client";
 
-// ─── صفحهٔ یک مطلب استاد: رندر با همان المان‌های تدریس + کامنت و ریپلای ────────
+// ─── صفحهٔ یک مطلب مدرس: رندر با همان المان‌های تدریس + کامنت و ریپلای ────────
 import * as React from "react";
 import {
   Loader2, MessageCircle, Send, Trash2, Scale, Quote, ListChecks, Lightbulb,
@@ -160,10 +160,10 @@ export function PostView({ id }: { id: string }) {
     return (
       <div className="mx-auto max-w-md pt-20 text-center">
         <p className="rounded-2xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground shadow-card">
-          این مطلب یافت نشد — شاید نویسنده آن را حذف کرده باشد یا بدون اینترنت باشی و این مطلب ذخیرهٔ آفلاین نباشد.
+          این مطلب یافت نشد — شاید نویسنده آن را حذف کرده باشد یا بدون اینترنت باشید و این مطلب ذخیرهٔ آفلاین نباشد.
         </p>
         <button onClick={() => navigate({ view: "teachers" })} className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-bronze hover:underline">
-          بازگشت به اساتید <ArrowLeft className="h-4 w-4" />
+          بازگشت به مدرسان <ArrowLeft className="h-4 w-4" />
         </button>
       </div>
     );
@@ -231,7 +231,7 @@ export function PostView({ id }: { id: string }) {
       {/* سرصفحهٔ مطلب */}
       <header>
         <button onClick={() => navigate({ view: "teachers" })} className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-bronze">
-          <ArrowLeft className="h-3.5 w-3.5 rotate-180" /> بازگشت به اساتید
+          <ArrowLeft className="h-3.5 w-3.5 rotate-180" /> بازگشت به مدرسان
         </button>
 
         <div className="flex items-center gap-3">
@@ -250,7 +250,7 @@ export function PostView({ id }: { id: string }) {
                 onClick={() => navigate({ view: "studio" })}
                 className="rounded-lg border border-border px-3 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:border-bronze hover:text-bronze"
               >
-                ویرایش در اتاق استاد
+                ویرایش در پنل مدرس
               </button>
               <button
                 onClick={removePost}
@@ -266,7 +266,7 @@ export function PostView({ id }: { id: string }) {
         <h1 className="mt-4 text-2xl font-extrabold leading-relaxed">{data.title}</h1>
         {data.summary && <p className="mt-2 leading-loose text-muted-foreground">{data.summary}</p>}
 
-        {/* تصویر شاخص آپلودی استاد */}
+        {/* تصویر شاخص آپلودی مدرس */}
         {typeof data.thumbnail === "string" && data.thumbnail.trim() !== "" && (
           <img
             src={data.thumbnail}
@@ -406,7 +406,7 @@ export function PostView({ id }: { id: string }) {
             onClick={() => requestAuthPrompt("برای گذاشتن کامنت")}
             className="w-full rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-start text-sm text-muted-foreground shadow-card transition-colors hover:border-bronze/60 hover:text-bronze"
           >
-            برای گذاشتن کامنت یا امتیاز دادن، بزن تا از «ورود / ثبت‌نام» وارد شوی.
+            برای گذاشتن کامنت یا امتیاز دادن، از «ورود / ثبت‌نام» وارد شوید.
           </button>
         )}
 

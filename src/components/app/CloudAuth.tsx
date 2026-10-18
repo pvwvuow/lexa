@@ -103,7 +103,7 @@ export function CloudAuthDialog({
       // نام کاربری تکراری را همین‌جا بگو، نه بعد از ساخت حساب
       if (await usernameTaken(uname).catch(() => false)) {
         setBusy(false);
-        setError("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+        setError("این نام کاربری قبلاً گرفته شده است؛ یکی دیگر انتخاب کنید.");
         return;
       }
       // اگر تأیید ایمیل لازم باشد، بعد از اولین ورود ثبت می‌شود
@@ -115,7 +115,7 @@ export function CloudAuthDialog({
     if (err) {
       setBusy(false);
       if (tab === "register" && err.startsWith("ثبت‌نام شد")) {
-        setInfo(`ثبت‌نام انجام شد؛ ایمیل خود را تأیید کن و دوباره وارد شو.${uname ? " نام کاربری‌ات با اولین ورود ثبت می‌شود." : ""}`);
+        setInfo(`ثبت‌نام انجام شد؛ ایمیل خود را تأیید کنید و دوباره وارد شوید.${uname ? " نام کاربری شما با اولین ورود ثبت می‌شود." : ""}`);
         setTab("login");
         return;
       }
@@ -126,7 +126,7 @@ export function CloudAuthDialog({
     if (!sbUser()) {
       // ثبت‌نام بدون نشست خودکار (تأیید ایمیل روشن است)
       setBusy(false);
-      setInfo("ثبت‌نام انجام شد؛ ایمیل خود را تأیید کن و دوباره وارد شو.");
+      setInfo("ثبت‌نام انجام شد؛ ایمیل خود را تأیید کنید و دوباره وارد شوید.");
       setTab("login");
       return;
     }
@@ -138,7 +138,7 @@ export function CloudAuthDialog({
       // نام کاربری انتخاب‌شده در ثبت‌نام (اگر هنوز روی حساب ننشسته)
       const uErr = await applyPendingUsername();
       if (uErr) {
-        setTimeout(() => window.alert(`${uErr}\nاز منوی حساب ← «نام کاربری» می‌توانی نام دیگری بگذاری.`), 700);
+        setTimeout(() => window.alert(`${uErr}\nاز «تنظیمات ← عمومی» می‌توانید نام کاربری را تغییر دهید.`), 700);
       }
       // پل حساب: نشست سروری هم ساخته می‌شود تا فالو/امتیاز/کامنت/کتابخانهٔ
       // همگام همان لحظه کار کنند (روی APK بی‌سرور، بی‌صدا رد می‌شود)
@@ -155,7 +155,7 @@ export function CloudAuthDialog({
       if (pullErr) {
         // دادهٔ حساب معلوم نیست — هیچ پوشی نه؛ خروج تا سینک خودکار هم چیزی نفرستد
         await sbSignOut();
-        setError("داده‌های حساب از ابر دریافت نشد؛ برای حفظ اطلاعاتت کمی بعد دوباره وارد شو.");
+        setError("داده‌های حساب از ابر دریافت نشد؛ برای حفظ اطلاعات شما، کمی بعد دوباره وارد شوید.");
         return;
       }
       setPassword("");
@@ -196,7 +196,7 @@ export function CloudAuthDialog({
               حساب ابری Lexa
             </DialogTitle>
             <p className="text-xs leading-relaxed opacity-85">
-              با ایمیل حساب بساز تا پیشرفتت روی سرور امن ذخیره شود و روی هر دستگاهی با ورود برگردد.
+              با ایمیل حساب بسازید تا پیشرفت شما روی سرور امن ذخیره شود و روی هر دستگاهی با ورود برگردد.
             </p>
           </DialogHeader>
         </div>
@@ -240,7 +240,7 @@ export function CloudAuthDialog({
                 />
               </div>
               <span className="block text-[10.5px] leading-relaxed text-muted-foreground/80">
-                ۳ تا ۲۰ نویسه: حروف فارسی یا انگلیسی، رقم، _ و . — در پروفایل و کامنت‌ها با @ نشان داده می‌شود. بعداً هم از منوی حساب عوض می‌شود.
+                ۳ تا ۲۰ نویسه: حروف فارسی یا انگلیسی، رقم، _ و . — در پروفایل و کامنت‌ها با @ نشان داده می‌شود. بعداً از «تنظیمات ← عمومی» هم قابل تغییر است.
               </span>
             </label>
           )}
@@ -308,7 +308,7 @@ export function CloudAuthDialog({
 
           {tab === "login" && (
             <p className="rounded-xl border border-dashed border-border bg-muted/40 px-4 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
-              با ورود، پیشرفت ذخیره‌شدهٔ حساب‌ات روی همین دستگاه بارگذاری می‌شود؛
+              با ورود، پیشرفت ذخیره‌شدهٔ حساب شما روی همین دستگاه بارگذاری می‌شود؛
               دادهٔ مهمانِ فعلی به‌صورت خودکار به ابر فرستاده و محفوظ می‌ماند.
             </p>
           )}
@@ -382,7 +382,7 @@ export function UsernameDialog({
     setBusy(true);
     setError(null);
     try {
-      if (cloud && (await usernameTaken(v).catch(() => false))) throw new Error("این نام کاربری قبلاً گرفته شده؛ یکی دیگر انتخاب کن.");
+      if (cloud && (await usernameTaken(v).catch(() => false))) throw new Error("این نام کاربری قبلاً گرفته شده است؛ یکی دیگر انتخاب کنید.");
       const res = await auth.updateProfile({ username: v });
       if (!res.ok) throw new Error(res.error ?? "نام کاربری ذخیره نشد.");
       await onSaved?.();
@@ -442,7 +442,6 @@ export function CloudAccountArea() {
   const [user, setUser] = React.useState<SbUser | null>(() => sbUser());
   const [open, setOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const [nameOpen, setNameOpen] = React.useState(false);
   const [busy, setBusy] = React.useState<"" | "out">("");
 
   React.useEffect(() => onAuthChange(() => setUser(sbUser())), []);
@@ -474,7 +473,6 @@ export function CloudAccountArea() {
   return (
     <>
       <CloudAuthDialog open={open} onOpenChange={setOpen} />
-      <UsernameDialog open={nameOpen} onOpenChange={setNameOpen} current={handle} />
       {/* منوی حساب — رادیکس با پورتال؛ اگر داخل هدر می‌ماند با overflow-hidden هدر کلیپ می‌شد و با لمس آواتار هیچی دیده نمی‌شد */}
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
@@ -494,7 +492,7 @@ export function CloudAccountArea() {
         <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl p-1.5">
           <DropdownMenuLabel dir="rtl" className="space-y-0.5 px-2">
             <p className="text-[10px] font-bold text-muted-foreground">
-              {role === "admin" ? "حساب ابری — مدیر سامانه" : role === "teacher" ? "حساب ابری — استاد Lexa" : "حساب ابری"}
+              {role === "admin" ? "حساب ابری — مدیر سامانه" : role === "teacher" ? "حساب ابری — مدرس Lexa" : "حساب ابری"}
             </p>
             {handle && <p className="truncate text-xs font-bold" dir="auto">@{handle}</p>}
             <p className="truncate text-[11px] text-muted-foreground" dir="ltr">{user.email}</p>
@@ -509,7 +507,7 @@ export function CloudAccountArea() {
               className="cursor-pointer rounded-lg gap-2.5 py-2.5 text-bronze"
             >
               <GraduationCap className="h-4 w-4 shrink-0" />
-              اتاق استاد
+              پنل مدرس
             </DropdownMenuItem>
           )}
           {role === "admin" && (
@@ -519,15 +517,6 @@ export function CloudAccountArea() {
             >
               <ShieldCheck className="h-4 w-4 shrink-0" />
               پنل مدیریت
-            </DropdownMenuItem>
-          )}
-          {me && (
-            <DropdownMenuItem
-              onClick={() => { setMenuOpen(false); setNameOpen(true); }}
-              className="cursor-pointer rounded-lg gap-2.5 py-2.5"
-            >
-              <AtSign className="h-4 w-4 shrink-0 text-bronze" />
-              نام کاربری
             </DropdownMenuItem>
           )}
           <DropdownMenuItem
@@ -546,7 +535,7 @@ export function CloudAccountArea() {
               const pushErr = await sbPushState(blob).catch(() => "net");
               if (pushErr) {
                 setBusy("");
-                window.alert("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشدی. اینترنت را بررسی کن و دوباره بزن.");
+                window.alert("ذخیرهٔ آخر روی ابر انجام نشد؛ برای اینکه چیزی گم نشود هنوز خارج نشده‌اید. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
                 return;
               }
               noteCloudPushed(blob.savedAt);

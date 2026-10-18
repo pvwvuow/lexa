@@ -1,6 +1,6 @@
 "use client";
 
-// ─── صفحهٔ اساتید: پیشنهاد، فالو، دوره‌هایشان به‌عنوان کتاب، مطالب ────────────
+// ─── صفحهٔ مدرسان: پیشنهاد، فالو، دوره‌هایشان به‌عنوان کتاب، مطالب ────────────
 import * as React from "react";
 import {
   GraduationCap, UserPlus, UserCheck, BookPlus, BookCheck, BookOpen,
@@ -26,7 +26,7 @@ export function TeachersView() {
   async function onFollow(id: string) {
     if (!user) {
       // دیگر دکمهٔ مرده نیست: تپ مهمان = پنجرهٔ ورود (حساب ابری کافی است — پل خودکار)
-      requestAuthPrompt("برای دنبال کردن استاد");
+      requestAuthPrompt("برای دنبال کردن مدرس");
       return;
     }
     setErr("");
@@ -48,7 +48,7 @@ export function TeachersView() {
       if (!user) {
         const done = await addTCourseLocally(courseId);
         if (done) setTimeout(() => navigate({ view: "course", id: courseId }), 150);
-        else setErr("دوره بارگذاری نشد؛ اتصال اینترنت را چک کن و دوباره بزن.");
+        else setErr("دوره بارگذاری نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.");
         return;
       }
       const added = await toggleLibrary(courseId);
@@ -73,11 +73,11 @@ export function TeachersView() {
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary"><GraduationCap className="h-6 w-6" /></span>
-            اساتید Lexa
+            مدرسان Lexa
           </h1>
           <p className="mt-1.5 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            استادت را دنبال کن؛ مطالب آموزشی‌اش را در فید خانه ببین و اگر دورهٔ آنلاینی ساخت،
-            همان را مثل یک کتاب به بخش مطالعهٔ خودت اضافه کن.
+            مدرس خود را دنبال کنید؛ مطالب آموزشی‌اش را در فید خانه ببینید و اگر دورهٔ آنلاینی ساخت،
+            همان را مثل یک کتاب به بخش مطالعهٔ خودتان اضافه کنید.
           </p>
         </div>
         {isTeacherUser && (
@@ -85,7 +85,7 @@ export function TeachersView() {
             onClick={() => navigate({ view: "studio" })}
             className="inline-flex items-center gap-2 rounded-xl bg-bronze px-4 py-2.5 text-sm font-bold text-bronze-foreground shadow-card transition-transform active:scale-[.98]"
           >
-            <PenSquare className="h-4 w-4" /> اتاق استاد من
+            <PenSquare className="h-4 w-4" /> پنل مدرس من
           </button>
         )}
       </header>
@@ -99,11 +99,11 @@ export function TeachersView() {
       )}
       {err && <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{err}</p>}
 
-      {/* فهرست اساتید */}
+      {/* فهرست مدرسان */}
       <section className="space-y-3">
         <h2 className="text-lg font-bold">پیشنهاد ما</h2>
         <p className="-mt-1.5 text-xs text-muted-foreground">
-          روی آواتار یا نام هر استاد بزن تا پروفایل و فعالیت‌هایش را ببینی.
+          روی آواتار یا نام هر مدرس بزنید تا پروفایل و فعالیت‌هایش را ببینید.
         </p>
         {loading && (
           <p className="flex items-center gap-2 py-6 text-sm text-bronze"><Loader2 className="h-4 w-4 animate-spin" /> در حال دریافت…</p>
@@ -116,7 +116,7 @@ export function TeachersView() {
         )}
         {!loading && !error && !teachers.length && (
           <p className="rounded-2xl border border-dashed border-border bg-card px-5 py-8 text-center text-sm text-muted-foreground shadow-card">
-            هنوز استادی ثبت نشده است — مدیر می‌تواند از پنل مدیریت، حساب استاد بسازد.
+            هنوز مدرسی ثبت نشده است — مدیر می‌تواند از پنل مدیریت، حساب مدرس بسازد.
           </p>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -161,7 +161,7 @@ export function TeachersView() {
                 {t.courses > 0 && <span>· {fa(t.courses)} دورهٔ آنلاین</span>}
               </p>
 
-              {/* دوره‌های همین استاد */}
+              {/* دوره‌های همین مدرس */}
               {tcourses.filter((c) => c.teacher.id === t.id).length > 0 && (
                 <ul className="mt-3 space-y-2 border-t border-dashed border-border pt-3">
                   {tcourses.filter((c) => c.teacher.id === t.id).map((c) => (
@@ -202,7 +202,7 @@ export function TeachersView() {
       {/* همهٔ دوره‌های آنلاین */}
       {tcourses.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-lg font-bold"><BookOpen className="h-5 w-5 text-bronze" /> دوره‌های آنلاین اساتید</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><BookOpen className="h-5 w-5 text-bronze" /> دوره‌های آنلاین مدرسان</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {tcourses.map((c) => (
               <div key={c.id} className="relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-card transition-colors hover:border-bronze/50 sm:p-5">
@@ -210,7 +210,7 @@ export function TeachersView() {
                   <span className="grid h-11 w-11 place-items-center rounded-xl bg-bronze/10 text-bronze"><CourseIcon icon={c.icon} /></span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-bold">{c.title}</p>
-                    <p className="truncate text-xs text-muted-foreground">استاد {c.teacher.displayName} · {fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو</p>
+                    <p className="truncate text-xs text-muted-foreground">مدرس {c.teacher.displayName} · {fa(c.lessonsCount)} جلسه · {fa(c.studentsCount)} دانشجو</p>
                   </div>
                 </div>
                 {c.description && <p className="line-clamp-2 mb-3 text-xs leading-relaxed text-muted-foreground">{c.description}</p>}
@@ -242,8 +242,8 @@ export function TeachersView() {
       <TeacherFeedTeasers />
 
       <p className="flex items-center justify-center gap-2 pt-1 text-center text-[11px] text-muted-foreground">
-        <MessageCircle className="h-3.5 w-3.5" /> زیر هر مطلب می‌توانی کامنت بگذاری
-        <Rss className="ms-2 h-3.5 w-3.5" /> فید خانه با اساتیدی که دنبال می‌کنی شخصی می‌شود
+        <MessageCircle className="h-3.5 w-3.5" /> زیر هر مطلب می‌توانید کامنت بگذارید
+        <Rss className="ms-2 h-3.5 w-3.5" /> فید خانه با مدرسانی که دنبال می‌کنید شخصی می‌شود
       </p>
     </div>
   );

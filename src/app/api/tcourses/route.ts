@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   const me = await getSessionUser();
   if (!me) return NextResponse.json({ error: "برای ساخت دوره، ابتدا وارد شوید." }, { status: 401 });
   if (me.role !== "teacher" && me.role !== "admin")
-    return NextResponse.json({ error: "ساخت دوره ویژهٔ اساتید است. از پنل مدیریت درخواست دهید." }, { status: 403 });
+    return NextResponse.json({ error: "ساخت دوره ویژهٔ مدرسان است. از پنل مدیریت درخواست دهید." }, { status: 403 });
 
   let body: Record<string, unknown>;
   try {

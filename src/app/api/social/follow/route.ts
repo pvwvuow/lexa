@@ -18,11 +18,11 @@ export async function POST(req: NextRequest) {
   }
 
   const teacherId = String(body.teacherId ?? "");
-  if (!teacherId) return NextResponse.json({ error: "شناسهٔ استاد لازم است." }, { status: 400 });
+  if (!teacherId) return NextResponse.json({ error: "شناسهٔ مدرس لازم است." }, { status: 400 });
 
   const teacher = await db.user.findUnique({ where: { id: teacherId }, select: { id: true, role: true } });
   if (!teacher || teacher.role !== "teacher")
-    return NextResponse.json({ error: "استاد یافت نشد." }, { status: 404 });
+    return NextResponse.json({ error: "مدرس یافت نشد." }, { status: 404 });
 
   const existing = await db.follow.findUnique({
     where: { studentId_teacherId: { studentId: me.id, teacherId } },

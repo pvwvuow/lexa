@@ -780,7 +780,7 @@ export function LearnView({ id }: { id: string }) {
         <BookMarked className="mx-auto mb-4 h-10 w-10 text-bronze" />
         <h1 className="mb-2 text-xl font-bold">{lesson.title}</h1>
         <p className="mx-auto mb-6 max-w-md text-sm leading-loose text-muted-foreground">
-          این جلسه از کتاب وارداتی استخراج شده و هنوز محتوای کامل ندارد. دکمه زیر را بزن تا «استاد حقوقی هوشمند» بر اساس متن اصلی همین کتاب، جلسه را طبق الگوی هشت‌بخشی تدریس کند.
+          این جلسه از کتاب وارداتی استخراج شده و هنوز محتوای کامل ندارد. دکمهٔ زیر را بزنید تا «موتور هوشمند Lexa» بر اساس متن اصلی همین کتاب، جلسه را طبق الگوی هشت‌بخشی تدریس کند.
         </p>
         {aiPendingBusy ? (
           <AIThinking label="در حال تحلیل متن کتاب و تنظیم طرح درس" />

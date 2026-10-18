@@ -96,7 +96,7 @@ export function StudyListView() {
           <LibraryBig className="mx-auto mb-3 h-10 w-10 text-bronze/70" />
           <p className="text-sm font-bold">هنوز دوره‌ای در فهرست مطالعه‌ات نیست</p>
           <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-muted-foreground">
-            از «کتابخانهٔ عمومی» دوره‌های آماده را به کتابخانه‌ات بیفزای یا از «اساتید و مقالات» دورهٔ استادها را بردار.
+            از «کتابخانهٔ عمومی» دوره‌های آماده را به کتابخانه‌تان بیفزایید یا از «مدرسان و مقالات» دورهٔ مدرسان را بردارید.
           </p>
           <button
             onClick={() => navigate({ view: "library" })}
@@ -131,7 +131,7 @@ export function StudyListView() {
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="truncate text-[15px] font-extrabold">{c.title}</span>
-                    {owner && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-muted-foreground"><GraduationCap className="h-3 w-3 text-bronze" />استاد {owner}</span>}
+                    {owner && <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-muted-foreground"><GraduationCap className="h-3 w-3 text-bronze" />مدرس {owner}</span>}
                     {isPrep && <span className="shrink-0 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950">آماده‌سازی</span>}
                     {st.doneAll && <span className="shrink-0 rounded-full bg-success/15 px-1.5 py-0.5 text-[9px] font-extrabold text-success">تکمیل شد</span>}
                   </span>

@@ -45,7 +45,7 @@ export function SettingsView() {
     <div className="mx-auto w-full max-w-2xl space-y-6 px-4 pb-24 pt-6 sm:px-6">
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-bold"><KeyRound className="h-6 w-6 text-bronze" /> تنظیمات</h1>
-        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودت را مدیریت کن؛ تنظیمات استاد هوشمند و حالت آفلاین هم همین‌جاست.</p>
+        <p className="mt-1 text-sm text-muted-foreground">پروفایل و حساب کاربری خودتان را مدیریت کنید؛ تنظیمات هوش مصنوعی و حالت آفلاین هم همین‌جاست.</p>
       </header>
 
       {/* زبانه‌ها */}
@@ -346,7 +346,7 @@ function GeneralSettings() {
 
 const PROVIDERS: { key: AiProvider; title: string; desc: string; hint: string }[] = [
   ...(!IS_APK
-    ? [{ key: "builtin" as AiProvider, title: "استاد داخلی (پیشفرض)", desc: "بدون نیاز به هیچ کلیدی؛ آمادهٔ استفاده", hint: "" }]
+    ? [{ key: "builtin" as AiProvider, title: "موتور داخلی (پیش‌فرض)", desc: "بدون نیاز به هیچ کلیدی؛ آمادهٔ استفاده", hint: "" }]
     : []),
   { key: "gemini", title: "Google Gemini", desc: "با کلید API گوگل؛ مثل gemini-2.0-flash", hint: "کلید را از aistudio.google.com بگیر" },
   { key: "openai", title: "سازگار با OpenAI", desc: "هر سرویس با آدرس /v1/chat/completions (OpenAI، GPT، DeepSeek، القلب و…)", hint: "آدرس پایه مثل https://api.openai.com/v1" },
@@ -363,7 +363,7 @@ function AiSettings() {
   async function testConnection() {
     setTesting(true); setResult(null);
     try {
-      const res = await askAi<{ text: string }>({ task: "free", mode: "QA", question: "فقط بنویس: استاد در دسترس است" });
+      const res = await askAi<{ text: string }>({ task: "free", mode: "QA", question: "فقط بنویس: هوش مصنوعی در دسترس است" });
       setResult({ ok: true, msg: res.text.slice(0, 120) || "اتصال برقرار است." });
     } catch (e) {
       setResult({ ok: false, msg: e instanceof Error ? e.message : "خطای ناشناخته" });
@@ -379,19 +379,19 @@ function AiSettings() {
     <div className="space-y-5">
       {/* کارت ساده — برای کاربر عادی همین کافی است */}
       <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
-        <h2 className="flex items-center gap-2 font-bold"><Bot className="h-5 w-5 text-bronze" /> استاد هوشمند</h2>
+        <h2 className="flex items-center gap-2 font-bold"><Bot className="h-5 w-5 text-bronze" /> هوش مصنوعی</h2>
         {readyWithoutConfig ? (
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            فعال و آماده است — همه‌چیز خودکار است و نیازی به هیچ تنظیمی نیست. همین حالا می‌توانی در جلسه‌ها،
-            آزمون‌ها و تحلیل کیس‌ها از استاد استفاده کنی.
+            فعال و آماده است — همه‌چیز خودکار است و نیازی به هیچ تنظیمی نیست. همین حالا می‌توانید در جلسه‌ها،
+            آزمون‌ها و تحلیل کیس‌ها از هوش مصنوعی استفاده کنید.
           </p>
         ) : readyWithKey ? (
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            با کلید شخصی تو فعال است — بقیهٔ جزئیات فنی خودکار مدیریت می‌شود.
+            با کلید شخصی شما فعال است — بقیهٔ جزئیات فنی خودکار مدیریت می‌شود.
           </p>
         ) : (
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            برای فعال‌شدن استاد در این نسخه، یک کلید شخصی لازم است — «تنظیمات پیشرفته» را باز کن؛
+            برای فعال‌شدن هوش مصنوعی در این نسخه، یک کلید شخصی لازم است — «تنظیمات پیشرفته» را باز کنید؛
             بیشتر از دو دقیقه طول نمی‌کشد.
           </p>
         )}

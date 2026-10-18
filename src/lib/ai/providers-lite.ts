@@ -59,7 +59,7 @@ export async function callOpenAiCompatible(conf: AiConf, system: string, user: s
 }
 
 export const BUILTIN_CLIENT_MSG =
-  'برای استفاده از استاد هوشمند در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن.';
+  'برای استفاده از هوش مصنوعی در نسخهٔ اندروید، یک کلید شخصی لازم است — از «تنظیمات ← هوش مصنوعی ← تنظیمات پیشرفته» دو دقیقه‌ای فعالش کن.';
 
 /** خطای دوستانه برای کاربر — هیچ متن خام فنی (JSON/HTTP) نمایش داده نمی‌شود */
 function friendlyProviderError(name: string, status: number): Error {

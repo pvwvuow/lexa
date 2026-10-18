@@ -1,6 +1,6 @@
 "use client";
 
-/* === صفحهٔ نوشتن مطلب / دوره (اتاق استاد) — نسخهٔ دوم ===
+/* === صفحهٔ نوشتن مطلب / دوره (پنل مدرس) — نسخهٔ دوم ===
  * مطلب: عنوان همیشه بالا + سه زبانهٔ «محتوا / مشخصات / آزمون»؛ بخش‌ها فشرده و
  * فقط یکی باز؛ پیش‌نمایش زنده کنار صفحه (دسکتاپ) یا با یک لمس (موبایل).
  * دوره: فهرست فصل‌ها و جلسه‌ها کنار صفحه؛ در هر لحظه فقط همان جلسه/فصلی که
@@ -44,11 +44,11 @@ function TeacherOnly({ children }: { children: React.ReactNode }) {
       <div className="mx-auto max-w-md pt-20">
         <div className="rounded-2xl border border-dashed border-destructive/50 bg-card p-8 text-center shadow-card">
           <GraduationCap className="mx-auto mb-4 h-10 w-10 text-bronze" />
-          <h2 className="font-display text-lg font-bold">این صفحه مخصوص حساب‌های استادی است</h2>
+          <h2 className="font-display text-lg font-bold">این صفحه مخصوص حساب‌های مدرسی است</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            برای نوشتن مطلب یا دوره، با حساب استادی وارد شو. حساب استادی نداری؟ از «دانشگاه‌ها و موسسه‌ها» درخواستش را بفرست.
+            برای نوشتن مطلب یا دوره، با حساب مدرس وارد شوید. حساب مدرس ندارید؟ از «مراکز آموزشی» درخواست خود را ثبت کنید.
           </p>
-          <button onClick={() => navigate({ view: "org" })} className="mt-4 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground">درخواست حساب استادی</button>
+          <button onClick={() => navigate({ view: "org" })} className="mt-4 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground">درخواست حساب مدرس</button>
         </div>
       </div>
     );
@@ -149,7 +149,7 @@ function WriteBar({ icon: Icon, title, busy, saveDisabled, onSave, saveLabel, hi
   const iconBtn = "grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:border-bronze/60 hover:text-bronze disabled:opacity-30";
   return (
     <div className="sticky top-[74px] z-20 mb-4 flex items-center gap-2 rounded-2xl border border-border bg-card/95 px-3 py-2.5 shadow-card backdrop-blur sm:gap-3 sm:px-4">
-      <button onClick={() => navigate({ view: "studio" })} aria-label="بازگشت به اتاق استاد" title="بازگشت به اتاق استاد" className={iconBtn}><ArrowRight className="h-4 w-4" /></button>
+      <button onClick={() => navigate({ view: "studio" })} aria-label="بازگشت به پنل مدرس" title="بازگشت به پنل مدرس" className={iconBtn}><ArrowRight className="h-4 w-4" /></button>
       <span className="hidden h-9 w-9 shrink-0 place-items-center rounded-xl bg-bronze/15 text-bronze sm:grid"><Icon className="h-4.5 w-4.5" /></span>
       <h1 className="min-w-0 flex-1 truncate text-[14px] font-extrabold sm:text-[15px]">{title}</h1>
       <button onClick={hist.undo} disabled={!hist.canUndo} aria-label="واگرد" title="واگرد (Ctrl+Z)" className={iconBtn}><Undo2 className="h-4 w-4" /></button>
@@ -394,7 +394,7 @@ function WritePostPage({ id }: { id?: string }) {
 const COURSE_STATUS: { key: string; label: string; desc: string }[] = [
   { key: "published", label: "منتشر شده", desc: "همه می‌بینند و قابل افزودن به کتابخانه است" },
   { key: "prep", label: "در حال آماده‌سازی", desc: "قابل دیدن و افزودن؛ با برچسبِ زردِ آماده‌سازی" },
-  { key: "draft", label: "پیش‌نویس — فقط من", desc: "فقط خودت در اتاق استاد می‌بینی" },
+  { key: "draft", label: "پیش‌نویس — فقط من", desc: "فقط شما در پنل مدرس می‌بینید" },
 ];
 
 type Sel = { kind: "info" } | { kind: "chapter"; ch: string } | { kind: "lesson"; ch: string; ls: string };
@@ -709,7 +709,7 @@ function WriteCoursePage({ id }: { id?: string }) {
               <OrgPublishPicker value={d.orgId ?? ""} onChange={(orgId) => mutate((x) => ({ ...x, orgId }))} />
               <div className="rounded-xl border border-dashed border-bronze/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
                 <p className="mb-1 flex items-center gap-1.5 font-extrabold text-bronze"><Sparkles className="h-3.5 w-3.5" /> نقشهٔ ساخت</p>
-                از فهرست کنار صفحه فصل بساز، داخل هر فصل جلسه اضافه کن و روی هر جلسه بزن تا فقط همان باز شود. الگوی پیشنهادی هر جلسه: درآمد ← مفهوم ← مستند قانونی ← نکات ← مثال یا جدول ← سؤال ← جمع‌بندی + آزمون.
+                از فهرست کنار صفحه فصل بساز، داخل هر فصل جلسه اضافه کنید و روی هر جلسه بزنید تا فقط همان باز شود. الگوی پیشنهادی هر جلسه: درآمد ← مفهوم ← مستند قانونی ← نکات ← مثال یا جدول ← سؤال ← جمع‌بندی + آزمون.
               </div>
               {d.chapters.length === 0 && (
                 <button type="button" onClick={() => {
