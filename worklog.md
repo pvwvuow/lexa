@@ -2227,3 +2227,33 @@ Stage Summary:
 - v0.10.22 LIVE on all three platforms; phase 1 (centre accounts, centre sign-in, TOTP, audit) shipped end-to-end.
 - Supabase side verified earlier (006 applied 6/6 tables, RLS locked, TOTP on, aal2 enforced, org-auth v2 deployed).
 - Deferred per doc: profile badges orgBadges()+badgeLabel() (phase 2). Keystore/SDK/JDK paths documented for future rebuilds.
+
+---
+Task ID: 51-prep
+Agent: Z (main)
+Task: PR #20 + #21 merge, phase 2+3 wiring, three-platform build v0.10.23 (publish HELD for SQL 007+008)
+
+Work Log:
+- Colleague report: phase 1 shipped (v0.10.22 live), PR #20 (phase 2 content visibility) + PR #21 (phase 3 classes/exams/grades, stacked on #20) open; 007/008 not yet run; SQL assigned to the user (PAT lacks database_read/write scopes -> Management API query endpoint 403, restored .supabase-pat/.supabase-secret from session record — files were lost in container rebuild).
+- Merged PR #20 (8ce096b) then #21 (fda45e5) via API. Local b417229 (task-50 leftovers) rebased on top and pushed.
+- Executed full wiring per docs/ORG_P2_SETUP.md + docs/ORG_P3_SETUP.md:
+  * handlers.ts: visibility (+allow_preview) on post/course create/update, _visibility/_allowPreview in every card/mapper (postCard/courseOf/getPost/myPosts), safeVisibility guard.
+  * StudioWriteView: VisibilityPicker (post meta tab + course info) with orgs from usePublishOrgs, save blocked on visibilityProblem, orgMedia thumbnails (uploadOrgMedia -> lexa-org-media bucket).
+  * studio-widgets ThumbnailPicker: orgMedia/orgId props; preview via ThumbImg.
+  * common.ts ThumbImg (useMediaUrl) used in PostView, DashboardView feed, SettingsView my-posts.
+  * CourseView: VisibilityBadge in header + preview gate on 404 (coursePreviews lookup -> locked card + «ورود با حساب مرکز» CloudAuthDialog).
+  * OrgView: new «کلاس‌ها» tab for active members/managers -> OrgClassesPanel; OrgContentTab got OrgCoursePreviews (locked preview cards).
+  * OrgClassesPanel ErrorLine: mfa errors render phase-1 MfaPanel (teachers are NOT forced through aal2 — lexa_class_require_staff only demands aal2 from managers).
+  * router + AppShell: #/classes route -> StudentClassesView (SOCIAL_OFF-guarded); ExamRunner full-screen fixed overlay (z-80) hides bars/menus.
+  * AccountArea dropdown: «کلاس‌های من» item only when myOrgAccounts() has a row with termsAcceptedAt (session-cached check).
+  * PublicLibraryView: OrgPreviewSection (12 locked preview cards) + VisibilityBadge on course cards.
+  * offline.ts OfflineCardCourse._visibility; cloud-sync calls pruneLostAccess() at boot and on every auth change.
+- ENV REBUILD: JDK 21 (Temurin) + Android SDK 35 + local.properties + keystore restored from download/android/. playwright 1.55 re-added (devDep).
+- QA: tsc 0 errors; qa117 13/13; qa118 6/6; qa120 8/8; NEW qa121-org-p23-wiring 13/13 (bundle strings incl. «چه کسانی ببینند؟», «مخصوص کلاس», lexa-org-media, lexa_exam_start; #/classes guest no-crash; APK + WEB).
+- Bumped 0.10.23 / sw v65 / versionCode 123. Builds: APK download/android/Lexa-0.10.23.apk (6.7MB, badging verified 123/0.10.23) -> AppImage 127.7MB + win zip 177MB (separate runs) -> standalone rebuilt. Committed 75a62d5 + qa fix, pushed.
+
+Stage Summary:
+- v0.10.23 artifacts READY but NOT published: Pages deploy + GitHub Release are HELD until the user runs supabase/007_content_visibility.sql then supabase/008_classes_exams_grades.sql in SQL Editor (008 self-guards with «run 006 and 007 first»).
+- Why hold: the new client sends visibility on every post/course save — without the 007 column all centre-member saves would 400.
+- After user confirms SQL: verify schema (OpenAPI diff) + RPC presence + lexa-org-media bucket, then publish Pages, release-app-update.py 0.10.23, verify-release + qa119-pages-live, worklog push.
+- Security pending (user): revoke sb_secret posted in chat; revoke Supabase PAT after release.
