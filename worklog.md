@@ -2141,3 +2141,20 @@ Stage Summary:
 - v0.10.21 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.21 — خطاها همه‌جا صادقانه با تلاش دوباره؛ دیگر هیچ صفحه‌ای شکست شبکه را «خالی‌بودن» نشان نمی‌دهد؛ روی وب/APK/دسکتاپ/Pages
 - SQLهای سوپابیس توسط کاربر انجام شده (002/004 وریفای شد، باکت 005 زنده است) — فقط 003 از راه دور قابل وریفای نیست؛ اگر مشکوک است یک‌بار در SQL Editor اجرایش بی‌ضرر است
 - یادآوری امنیتی تکراری: توکن گیت (در چت) و توکن تلگرام هنوز rotate نشده‌اند
+
+---
+Task ID: 50-prep
+Agent: Z (main)
+Task: Phase 1 Draft PR #19 monitoring — relay «ادامه» + pre-review of pushed files
+
+Work Log:
+- New token verified via /user (login: pvwvuow). Note: repo is pvwvuow/lexa (NOT pvwvuow/app — that name 404s).
+- PR #19 "feat(org): phase 1, centre-made accounts, centre sign-in, TOTP, audit (WIP)" — state: open/DRAFT, head 634447662f (feat/org-accounts-p1) -> main 22357ed, mergeable=clean, 4 commits, 8 files, +1562.
+- Files present: supabase/006_org_accounts.sql (397), supabase/functions/org-auth/index.ts (533), src/lib/cloud-api/org-accounts.ts (340), src/lib/mfa.ts (53), src/lib/supabase.ts (+15), OrgSignInForm.tsx (76), RedeemOrgCode.tsx (50), MfaPanel.tsx (98).
+- Still missing (colleague said 4 files): first-login page (change password + accept centre terms), centre admin students panel, two docs (full spec + setup guide).
+- Posted «ادامه» comment on PR: https://github.com/pvwvuow/lexa/pull/19#issuecomment-6247198568
+- Pre-review: supabase.ts diff is additive (sbAdoptSession + sbAal); sbAdoptSession fits local Tok type {access_token, refresh_token, user:{id,email}} and save() fires listeners — OK. org-accounts.ts joins existing src/lib/cloud-api/ (handlers/install/orgs/rest/username). No conflicts with main.
+
+Stage Summary:
+- Task 50 blocked on colleague: PR #19 still DRAFT, 4 files missing. Polled ~9 min, no new commits.
+- Next when ready: merge PR -> run 006 in SQL Editor -> deploy org-auth (--no-verify-jwt) -> confirm TOTP -> wire into main pages -> tsc/qa117/qa118/qa119 -> bump 0.10.22/v64/122 -> three-platform build (APK -> rebuild standalone -> stage -> AppImage & win zip separately) -> Pages release -> Release + delta feed -> verify 18/18 -> worklog.
