@@ -2068,3 +2068,24 @@ Stage Summary:
 - v0.10.18 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.18 — پنل مدیریت ابری حالا روی وب/APK/Pages قابل رسیدن است؛ Pages هم‌نسخه شد
 - برای «دیدن» پنل، پیش‌نیازهای دست کاربر همچنان لازم‌اند: ① SQLهای 002 + 003 + 004 (جدید: 004_usernames_and_directory.sql) در Supabase ② ادمین‌کردن خودش طبق docs/SECURITY.md ③ Redirect URLs
 - یادآوری امنیتی: توکن گیت و توکن تلگرام هنوز rotate نشده‌اند
+
+---
+Task ID: 47
+Agent: main (Super Z)
+Task: PR #17 (فیکس PGRST201 لیست مراکز + نام‌گذاری حرفه‌ای) → بیلد سه‌گانه و ریلیز v0.10.19
+
+Work Log:
+- کانتینر باز هم به اسنپ‌شات قدیمی (دورهٔ task 43) برگشته بود: keystore/SDK/JDK پریده، origin توکن مرده داشت، askpass پاک شده بود. بازیابی: reset --hard origin/main → ab11667 (تمام کارهای قبلی پوش‌شده بودند و سالم)
+- توکن origin (ghp_VuYL…) 401 بود؛ توکن task-44 (ghp_Kmu4…) تست شد → 200 و هنوز زنده است → origin به فرمت oauth2:TOKEN ست شد؛ /home/z/.git-askpass هم بازسازی و core.askPass نصب شد (برای cloneهای username-only مثل اسکریپت pages)
+- keystore از download/android (tracked در گیت) به android/ کپی شد؛ env-prep-only.sh جاوا/SDK را دوباره دانلود کرد
+- تغییر PR #17 فقط یک فایل بود: src/lib/cloud-api/orgs.ts (embed مبهم سازندهٔ مرکز → PGRST201) + نام‌گذاری «مرکز آموزشی» و پیام‌های خطای رسمی با کد خطا
+- بامپ چهارگانه: package 0.10.19 / sw v61 / DESIGN 1.9.29 / gradle 119+0.10.19؛ tsc صفر
+- qa117 (۱۳/۱۳) + qa118 (۶/۶) روی اکسپورت تازه سبز
+- درس جدید: purge.jsdelivr.net گاهی بعد از «finished» هم لبه‌ها را کهنه برمی‌گرداند — ۳۰ ثانیه بعد خودش همگرا شد؛ کلاینت‌ها fallback به raw دارند پس تأثیر کاربری صفر بود. verify ابتدا 15/2 داد، بعد از همگرایی CDN → 18/18
+- ریلیز: id 416234189 (AppImage 127.7MB + win.zip سالم بدون .env/keystore + APK versionCode 119) + تگ‌های v0.10.19 و app-v0.10.19 + دلتافید؛ Pages با 0.10.19 منتشر شد (PAGES_READY)
+
+Stage Summary:
+- v0.10.19 منتشر شد: https://github.com/pvwvuow/lexa/releases/tag/v0.10.19 — فیکس لیست مراکز در پنل مدیریت روی همهٔ پلتفرم‌ها؛ Pages هم‌نسخه شد
+- دست کاربر (همچنان باز): ① SQLهای 002 + 003 + 004 در Supabase ② خودش را ادمین کند ③ Redirect URLs
+- بستهٔ بعدی دست AI همکار (استریک/منوی آواتار/تغییر نام‌ها/۹۰ جمله) هنوز روی main نیست — بعد از merge آن، یک بیلد-ریلیز دیگر (0.10.20) لازم است
+- یادآوری امنیتی: توکن گیت (در چت) و توکن تلگرام هنوز rotate نشده‌اند
