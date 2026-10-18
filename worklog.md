@@ -2158,3 +2158,25 @@ Work Log:
 Stage Summary:
 - Task 50 blocked on colleague: PR #19 still DRAFT, 4 files missing. Polled ~9 min, no new commits.
 - Next when ready: merge PR -> run 006 in SQL Editor -> deploy org-auth (--no-verify-jwt) -> confirm TOTP -> wire into main pages -> tsc/qa117/qa118/qa119 -> bump 0.10.22/v64/122 -> three-platform build (APK -> rebuild standalone -> stage -> AppImage & win zip separately) -> Pages release -> Release + delta feed -> verify 18/18 -> worklog.
+
+---
+Task ID: 50-prep-2
+Agent: Z (main)
+Task: Supabase keys received — key validation + 006 state audit
+
+Work Log:
+- User provided new-format keys: sb_publishable_IaPGLBkmRkcsGlVE865PZw_krAWWmsz + sb_secret_1_oUX... (service-level).
+- supabase-config.ts line 2 already contains the SAME publishable key -> repo config consistent.
+- Key probes: Data API root /rest/v1/ -> PUB 401 / SEC 200; REAL table queries -> both 200 (root 401 for PUB is normal introspection restriction, app NOT broken). Auth health 200 both (GoTrue v2.197.0).
+- Management API (api.supabase.com) rejects sb_secret ("JWT could not be decoded") -> SQL-exec + function-deploy via Mgmt API still need a suppat_ PAT.
+- MAJOR: 006_org_accounts.sql is ALREADY APPLIED live (someone ran it — likely user in SQL Editor): all 6 tables exist (lexa_org_students 17col, lexa_org_logins 5, lexa_account_flags 5, lexa_org_activation_codes 9, lexa_rate_events 2, lexa_audit_log 7) and column sets match the PR's 006 file EXACTLY (scripts/qa-006-schema-check.py -> 6/6 OK).
+- RLS spot-check: anon reads on lexa_org_students/org_logins/org_activation_codes/audit_log -> HTTP 401 blocked (no leak).
+- RPC inventory: 39 lexa_* RPCs exposed incl. 006 ones (lexa_org_redeem_code, lexa_mfa_ok, lexa_svc_revoke_sessions, lexa_org_accept_terms, lexa_org_manage_mfa, lexa_my_org_accounts, lexa_org_seats_used, lexa_org_students_used, lexa_audit).
+- org-auth edge function: NOT deployed (POST /functions/v1/org-auth -> 404 NOT_FOUND).
+- Auth admin works with secret key (totalUsers=1). 006 SQL fetched from PR branch to lexa-pr19/006_org_accounts.sql (397 lines, matches).
+- Worklog commit e022214 (50-prep) pushed after refreshing origin/backup remote URLs with new gh token.
+
+Stage Summary:
+- Supabase DB side of Task 50 is DONE & verified (006 applied, schema exact, RLS locked).
+- Remaining blockers: (a) org-auth function deploy — needs suppat_ PAT from user OR user deploys via dashboard/CLI; (b) PR #19 still DRAFT, 4 files missing (first-login page, students panel, 2 docs) — «ادامه» posted on PR.
+- New capability: service key enables full DB audit + auth admin + function invoke testing once deployed.
