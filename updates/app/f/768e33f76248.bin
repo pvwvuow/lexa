@@ -1,0 +1,24 @@
+# Lexa fixes on top of main 911377d (merge with git merge-file)
+
+Files are full versions based on 911377d. In the repo root run:
+
+    for f in $(cat FILES.txt); do
+      git show 911377d:$f > /tmp/base
+      git merge-file $f /tmp/base lexa-fix/$f
+    done
+    npx tsc --noEmit
+
+What changed
+- social-client.ts: errText() (English network errors such as "Failed to fetch" are never shown), error state in useTCourses and usePublicLibrary, formal error texts.
+- PublicLibraryView: a failed load shows an error with a retry button, not "no courses in this category"; the add/remove button updates right away after removing (stale "in library"); guests see the right state; button text «افزودن به کتابخانهٔ من / در کتابخانهٔ من»; formal, plain wording.
+- OrgView + orgs.ts: the directory, the centre content tab, members and "my invitations" show an error with retry instead of a false empty state ("no centre yet", "no teacher yet"); members failure no longer hides the manager tabs; "اولین باشید!" removed; remaining informal texts made formal.
+- FeedBell: loading and error states, «مدرسان».
+- handlers.ts: «در پاسخ به …» survives a reload (replyToUsername in getPost); centre logo upload only for an active owner/manager or admin; formal upload errors.
+- PostView: formal texts.
+
+Still for Z (files I could not rebuild byte-exact)
+- DashboardView: feed block uses useSocial().error (error + retry instead of "nothing published"); drop «تا تازه‌هایش این‌جا بدرخشد».
+- StudioView: courses tab uses useTCourses().loading/error (spinner/retry instead of "no courses yet").
+- TeachersView: disable the follow button while its request runs (double-tap flips the state).
+- CourseView: the signed-in add-to-library POST must check res.ok and show the error.
+- studio-widgets ThumbnailPicker: reject /api/ paths and drop the "/api/cover/…" placeholder.

@@ -1,10 +1,15 @@
 {
   "schema": 1,
-  "version": "0.10.20",
-  "tag": "app-v0.10.20",
-  "generatedAt": "2026-10-18T05:54:25.056Z",
-  "notes": "نسخهٔ **0.10.20** — به‌روزرسانی درون‌برنامه‌ای\n\n- از این نسخه، آپدیت‌های بعدی داخل خود برنامه نصب می‌شوند (فقط فایل‌های تغییرکرده)\n- دیگر لازم نیست برای هر نسخهٔ جدید، کل برنامه را از گیت‌هاب دانلود کنی",
+  "version": "0.10.21",
+  "tag": "app-v0.10.21",
+  "generatedAt": "2026-10-18T06:37:41.510Z",
+  "notes": "نسخهٔ 0.10.21 — پیام‌های خطای صادقانه با «تلاش دوباره» در همه‌جای اپ (کتابخانهٔ عمومی، مراکز آموزشی، صفحهٔ مرکز، دعوت‌ها، زنگ تازه‌ها، داشبورد و استودیو)؛ پیام‌های انگلیسی مرورگر دیگر نمایش داده نمی‌شوند؛ رفع گم‌شدن «در پاسخ به …» پس از رفرش؛ محافظت آپلود لوگوی مرکز؛ رفع دکمهٔ کتابخانه پس از حذف دوره؛ قفل‌شدن دکمهٔ دنبال‌کردن هنگام درخواست؛ رد مسیرهای /api/ در انتخاب تصویر شاخص؛ لحن رسمی پیام‌ها.",
   "history": [
+    {
+      "version": "0.10.20",
+      "date": "2026-10-18T05:54:25.056Z",
+      "notes": "نسخهٔ **0.10.20** — به‌روزرسانی درون‌برنامه‌ای\n\n- از این نسخه، آپدیت‌های بعدی داخل خود برنامه نصب می‌شوند (فقط فایل‌های تغییرکرده)\n- دیگر لازم نیست برای هر نسخهٔ جدید، کل برنامه را از گیت‌هاب دانلود کنی"
+    },
     {
       "version": "0.10.19",
       "date": "2026-10-18T04:38:00.957Z",
@@ -29,20 +34,23 @@
       "version": "0.10.15",
       "date": "2026-10-08T05:46:52.838Z",
       "notes": "نسخهٔ **0.10.15** — درس‌های اساتید، همه‌جا کامل باز می‌شوند\n\n- فیکس مهم: درس‌هایی که از پروفایل استاد باز می‌کردی و «جلسه پیدا نشد» می‌آمد — حالا بدون افزودن به کتابخانه هم کامل باز می‌شوند (پیش‌نمایش آزاد)\n- افزودن دورهٔ استاد به کتابخانه با یک تپ — حتی بدون حساب: دوره در همین دستگاه می‌ماند و با ساختن حساب، پیشرفتت حفظ می‌شود\n- دکمهٔ نام استاد در صفحهٔ دوره حالا به پروفایلش می‌برد\n- به‌روزرسانی اندرویدی درون‌برنامه‌ای (versionCode 115)"
-    },
-    {
-      "version": "0.10.14",
-      "date": "2026-10-07T11:55:32.861Z",
-      "notes": "نسخهٔ **0.10.14** — «نشان‌گذاری نسخهٔ ۲»: بازسازی کامل موتور نشان‌ها\n\n• رنگ‌آمیزی نشان‌ها حالا با CSS Highlight API انجام می‌شود — رنگ نشان با هیچ دستکاری DOM همراه نیست؛ دیگر «کش آمدن» متن، پرش مکان‌نما یا ازدست‌رفتن انتخاب هنگام ساخت/ویرایش نشان رخ نمی‌دهد\n• نشان‌ها روی مدل ایندکسی متنی ذخیره می‌شوند و با بازسازی مدل از استور، همیشه دقیقاً روی همان کلمه‌ها رنگ می‌گیرند\n• هم‌پوشانی نشان‌ها از بین رفت: برنامهٔ ذخیرهٔ هم‌پوشان‌امن، نشان‌های قبلی را هوشمندانه تراش می‌دهد\n• دستگیره‌ها روی مدل کار می‌کنند: پیش‌نمایش زندهٔ بازه حین کشیدن بدون تغییر DOM، عبور دستگیره‌ها از روی هم = جابه‌جایی نقش، اسکرول خودکار لبه تا انتهای صفحه\n• وب‌ویوهای قدیمی بدون Highlight API به‌طور خودکار به مسیر <mark> با همان کیفیت می‌روند\n• بستهٔ تست تازهٔ qa114 برای مسیر Highlight (۲۹ ادعا) + تطبیق کامل رگرسیون‌های قبلی با معنای جدید"
     }
   ],
   "files": {
     "package.json": [
-      "363183e9e4aee4f8d8dae2deb26255fc513c1da7bb6ed6e94f5a61399b3cefb9",
+      "34b4db6e9ca72b5727984afc0d9a05765e2dc53570bd4083860e02554367a0c9",
       2767
     ],
+    ".next/standalone/lexa-fix-errors/FILES.txt": [
+      "7d3f88d061c164db18712cf68c83fff9fa7e19d44b57f499a7ae48117e7e0ce1",
+      217
+    ],
+    ".next/standalone/lexa-fix-errors/APPLY.md": [
+      "768e33f76248c9ca4d08707fbef6f447c954400b83d4515a321a38580668a1f8",
+      1938
+    ],
     ".next/standalone/package.json": [
-      "0f8e449e9e3ccfc2aa1ff3ac7fe0414fe1d8c3bb9cf9ef256407d2d4c9a3beb3",
+      "67871ef60442dd2fbb82e997d6dfb5a9b25e07ceaa9f1aa24b2ff6981272397b",
       4561
     ],
     ".next/standalone/node_modules/client-only/package.json": [
@@ -5270,11 +5278,11 @@
       1906
     ],
     ".next/standalone/.next/BUILD_ID": [
-      "1b0791493a46d71dc9a86cf1160b04fe90c2e52dda23d8e7a5a316f0d79bbf9c",
+      "1ed1cb8b98a8301a570f42487c3ca60844d5a8fb2a82fc4181c3e17a50c28214",
       21
     ],
     ".next/standalone/.next/build-manifest.json": [
-      "1f4b9115b41b83d24abb7f396f22637924d22755228c7feaee08c79fb4594caf",
+      "30347cbff156231a64b325dda5fb24c21602ebf865bc4ad985335f43957c3d22",
       453
     ],
     ".next/standalone/.next/server/middleware-build-manifest.js": [
@@ -5286,7 +5294,7 @@
       83
     ],
     ".next/standalone/.next/server/server-reference-manifest.json": [
-      "b3a3e5b91109301c00ee198e02b2d87e0ec1052d0d389052cd67f71e0d417dd4",
+      "45b628846f12a0a933df08e0190ad358352c07478cc4dd05fd9c42d8f2d4a8d0",
       97
     ],
     ".next/standalone/.next/server/pages-manifest.json": [
@@ -5298,7 +5306,7 @@
       1195
     ],
     ".next/standalone/.next/server/server-reference-manifest.js": [
-      "5896aca54220b2d4d6bbc88590703fa89d392a7084f31c36d0f9741bd8bc16ec",
+      "e316dff97270aa131b09353e6f70a66c1043f5c88b21a8f73a44b37cae8a37a5",
       138
     ],
     ".next/standalone/.next/server/chunks/[root-of-the-server]__7dcc5ca6._.js": [
@@ -5594,8 +5602,8 @@
       399701
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__3cc33b2f._.js": [
-      "8a161b328ef3630d6a6bf7ecdcd7144478ea12b3bcc4b413c31e673c81f5489b",
-      1060990
+      "929932b36bbf6bc8f2e8fa44b7ff7a8220b18207f4044a6da8e7125321bd18c3",
+      1066335
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__6ee89430._.js": [
       "72378e072c4b74314d66468c8937f884fe6d6ac04e0b6e1f5a3a2b154bdf0e7f",
@@ -5654,8 +5662,8 @@
       116993
     ],
     ".next/standalone/.next/server/chunks/ssr/src_lib_cloud-api_handlers_ts_10c67fa4._.js": [
-      "3353306c97ae0f216be473a9e4e745f26db5ee73439773b6ad45cd4e3aa98a9b",
-      31273
+      "334344934d6f1e878482bca25573bee053c95dfe1371d56075681c97d66bbb43",
+      31617
     ],
     ".next/standalone/.next/server/chunks/ssr/[root-of-the-server]__1690ee0d._.js": [
       "816a60dc1839ef9be6799fa1d6ef5baa48ea2e142c161acd3570ef4b730baa68",
@@ -5786,19 +5794,19 @@
       255
     ],
     ".next/standalone/.next/server/app/index.segments/_tree.segment.rsc": [
-      "e6a564e77e6347a24fc577e289e1bb01dfd9841db7000d72310613b1a50bccf1",
+      "ca3e936c587517c7585c1bbd47e566c9d826a281bba608e74cbe2befe2262320",
       349
     ],
     ".next/standalone/.next/server/app/index.segments/__PAGE__.segment.rsc": [
-      "cb08f7356ea117aa3a2140c47b100d4222e5b5c590d39c39cbd949424e325d76",
+      "add25bfaa4f4c6645673c93bd35a12e11965297d7f6e9955a80ebe481d017eb9",
       1392
     ],
     ".next/standalone/.next/server/app/index.segments/_index.segment.rsc": [
-      "6b246def3de829f378328cd54af9cb2bdc04395b0f83b18fd0cfc61e3945f3c6",
+      "3f00d8e2d3afd2fa72e7c4616ee702c8894b97ec9957bb7036f09eace1cebc15",
       9723
     ],
     ".next/standalone/.next/server/app/index.segments/_head.segment.rsc": [
-      "6b7fa22277fe5a7a2d35b86241e115c76ebe390c2c3405201f19a2e38559a5ea",
+      "77612878bab55bf86a6c8faa2e435a969fec903f90527cea76d42f8a4e682aca",
       1682
     ],
     ".next/standalone/.next/server/app/page.js": [
@@ -5862,43 +5870,43 @@
       335
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_tree.segment.rsc": [
-      "e212fce75bbde41807fadfbef6b54ce94e1e5e7cb67aae422eb6a5387533df3f",
+      "4d86454938d867a954e9431bc959013141d634e5996c820aaa2575c884527bd4",
       483
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_not-found/__PAGE__.segment.rsc": [
-      "dda952ee7637dd20446f1dadff6a1b4c9d5bd353c534f2b13c3ab722f8143611",
+      "163ff37d4750315183cd54f7264038f6038bd06755c986837d3c3c57703881ee",
       1536
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_index.segment.rsc": [
-      "965f3f4208e64cb7db4029e2fbe8923e10a3a9a19c8b4ec24b551ae3a027bef3",
+      "926611986f88c953980c907420336b068d74b02fc6549c521fa312d7653a6441",
       10157
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_not-found.segment.rsc": [
-      "8a76ce48e090c157542d34f2c16926af26cedb8aa6a12420e724c90b9109cbed",
+      "e0551c70c516bb1bb7e3775ac18e2428b31f6c925dcc9b03538d2361e447d983",
       606
     ],
     ".next/standalone/.next/server/app/_not-found.segments/_head.segment.rsc": [
-      "5ba5c8c061aca5af88f88ad383a6ab991e2e086473ce5043744e1b5fc078d98f",
+      "16aab89073a2192d56bf93674b7eef3a754bcbeaa416e74005d40317c299f7aa",
       2120
     ],
     ".next/standalone/.next/server/app/_not-found.rsc": [
-      "f3f268d860f548e1d9fea1c6869fc62ba576a9bcb63b269e27c3c6841c2ea90b",
+      "42e7b52dd4cd4f8c90dd87e7c3d4160a656a422f69baf8f9670e473335111a67",
       14697
     ],
     ".next/standalone/.next/server/app/index.html": [
-      "af1caba5a192f4804aa2ce0833d9ce9dd1ea2fbe93ed6243b95453be257f6bca",
+      "422063a38eaa5706710422f5a164e56e03628a6d1c089fd665de52e4b0a35a1f",
       25051
     ],
     ".next/standalone/.next/server/app/_global-error.rsc": [
-      "719616bbad350f7cb466a6c7f9da63d076b77a9d20d78eb34449c3856eaa2c80",
+      "e3a2900efefdb3b937e25588d160f648cc16c05cdd8a1b12f1826ead39ce07a3",
       2794
     ],
     ".next/standalone/.next/server/app/_not-found.html": [
-      "eb0254602c175746b4197dca1cf1d7e0357fa6b723cc24c10b3f2becc588528c",
+      "85f9fe011a1e811e4304275dc2f750f44c61a60b00d799e971af07984791d5ab",
       26939
     ],
     ".next/standalone/.next/server/app/index.rsc": [
-      "dbad00c7b8161da4d49ccc33b755831e606d3c78143eff5cf0e85b9ecf1d7bcb",
+      "320728881a74782af65baf7bb056ca459e0d4b88741271064dda5a9a95772cd2",
       13294
     ],
     ".next/standalone/.next/server/app/page/app-paths-manifest.json": [
@@ -5910,7 +5918,7 @@
       314
     ],
     ".next/standalone/.next/server/app/_global-error.html": [
-      "32e4d54ecd4f9756526b871bb1d74684c83978883c0a2c348900a669359d0191",
+      "31521ddbe807a1ce31fdbfa5a867288f324c69d920e680eeb2cc459bf0200a1e",
       5094
     ],
     ".next/standalone/.next/server/app/api/route.js": [
@@ -6118,8 +6126,8 @@
       321
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route.js.nft.json": [
-      "6615fb21564f72051045bbfe6c73d7d9b4338ed72889851b396f29efb2e27de5",
-      587321
+      "55d64a6e47998fdc0bf0a5b69cba22f1cef9849e640e76f5adae563edefc8d6f",
+      589834
     ],
     ".next/standalone/.next/server/app/api/profile/avatar/route/app-paths-manifest.json": [
       "927eeae613f495df7fe3c1f582693f87d9ab01b97be1aecc176098f760937e40",
@@ -6494,19 +6502,19 @@
       68
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_tree.segment.rsc": [
-      "3448541e99b2541f5a0111d89b94f0d1f7363d691f221adae499ad74f2519021",
+      "4f027b470a1964cc5a30aa748c5fd5851152b429bb1eff83bc5571046c6f57a5",
       293
     ],
     ".next/standalone/.next/server/app/_global-error.segments/__PAGE__.segment.rsc": [
-      "21e529e22923d04da28cd18c5de7909ef289d1d074b0089e2ce661fe62ca56ce",
+      "3e8a8ce8e329b9d8caa659647959c793ae0bd7d3ba1fe193baf62e83b7ce84fa",
       1593
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_index.segment.rsc": [
-      "da7c5049686faf3dd7a24d3553abca7edbdf53f41a055828f53ff43c483f7d15",
+      "e4d577bee6eb68a4f3cda597e7375d602f7f4c304efafa936e98aa0daf4f7894",
       348
     ],
     ".next/standalone/.next/server/app/_global-error.segments/_head.segment.rsc": [
-      "b07ee5ecff8bd1dc961dfd8a5a2bfc69adc37880aca9b8ec6acfe2d23e884c33",
+      "acf0d78bfed599c8586c855e43018570fe509c132c1e61a7839de0f6c38da4fc",
       594
     ],
     ".next/standalone/.next/server/app/page.js.nft.json": [
@@ -6514,7 +6522,7 @@
       5017
     ],
     ".next/standalone/.next/server/app/page_client-reference-manifest.js": [
-      "7f5f5bcd688d567a9a85c4f87f95b59006ddc65deca6d14cf6b9aed87d9bad62",
+      "5ae399b93bb5a08ac33c21a4789c45e28e2e64d5223e12d7f713f92815351ee1",
       10379
     ],
     ".next/standalone/.next/server/instrumentation.js": [
@@ -6530,20 +6538,8 @@
       4319
     ],
     ".next/standalone/.next/prerender-manifest.json": [
-      "f727cbc371171fa5dbd78e67db3f32794b27982d0f2e2ce62106930dc5463099",
+      "a40f68fe18bf68a93456dd90360496c376d7197f69e3f684f2151b7b9516032e",
       2210
-    ],
-    ".next/standalone/.next/static/N5SiCxYOGtnmGDqv5WCdB/_buildManifest.js": [
-      "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
-      219
-    ],
-    ".next/standalone/.next/static/N5SiCxYOGtnmGDqv5WCdB/_ssgManifest.js": [
-      "678f6ce2cb80b1fe72fc67e7412be6e2ab6ada083111b64f7c40d35e3cba5e00",
-      80
-    ],
-    ".next/standalone/.next/static/N5SiCxYOGtnmGDqv5WCdB/_clientMiddlewareManifest.json": [
-      "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      2
     ],
     ".next/standalone/.next/static/chunks/c656eb88458a80ba.js": [
       "40feffcf7de9a778a46f2e9dd8de54032fa661926648acc12c049c1de6bef2fc",
@@ -6553,10 +6549,6 @@
       "142a4957dcd3b73a764b8d80a00aa2d987d5deedf0747a442ca1fdb34d24bf11",
       117021
     ],
-    ".next/standalone/.next/static/chunks/6f36fb6a1aa1a9d3.js": [
-      "906728c9ec4e2021515117bf7c7f0707d8135d5b8a5770835dcd9b67ab4bce58",
-      36519
-    ],
     ".next/standalone/.next/static/chunks/d90026ebbe092135.js": [
       "63ccddb2df947c7c7252a4b41a0ffa8f3cc9a8d73979ace09d628dbf45523afe",
       16891
@@ -6564,6 +6556,10 @@
     ".next/standalone/.next/static/chunks/turbopack-ab6f585b2ad03de4.js": [
       "a6f22b3cab87efbdb4e3b9e654f9c2c2a46487ae9c9c8bbe8d573e7de5dc80f7",
       10197
+    ],
+    ".next/standalone/.next/static/chunks/48d89cb6e123b9de.js": [
+      "9933c73a3fbf73d5b66830cc552c8ebb68dde0fc4f507ac88dd4109caeac9761",
+      36863
     ],
     ".next/standalone/.next/static/chunks/452a3479b1b93bbe.js": [
       "96d9c7203ed57cd4f35d3e9dbeac194ae09a90c8c269043af335f11a80f4a959",
@@ -6601,17 +6597,29 @@
       "3559219f543d5e07018b487ef0eaa32ba4f520ed489890aaa9add288404fc61d",
       91998
     ],
-    ".next/standalone/.next/static/chunks/59bce45959b17b63.js": [
-      "ead983aede73d5dd83e567698f494ecd0857a4503521fbec857a03d36cec3a10",
-      1042538
-    ],
     ".next/standalone/.next/static/chunks/0f69a06443ae787d.js": [
       "122773413a20174809e2633c110bed254d46cd886e7913ae2f9d548c61efdcc0",
       399733
     ],
+    ".next/standalone/.next/static/chunks/35e418a0f8660ebd.js": [
+      "5a9d71d9b8446c8d342bd7e331686a4175256665dd4c757e87b9bcec37bd5d39",
+      1047883
+    ],
     ".next/standalone/.next/static/chunks/a6dad97d9634a72d.js": [
       "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
       112594
+    ],
+    ".next/standalone/.next/static/Rr9RMv9-VjNfcOLXTvyZm/_buildManifest.js": [
+      "9476e0afd3f9da68a64e6ec58631191fd3eaca62c9f5a377e7517fe9a89e59ea",
+      219
+    ],
+    ".next/standalone/.next/static/Rr9RMv9-VjNfcOLXTvyZm/_ssgManifest.js": [
+      "678f6ce2cb80b1fe72fc67e7412be6e2ab6ada083111b64f7c40d35e3cba5e00",
+      80
+    ],
+    ".next/standalone/.next/static/Rr9RMv9-VjNfcOLXTvyZm/_clientMiddlewareManifest.json": [
+      "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      2
     ],
     ".next/standalone/lexa-template.db": [
       "5358dcd9b2d245bd51dd9cd4d87e08f7e8d91f67bbafc9ea4398491ef6ae36f7",
@@ -6670,7 +6678,7 @@
       51020
     ],
     ".next/standalone/public/sw.js": [
-      "befa58f78d860d7083a8403e04f1cc92b107106cee8317309543b9f2e480ac8d",
+      "4fd59c53e9d22b0df7a8e8873ddaa68bfcdba09ab3f1f24461d42904e199e7b9",
       13776
     ],
     ".next/standalone/public/icons/pwa-192.png": [
@@ -6690,8 +6698,8 @@
       22162
     ],
     ".next/standalone/public/manifest.webmanifest": [
-      "2a9d31f03d08f7f4eb9d3d7e8090f127fb45b8cbef8e6930664b705aae11ba32",
-      868
+      "a7acec4913777ba491568f93612eed726bff900f405903cdaed6bf4dcd753a39",
+      914
     ],
     ".next/standalone/public/media/hero-law.png": [
       "0f1c140dd10eb6716c7ecb4aaae0f2361a4661f5c5cd86afbd110a9d11963a61",
@@ -6724,7 +6732,7 @@
   },
   "apk": {
     "file": "lexa-latest.apk",
-    "sha256": "c1e4999c959c6c8129e7c86d3caa39d1b198c9dde7ed21d70068d6e4ce6f81e4",
-    "size": 6671484
+    "sha256": "0c1572b6800a62e01068d6eac2e6f67b55a12f569ed68805b8501731956487ef",
+    "size": 6672708
   }
 }
