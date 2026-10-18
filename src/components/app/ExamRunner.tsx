@@ -5,6 +5,7 @@
 import * as React from "react";
 import { AlertTriangle, CheckCircle2, Clock, Send } from "lucide-react";
 import { answerExam, faNum, orgClassError, startExam, submitExam, type RunningExam } from "@/lib/cloud-api/org-classes";
+import { trackLearningEvent, useStudyContext } from "@/lib/study-tracker";
 
 const btn = "inline-flex items-center gap-1 rounded-xl border border-border px-3 py-1.5 text-xs font-bold hover:bg-muted disabled:opacity-50";
 const btnMain = "inline-flex items-center gap-1 rounded-xl bg-bronze px-4 py-2 text-sm font-bold text-white disabled:opacity-50";
@@ -29,6 +30,7 @@ export function ExamRunner({ examId, onDone }: { examId: string; onDone: () => v
   const submitted = React.useRef(false);
   const unsavedRef = React.useRef(unsaved);
   unsavedRef.current = unsaved;
+  useStudyContext("exam", examId);
 
   React.useEffect(() => {
     let alive = true;
@@ -76,6 +78,7 @@ export function ExamRunner({ examId, onDone }: { examId: string; onDone: () => v
     try {
       const r = await submitExam(exam.attemptId);
       setScore(r.score);
+      trackLearningEvent("exam_done", "exam", examId, r.score);
       setState("done");
     } catch (e) {
       submitted.current = false;
